@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <PackageId>AiBdd.Reqnroll</PackageId>
+    <Version>0.1.0</Version>
+    <Description>ai-bdd runtime plugin for Reqnroll: the step definition match service falls back to the ai-bdd daemon.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Reqnroll" Version="2.4.0" />
+  </ItemGroup>
+
+</Project>

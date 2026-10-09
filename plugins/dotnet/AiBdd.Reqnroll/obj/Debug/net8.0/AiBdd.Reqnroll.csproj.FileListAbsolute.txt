@@ -1,0 +1,13 @@
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.csproj.AssemblyReference.cache
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.GeneratedMSBuildEditorConfig.editorconfig
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.AssemblyInfoInputs.cache
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.AssemblyInfo.cs
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.csproj.CoreCompileInputs.cache
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.sourcelink.json
+/workspace/plugins/dotnet/AiBdd.Reqnroll/bin/Debug/net8.0/AiBdd.Reqnroll.deps.json
+/workspace/plugins/dotnet/AiBdd.Reqnroll/bin/Debug/net8.0/AiBdd.Reqnroll.dll
+/workspace/plugins/dotnet/AiBdd.Reqnroll/bin/Debug/net8.0/AiBdd.Reqnroll.pdb
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.dll
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/refint/AiBdd.Reqnroll.dll
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/AiBdd.Reqnroll.pdb
+/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/Debug/net8.0/ref/AiBdd.Reqnroll.dll

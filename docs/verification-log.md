@@ -22,7 +22,7 @@ and marked `synthetic: true`; **pending** = not yet run by any work package.
 | V10 | 2026-10-09 | verified (API) | Cucumber-JVM 8.0.4 (latest release on Maven Central) still exposes `io.cucumber.core.backend.Backend`, `BackendProviderService`, `Glue` and `runner.AmbiguousStepDefinitionsException`. `Backend.loadGlue(Glue, GlueDiscoveryRequest)` is the non-deprecated entry point since 8.0.0. The plugin targets 8.x; a 7.x profile is unnecessary. Glue visibility across backends remains to be proven by the plugin test. |
 | V11 | 2026-10-09 | pending | Behave plugin not yet implemented. |
 | V12 | 2026-10-09 | pending | pytest-bdd plugin not yet implemented. |
-| V13 | 2026-10-09 | pending | Reqnroll plugin not yet implemented. |
+| V13 | 2026-10-09 | verified with a correction | Reflection over `Reqnroll.dll` 2.4 shows `RuntimePluginEvents.RegisterGlobalDependencies` hands over the `ObjectContainer` and replaces `IStepDefinitionMatchService`; `CustomizeGlobalDependencies` only carries `ReqnrollConfiguration`, so the container is **not** reachable from that event. The plugin uses `RegisterGlobalDependencies` and resolves the existing service before replacing it. `IStepDefinitionMatchService` has `GetBestMatch(StepInstance, CultureInfo, out StepDefinitionAmbiguityReason, out List<BindingMatch>)`, `Match(...)` and `Ready`; `BindingMatch` is constructed as `(IStepDefinitionBinding, scopeMatches, arguments, StepContext)`. |
 | V14 | 2026-10-09 | unverified | The AI SDK adapter (`aiSdkModels`) is implemented against the documented `generateText`/`embedMany` surface and loads the package lazily, so the fakes never need it. No provider credentials exist here, so those names are not confirmed against `ai@7`; the adapter raises MODEL_UNAVAILABLE with an actionable message when the package is absent and MODEL_OUTPUT_INVALID when structured output is not JSON. |
 | V15 | 2026-10-09 | verified | `process.features.typescript === 'strip'` on Node 24.21.0, so `ai-bdd.config.ts` loads through dynamic `import()` with type stripping. `CONFIG_TS_UNSUPPORTED` remains for older runtimes. |
 | V16 | 2026-10-09 | verified | e2e@0.19 exposes no public screenshot fixture (only `e2e`, `e2e/agent`, `e2e/engine` and `e2e/runner` are importable), so `@ai-bdd/e2e-host` uses `agent.assert(text, { vision: true })` as its single assertion layer and records the layer as the ternary e2e judge. |
@@ -144,3 +144,20 @@ tool.inputSchema          # byte-identical to packages/contracts/schemas/tools/<
 client.callTool('aibdd_health', {})   # structuredContent.protocol === 1
 client.callTool('aibdd_resolve_step', { sessionId: 'nope', step: { text: 'x' } })  # isError, NO_SESSION
 ```
+
+### V13 — the Reqnroll replacement point
+
+```csharp
+// reflection probe over Reqnroll 2.4 (packages/plugins/dotnet has the plugin)
+Reqnroll.Plugins.IRuntimePlugin.Initialize(RuntimePluginEvents, RuntimePluginParameters, UnitTestProviderConfiguration)
+Reqnroll.Plugins.RuntimePluginEvents: RegisterGlobalDependencies(ObjectContainer), CustomizeGlobalDependencies(ReqnrollConfiguration)
+Reqnroll.BoDi.ObjectContainer: RegisterInstanceAs(TInterface, String, Boolean), RegisterTypeAs(Type, Type, String), IsRegistered(...)
+Reqnroll.Infrastructure.IStepDefinitionMatchService.GetBestMatch(StepInstance, CultureInfo, out StepDefinitionAmbiguityReason, out List<BindingMatch>)
+Reqnroll.Bindings.BindingMatch ctor(IStepDefinitionBinding stepBinding, Int32 scopeMatches, Object[] arguments, StepContext stepContext)
+Reqnroll.Bindings.IStepDefinitionBinding + IBinding.
+Method (Reqnroll.Bindings.Reflection.IBindingMethod) + IScopedBinding
+IExpression lives in the CucumberExpressions assembly (CucumberExpressions.IExpression), not in Reqnroll
+```
+
+Action: the plugin decorates `IStepDefinitionMatchService` from `RegisterGlobalDependencies`; native
+matches always win, and everything else reaches the daemon through the catch-all binding.
