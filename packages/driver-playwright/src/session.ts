@@ -96,10 +96,14 @@ export class PlaywrightSession implements DriverSession {
   private lastMaskingProven = true;
 
   static async open(options: PlaywrightDriverOptions, id: string): Promise<PlaywrightSession> {
-    const browser = new PlaywrightBrowser(options);
+    // A project may configure the URL in its config or in the environment; resolving
+    // it here means a fixture app that starts later still works.
+    const baseURL = options.baseURL ?? process.env.AI_BDD_BASE_URL ?? process.env.AI_BDD_APP_URL;
+    const effective: PlaywrightDriverOptions = baseURL !== undefined ? { ...options, baseURL } : options;
+    const browser = new PlaywrightBrowser(effective);
     const context = await browser.context();
     const page = await context.newPage();
-    return new PlaywrightSession(id, context, page, browser, options);
+    return new PlaywrightSession(id, context, page, browser, effective);
   }
 
   private constructor(
@@ -134,7 +138,15 @@ export class PlaywrightSession implements DriverSession {
   async observe(options: { pixels?: boolean } = {}): Promise<Observation> {
     this.assertOpen();
     this.revision += 1;
-    const snapshot = await this.page.locator('body').ariaSnapshot();
+    // A page that is still loading (or freshly created) yields an empty snapshot, so
+    // the driver waits for the document and retries once before reporting an empty
+    // tree — an empty observation would otherwise look like "nothing matched".
+    await this.page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    let snapshot = await this.page.locator('body').ariaSnapshot().catch(() => '');
+    if (snapshot.trim().length === 0) {
+      await this.page.waitForTimeout(150);
+      snapshot = await this.page.locator('body').ariaSnapshot().catch(() => '');
+    }
     const parsed = parseAriaSnapshot(snapshot, this.revision);
     this.descriptors = parsed.descriptors;
     const nodes = await this.attachTestIds(parsed.nodes);
@@ -263,6 +275,10 @@ export class PlaywrightSession implements DriverSession {
         }
         case 'tap':
           await this.locate(action).click();
+          // A click may trigger a navigation or a reload. Wait a moment for it to start
+          // and then for the document, so the next observation is not the old screen.
+          await this.page.waitForTimeout(50);
+          await this.page.waitForLoadState('domcontentloaded').catch(() => undefined);
           return { ok: true, verb: action.verb, route: safeRoute(this.page.url()) };
         case 'doubleTap':
           await this.locate(action).dblclick();

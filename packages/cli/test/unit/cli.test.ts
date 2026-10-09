@@ -183,7 +183,7 @@ describe('ai-bdd verify-evidence and doctor', () => {
 });
 
 describe('ai-bdd codegen', () => {
-  it('emits deterministic step definitions from the caches', async () => {
+  it('emits deterministic step definitions from the caches (delegate style)', async () => {
     const dir = makeFixtureProject();
     await runCli(['--fake', 'run', 'fixtures/specs/billing.spec.md'], capture(dir).io);
     const { io, out } = capture(dir);
@@ -193,10 +193,30 @@ describe('ai-bdd codegen', () => {
     expect(existsSync(steps)).toBe(true);
     const source = readFileSync(steps, 'utf8');
     expect(source).toContain('DO NOT EDIT');
-    expect(source).toContain("from '@cucumber/cucumber'");
-    expect(source).toMatch(/When\(\/\^/u);
-    // The generated steps must only touch the per-scenario page and must import what
-    // they use: a bare `page` global would not compile (found by the DX review).
+    expect(source).toContain('Style: delegate');
+    // The binding is thin: it delegates to the agent, whose cached program is the
+    // replayed driver code.
+    expect(source).toMatch(/When\(\/\^.*\$\/, async function \(\) \{\n  await aiBdd\.act\('/u);
+    expect(source).toContain('// cache: act program');
+    expect(source).toContain("await aiBdd.assert('");
+    expect(out.join('\n')).toMatch(/act program\(s\)/u);
+
+    const evidence = JSON.parse(readFileSync(join(dir, '.ai-bdd', 'generated', 'ai-bdd.evidence.json'), 'utf8')) as {
+      style: string;
+      judgeOnly: string[];
+    };
+    expect(evidence.style).toBe('delegate');
+    expect(evidence.judgeOnly.length).toBeGreaterThan(0);
+  });
+
+  it('emits recorded actions in inline style', async () => {
+    const dir = makeFixtureProject();
+    await runCli(['--fake', 'run', 'fixtures/specs/billing.spec.md'], capture(dir).io);
+    const { io } = capture(dir);
+    expect(await runCli(['--fake', 'codegen', '--framework', 'cucumber-js', '--style', 'inline'], io)).toBe(EXIT_CODES.ok);
+    const source = readFileSync(join(dir, '.ai-bdd', 'generated', 'ai-bdd.steps.ts'), 'utf8');
+    expect(source).toMatch(/Style: inline/u);
+    // The generated steps must only touch the per-scenario page and import what they use.
     expect(source).not.toMatch(/[^.\w]page\./u);
     expect(source).toContain('world.page');
     expect(source).toContain("import { aiBdd, baseURL, typeSecret");
@@ -204,7 +224,6 @@ describe('ai-bdd codegen', () => {
     expect(support).toContain('export interface AiBddWorld');
     expect(support).toContain('await context.newPage()');
     expect(support).toContain("from '@cucumber/cucumber'");
-    expect(out.join('\n')).toMatch(/act program\(s\)/u);
   });
 
   it('emits a Playwright-flavoured suite on request', async () => {

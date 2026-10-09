@@ -12,6 +12,10 @@ export interface DriverConformanceOptions {
   knownSelector: Selector;
   /** A secret name the driver can fill, when it supports `typeSecret`. */
   secretName?: string;
+  /** The field a secret is typed into. Defaults to `knownSelector`. */
+  secretSelector?: Selector;
+  /** The screen that owns the secret field, when it is not the known screen. */
+  secretNavigate?: Action;
 }
 
 /**
@@ -76,6 +80,8 @@ export function runDriverConformance(factory: DriverFactory, options: DriverConf
       } finally {
         await session.close();
       }
+    });
+
     it('performs a known action and reports a result', async () => {
       const session = await open();
       try {
@@ -111,11 +117,11 @@ export function runDriverConformance(factory: DriverFactory, options: DriverConf
       if (!driver.capabilities.verbs.includes('typeSecret') || !options.secretName) return;
       const session = await open();
       try {
-        await session.perform(options.navigate);
+        await session.perform(options.secretNavigate ?? options.navigate);
         const fill = await session.perform({
           verb: 'typeSecret',
           secretName: options.secretName,
-          selector: options.knownSelector,
+          selector: options.secretSelector ?? options.knownSelector,
         });
         expect(fill.ok).toBe(true);
         const observation = await session.observe({ pixels: true });
@@ -130,8 +136,6 @@ export function runDriverConformance(factory: DriverFactory, options: DriverConf
       const session = await open();
       await session.close();
       await expect(session.observe()).rejects.toBeTruthy();
-    });
-
     });
   });
 }

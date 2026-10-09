@@ -1,5 +1,6 @@
 {
   "generatedBy": "@ai-bdd/codegen",
+  "style": "delegate",
   "actKeys": [
     "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
     "d3bfdf06bbd0319fb452ab5af5ac9f315b140c75ff219c962795b684ed0ea682",
@@ -11,5 +12,15 @@
     "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
     "9e8b7e75854a40f50c9fd529373a653b37344b167f97d84902cd47f5b25bb5e9",
     "2ab903108ec70b94c59d923bbb08b01ca34f2688ed29f5762b90586e684c1fdb"
+  ],
+  "judgeOnly": [
+    "The invoice preview shows a prorated amount",
+    "The plan badge is visible",
+    "The plan badge reads \"free\"",
+    "The plan badge reads \"pro\"",
+    "The plan badge reads free",
+    "The plan badge reads pro",
+    "The plan badge shows a reasonable tier",
+    "The slow content is visible"
   ]
 }

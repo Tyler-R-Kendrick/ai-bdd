@@ -1,3 +1,5 @@
+import { decode } from 'fast-png';
+import pixelmatch from 'pixelmatch';
 import type { DriverSession, Observation, SettleOptions, SettleResult } from '@ai-bdd/contracts';
 import { DEFAULT_SETTLE } from '@ai-bdd/contracts';
 
@@ -70,8 +72,72 @@ export async function settle(
  * decoded pixels (pixelmatch); this byte-level fallback keeps the contract
  * honest for drivers that hand back undecoded captures.
  */
+/**
+ * Ratio of differing pixels between two PNG captures (section 8.6).
+ *
+ * The comparison decodes both images and runs pixelmatch with the documented 0.1
+ * threshold, because two captures of the same static screen can still differ in
+ * their encoded bytes (zlib chunking, metadata) while being pixel-identical — a
+ * byte comparison would make settle detection never converge on a real browser.
+ */
 export function diffRatio(a: Uint8Array, b: Uint8Array): number {
   if (a.length === 0 && b.length === 0) return 0;
+  try {
+    const left = decodePng(a);
+    const right = decodePng(b);
+    if (left.width !== right.width || left.height !== right.height) return 1;
+    const total = left.width * left.height;
+    if (total === 0) return 0;
+    const differing = pixelmatchCompat(left.data, right.data, null, left.width, left.height, { threshold: 0.1 });
+    return differing / total;
+  } catch {
+    // An undecodable capture falls back to a byte comparison, which is stricter.
+    return byteDiffRatio(a, b);
+  }
+}
+
+interface DecodedImage {
+  width: number;
+  height: number;
+  data: Uint8Array;
+}
+
+function decodePng(bytes: Uint8Array): DecodedImage {
+  const decoded = decode(bytes) as { width: number; height: number; data: Uint8Array; channels?: number };
+  return { width: decoded.width, height: decoded.height, data: decoded.data };
+}
+
+/** Counts differing pixels with a YIQ-style perceptual threshold. */
+function pixelmatchCompat(
+  left: Uint8Array,
+  right: Uint8Array,
+  output: Uint8Array | null,
+  width: number,
+  height: number,
+  options: { threshold: number },
+): number {
+  try {
+    return pixelmatch(left, right, output, width, height, { threshold: options.threshold });
+  } catch {
+    // pixelmatch needs RGBA input; a grayscale capture is compared channel by channel.
+    const channels = left.length / (width * height);
+    let differing = 0;
+    for (let index = 0; index < width * height; index += 1) {
+      let different = false;
+      for (let channel = 0; channel < channels; channel += 1) {
+        const offset = index * channels + channel;
+        if (Math.abs((left[offset] ?? 0) - (right[offset] ?? 0)) > options.threshold * 255) {
+          different = true;
+          break;
+        }
+      }
+      if (different) differing += 1;
+    }
+    return differing;
+  }
+}
+
+function byteDiffRatio(a: Uint8Array, b: Uint8Array): number {
   const length = Math.max(a.length, b.length);
   let differing = Math.abs(a.length - b.length);
   for (let index = 0; index < Math.min(a.length, b.length); index += 1) {

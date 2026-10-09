@@ -78,7 +78,9 @@ function renderPage(route, query) {
   if (query.has('plan')) state.plan = String(query.get('plan'));
   if (query.has('toast')) state.toast = String(query.get('toast'));
   if (query.has('now')) state.now = String(query.get('now'));
-  state.dialog = query.get('dialog');
+  // `?dialog=` is an override, not a reset: a dialog opened by a click must survive
+  // the reload that the click handler triggers.
+  if (query.has('dialog')) state.dialog = query.get('dialog');
   const extra = { now: state.now ?? new Date().toISOString(), toast: state.toast ?? '' };
 
   const parts = [`<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>${escapeHtml(screen.title)}</title></head><body>`];
@@ -96,7 +98,7 @@ function renderPage(route, query) {
     }
   }
   parts.push('</main>');
-  parts.push('<script>document.addEventListener("click", (event) => { const target = event.target.closest("[data-action]"); if (!target) return; fetch("/__test/visit", { method: "POST", body: JSON.stringify({ action: target.dataset.action }) }); });</script>');
+  parts.push('<script>document.addEventListener("click", (event) => { const target = event.target.closest("[data-action]"); if (!target) return; event.preventDefault(); fetch("/__test/visit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: target.dataset.action }) }).then(() => window.location.reload()); });</script>');
   parts.push('</body></html>');
   return { status: 200, html: parts.join('') };
 }
@@ -122,11 +124,19 @@ const server = createServer((request, response) => {
   }
   if (url.pathname === '/__test/visit' && request.method === 'POST') {
     return collect(request, (body) => {
+      // The transitions mirror fixtures/app/model.json exactly: the fake driver and
+      // the browser must observe the same screen after the same action.
       const action = String(body.action ?? '');
-      if (action === 'upgrade') state.plan = 'pro';
-      if (action === 'downgrade') state.plan = state.unpaid > 0 ? state.plan : 'free';
-      if (action === 'confirmUpgrade') state.plan = 'pro';
+      if (action === 'upgrade') state.dialog = 'upgrade';
+      if (action === 'confirmUpgrade') {
+        state.plan = 'pro';
+        state.dialog = null;
+      }
       if (action === 'cancelUpgrade') state.dialog = null;
+      if (action === 'downgrade') {
+        state.toast = state.unpaid > 0 ? 'downgrade-blocked' : null;
+        if (state.unpaid === 0) state.plan = 'free';
+      }
       if (action === 'signIn') state.signedIn = true;
       send(response, 200, JSON.stringify({ ok: true, state }), 'application/json');
     });
@@ -135,6 +145,10 @@ const server = createServer((request, response) => {
     return send(response, 200, JSON.stringify({ state, visits: Object.fromEntries(visits) }), 'application/json');
   }
   if (url.pathname === '/__health') return send(response, 200, JSON.stringify({ ok: true }), 'application/json');
+  if (url.pathname === '/login' && state.signedIn) {
+    const { html, status } = renderPage('/dashboard', url.searchParams);
+    return send(response, status, html);
+  }
   if (url.pathname === '/dashboard') {
     const { html, status } = renderPage('/dashboard', url.searchParams);
     return send(response, status, html);

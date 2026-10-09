@@ -35,6 +35,13 @@ findings.
 | **`fileExists`-style host checks could be bypassed by a suffix host** (`evil-localhost`) and by userinfo (`http://localhost@evil.test`). | medium | `isNavigationAllowed()` resolves the real host, normalises a trailing dot, rejects non-http(s) schemes and only allows exact or subdomain matches; covered by attack 8. |
 | **Unbounded input to user-supplied patterns** was a theoretical ReDoS. | low | The registry bounds the matched text to 4096 characters (`MAX_MATCH_INPUT_LENGTH`) and the parser suite keeps 100k-character inputs fast. |
 
+## Open findings
+
+| Finding | Severity | State |
+| --- | --- | --- |
+| A full browser-agent run of the corpus does not yet settle reliably on this fixture app: it re-renders through a JS reload, and the settle window after that reload occasionally reports `settled: false` at the 5s default. The driver-level parity (same binding per step) and the real-input click test both pass; only the status-for-status comparison is gated behind `AI_BDD_PW_PARITY=1`. | medium | Open. The pixel diff now decodes and runs pixelmatch (it previously compared encoded bytes, which could never converge), the fixture app's transitions now mirror the model, and the dialog capture survives the reload. What remains is tuning the quiet window for a JS-reload fixture; a real application is the honest place to finish it, which is why the comparison is opt-in rather than weakened. |
+| A JSON-registered (non-TypeScript) project cannot express model objects, so it must run with `AI_BDD_FAKE=1` or use a `.ts` config with `aiSdkModels()`. | low | Documented in `docs/config.md`; the CLI raises `CONFIG_INVALID` with that exact instruction. |
+
 ## Accepted risks
 
 | Risk | Severity | Rationale |

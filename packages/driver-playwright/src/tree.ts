@@ -109,7 +109,11 @@ function flatten(nodes: ObservedNode[], out: ObservedNode[] = []): ObservedNode[
 }
 
 function unescape(value: string): string {
-  return value.replace(/\\(["\\n])/gu, (_all, ch: string) => (ch === 'n' ? '\n' : ch));
+  // Playwright quotes text content (`paragraph: "Plan: Free plan"`); the node value
+  // is the unquoted string, which is what a predicate should compare against.
+  const unquoted =
+    value.length >= 2 && value.startsWith("\"") && value.endsWith("\"") ? value.slice(1, -1) : value;
+  return unquoted.replace(/\\(["\\n])/gu, (_all, ch: string) => (ch === "n" ? "\n" : ch));
 }
 
 export function structuralTreeHash(nodes: ObservedNode[]): string {

@@ -22,11 +22,34 @@ export default { drivers: { web: playwright({ browser: 'chromium', baseURL: 'htt
 Coordinate verbs (`tapAt`, `typeAt`) are declared unsupported on purpose: they need a capture id and
 bypass the structural selectors that make a recording replayable.
 
-## Install the browser
+## Install the browser (headless shell only)
+
+The driver runs the **headless shell**, not a full browser:
 
 ```bash
-pnpm -F @ai-bdd/driver-playwright exec playwright-core install chromium
+pnpm -F @ai-bdd/driver-playwright exec playwright-core install chromium-headless-shell
 ```
 
-`ai-bdd doctor` reports the driver as unavailable with that hint when the browser is missing, and the
-integration tests skip themselves when no browser is installed.
+That is the whole download — no full Chromium, no display server, no headed browser. The host still
+has to provide the shell's shared libraries (`libglib2.0-0`, `libnss3`, `libX11`, …); `ai-bdd doctor`
+reports the driver as unavailable, with the launch error, when they are missing.
+
+## Integration tests are opt-in
+
+```bash
+AI_BDD_PW_BROWSER=1 pnpm -F @ai-bdd/driver-playwright test
+```
+
+Without the flag the browser suite reports how to enable itself and the rest of the package still
+runs. With it, the driver passes the driver conformance suite against the fixture app, a driver-level
+parity check against the fake driver (AC3), and a real-input test that clicks a button and waits for the
+screen to change. In an environment without the shared libraries on the default search path, point
+`LD_LIBRARY_PATH` at them (a container image installed with `install-deps` needs nothing extra).
+
+## Parser golden
+
+`test/fixtures/aria-snapshots.json` is captured from the real headless shell:
+
+```bash
+AI_BDD_PW_BROWSER=1 node --import tsx scripts/capture-aria.mts
+```

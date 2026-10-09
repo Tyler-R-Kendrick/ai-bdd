@@ -13,13 +13,23 @@ import { HEADER, emitActions, emitPredicate, paramSignature } from './emit.js';
 
 export * from './emit.js';
 
+export type CodegenStyle = 'delegate' | 'inline';
+export type CodegenHost = 'cucumber-js' | 'playwright' | 'e2e';
+
 export interface CodegenOptions {
   /** Project root; caches and the lockfile are resolved relative to it. */
   projectRoot: string;
   outDir: string;
   cacheDir?: string;
   lockPath?: string;
-  framework?: 'cucumber-js' | 'playwright';
+  framework?: CodegenHost;
+  /**
+   * `delegate` (the default) emits the thin binding that calls the agent, so the
+   * cached ActProgram stays the single source of the replayed driver actions and
+   * heals when the screen changed. `inline` emits the recorded Playwright actions
+   * directly, which removes the daemon hop for steps that have not changed.
+   */
+  style?: CodegenStyle;
 }
 
 export interface CodegenResult {
@@ -29,6 +39,10 @@ export interface CodegenResult {
   checkKeys: string[];
   /** Assertions that can only run on the daemon. */
   judgeOnly: string[];
+  /** The style that was used. */
+  style: CodegenStyle;
+  /** Step texts that were emitted, with the cache key that backs each one. */
+  steps: Array<{ text: string; kind: 'action' | 'assertion'; cacheKey?: string; judgeOnly?: boolean }>;
 }
 
 export async function generate(options: CodegenOptions): Promise<CodegenResult> {
@@ -40,21 +54,33 @@ export async function generate(options: CodegenOptions): Promise<CodegenResult> 
   const lock = readLock(lockPath);
 
   const judgeOnly = judgeOnlyCriteria(lock, checks);
+  const style = options.style ?? 'delegate';
   const files: string[] = [];
 
-  if (framework === 'cucumber-js') {
-    files.push(write(join(options.outDir, 'ai-bdd.steps.ts'), cucumberSteps(acts, checks, judgeOnly)));
-    files.push(write(join(options.outDir, 'ai-bdd.support.ts'), supportModule()));
+  if (framework === 'playwright') {
+    files.push(write(join(options.outDir, 'ai-bdd.spec.ts'), playwrightSpec(acts, checks, judgeOnly, style)));
+  } else if (style === 'delegate') {
+    files.push(write(join(options.outDir, 'ai-bdd.steps.ts'), delegatedSteps(acts, checks, judgeOnly, framework)));
+    files.push(write(join(options.outDir, 'ai-bdd.support.ts'), supportModule(framework)));
   } else {
-    files.push(write(join(options.outDir, 'ai-bdd.spec.ts'), playwrightSpec(acts, checks, judgeOnly)));
+    files.push(write(join(options.outDir, 'ai-bdd.steps.ts'), cucumberSteps(acts, checks, judgeOnly)));
+    files.push(write(join(options.outDir, 'ai-bdd.support.ts'), supportModule(framework)));
   }
-  files.push(write(join(options.outDir, 'ai-bdd.evidence.json'), evidenceIndex(acts, checks)));
+  files.push(write(join(options.outDir, 'ai-bdd.evidence.json'), evidenceIndex(acts, checks, style, judgeOnly)));
+
+  const steps = [
+    ...acts.map((program) => ({ text: program.text, kind: 'action' as const, cacheKey: program.key })),
+    ...checks.map((program) => ({ text: program.text, kind: 'assertion' as const, cacheKey: program.key })),
+    ...judgeOnly.map((text) => ({ text, kind: 'assertion' as const, judgeOnly: true })),
+  ].sort((left, right) => (left.text < right.text ? -1 : 1));
 
   return {
     files,
     actKeys: acts.map((program) => program.key).sort(),
     checkKeys: checks.map((program) => program.key).sort(),
     judgeOnly,
+    style,
+    steps,
   };
 }
 
@@ -100,8 +126,46 @@ function judgeOnlyCriteria(lock: LockFile | undefined, checks: CheckProgram[]): 
   return [...criteria].sort();
 }
 
+/**
+ * Emits the thin bindings: one `When` per recorded action and one `Then` per
+ * assertion, each delegating to the daemon.
+ *
+ * This is the shape that keeps the cached programs authoritative. The binding says
+ * *what* the step is; `.ai-bdd/cache/act/<key>.json` holds the recorded, effect-verified
+ * driver actions that are replayed on later runs, healed when the screen changed, and
+ * re-recorded only when the impact area moved.
+ */
+function delegatedSteps(acts: ActProgram[], checks: CheckProgram[], judgeOnly: string[], host: string): string {
+  const lines: string[] = [...HEADER, '', `// Style: delegate (${host} -> ai-bdd daemon). The cached programs are the replayed driver code.`, '', "import { When, Then } from '@cucumber/cucumber';", "import { aiBdd } from './ai-bdd.support.js';", ''];  for (const program of acts) {
+    lines.push(`// cache: act program ${program.key} (driver ${program.driver}, ${program.actions.length} action(s))`);
+    lines.push(`When(${pattern(program.text)}, async function () {`);
+    lines.push(`  await aiBdd.act(${quote(program.text)});`);
+    lines.push('});');
+    lines.push('');
+  }
+  for (const program of checks) {
+    lines.push(`// cache: check program ${program.key}${program.invariant ? ' (invariant)' : ''}`);
+    lines.push(`Then(${pattern(program.text)}, async function () {`);
+    lines.push(`  await aiBdd.assert(${quote(program.text)});`);
+    lines.push('});');
+    lines.push('');
+  }
+  for (const criterion of judgeOnly) {
+    lines.push('// judge-only: no deterministic program exists, so this stays on the daemon');
+    lines.push(`Then(${pattern(criterion)}, async function () {`);
+    lines.push(`  await aiBdd.assert(${quote(criterion)});`);
+    lines.push('});');
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
 function cucumberSteps(acts: ActProgram[], checks: CheckProgram[], judgeOnly: string[]): string {
-  const lines: string[] = [...HEADER, '', "import { When, Then } from '@cucumber/cucumber';", "import { expect } from '@playwright/test';", "import { aiBdd, baseURL, typeSecret, type AiBddWorld, type AiBddParams } from './ai-bdd.support.js';", ''];
+  const lines: string[] = [
+    ...HEADER,
+    '// Style: inline (recorded driver actions; no daemon hop for these steps).',
+    '',
+    "import { When, Then } from '@cucumber/cucumber';", "import { expect } from '@playwright/test';", "import { aiBdd, baseURL, typeSecret, type AiBddWorld, type AiBddParams } from './ai-bdd.support.js';", ''];
   for (const program of acts) {
     const { lines: body, params } = emitActions(program);
     lines.push(`// source: act cache ${program.key}`);
@@ -130,9 +194,10 @@ function cucumberSteps(acts: ActProgram[], checks: CheckProgram[], judgeOnly: st
   return lines.join('\n');
 }
 
-function playwrightSpec(acts: ActProgram[], checks: CheckProgram[], judgeOnly: string[]): string {
+function playwrightSpec(acts: ActProgram[], checks: CheckProgram[], judgeOnly: string[], style: CodegenStyle = 'inline'): string {
   const lines: string[] = [
     ...HEADER,
+    `// Style: ${style}`,
     '',
     "import { test, expect } from '@playwright/test';",
     "import { baseURL, secrets, typeSecret } from './ai-bdd.support.js';",
@@ -159,10 +224,11 @@ function playwrightSpec(acts: ActProgram[], checks: CheckProgram[], judgeOnly: s
   return lines.join('\n');
 }
 
-function supportModule(): string {
+function supportModule(host: string): string {
   return [
     ...HEADER,
     '',
+    `// host: ${host}`,
     "import { After, Before, World } from '@cucumber/cucumber';",
     "import { chromium, type Browser, type Page } from 'playwright-core';",
     '',
@@ -220,6 +286,13 @@ function supportModule(): string {
     '}',
     '',
     'export const aiBdd = {',
+    '  /**',
+    '   * Runs an action step on the daemon: replay the cached ActProgram, heal when the',
+    '   * screen changed, record when nothing was cached yet.',
+    '   */',
+    '  async act(instruction: string): Promise<void> {',
+    "    await daemon('run_step', { sessionId: process.env.AI_BDD_SESSION_ID ?? 'generated', step: { text: instruction, kind: 'action' } });",
+    '  },',
     '  /** Judge-only assertion: the criterion has no deterministic program. */',
     '  async assert(criterion: string): Promise<void> {',
     "    await daemon('run_step', { sessionId: process.env.AI_BDD_SESSION_ID ?? 'generated', step: { text: criterion, kind: 'assertion' } });",
@@ -232,12 +305,14 @@ function supportModule(): string {
   ].join('\n');
 }
 
-function evidenceIndex(acts: ActProgram[], checks: CheckProgram[]): string {
+function evidenceIndex(acts: ActProgram[], checks: CheckProgram[], style: CodegenStyle, judgeOnly: string[]): string {
   return `${JSON.stringify(
     {
       generatedBy: '@ai-bdd/codegen',
+      style,
       actKeys: acts.map((program) => program.key),
       checkKeys: checks.map((program) => program.key),
+      judgeOnly,
     },
     null,
     2,

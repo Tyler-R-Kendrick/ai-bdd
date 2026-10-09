@@ -125,9 +125,10 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('codegen')
     .description('emit step-definition source from locked resolutions and cached programs')
-    .option('--framework <name>', 'cucumber-js or playwright', 'cucumber-js')
+    .option('--framework <name>', 'cucumber-js, playwright or e2e', 'cucumber-js')
+    .option('--style <name>', 'delegate (binding calls the agent) or inline (recorded actions)', 'delegate')
     .option('--out <dir>', 'output directory (default .ai-bdd/generated)')
-    .action(async (options: { framework?: 'cucumber-js' | 'playwright'; out?: string; cacheDir?: string }) => {
+    .action(async (options: { framework?: 'cucumber-js' | 'playwright' | 'e2e'; style?: 'delegate' | 'inline'; out?: string; cacheDir?: string }) => {
       await guard(io, () => codegenCommand(io, options));
     });
 

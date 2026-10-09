@@ -300,17 +300,27 @@ export async function doctor(io: CliIo, options: { offline?: boolean; fake?: boo
 
 export async function codegenCommand(
   io: CliIo,
-  options: { framework?: 'cucumber-js' | 'playwright'; out?: string; cacheDir?: string },
+  options: { framework?: 'cucumber-js' | 'playwright' | 'e2e'; style?: 'delegate' | 'inline'; out?: string; cacheDir?: string },
 ): Promise<number> {
+  // `--host e2e` writes the file e2e's own runner collects, where unbound actions go
+  // to e2e's agent.act (and therefore to e2e's native replay cache).
+  if (options.framework === 'e2e') {
+    return e2eHostGenerate(io, { ...(options.out !== undefined ? { out: options.out } : {}) });
+  }
+
   const outDir = options.out ? join(io.cwd, options.out) : join(io.cwd, '.ai-bdd', 'generated');
   const result = await generate({
     projectRoot: io.cwd,
     outDir,
     framework: options.framework ?? 'cucumber-js',
+    ...(options.style !== undefined ? { style: options.style } : {}),
     ...(options.cacheDir !== undefined ? { cacheDir: options.cacheDir } : {}),
   });
   for (const file of result.files) io.out(`wrote ${relative(io.cwd, file)}`);
-  io.out(`${result.actKeys.length} act program(s), ${result.checkKeys.length} check program(s), ${result.judgeOnly.length} judge-only assertion(s)`);
+  io.out(
+    `${result.style} style: ${result.actKeys.length} act program(s), ${result.checkKeys.length} check program(s), ` +
+      `${result.judgeOnly.length} judge-only assertion(s)`,
+  );
   return EXIT_CODES.ok;
 }
 

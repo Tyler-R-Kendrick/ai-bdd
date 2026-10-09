@@ -1,8 +1,8 @@
 {
-  "runId": "01a12203-c1d1-7843-978e-971a254bf5e4",
+  "runId": "01a121ff-6f30-793b-a48c-dd63a0f26f47",
   "version": "0.1.0",
-  "startedAt": "2026-10-09T18:53:54.001Z",
-  "finishedAt": "2026-10-09T18:53:58.582Z",
+  "startedAt": "2026-10-09T18:49:10.704Z",
+  "finishedAt": "2026-10-09T18:49:15.309Z",
   "status": "failed",
   "driver": "web",
   "scenarios": [
@@ -28,9 +28,9 @@
             "reason": "no-match"
           },
           "evidence": [],
-          "durationMs": 304,
-          "traceId": "db8abc8ec9e711078c763747ee8337b2",
-          "traceparent": "00-db8abc8ec9e711078c763747ee8337b2-1e9bf2dc01065126-01",
+          "durationMs": 303,
+          "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
+          "traceparent": "00-5e50ca66f86ef3ede04c19b5e8bae6ac-9bdd0112aaead3ff-01",
           "error": {
             "code": "MODEL_OUTPUT_INVALID",
             "message": "no fake rule matched purpose=act",
@@ -48,8 +48,8 @@
             "mode": "act",
             "reason": "no-match"
           },
-          "traceId": "db8abc8ec9e711078c763747ee8337b2",
-          "traceparent": "00-db8abc8ec9e711078c763747ee8337b2-366e16428de1e732-01",
+          "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
+          "traceparent": "00-5e50ca66f86ef3ede04c19b5e8bae6ac-8040dea9a92f5be6-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 7,
@@ -75,8 +75,8 @@
             "mode": "act",
             "reason": "no-match"
           },
-          "traceId": "db8abc8ec9e711078c763747ee8337b2",
-          "traceparent": "00-db8abc8ec9e711078c763747ee8337b2-8c625548e4f1aa0f-01",
+          "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
+          "traceparent": "00-5e50ca66f86ef3ede04c19b5e8bae6ac-9939458b8ce0d31a-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 8,
@@ -89,7 +89,7 @@
             "invalidation": []
           },
           "evidence": [],
-          "durationMs": 303,
+          "durationMs": 304,
           "modelCalls": 0
         },
         {
@@ -102,8 +102,8 @@
             "mode": "assert",
             "reason": "no-match"
           },
-          "traceId": "db8abc8ec9e711078c763747ee8337b2",
-          "traceparent": "00-db8abc8ec9e711078c763747ee8337b2-dccd70b618668ba0-01",
+          "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
+          "traceparent": "00-5e50ca66f86ef3ede04c19b5e8bae6ac-ae46a27882cca0eb-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 9,
@@ -157,7 +157,7 @@
             "reused": false
           },
           "evidence": [],
-          "durationMs": 303
+          "durationMs": 302
         },
         {
           "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#5",
@@ -169,8 +169,8 @@
             "mode": "assert",
             "reason": "no-match"
           },
-          "traceId": "db8abc8ec9e711078c763747ee8337b2",
-          "traceparent": "00-db8abc8ec9e711078c763747ee8337b2-68c79e1e261069b5-01",
+          "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
+          "traceparent": "00-5e50ca66f86ef3ede04c19b5e8bae6ac-2b331a71f269ce4d-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 10,
@@ -224,8 +224,8 @@
             "mode": "assert",
             "reason": "no-match"
           },
-          "traceId": "db8abc8ec9e711078c763747ee8337b2",
-          "traceparent": "00-db8abc8ec9e711078c763747ee8337b2-dacd615bc143b023-01",
+          "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
+          "traceparent": "00-5e50ca66f86ef3ede04c19b5e8bae6ac-0df453387b82454a-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 12,
@@ -278,7 +278,7 @@
             "reused": false
           },
           "evidence": [],
-          "durationMs": 303
+          "durationMs": 302
         },
         {
           "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#7",
@@ -293,8 +293,8 @@
           },
           "evidence": [],
           "durationMs": 302,
-          "traceId": "db8abc8ec9e711078c763747ee8337b2",
-          "traceparent": "00-db8abc8ec9e711078c763747ee8337b2-0cd4e054501b8e3b-01",
+          "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
+          "traceparent": "00-5e50ca66f86ef3ede04c19b5e8bae6ac-ddbb1fef3034e09b-01",
           "error": {
             "code": "MODEL_OUTPUT_INVALID",
             "message": "no fake rule matched purpose=act",
@@ -303,8 +303,8 @@
           }
         }
       ],
-      "durationMs": 2120,
-      "traceId": "db8abc8ec9e711078c763747ee8337b2",
+      "durationMs": 2118,
+      "traceId": "5e50ca66f86ef3ede04c19b5e8bae6ac",
       "driver": "fake"
     },
     {
@@ -327,9 +327,9 @@
             "reason": "no-match"
           },
           "evidence": [],
-          "durationMs": 302,
-          "traceId": "3aca49e1f4d4d4bb013e1fd4be1a52f9",
-          "traceparent": "00-3aca49e1f4d4d4bb013e1fd4be1a52f9-4a4b8faf774d9cb3-01",
+          "durationMs": 301,
+          "traceId": "2d2f7f62bce4b0d9533b59d0e4fcb202",
+          "traceparent": "00-2d2f7f62bce4b0d9533b59d0e4fcb202-bd69237433cb9acf-01",
           "error": {
             "code": "MODEL_OUTPUT_INVALID",
             "message": "no fake rule matched purpose=act",
@@ -349,9 +349,9 @@
             "reason": "no-match"
           },
           "evidence": [],
-          "durationMs": 302,
-          "traceId": "3aca49e1f4d4d4bb013e1fd4be1a52f9",
-          "traceparent": "00-3aca49e1f4d4d4bb013e1fd4be1a52f9-d3eeae5f7e935695-01",
+          "durationMs": 301,
+          "traceId": "2d2f7f62bce4b0d9533b59d0e4fcb202",
+          "traceparent": "00-2d2f7f62bce4b0d9533b59d0e4fcb202-bbe629a11fccc6f1-01",
           "error": {
             "code": "MODEL_OUTPUT_INVALID",
             "message": "no fake rule matched purpose=act",
@@ -369,8 +369,8 @@
             "mode": "act",
             "reason": "no-match"
           },
-          "traceId": "3aca49e1f4d4d4bb013e1fd4be1a52f9",
-          "traceparent": "00-3aca49e1f4d4d4bb013e1fd4be1a52f9-2c0e8dcd454fd87e-01",
+          "traceId": "2d2f7f62bce4b0d9533b59d0e4fcb202",
+          "traceparent": "00-2d2f7f62bce4b0d9533b59d0e4fcb202-523db083648664c8-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 15,
@@ -396,8 +396,8 @@
             "mode": "act",
             "reason": "no-match"
           },
-          "traceId": "3aca49e1f4d4d4bb013e1fd4be1a52f9",
-          "traceparent": "00-3aca49e1f4d4d4bb013e1fd4be1a52f9-a1f24460c003787a-01",
+          "traceId": "2d2f7f62bce4b0d9533b59d0e4fcb202",
+          "traceparent": "00-2d2f7f62bce4b0d9533b59d0e4fcb202-bacffcca7161fab7-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 16,
@@ -423,8 +423,8 @@
             "mode": "assert",
             "reason": "no-match"
           },
-          "traceId": "3aca49e1f4d4d4bb013e1fd4be1a52f9",
-          "traceparent": "00-3aca49e1f4d4d4bb013e1fd4be1a52f9-71b602949059c091-01",
+          "traceId": "2d2f7f62bce4b0d9533b59d0e4fcb202",
+          "traceparent": "00-2d2f7f62bce4b0d9533b59d0e4fcb202-d1bf59bec62dc65c-01",
           "location": {
             "uri": "/workspace/fixtures/specs/billing.spec.md",
             "line": 17,
@@ -478,7 +478,7 @@
             "reused": false
           },
           "evidence": [],
-          "durationMs": 302,
+          "durationMs": 303,
           "error": {
             "code": "CHECK_FAILED",
             "message": "predicate textContains was unsatisfied: expected to contain \"settle unpaid invoices\"",
@@ -497,9 +497,9 @@
             "reason": "no-match"
           },
           "evidence": [],
-          "durationMs": 303,
-          "traceId": "3aca49e1f4d4d4bb013e1fd4be1a52f9",
-          "traceparent": "00-3aca49e1f4d4d4bb013e1fd4be1a52f9-606f7680ed4bc698-01",
+          "durationMs": 302,
+          "traceId": "2d2f7f62bce4b0d9533b59d0e4fcb202",
+          "traceparent": "00-2d2f7f62bce4b0d9533b59d0e4fcb202-120f06b673a66494-01",
           "error": {
             "code": "MODEL_OUTPUT_INVALID",
             "message": "no fake rule matched purpose=act",
@@ -508,8 +508,8 @@
           }
         }
       ],
-      "durationMs": 1814,
-      "traceId": "3aca49e1f4d4d4bb013e1fd4be1a52f9",
+      "durationMs": 1813,
+      "traceId": "2d2f7f62bce4b0d9533b59d0e4fcb202",
       "driver": "fake"
     }
   ],
@@ -594,6 +594,6 @@
   "exitCode": 1,
   "frozen": false,
   "strictCache": false,
-  "runDir": "/workspace/.ai-bdd/runs/01a12203-c1d1-7843-978e-971a254bf5e4",
-  "rootHash": "b2529fa45c25f3f5ef43df81751f937b5a250cd6350efaa291c07ded893f6d5d"
+  "runDir": "/workspace/.ai-bdd/runs/01a121ff-6f30-793b-a48c-dd63a0f26f47",
+  "rootHash": "6dd7843bc3744ac73e4ff02f2f108edb4769c4cef7f614688232c9ef49226c84"
 }

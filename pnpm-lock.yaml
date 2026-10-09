@@ -460,7 +460,16 @@ importers:
       '@ai-bdd/contracts':
         specifier: workspace:*
         version: link:../contracts
+      fast-png:
+        specifier: ^8.0.0
+        version: 8.0.0
+      pixelmatch:
+        specifier: ^8.0.0
+        version: 8.0.0
     devDependencies:
+      '@types/pixelmatch':
+        specifier: ^5.2.6
+        version: 5.2.6
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -670,6 +679,8 @@ importers:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+
+  test/adversarial: {}
 
 packages:
 
@@ -1477,6 +1488,9 @@ packages:
 
   '@types/normalize-package-data@2.4.4':
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
+
+  '@types/pixelmatch@5.2.6':
+    resolution: {integrity: sha512-wC83uexE5KGuUODn6zkm9gMzTwdY5L0chiK+VrKcDfEjzxh1uadlWTvOmAbCpnM9zx/Ww3f8uKlYQVnO/TrqVg==}
 
   '@ubjs/core@0.31.0-3':
     resolution: {integrity: sha512-39XrJgUZ2VVb561sSnkXPhczNoeBsNiSRArecsV0JE7CJq69ajFkcn9/tBAUS2NpgHkLIDU+z6Ks2+1wXnboxg==}
@@ -2644,23 +2658,17 @@ snapshots:
 
   '@teppeis/multimaps@3.0.0': {}
 
-  '@trycua/cua-driver-darwin-arm64@0.34.0':
-    optional: true
+  '@trycua/cua-driver-darwin-arm64@0.34.0': {}
 
-  '@trycua/cua-driver-darwin-x64@0.34.0':
-    optional: true
+  '@trycua/cua-driver-darwin-x64@0.34.0': {}
 
-  '@trycua/cua-driver-linux-arm64-gnu@0.34.0':
-    optional: true
+  '@trycua/cua-driver-linux-arm64-gnu@0.34.0': {}
 
-  '@trycua/cua-driver-linux-x64-gnu@0.34.0':
-    optional: true
+  '@trycua/cua-driver-linux-x64-gnu@0.34.0': {}
 
-  '@trycua/cua-driver-win32-arm64-msvc@0.34.0':
-    optional: true
+  '@trycua/cua-driver-win32-arm64-msvc@0.34.0': {}
 
-  '@trycua/cua-driver-win32-x64-msvc@0.34.0':
-    optional: true
+  '@trycua/cua-driver-win32-x64-msvc@0.34.0': {}
 
   '@trycua/cua-driver@0.34.0':
     dependencies:
@@ -2689,31 +2697,27 @@ snapshots:
 
   '@types/normalize-package-data@2.4.4': {}
 
+  '@types/pixelmatch@5.2.6':
+    dependencies:
+      '@types/node': 24.19.1
+
   '@ubjs/core@0.31.0-3': {}
 
-  '@ubjs/node-darwin-arm64@0.31.0-3':
-    optional: true
+  '@ubjs/node-darwin-arm64@0.31.0-3': {}
 
-  '@ubjs/node-darwin-x64@0.31.0-3':
-    optional: true
+  '@ubjs/node-darwin-x64@0.31.0-3': {}
 
-  '@ubjs/node-linux-arm64-gnu@0.31.0-3':
-    optional: true
+  '@ubjs/node-linux-arm64-gnu@0.31.0-3': {}
 
-  '@ubjs/node-linux-arm64-musl@0.31.0-3':
-    optional: true
+  '@ubjs/node-linux-arm64-musl@0.31.0-3': {}
 
-  '@ubjs/node-linux-x64-gnu@0.31.0-3':
-    optional: true
+  '@ubjs/node-linux-x64-gnu@0.31.0-3': {}
 
-  '@ubjs/node-linux-x64-musl@0.31.0-3':
-    optional: true
+  '@ubjs/node-linux-x64-musl@0.31.0-3': {}
 
-  '@ubjs/node-win32-arm64-msvc@0.31.0-3':
-    optional: true
+  '@ubjs/node-win32-arm64-msvc@0.31.0-3': {}
 
-  '@ubjs/node-win32-x64-msvc@0.31.0-3':
-    optional: true
+  '@ubjs/node-win32-x64-msvc@0.31.0-3': {}
 
   '@ubjs/node@0.31.0-3':
     optionalDependencies:
