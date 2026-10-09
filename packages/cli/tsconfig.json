@@ -51,6 +51,9 @@
     },
     {
       "path": "../e2e-host"
+    },
+    {
+      "path": "../conformance"
     }
   ]
 }

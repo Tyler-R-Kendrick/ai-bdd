@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import { loadScript } from './fake-daemon.js';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { StepResult } from '@ai-bdd/contracts';
@@ -7,11 +8,8 @@ import { describe, expect, it } from 'vitest';
 const here = fileURLToPath(new URL('.', import.meta.url));
 export const PLUGIN_KIT_DIR = join(here, '..', 'plugin');
 
-export interface FakeDaemonScript {
-  version: 1;
-  /** Deterministic responses keyed by tool name, in call order. */
-  responses: Record<string, Array<Record<string, unknown>>>;
-}
+import type { FakeDaemonScript } from './fake-daemon.js';
+export type { FakeDaemonScript };
 
 export interface PluginConformanceCase {
   feature: string;
@@ -19,8 +17,23 @@ export interface PluginConformanceCase {
   steps: Array<{ text: string; status: StepResult['status']; errorCode?: string; resolution: string }>;
 }
 
-export function loadScript(): FakeDaemonScript {
-  return JSON.parse(readFileSync(join(PLUGIN_KIT_DIR, 'script.json'), 'utf8')) as FakeDaemonScript;
+export { loadScript };
+
+export type StatusAliases = Record<string, string[]>;
+
+/** The alias table shared by every plugin: expected status -> accepted spellings. */
+export function loadStatusAliases(): StatusAliases {
+  try {
+    return JSON.parse(readFileSync(join(PLUGIN_KIT_DIR, 'status-aliases.json'), 'utf8')) as StatusAliases;
+  } catch {
+    return {};
+  }
+}
+
+/** True when `actual` is an accepted spelling of `expected` for this framework. */
+export function statusMatches(expected: string, actual: string, aliases: StatusAliases = loadStatusAliases()): boolean {
+  if (expected === actual) return true;
+  return (aliases[expected] ?? []).includes(actual);
 }
 
 export function loadCases(): PluginConformanceCase[] {
@@ -65,8 +78,14 @@ export function runPluginConformance(options: {
 
     for (const testCase of cases) {
       it(`${testCase.feature}: maps daemon results to framework statuses`, async () => {
+        const aliases = loadStatusAliases();
         const actual = await options.run(join(PLUGIN_KIT_DIR, 'features', testCase.feature));
-        expect(actual.map((step) => step.status)).toEqual(testCase.steps.map((step) => step.status));
+        for (const [index, expected] of testCase.steps.entries()) {
+          expect(
+            statusMatches(expected.status, actual[index]?.status ?? 'missing', aliases),
+            `${testCase.feature} step ${index}: expected ${expected.status}, got ${actual[index]?.status}`,
+          ).toBe(true);
+        }
         expect(actual.map((step) => step.resolution)).toEqual(testCase.steps.map((step) => step.resolution));
         for (const [index, expected] of testCase.steps.entries()) {
           if (expected.errorCode) expect(actual[index]?.errorCode).toBe(expected.errorCode);

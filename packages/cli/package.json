@@ -43,7 +43,8 @@
     "@ai-bdd/spec-gherkin": "workspace:*",
     "commander": "^15.0.0",
     "@ai-bdd/daemon": "workspace:*",
-    "@ai-bdd/e2e-host": "workspace:*"
+    "@ai-bdd/e2e-host": "workspace:*",
+    "@ai-bdd/conformance": "workspace:*"
   },
   "optionalDependencies": {
     "@ai-bdd/driver-cua": "workspace:*",

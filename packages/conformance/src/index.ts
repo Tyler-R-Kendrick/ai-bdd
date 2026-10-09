@@ -8,3 +8,4 @@
 export * from './driver-conformance.js';
 export * from './plugin-conformance.js';
 export * from './protocol-conformance.js';
+export * from './fake-daemon.js';

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-bdd-pytest"
+version = "0.1.0"
+description = "ai-bdd plugin for pytest-bdd: a custom StepParser plus a catch-all step that forwards to the ai-bdd daemon."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+classifiers = ["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"]
+dependencies = []
+
+[project.optional-dependencies]
+pytest-bdd = ["pytest-bdd>=9"]
+test = ["pytest", "pytest-bdd>=9"]
+
+[project.entry-points.pytest11]
+ai_bdd = "ai_bdd_pytest.plugin"
+
+[project.urls]
+Repository = "https://github.com/Tyler-R-Kendrick/ai-bdd"
+
+[tool.setuptools.packages.find]
+where = ["src"]

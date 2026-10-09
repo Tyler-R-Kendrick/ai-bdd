@@ -1,0 +1,7 @@
+{
+  "_comment": "A framework has its own status vocabulary, so the kit accepts the framework-specific spelling of an expected status. The ai-bdd status is still what the daemon records (R-K22): a healed step is only a pass in the foreign framework's report.",
+  "healed": ["passed", "healed"],
+  "pending": ["pending", "skipped", "failed", "untested"],
+  "ambiguous": ["ambiguous", "failed"],
+  "undefined": ["undefined", "failed", "skipped"]
+}

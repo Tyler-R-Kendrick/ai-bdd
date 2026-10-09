@@ -336,6 +336,8 @@ export interface ServeOptions {
   port?: number;
   config?: string;
   fake?: boolean;
+  /** Serve the plugin conformance kit's scripted responses (`--fake-script`). */
+  fakeScript?: boolean;
 }
 
 /**
@@ -345,6 +347,29 @@ export interface ServeOptions {
  * a language plugin can find them; the token is printed once for a human too.
  */
 export async function serveCommand(io: CliIo, options: ServeOptions = {}): Promise<number> {
+  const daemon = (await import('@ai-bdd/daemon' as string)) as {
+    startDaemon: (options: unknown) => Promise<{ url?: string; token: string; close(): Promise<void> }>;
+  };
+
+  // The scripted kit daemon needs neither a config nor models: it answers from
+  // packages/conformance/plugin/script.json so a plugin's own mapping is what is
+  // under test.
+  if (options.fakeScript === true) {
+    const { createScriptedBackend } = await import('@ai-bdd/conformance');
+    const handle = await daemon.startDaemon({
+      backend: createScriptedBackend(),
+      projectRoot: io.cwd,
+      host: '127.0.0.1',
+      port: options.port ?? 0,
+      http: options.http !== false,
+    });
+    io.out(`ai-bdd scripted daemon listening on ${handle.url ?? 'stdio'}`);
+    if (handle.url) io.out('the URL and token are in .ai-bdd/daemon.json (mode 0600)');
+    await waitForShutdown(options.stdio === true);
+    await handle.close();
+    return EXIT_CODES.ok;
+  }
+
   const context = await loadCliContext({
     projectRoot: io.cwd,
     env: process.env,
@@ -352,16 +377,15 @@ export async function serveCommand(io: CliIo, options: ServeOptions = {}): Promi
     ...(options.fake !== undefined ? { fake: options.fake } : {}),
   });
   const { createSessionManager } = await import('@ai-bdd/runtime');
-  const daemon = (await import('@ai-bdd/daemon' as string)) as {
-    startDaemon: (options: unknown) => Promise<{ url?: string; token: string; close(): Promise<void> }>;
-  };
-
-  const sessionManager = createSessionManager({
-    config: context.config,
-    models: context.models,
-    drivers: context.drivers,
-    reapOrphans: true,
-  });
+  // `--fake-script` serves the plugin conformance kit's scripted responses, so a
+  // plugin can be tested without a resolver, an act loop or a judge in the way.
+  const sessionManager =
+    createSessionManager({
+      config: context.config,
+      models: context.models,
+      drivers: context.drivers,
+      reapOrphans: true,
+    });
   const handle = await daemon.startDaemon({
     sessionManager,
     projectRoot: io.cwd,
@@ -379,7 +403,15 @@ export async function serveCommand(io: CliIo, options: ServeOptions = {}): Promi
     io.err('ai-bdd daemon serving MCP over stdio');
   }
 
-  await new Promise<void>((resolve) => {
+  await waitForShutdown(options.stdio === true);
+  await handle.close();
+  return EXIT_CODES.ok;
+}
+
+/** Resolves on SIGINT/SIGTERM, or immediately for a stdio daemon. */
+function waitForShutdown(stdio: boolean): Promise<void> {
+  if (stdio) return Promise.resolve();
+  return new Promise<void>((resolve) => {
     const shutdown = (): void => {
       process.off('SIGINT', shutdown);
       process.off('SIGTERM', shutdown);
@@ -387,10 +419,7 @@ export async function serveCommand(io: CliIo, options: ServeOptions = {}): Promi
     };
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
-    if (options.stdio === true) resolve();
   });
-  await handle.close();
-  return EXIT_CODES.ok;
 }
 
 export interface E2eHostGenerateOptions {

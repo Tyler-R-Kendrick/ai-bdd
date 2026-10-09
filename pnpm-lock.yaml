@@ -235,6 +235,9 @@ importers:
       '@ai-bdd/codegen':
         specifier: workspace:*
         version: link:../codegen
+      '@ai-bdd/conformance':
+        specifier: workspace:*
+        version: link:../conformance
       '@ai-bdd/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -2126,8 +2129,7 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@colors/colors@1.5.0':
-    optional: true
+  '@colors/colors@1.5.0': {}
 
   '@cucumber/ci-environment@15.0.0': {}
 

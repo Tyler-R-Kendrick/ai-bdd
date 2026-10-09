@@ -164,9 +164,12 @@ export function buildProgram(io: CliIo): Command {
     .option('--http', 'serve the HTTP JSON mirror (default)')
     .option('--port <n>', 'port for --http (default 0 = ephemeral)', (value) => Number(value))
     .option('--config <path>', 'config file path')
-    .action(async (options: { stdio?: boolean; http?: boolean; port?: number; config?: string }) => {
-      await guard(io, () => serveCommand(io, { ...options, fake: globalFake() }));
-    });
+    .option('--fake-script', 'serve the plugin conformance kit script instead of a real runtime')
+    .action(
+      async (options: { stdio?: boolean; http?: boolean; port?: number; config?: string; fakeScript?: boolean }) => {
+        await guard(io, () => serveCommand(io, { ...options, fake: globalFake() }));
+      },
+    );
 
   program
     .command('e2e-host')
