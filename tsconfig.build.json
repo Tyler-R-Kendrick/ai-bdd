@@ -8,6 +8,9 @@
       "path": "packages/spec-directives"
     },
     {
+      "path": "packages/spec-markdown"
+    },
+    {
       "path": "packages/spec-gauge"
     },
     {

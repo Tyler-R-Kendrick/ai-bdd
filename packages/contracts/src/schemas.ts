@@ -100,7 +100,7 @@ export const SpecDocumentSchema = z.object({
   id: z.string(),
   name: z.string(),
   uri: z.string(),
-  dialect: z.enum(['gauge', 'gherkin']),
+  dialect: z.string().min(1),
   tags: z.array(z.string()),
   options: StepOptionsSchema,
   dataTable: DataTableSchema.optional(),

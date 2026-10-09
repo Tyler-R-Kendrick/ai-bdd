@@ -13,8 +13,14 @@ export type JsonValue =
 
 export type JsonObject = { [key: string]: JsonValue };
 
-/** The two supported authoring dialects. They share one AST (R-K18). */
-export type Dialect = 'gauge' | 'gherkin';
+/**
+ * An authoring dialect id.
+ *
+ * The core ships `markdown` and nothing else. `gherkin` and `gauge` are *extension*
+ * dialects that produce the same AST, so a project can add or drop one without the
+ * runtime changing (the id is a string, not a closed union, for that reason).
+ */
+export type Dialect = 'markdown' | 'gherkin' | 'gauge' | (string & {});
 
 /**
  * Step kind. `setup` arranges state, `action` changes the UI, `assertion`

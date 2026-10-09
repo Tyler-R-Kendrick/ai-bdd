@@ -13,6 +13,7 @@ export const alias: Record<string, string> = {
   '@ai-bdd/models/fake': src('models', 'fake'),
   '@ai-bdd/contracts/helpers': src('contracts', 'helpers'),
   '@ai-bdd/contracts': src('contracts'),
+  '@ai-bdd/spec-markdown': src('spec-markdown'),
   '@ai-bdd/spec-gauge': src('spec-gauge'),
   '@ai-bdd/spec-gherkin': src('spec-gherkin'),
   '@ai-bdd/spec-directives': src('spec-directives'),

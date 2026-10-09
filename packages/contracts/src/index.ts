@@ -10,6 +10,8 @@ export * from './ast.js';
 export * from './bindings.js';
 export * from './resolution.js';
 export * from './driver.js';
+export * from './actor.js';
+export * from './eval.js';
 export * from './programs.js';
 export * from './models.js';
 export * from './judge.js';
