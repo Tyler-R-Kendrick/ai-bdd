@@ -44,8 +44,45 @@ export interface AiBddWorld {
 /** The catch-all pattern, optionally excluding the native step patterns. */
 export function catchAllPattern(existingPatterns: string[], coexist = false): RegExp {
   if (!coexist || existingPatterns.length === 0) return /^(.*)$/;
-  const quoted = existingPatterns.map((pattern) => pattern.replace(/^\^|\$$/gu, '').replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'));
-  return new RegExp(`^(?!(?:${quoted.join('|')})$)(.*)$`, 'u');
+  // The exclusions are regex *bodies*, not quoted literals: a native pattern may be a
+  // Cucumber Expression, and quoting it would only exclude that literal text while
+  // every sentence it matches still fell through to the catch-all — which makes
+  // cucumber-js report AMBIGUOUS for the steps the project already implements
+  // (adversarial attack 12, shared with the JVM plugin's coexist mode).
+  const bodies = existingPatterns.map((pattern) => patternToRegexBody(pattern));
+  return new RegExp(`^(?!(?:${bodies.join('|')})$)(.*)$`, 'u');
+}
+
+const PLACEHOLDER = /\{([a-zA-Z0-9_]+)\}/gu;
+
+/** Turns a Cucumber Expression or an anchored regexp into a regex body. */
+export function patternToRegexBody(pattern: string): string {
+  const trimmed = pattern.trim();
+  if (trimmed.startsWith('^') && trimmed.endsWith('$') && trimmed.length > 1) {
+    return trimmed.slice(1, -1);
+  }
+  let body = '';
+  let index = 0;
+  PLACEHOLDER.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = PLACEHOLDER.exec(pattern)) !== null) {
+    body += escapeRegExp(pattern.slice(index, match.index));
+    body +=
+      match[1] === 'int'
+        ? '(-?\\d+)'
+        : match[1] === 'float'
+          ? '(-?\\d+(?:\\.\\d+)?)'
+          : match[1] === 'word'
+            ? '(\\w+)'
+            : '.*?';
+    index = match.index + match[0].length;
+  }
+  body += escapeRegExp(pattern.slice(index));
+  return body;
+}
+
+function escapeRegExp(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 /**

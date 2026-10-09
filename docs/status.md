@@ -9,7 +9,12 @@ Last updated by the implementation run on 2026-10-09.
 
 ```
 npx tsc -b tsconfig.build.json      # 20 packages build with declarations
-npx vitest run                      # 35 test files, 500 tests, 1 skipped (needs a browser)
+npx vitest run                      # 45 test files, 571 tests, 1 skipped (needs a browser)
+# language suites
+cd plugins/python && . .venv/bin/activate && (cd behave && python -m pytest tests) && (cd pytest && python -m pytest tests)
+PATH=/workspace/.toolchains/go/bin:$PATH go test ./...            # plugins/go
+PATH=/workspace/.toolchains/jdk/bin:$PATH mvn test                # plugins/jvm
+DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet test AiBdd.Reqnroll.Tests  # plugins/dotnet
 node scripts/check-requirements.mjs # 37/37 R-K requirements covered
 node scripts/check-schema-drift.mjs # schemas and docs/errors.md in sync
 node scripts/check-docs.mjs         # docs links and code fences valid
@@ -61,6 +66,8 @@ The acceptance matrix runs the shared corpus with the fake driver and the determ
 | Codegen | `@ai-bdd/codegen` | cucumber-js and Playwright-flavoured source from caches, judge-only assertions kept on the daemon, `DO NOT EDIT` headers and a source-key index. |
 | CLI / facade | `@ai-bdd/cli`, `@ai-bdd/core` | `ai-bdd init|run|resolve|lint|lock verify|codegen|verify-evidence|calibrate|doctor|serve|e2e-host generate`, `--fake`, documented exit codes; `defineConfig` and the binding API. |
 | e2e host | `@ai-bdd/e2e-host` | `registerSpecs()` during module evaluation plus the static `generateRegistration()` fallback (V1/V2). |
+| Plugins | `@ai-bdd/cucumber`, `ai-bdd-behave`, `ai-bdd-pytest`, `AiBdd.Reqnroll`, `ai-bdd-cucumber` (JVM), `godogbdd` (Go) | Six plugins, each passing the 20-feature conformance kit against `ai-bdd serve --fake-script`, with the framework-specific status spellings taken from the kit's `status-aliases.json` and the ai-bdd error code asserted in the failure message. |
+| Adversarial | `test/adversarial` | 54 red-team tests over the section 15 attack list: mis-binding paraphrases (256 generated cases), secret leakage, judge isolation, replay effects, policy bypass, lockfile determinism, parser ReDoS, daemon traversal, plugin ambiguity. |
 | Conformance | `@ai-bdd/conformance` | Driver conformance suite, the plugin kit (20 features, `script.json`, expected results) and the daemon protocol suite. |
 | Fixtures | `fixtures/app`, `fixtures/specs`, `fixtures/fake-model`, `fixtures/bindings` | Dependency-free fixture app plus its generated driver model, the corpus with the M1-M18 expectations, fake-model rules and the setup bindings. |
 
@@ -68,7 +75,8 @@ The acceptance matrix runs the shared corpus with the fake driver and the determ
 
 | Area | State |
 | --- | --- |
-| Language plugins (WP-H2-H6) | `@ai-bdd/cucumber` (cucumber-js) ships as the reference implementation with the daemon client, the coexist catch-all, local bindings and session hooks. Behave, pytest-bdd, Cucumber-JVM, Reqnroll and Godog are **not** implemented: `docs/plugins.md` documents each framework's minimum glue, its verified coexist semantics and its catch-all strategy, and `@ai-bdd/conformance` ships the kit (20 features, `script.json`, expected results) they must pass. |
+| Live runs | Every plugin and driver is exercised against the scripted daemon and the fakes. Real model providers, a real browser, a real Cua desktop and `e2e mcp` against a live target need credentials/hardware this sandbox does not have; `docs/verification-log.md` records exactly which VERIFY items stayed unreproducible and what a live job must do. |
+| Reporter and codegen goldens | Reporters and codegen are tested (JSON/JUnit/markdown/messages per report; deterministic codegen output) but the golden set covers the fixture corpus only. |
 | `@ai-bdd/driver-cua` (WP-E3) | Not implemented. The Cua CLI cannot run in this sandbox, so its contract fixtures could not be captured; the driver contract, capability negotiation and `verify_state` semantics are specified in `docs/drivers.md`. |
 | Live-model tests | No provider credentials here; the AI SDK adapter is unverified against a real provider (V14). |
 | Playwright integration run | Chromium downloads but cannot start: the sandbox has no root and no package lists, so `libglib-2.0-0` is missing. The suite skips itself and the parser golden is marked `synthetic` until a browser-enabled job regenerates it (V8). |

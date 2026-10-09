@@ -1,0 +1,8 @@
+{
+  "name": "@ai-bdd/adversarial",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Red-team tests: the attack list of section 15, run against the packages.",
+  "scripts": { "test": "vitest run" }
+}

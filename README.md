@@ -57,6 +57,10 @@ To point ai-bdd at a real browser and a real model, copy the config in
 | Agent (assertion) | Generated `CheckProgram` + judge over settled before/after evidence | `CHECK_NOT_DISCRIMINATIVE`, `JUDGE_INCONCLUSIVE`, `SCREEN_NOT_SETTLED` |
 | Setup | Never falls back to the UI by default (opt in with `resolution.allowAgentSetup`) | `SETUP_UNBOUND` |
 
+Every language plugin passes the same 20-feature conformance kit against `ai-bdd serve --fake-script`, so
+"the plugin works" is a test result rather than a claim. See [docs/plugins.md](docs/plugins.md) for the
+exact minimum glue per framework.
+
 ## Repository layout
 
 ```
@@ -80,6 +84,9 @@ packages/daemon           MCP (stdio, Streamable HTTP) + HTTP JSON mirror
 packages/reporters        json, junit, markdown, cucumber-messages
 packages/codegen          step-definition source from locked resolutions
 packages/cli, packages/core   the ai-bdd binary and the TS facade
+packages/e2e-host, driver-cua  the e2e host adapter and the native desktop driver
+plugins/                  cucumber-js, Behave, pytest-bdd, Cucumber-JVM, Reqnroll, Godog
+test/adversarial          the red-team suite for the section 15 attack list
 fixtures/app              dependency-free fixture web app (+ model.json)
 fixtures/specs            shared spec corpus and goldens
 fixtures/fake-model       deterministic fake model rules and synonyms

@@ -1123,7 +1123,7 @@
     ]
   },
   "packageFolders": {
-    "/home/node/.nuget/packages/": {}
+    "/workspace/.toolchains/dotnet-home/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
@@ -1131,11 +1131,11 @@
       "projectUniqueName": "/workspace/plugins/dotnet/AiBdd.Reqnroll.Tests/AiBdd.Reqnroll.Tests.csproj",
       "projectName": "AiBdd.Reqnroll.Tests",
       "projectPath": "/workspace/plugins/dotnet/AiBdd.Reqnroll.Tests/AiBdd.Reqnroll.Tests.csproj",
-      "packagesPath": "/home/node/.nuget/packages/",
+      "packagesPath": "/workspace/.toolchains/dotnet-home/.nuget/packages/",
       "outputPath": "/workspace/plugins/dotnet/AiBdd.Reqnroll.Tests/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "/home/node/.nuget/NuGet/NuGet.Config"
+        "/workspace/.toolchains/dotnet-home/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"

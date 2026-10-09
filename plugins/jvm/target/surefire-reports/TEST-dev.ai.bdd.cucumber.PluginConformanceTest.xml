@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.901" tests="20" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="dev.ai.bdd.cucumber.PluginConformanceTest" time="1.037" tests="20" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="17"/>
     <property name="sun.jnu.encoding" value="ANSI_X3.4-1968"/>
@@ -10,18 +10,16 @@
     <property name="user.timezone" value="Etc/UTC"/>
     <property name="os.name" value="Linux"/>
     <property name="java.vm.specification.version" value="17"/>
-    <property name="maven.wagon.http.ssl.allowall" value="true"/>
-    <property name="ai-bdd.daemonToken" value="e0c1f1e5c638793f8198784e3fa6a86aaf07cdf1b7945896"/>
+    <property name="ai-bdd.daemonToken" value="b98e6442b8cb878e90ff5557bbf884df9a25c98e25788a4c"/>
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="US"/>
     <property name="sun.boot.library.path" value="/workspace/.toolchains/jdk/lib"/>
-    <property name="sun.java.command" value="/workspace/plugins/jvm/target/surefire/surefirebooter-20261009181736013_3.jar /workspace/plugins/jvm/target/surefire 2026-10-09T18-17-35_968-jvmRun1 surefire-20261009181736013_1tmp surefire_0-20261009181736013_2tmp"/>
+    <property name="sun.java.command" value="/workspace/plugins/jvm/target/surefire/surefirebooter-20261009182633252_3.jar /workspace/plugins/jvm/target/surefire 2026-10-09T18-26-33_194-jvmRun1 surefire-20261009182633252_1tmp surefire_0-20261009182633252_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="/workspace/plugins/jvm/target/test-classes:/workspace/plugins/jvm/target/classes:/workspace/.toolchains/m2/io/cucumber/cucumber-core/8.0.4/cucumber-core-8.0.4.jar:/workspace/.toolchains/m2/io/cucumber/cucumber-gherkin/8.0.4/cucumber-gherkin-8.0.4.jar:/workspace/.toolchains/m2/io/cucumber/cucumber-gherkin-messages/8.0.4/cucumber-gherkin-messages-8.0.4.jar:/workspace/.toolchains/m2/io/cucumber/gherkin/42.0.1/gherkin-42.0.1.jar:/workspace/.toolchains/m2/io/cucumber/messages/34.2.1/messages-34.2.1.jar:/workspace/.toolchains/m2/io/cucumber/messages-ndjson/0.5.2/messages-ndjson-0.5.2.jar:/workspace/.toolchains/m2/io/cucumber/pretty-formatter/4.1.0/pretty-formatter-4.1.0.jar:/workspace/.toolchains/m2/io/cucumber/query/16.1.1/query-16.1.1.jar:/workspace/.toolchains/m2/io/cucumber/teamcity-formatter/0.3.1/teamcity-formatter-0.3.1.jar:/workspace/.toolchains/m2/io/cucumber/testng-xml-formatter/0.9.0/testng-xml-formatter-0.9.0.jar:/workspace/.toolchains/m2/io/cucumber/usage-formatter/0.2.1/usage-formatter-0.2.1.jar:/workspace/.toolchains/m2/io/cucumber/tag-expressions/11.0.1/tag-expressions-11.0.1.jar:/workspace/.toolchains/m2/io/cucumber/cucumber-expressions/20.1.0/cucumber-expressions-20.1.0.jar:/workspace/.toolchains/m2/io/cucumber/cucumber-json-formatter/0.4.2/cucumber-json-formatter-0.4.2.jar:/workspace/.toolchains/m2/io/cucumber/datatable/8.0.4/datatable-8.0.4.jar:/workspace/.toolchains/m2/io/cucumber/cucumber-plugin/8.0.4/cucumber-plugin-8.0.4.jar:/workspace/.toolchains/m2/io/cucumber/docstring/8.0.4/docstring-8.0.4.jar:/workspace/.toolchains/m2/io/cucumber/html-formatter/24.2.0/html-formatter-24.2.0.jar:/workspace/.toolchains/m2/io/cucumber/junit-xml-formatter/0.15.0/junit-xml-formatter-0.15.0.jar:/workspace/.toolchains/m2/io/cucumber/ci-environment/15.0.0/ci-environment-15.0.0.jar:/workspace/.toolchains/m2/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar:/workspace/.toolchains/m2/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/workspace/.toolchains/m2/org/junit/jupiter/junit-jupiter/6.1.3/junit-jupiter-6.1.3.jar:/workspace/.toolchains/m2/org/junit/jupiter/junit-jupiter-api/6.1.3/junit-jupiter-api-6.1.3.jar:/workspace/.toolchains/m2/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/workspace/.toolchains/m2/org/junit/jupiter/junit-jupiter-params/6.1.3/junit-jupiter-params-6.1.3.jar:/workspace/.toolchains/m2/org/junit/jupiter/junit-jupiter-engine/6.1.3/junit-jupiter-engine-6.1.3.jar:/workspace/.toolchains/m2/org/junit/platform/junit-platform-commons/6.1.3/junit-platform-commons-6.1.3.jar:/workspace/.toolchains/m2/io/cucumber/cucumber-junit-platform-engine/8.0.4/cucumber-junit-platform-engine-8.0.4.jar:/workspace/.toolchains/m2/org/junit/platform/junit-platform-engine/6.1.3/junit-platform-engine-6.1.3.jar:/workspace/.toolchains/m2/com/fasterxml/jackson/core/jackson-databind/2.17.2/jackson-databind-2.17.2.jar:/workspace/.toolchains/m2/com/fasterxml/jackson/core/jackson-annotations/2.17.2/jackson-annotations-2.17.2.jar:/workspace/.toolchains/m2/com/fasterxml/jackson/core/jackson-core/2.17.2/jackson-core-2.17.2.jar:/workspace/.toolchains/m2/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.17.2/jackson-datatype-jdk8-2.17.2.jar:"/>
     <property name="sun.cpu.endian" value="little"/>
-    <property name="maven.wagon.http.ssl.insecure" value="true"/>
     <property name="user.home" value="/home/node"/>
-    <property name="ai-bdd.projectRoot" value="/tmp/ai-bdd-jvm-daemon14089029693791249880"/>
+    <property name="ai-bdd.projectRoot" value="/tmp/ai-bdd-jvm-daemon14890603012955745558"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
     <property name="java.version.date" value="2026-08-18"/>
@@ -32,7 +30,7 @@
     <property name="line.separator" value="&#10;"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
-    <property name="surefire.real.class.path" value="/workspace/plugins/jvm/target/surefire/surefirebooter-20261009181736013_3.jar"/>
+    <property name="surefire.real.class.path" value="/workspace/plugins/jvm/target/surefire/surefirebooter-20261009182633252_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="17.0.20.1+1"/>
     <property name="user.name" value="node"/>
@@ -42,7 +40,7 @@
     <property name="file.encoding" value="ANSI_X3.4-1968"/>
     <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
     <property name="java.vendor.version" value="Temurin-17.0.20.1+1"/>
-    <property name="ai-bdd.daemonUrl" value="http://127.0.0.1:43213"/>
+    <property name="ai-bdd.daemonUrl" value="http://127.0.0.1:43309"/>
     <property name="localRepository" value="/workspace/.toolchains/m2"/>
     <property name="java.vendor.url.bug" value="https://github.com/adoptium/adoptium-support/issues"/>
     <property name="java.io.tmpdir" value="/tmp"/>
@@ -59,14 +57,14 @@
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
     <property name="java.class.version" value="61.0"/>
   </properties>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.207">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.218">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
-0m 0.073s (0m 0.007s executing your code)
+0m 0.078s (0m 0.007s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.023">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.022">
     <system-out><![CDATA[
 Failed scenarios:
   1) ambiguous-margin # file:///workspace/packages/conformance/plugin/features/ambiguous-margin.feature:3
@@ -79,10 +77,10 @@ Failed scenarios:
 
 1 scenario (1 failed)
 1 step (1 failed)
-0m 0.014s (0m 0.003s executing your code)
+0m 0.013s (0m 0.003s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.015">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.016">
     <system-out><![CDATA[
 Failed scenarios:
   1) ambiguous-multiple-exact # file:///workspace/packages/conformance/plugin/features/ambiguous-multiple-exact.feature:3
@@ -98,14 +96,14 @@ Failed scenarios:
 0m 0.010s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.016">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.044">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
-0m 0.012s (0m 0.003s executing your code)
+0m 0.039s (0m 0.030s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.015">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.017">
     <system-out><![CDATA[
 Failed scenarios:
   1) check-failed # file:///workspace/packages/conformance/plugin/features/check-failed.feature:3
@@ -117,45 +115,45 @@ Failed scenarios:
 
 1 scenario (1 failed)
 1 step (1 failed)
-0m 0.011s (0m 0.002s executing your code)
-]]></system-out>
-  </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.02">
-    <system-out><![CDATA[
-1 scenario (1 passed)
-1 step (1 passed)
 0m 0.011s (0m 0.003s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.014">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.023">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
-0m 0.008s (0m 0.001s executing your code)
+0m 0.013s (0m 0.003s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.013">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.016">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
-0m 0.009s (0m 0.002s executing your code)
+0m 0.009s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.021">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.022">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
-0m 0.016s (0m 0.001s executing your code)
+0m 0.017s (0m 0.002s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.017">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.034">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
-0m 0.013s (0m 0.002s executing your code)
+0m 0.014s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
   <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.012">
+    <system-out><![CDATA[
+1 scenario (1 passed)
+1 step (1 passed)
+0m 0.008s (0m 0.002s executing your code)
+]]></system-out>
+  </testcase>
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.013">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
@@ -174,24 +172,24 @@ Failed scenarios:
 
 1 scenario (1 failed)
 1 step (1 failed)
-0m 0.009s (0m 0.002s executing your code)
+0m 0.008s (0m 0.002s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.012">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.011">
     <system-out><![CDATA[
 1 scenario (1 passed)
 1 step (1 passed)
 0m 0.007s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.012">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.041">
     <system-out><![CDATA[
 1 scenario (1 passed)
 2 steps (2 passed)
-0m 0.008s (0m 0.002s executing your code)
+0m 0.037s (0m 0.003s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.013">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.015">
     <system-out><![CDATA[
 Failed scenarios:
   1) pending-step # file:///workspace/packages/conformance/plugin/features/pending-step.feature:3
@@ -203,7 +201,7 @@ Failed scenarios:
 
 1 scenario (1 failed)
 1 step (1 failed)
-0m 0.007s (0m 0.002s executing your code)
+0m 0.008s (0m 0.002s executing your code)
 ]]></system-out>
   </testcase>
   <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.014">
@@ -218,7 +216,14 @@ Failed scenarios:
 
 1 scenario (1 failed)
 1 step (1 failed)
-0m 0.008s (0m 0.002s executing your code)
+0m 0.008s (0m 0.001s executing your code)
+]]></system-out>
+  </testcase>
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.012">
+    <system-out><![CDATA[
+1 scenario (1 passed)
+1 step (1 passed)
+0m 0.008s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
   <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.011">
@@ -228,14 +233,7 @@ Failed scenarios:
 0m 0.007s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.011">
-    <system-out><![CDATA[
-1 scenario (1 passed)
-1 step (1 passed)
-0m 0.007s (0m 0.001s executing your code)
-]]></system-out>
-  </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.011">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.048">
     <system-out><![CDATA[
 Failed scenarios:
   1) setup-unbound # file:///workspace/packages/conformance/plugin/features/setup-unbound.feature:3
@@ -248,10 +246,10 @@ Failed scenarios:
 
 1 scenario (1 failed)
 1 step (1 failed)
-0m 0.007s (0m 0.001s executing your code)
+0m 0.008s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
-  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.011">
+  <testcase name="kitCases" classname="dev.ai.bdd.cucumber.PluginConformanceTest" time="0.012">
     <system-out><![CDATA[
 Failed scenarios:
   1) undefined-step # file:///workspace/packages/conformance/plugin/features/undefined-step.feature:3
@@ -263,7 +261,7 @@ Failed scenarios:
 
 1 scenario (1 failed)
 1 step (1 failed)
-0m 0.007s (0m 0.001s executing your code)
+0m 0.008s (0m 0.001s executing your code)
 ]]></system-out>
   </testcase>
 </testsuite>

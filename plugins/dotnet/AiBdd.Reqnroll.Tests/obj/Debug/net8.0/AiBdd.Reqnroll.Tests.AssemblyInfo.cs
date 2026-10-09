@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AiBdd.Reqnroll.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+62c6762ec5061580845d1a3ee397b9c283ce5821")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0bbcf1cf1c62bea32fbe1db8bbfe0f60a59f2280")]
 [assembly: System.Reflection.AssemblyProductAttribute("AiBdd.Reqnroll.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AiBdd.Reqnroll.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

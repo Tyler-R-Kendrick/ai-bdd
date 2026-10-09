@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: dev.ai.bdd.cucumber.PluginConformanceTest
 -------------------------------------------------------------------------------
-Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.901 s -- in dev.ai.bdd.cucumber.PluginConformanceTest
+Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.037 s -- in dev.ai.bdd.cucumber.PluginConformanceTest

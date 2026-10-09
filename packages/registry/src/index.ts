@@ -5,6 +5,7 @@
  * regular expressions, or Gauge `<param>` templates. The registry is the single
  * source of truth for the BindingSet the resolver and the lockfile hash.
  */
+export { boundMatchInput, MAX_MATCH_INPUT_LENGTH } from './registry.js';
 export {
   createRegistry,
   LOCAL_PROVIDER,

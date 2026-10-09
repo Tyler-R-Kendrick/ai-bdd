@@ -324,19 +324,9 @@ export class PlaywrightSession implements DriverSession {
   /** Navigation is refused unless the host is in the allowlist (R-K16). */
   private checkHost(url: string): void {
     const allowHosts = this.options.allowHosts ?? ['localhost', '127.0.0.1', '[::1]'];
-    let host: string;
-    try {
-      host = new URL(url, this.options.baseURL ?? 'http://localhost').hostname;
-    } catch {
-      throw new AiBddError('POLICY_DENIED', `cannot parse the navigation target: ${url}`);
-    }
-    const bare = host.replace(/^\[/u, '').replace(/\]$/u, '');
-    const allowed = allowHosts.some((entry) => {
-      const candidate = entry.replace(/^\[/u, '').replace(/\]$/u, '');
-      return candidate === host || candidate === bare;
-    });
-    if (!allowed) {
-      throw new AiBddError('POLICY_DENIED', `policy.allowHosts does not include ${host}`, { details: { allowHosts } });
+    const verdict = isNavigationAllowed(url, allowHosts, this.options.baseURL);
+    if (!verdict.allowed) {
+      throw new AiBddError('POLICY_DENIED', verdict.reason, { details: { allowHosts } });
     }
   }
 
@@ -371,6 +361,52 @@ function safeRoute(url: string): string {
   } catch {
     return url;
   }
+}
+
+export interface PolicyVerdict {
+  allowed: boolean;
+  reason: string;
+  host?: string;
+}
+
+/**
+ * Host allowlist check with the bypass classes explicitly rejected.
+ *
+ * `javascript:`, `data:`, `file:` and `blob:` URLs are never allowed, userinfo
+ * tricks (`http://localhost@evil.test`) resolve to the *real* host so they are
+ * rejected, a trailing dot is normalised (`localhost.` === `localhost`), and only an
+ * exact host match (or a parent-domain match for a dotted allowlist entry) passes.
+ */
+export function isNavigationAllowed(url: string, allowHosts: string[], baseURL?: string): PolicyVerdict {
+  const trimmed = url.trim();
+  const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/u.exec(trimmed)?.[1]?.toLowerCase();
+  const dangerous = new Set(['javascript', 'data', 'file', 'blob', 'vbscript', 'about']);
+  if (scheme !== undefined && dangerous.has(scheme)) {
+    return { allowed: false, reason: `policy.allowHosts refuses ${scheme}: URLs` };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed, baseURL ?? 'http://localhost');
+  } catch {
+    return { allowed: false, reason: `cannot parse the navigation target: ${url}` };
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { allowed: false, reason: `policy.allowHosts refuses the ${parsed.protocol} scheme` };
+  }
+
+  const host = parsed.hostname.replace(/^\[/u, '').replace(/\]$/u, '').replace(/\.$/u, '').toLowerCase();
+  const allowed = allowHosts.some((entry) => {
+    const candidate = entry.trim().replace(/^\[/u, '').replace(/\]$/u, '').replace(/\.$/u, '').toLowerCase();
+    if (candidate.length === 0) return false;
+    if (candidate === host) return true;
+    // A dotted allowlist entry also covers its subdomains, and never a suffix trick
+    // like `evil-localhost`.
+    return candidate.includes('.') && host.endsWith(`.${candidate}`);
+  });
+  return allowed
+    ? { allowed: true, reason: 'allowed', host }
+    : { allowed: false, reason: `policy.allowHosts does not include ${host}`, host };
 }
 
 export { VERBS as PLAYWRIGHT_VERBS };

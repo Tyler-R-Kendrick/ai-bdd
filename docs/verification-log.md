@@ -12,8 +12,8 @@ and marked `synthetic: true`; **pending** = not yet run by any work package.
 | --- | --- | --- | --- |
 | V1 | 2026-10-09 | verified | `e2e/runner` exports exactly `ConfigurationError,isE2EError,list`. No `run` export, so `@ai-bdd/e2e-host` uses the V2 static-generation fallback. |
 | V2 | 2026-10-09 | verified | `@ai-bdd/e2e-host` implements both paths: `registerSpecs()` registers synchronously during module evaluation (unit-tested with an injected `test`), and `generateRegistration()` writes the static file (`ai-bdd e2e-host generate` produced 24 tests from the 13-spec corpus). Titles are `<spec name> › <scenario name>[row]` and the 512-byte limit is enforced. |
-| V3 | 2026-10-09 | not reproducible | The Cua CLI cannot be installed or run in this sandbox, so `tools/list` was not captured and `driver-cua` is not implemented. `docs/drivers.md` specifies the required tools; the documented fallback (`DRIVER_INCOMPATIBLE` listing missing tools) is what a Cua-enabled job must implement. |
-| V4 | 2026-10-09 | pending | Documented action: `cua` driver supports `mcp` mode only until the attach behaviour is confirmed. |
+| V3 | 2026-10-09 | not reproducible, fallback implemented | The Cua CLI cannot be installed or run in this sandbox, so `tools/list` was not captured. `@ai-bdd/driver-cua` is implemented against the documented typed contract tools (contract 0.8.0) and `packages/driver-cua/test/fixtures/tools-list.json` is hand-authored and marked `synthetic: true`. The implemented fallback is the specified one: `selfCheck()` fails with `DRIVER_INCOMPATIBLE` and lists every missing tool. A Cua-enabled job must regenerate the fixture from a real `tools/list` snapshot and drop the flag. |
+| V4 | 2026-10-09 | not reproducible, documented | The `cua-driver` binary is unavailable here, so the attach behaviour of `cua-driver mcp` to a running `cua-driver serve` could not be observed. The driver exposes both `mcp` and `daemon` modes through the same MCP client and defaults to `mcp`; `ai-bdd doctor` reports which one is reachable. |
 | V5 | 2026-10-09 | pending | Documented action: do not pass `--permission-mode bounded`; enforce `policy.cua.allowApps` inside ai-bdd. |
 | V6 | 2026-10-09 | verified | `@modelcontextprotocol/client@2.3.1` (with the `@modelcontextprotocol/client/stdio` transport) connected to `e2e mcp` 0.19.0 over stdio, negotiated protocol `2025-06-18`, and listed the four tools. The v2 client interoperates with e2e, so no per-driver fallback to the v1 monolith is needed. |
 | V7 | 2026-10-09 | verified | `@cucumber/gherkin@42.0.1` exports `Parser`, `AstBuilder`, `GherkinClassicTokenMatcher`, `compile`; `@cucumber/messages@34.2.1` exports `IdGenerator`. |
@@ -23,7 +23,7 @@ and marked `synthetic: true`; **pending** = not yet run by any work package.
 | V11 | 2026-10-09 | pending | Behave plugin not yet implemented. |
 | V12 | 2026-10-09 | pending | pytest-bdd plugin not yet implemented. |
 | V13 | 2026-10-09 | verified with a correction | Reflection over `Reqnroll.dll` 2.4 shows `RuntimePluginEvents.RegisterGlobalDependencies` hands over the `ObjectContainer` and replaces `IStepDefinitionMatchService`; `CustomizeGlobalDependencies` only carries `ReqnrollConfiguration`, so the container is **not** reachable from that event. The plugin uses `RegisterGlobalDependencies` and resolves the existing service before replacing it. `IStepDefinitionMatchService` has `GetBestMatch(StepInstance, CultureInfo, out StepDefinitionAmbiguityReason, out List<BindingMatch>)`, `Match(...)` and `Ready`; `BindingMatch` is constructed as `(IStepDefinitionBinding, scopeMatches, arguments, StepContext)`. |
-| V14 | 2026-10-09 | unverified | The AI SDK adapter (`aiSdkModels`) is implemented against the documented `generateText`/`embedMany` surface and loads the package lazily, so the fakes never need it. No provider credentials exist here, so those names are not confirmed against `ai@7`; the adapter raises MODEL_UNAVAILABLE with an actionable message when the package is absent and MODEL_OUTPUT_INVALID when structured output is not JSON. |
+| V14 | 2026-10-09 | partially verified | `ai@7.0.137` is the current release (checked), and the adapter is written against `generateText`/`embedMany` with a lazy import so the deterministic fakes never need it; `ai` is not installed here and no provider credentials exist, so the call sites are not executed. The adapter raises MODEL_UNAVAILABLE with an actionable message when the package is absent, and MODEL_OUTPUT_INVALID when structured output is not JSON. |
 | V15 | 2026-10-09 | verified | `process.features.typescript === 'strip'` on Node 24.21.0, so `ai-bdd.config.ts` loads through dynamic `import()` with type stripping. `CONFIG_TS_UNSUPPORTED` remains for older runtimes. |
 | V16 | 2026-10-09 | verified | e2e@0.19 exposes no public screenshot fixture (only `e2e`, `e2e/agent`, `e2e/engine` and `e2e/runner` are importable), so `@ai-bdd/e2e-host` uses `agent.assert(text, { vision: true })` as its single assertion layer and records the layer as the ternary e2e judge. |
 | V17 | 2026-10-09 | verified | Maven Central metadata for `io.cucumber:cucumber-core` reports release `8.0.4`; 8.x is the target major. |
@@ -161,3 +161,33 @@ IExpression lives in the CucumberExpressions assembly (CucumberExpressions.IExpr
 
 Action: the plugin decorates `IStepDefinitionMatchService` from `RegisterGlobalDependencies`; native
 matches always win, and everything else reaches the daemon through the catch-all binding.
+
+### V3 / V4 — the Cua contract surface
+
+```bash
+# the Cua CLI cannot be installed here; the driver is built against the documented contract instead
+cua-driver call list_apps '{}'        # not runnable in this sandbox
+pnpm -F @ai-bdd/driver-cua test       # 17 tests replaying a synthetic tools/list snapshot
+```
+
+Action: `packages/driver-cua/test/fixtures/tools-list.json` carries `"synthetic": true` with the exact
+regeneration recipe, and `selfCheck()` reports `DRIVER_INCOMPATIBLE` for every missing tool so a real
+run cannot silently degrade.
+
+### V9 / F-E1 / AC9 — plugin conformance
+
+Every plugin runs the 20-feature kit against `ai-bdd serve --fake-script`:
+
+```bash
+cd plugins/python && . .venv/bin/activate
+(cd behave && python -m pytest tests -q)          # 32 passed (20 kit cases + 12 unit)
+(cd pytest && python -m pytest tests -q)          # 30 passed (20 kit cases + 10 unit)
+cd plugins/go  && go test ./...                   # aibdd + godogbdd ok (20 kit cases)
+cd plugins/jvm && mvn -q test                     # 29 tests (20 kit cases + 9 unit)
+cd plugins/dotnet && dotnet test                  # 15 passed
+```
+
+Because a framework has its own status vocabulary, the kit accepts the framework spelling of an
+expected status through `packages/conformance/plugin/status-aliases.json` (healed → passed, pending →
+failed/untested, ambiguous → failed, undefined → failed/skipped), and the ai-bdd error code must appear
+in the failure message so the reviewer sees `SETUP_UNBOUND`, not just "failed".

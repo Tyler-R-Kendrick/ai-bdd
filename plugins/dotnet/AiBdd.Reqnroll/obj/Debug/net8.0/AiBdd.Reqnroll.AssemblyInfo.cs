@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyDescriptionAttribute("ai-bdd runtime plugin for Reqnroll: the step definition match service falls back " +
     "to the ai-bdd daemon.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+62c6762ec5061580845d1a3ee397b9c283ce5821")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+0bbcf1cf1c62bea32fbe1db8bbfe0f60a59f2280")]
 [assembly: System.Reflection.AssemblyProductAttribute("AiBdd.Reqnroll")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AiBdd.Reqnroll")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.1.0.0")]

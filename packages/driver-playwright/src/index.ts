@@ -76,4 +76,5 @@ function readAllowHosts(config: unknown): string[] | undefined {
 
 export { PlaywrightBrowser, PlaywrightSession, PLAYWRIGHT_VERBS } from './session.js';
 export { parseAriaSnapshot, structuralTreeHash, type LocatorDescriptor, type ParsedTree } from './tree.js';
+export { isNavigationAllowed, type PolicyVerdict } from './session.js';
 export type { PlaywrightDriverOptions } from './session.js';

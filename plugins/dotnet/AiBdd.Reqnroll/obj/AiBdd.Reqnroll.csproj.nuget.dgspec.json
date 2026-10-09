@@ -10,11 +10,11 @@
         "projectUniqueName": "/workspace/plugins/dotnet/AiBdd.Reqnroll/AiBdd.Reqnroll.csproj",
         "projectName": "AiBdd.Reqnroll",
         "projectPath": "/workspace/plugins/dotnet/AiBdd.Reqnroll/AiBdd.Reqnroll.csproj",
-        "packagesPath": "/home/node/.nuget/packages/",
+        "packagesPath": "/workspace/.toolchains/dotnet-home/.nuget/packages/",
         "outputPath": "/workspace/plugins/dotnet/AiBdd.Reqnroll/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/node/.nuget/NuGet/NuGet.Config"
+          "/workspace/.toolchains/dotnet-home/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"

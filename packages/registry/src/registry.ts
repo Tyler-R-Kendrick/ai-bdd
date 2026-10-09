@@ -18,6 +18,19 @@ import { compilePattern, registerParameterType, type CompiledPattern, type Custo
 export type BindingFn = (params: Record<string, JsonValue>, ctx: unknown) => unknown | Promise<unknown>;
 
 /** Provider id used by the local TypeScript API. */
+/**
+ * The longest step text a user-supplied pattern is ever matched against.
+ *
+ * JavaScript cannot interrupt a catastrophically backtracking pattern, so the
+ * defence is to bound the input: a real step is far shorter than this, and a
+ * pathological input is truncated with a diagnostic instead of hanging the run.
+ */
+export const MAX_MATCH_INPUT_LENGTH = 4096;
+
+export function boundMatchInput(text: string): string {
+  return text.length > MAX_MATCH_INPUT_LENGTH ? text.slice(0, MAX_MATCH_INPUT_LENGTH) : text;
+}
+
 export const LOCAL_PROVIDER = 'ts:local';
 
 /** Optional fields accepted by the ergonomic `bind`/`Given`/`When`/`Then` API. */
@@ -130,8 +143,11 @@ export function createRegistry(opts: RegistryOptions = {}): Registry {
       const providers = [...new Set(bindings.map((binding) => binding.provider))].sort();
       return { bindings, hash: bindingSetHash(bindings), providers };
     },
-    matchExact(text, kind) {
+    matchExact(rawText, kind) {
       const matches: BindingMatch[] = [];
+      // A user-supplied pattern is only ever run against a bounded string, so a
+      // catastrophically backtracking expression cannot hang the run (section 17).
+      const text = boundMatchInput(rawText);
       const sorted = [...entries.values()].sort((a, b) => byId(a.desc, b.desc));
       for (const entry of sorted) {
         if (kind !== undefined && entry.desc.kind !== 'any' && entry.desc.kind !== kind) continue;
