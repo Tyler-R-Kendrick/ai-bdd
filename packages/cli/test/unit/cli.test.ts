@@ -195,6 +195,15 @@ describe('ai-bdd codegen', () => {
     expect(source).toContain('DO NOT EDIT');
     expect(source).toContain("from '@cucumber/cucumber'");
     expect(source).toMatch(/When\(\/\^/u);
+    // The generated steps must only touch the per-scenario page and must import what
+    // they use: a bare `page` global would not compile (found by the DX review).
+    expect(source).not.toMatch(/[^.\w]page\./u);
+    expect(source).toContain('world.page');
+    expect(source).toContain("import { aiBdd, baseURL, typeSecret");
+    const support = readFileSync(join(dir, '.ai-bdd', 'generated', 'ai-bdd.support.ts'), 'utf8');
+    expect(support).toContain('export interface AiBddWorld');
+    expect(support).toContain('await context.newPage()');
+    expect(support).toContain("from '@cucumber/cucumber'");
     expect(out.join('\n')).toMatch(/act program\(s\)/u);
   });
 

@@ -1,7 +1,7 @@
 import type { ActAction, ActProgram, CheckPredicate, CheckProgram, Selector, TypedValue } from '@ai-bdd/contracts';
 
 /** Renders a structural selector as a Playwright locator chain. */
-export function playwrightLocator(selector: Selector, page = 'page'): string {
+export function playwrightLocator(selector: Selector, page = 'world.page'): string {
   const parts: string[] = [];
   if (selector.testId) {
     parts.push(`${page}.getByTestId(${quote(selector.testId)})`);
@@ -54,12 +54,12 @@ export function emitActions(program: ActProgram): { lines: string[]; params: str
   for (const action of program.actions) {
     if (action.verb === 'navigate') {
       const expression = action.value ? typedValueExpression(action.value) : { expression: "'/'" };
-      lines.push(`  await page.goto(new URL(${expression.expression}, baseURL).toString());`);
+      lines.push(`  await world.page.goto(new URL(${expression.expression}, baseURL).toString());`);
       if (expression.param) params.add(expression.param);
       continue;
     }
     if (action.verb === 'back') {
-      lines.push('  await page.goBack();');
+      lines.push('  await world.page.goBack();');
       continue;
     }
     const locator = action.selector ? playwrightLocator(action.selector) : 'page.locator(\'body\')';
