@@ -18,9 +18,11 @@ const ALLOWED = new Set([
   'BlueOak-1.0.0',
   'Python-2.0',
   'MPL-2.0',
-  'CC0-1.0',
   'Unlicense',
   'CC-BY-4.0',
+  // Data/metadata licenses seen in build tooling (SPDX exception tables).
+  'CC-BY-3.0',
+  'CC0-1.0',
   'Apache-2.0 WITH LLVM-exception',
   '(MIT OR CC0-1.0)',
   'MIT OR Apache-2.0',

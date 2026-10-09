@@ -37,6 +37,10 @@ AI_BDD_FAKE=1 node packages/cli/dist/bin.js resolve fixtures/specs
 head -40 .ai-bdd/report.json
 node packages/cli/dist/bin.js verify-evidence .ai-bdd/runs/<runId>
 node packages/cli/dist/bin.js codegen --framework cucumber-js
+
+# 4. Or drive it as a daemon: MCP for agents, an HTTP mirror for language plugins
+AI_BDD_FAKE=1 node packages/cli/dist/bin.js serve --http    # writes .ai-bdd/daemon.json (0600)
+node packages/cli/dist/bin.js e2e-host generate fixtures/specs
 ```
 
 To point ai-bdd at a real browser and a real model, copy the config in

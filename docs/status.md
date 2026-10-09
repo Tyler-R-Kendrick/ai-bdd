@@ -9,7 +9,7 @@ Last updated by the implementation run on 2026-10-09.
 
 ```
 npx tsc -b tsconfig.build.json      # 20 packages build with declarations
-npx vitest run                      # 33 test files, 487 tests, 1 skipped (needs a browser)
+npx vitest run                      # 35 test files, 500 tests, 1 skipped (needs a browser)
 node scripts/check-requirements.mjs # 37/37 R-K requirements covered
 node scripts/check-schema-drift.mjs # schemas and docs/errors.md in sync
 node scripts/check-docs.mjs         # docs links and code fences valid
@@ -68,7 +68,7 @@ The acceptance matrix runs the shared corpus with the fake driver and the determ
 
 | Area | State |
 | --- | --- |
-| Language plugins (WP-H1-H6) | Not implemented. `docs/plugins.md` documents the per-framework minimum glue, the verified coexist semantics and the catch-all strategy for each of the six frameworks, and `@ai-bdd/conformance` ships the kit they must pass. This is the largest remaining work package. |
+| Language plugins (WP-H2-H6) | `@ai-bdd/cucumber` (cucumber-js) ships as the reference implementation with the daemon client, the coexist catch-all, local bindings and session hooks. Behave, pytest-bdd, Cucumber-JVM, Reqnroll and Godog are **not** implemented: `docs/plugins.md` documents each framework's minimum glue, its verified coexist semantics and its catch-all strategy, and `@ai-bdd/conformance` ships the kit (20 features, `script.json`, expected results) they must pass. |
 | `@ai-bdd/driver-cua` (WP-E3) | Not implemented. The Cua CLI cannot run in this sandbox, so its contract fixtures could not be captured; the driver contract, capability negotiation and `verify_state` semantics are specified in `docs/drivers.md`. |
 | Live-model tests | No provider credentials here; the AI SDK adapter is unverified against a real provider (V14). |
 | Playwright integration run | Chromium downloads but cannot start: the sandbox has no root and no package lists, so `libglib-2.0-0` is missing. The suite skips itself and the parser golden is marked `synthetic` until a browser-enabled job regenerates it (V8). |
