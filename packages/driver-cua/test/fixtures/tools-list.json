@@ -1,0 +1,50 @@
+{
+  "synthetic": true,
+  "source": "@trycua/cua-driver 0.34.0 contract manifest (contract_version 0.8.0)",
+  "note": "The Cua CLI cannot run in this sandbox, so this snapshot is hand-authored from the documented typed contract tools and is marked synthetic (VERIFY V3). A Cua-enabled job must regenerate it with `cua-driver call list_apps '{}'` plus an MCP tools/list snapshot and drop the flag.",
+  "contract_version": "0.8.0",
+  "tools": [
+    { "name": "start_session" },
+    { "name": "end_session" },
+    { "name": "get_session" },
+    { "name": "list_sessions" },
+    { "name": "list_apps" },
+    { "name": "list_windows" },
+    { "name": "get_window_state" },
+    { "name": "get_desktop_state" },
+    { "name": "get_screen_size" },
+    { "name": "get_cursor_position" },
+    { "name": "move_cursor" },
+    { "name": "set_window_frame" },
+    { "name": "click" },
+    { "name": "type_text" },
+    { "name": "press_key" },
+    { "name": "hotkey" },
+    { "name": "scroll" },
+    { "name": "drag" },
+    { "name": "invoke_menu" },
+    { "name": "verify_state" },
+    { "name": "clipboard_read" },
+    { "name": "clipboard_write" },
+    { "name": "parse_visual_regions" }
+  ],
+  "calls": {
+    "list_apps": [{ "name": "TextEdit", "pid": 4242, "bundle_id": "com.apple.TextEdit" }, { "name": "Finder", "pid": 42, "bundle_id": "com.apple.finder" }],
+    "list_windows": [{ "window_id": 77, "title": "Untitled — TextEdit" }],
+    "get_window_state": {
+      "tree": [
+        { "role": "window", "name": "Untitled", "token": "s1a2b3c4d:12", "children": [
+          { "role": "textbox", "name": "Body", "token": "s1a2b3c4d:13" },
+          { "role": "button", "name": "Save", "token": "s1a2b3c4d:14" }
+        ] }
+      ],
+      "screenshot_sha256": "0d1e2f3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6",
+      "screenshot_path": "/tmp/aibdd-cua-shot.png"
+    },
+    "verify_state": { "results": ["satisfied", "unknown"] },
+    "type_text": { "ok": true },
+    "click": { "ok": true },
+    "end_session": { "ok": true },
+    "start_session": { "session": "aibdd-test", "ok": true }
+  }
+}

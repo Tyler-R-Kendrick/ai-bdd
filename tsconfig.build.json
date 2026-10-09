@@ -50,6 +50,9 @@
       "path": "packages/driver-e2e"
     },
     {
+      "path": "packages/driver-cua"
+    },
+    {
       "path": "packages/runtime"
     },
     {

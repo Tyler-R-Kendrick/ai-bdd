@@ -28,6 +28,7 @@ export const alias: Record<string, string> = {
   '@ai-bdd/driver-fake': src('driver-fake'),
   '@ai-bdd/driver-playwright': src('driver-playwright'),
   '@ai-bdd/driver-e2e': src('driver-e2e'),
+  '@ai-bdd/driver-cua': src('driver-cua'),
   '@ai-bdd/runtime': src('runtime'),
   '@ai-bdd/conformance': src('conformance'),
   '@ai-bdd/cucumber': fileURLToPath(new URL('./plugins/js/cucumber/src/index.ts', import.meta.url)),

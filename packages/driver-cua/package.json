@@ -1,0 +1,18 @@
+{
+  "name": "@ai-bdd/driver-cua",
+  "version": "0.1.0",
+  "description": "ai-bdd driver for native desktop windows through the Cua Driver MCP surface.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": "^22.22.3 || >=24.8.0" },
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "scripts": { "build": "tsc -b", "typecheck": "tsc -b", "test": "vitest run", "lint": "oxlint src test" },
+  "dependencies": {
+    "@ai-bdd/contracts": "workspace:*",
+    "@modelcontextprotocol/client": "^2.3.1"
+  },
+  "peerDependencies": { "@trycua/cua-driver": ">=0.34" },
+  "peerDependenciesMeta": { "@trycua/cua-driver": { "optional": true } },
+  "devDependencies": { "vitest": "^5.0.3" }
+}
