@@ -9,7 +9,7 @@ language**; the daemon orchestrates.
 
 | Framework | Package | Minimum glue | Binding declaration | Coexistence |
 | --- | --- | --- | --- | --- |
-| cucumber-js 13.x | `@ai-bdd/cucumber` | `--import @ai-bdd/cucumber/register` in your `cucumber.js` profile | `import { Given, When, Then, bind } from '@ai-bdd/cucumber'` (same signatures as Cucumber, plus an optional options object) | `aiBdd.coexist: true` builds the catch-all as a negative lookahead over your own patterns |
+| cucumber-js 13.x | `@ai-bdd/cucumber` **(reference implementation, shipped)** | `--import @ai-bdd/cucumber/register` in your `cucumber.js` profile | `import { Given, When, Then, bind } from '@ai-bdd/cucumber'` (same signatures as Cucumber, plus an optional options object) | `register({ coexist: true })` builds the catch-all as a negative lookahead over your own patterns |
 | Cucumber-JVM 8.x | `dev.ai-bdd:ai-bdd-cucumber` | the dependency on the classpath (ServiceLoader `BackendProviderService`) plus `ai-bdd.properties` | `@AiBddStep(pattern = …, description = …, kind = …)` on public methods in glue packages | the same negative-lookahead approach, computed from the glue the backend receives |
 | Behave 1.3.x | `ai-bdd-behave` | `from ai_bdd_behave import install; install()` at the end of `features/steps/zz_ai_bdd.py` | normal `@given`/`@when`/`@then` (first match wins), plus `describe(func, description=…, examples=…)` | native: Behave's first-match order already prefers your steps |
 | pytest-bdd 9.0 | `ai-bdd-pytest` | one test module containing `scenarios("features/")` (the plugin is a `pytest11` entry point) | normal steps plus `@ai_bdd_pytest.describe(…)` | native by fixture specificity |

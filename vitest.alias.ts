@@ -30,4 +30,5 @@ export const alias: Record<string, string> = {
   '@ai-bdd/driver-e2e': src('driver-e2e'),
   '@ai-bdd/runtime': src('runtime'),
   '@ai-bdd/conformance': src('conformance'),
+  '@ai-bdd/cucumber': fileURLToPath(new URL('./plugins/js/cucumber/src/index.ts', import.meta.url)),
 };

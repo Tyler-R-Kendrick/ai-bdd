@@ -72,6 +72,9 @@
     },
     {
       "path": "packages/daemon"
+    },
+    {
+      "path": "plugins/js/cucumber"
     }
   ]
 }

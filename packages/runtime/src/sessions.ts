@@ -456,7 +456,10 @@ export class SessionManager {
   }
 
   private ledgerPath(sessionId: string): string {
-    return join(this.config.projectRoot, '.ai-bdd', 'sessions', `${sessionId}.json`);
+    // A plugin may use a human-readable scenario id (`features/x.feature#name`),
+    // so the ledger filename is sanitised before it becomes a path.
+    const safe = sessionId.replace(/[^A-Za-z0-9._-]+/gu, '-').slice(0, 120);
+    return join(this.config.projectRoot, '.ai-bdd', 'sessions', `${safe || 'session'}.json`);
   }
 
   private writeLedger(record: SessionRecord): void {
