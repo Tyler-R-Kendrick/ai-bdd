@@ -331,6 +331,140 @@
       }
     },
     {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Open the two form page"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "navigate",
+                "args": {
+                  "value": "/forms/two"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "two forms are open"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Choose the"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Upgrade to Pro"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "plan chosen"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Confirm the upgrade"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Confirm upgrade"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "upgrade confirmed"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Walk through the upgrade flow"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "navigate",
+                "args": {
+                  "value": "/settings/billing"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "in the upgrade flow"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "purpose": "checkgen",
       "match": {
         "contains": [

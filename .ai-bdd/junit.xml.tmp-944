@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="ai-bdd" tests="24" failures="22" time="28.797">
+  <testsuite name="Ambiguity" tests="1" failures="1" time="0.310">
+    <testcase name="Near identical bindings" time="0.310">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Workspace billing" tests="1" failures="1" time="0.918">
+    <testcase name="Downgrade is blocked with unpaid invoices" time="0.918">
+      <failure message="SETUP_UNBOUND">Setup step has no binding: &quot;Seed a workspace &quot;Acme&quot; on the &quot;free&quot; plan&quot;</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Workspace billing" tests="1" failures="1" time="1.521">
+    <testcase name="Member upgrades to Pro" time="1.521">
+      <failure message="SETUP_UNBOUND">Setup step has no binding: &quot;Seed a workspace &quot;Acme&quot; on the &quot;free&quot; plan&quot;</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Cross dialect" tests="1" failures="1" time="0.905">
+    <testcase name="Shared sentences" time="0.905">
+      <failure message="SETUP_UNBOUND">Setup step has no binding: &quot;Seed a workspace &quot;Acme&quot; on the &quot;free&quot; plan&quot;</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Workspace billing" tests="1" failures="1" time="1.812">
+    <testcase name="Downgrade is blocked with unpaid invoices" time="1.812">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Workspace billing" tests="1" failures="1" time="2.121">
+    <testcase name="Member upgrades to Pro" time="2.121">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Cross dialect" tests="1" failures="1" time="1.207">
+    <testcase name="Shared sentences" time="1.207">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Data driven plans" tests="1" failures="1" time="1.206">
+    <testcase name="A workspace can be seeded per row" time="1.206">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Data driven plans" tests="1" failures="1" time="1.206">
+    <testcase name="A workspace can be seeded per row" time="1.206">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Data driven plans" tests="1" failures="1" time="1.207">
+    <testcase name="A workspace can be seeded per row" time="1.207">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Two forms" tests="1" failures="1" time="0.604">
+    <testcase name="Submitting an ambiguous form" time="0.604">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Data driven plans" tests="1" failures="1" time="1.207">
+    <testcase name="A concept drives the upgrade" time="1.207">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Data driven plans" tests="1" failures="1" time="1.208">
+    <testcase name="A concept drives the upgrade" time="1.208">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Data driven plans" tests="1" failures="1" time="1.207">
+    <testcase name="A concept drives the upgrade" time="1.207">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Judge band" tests="1" failures="1" time="0.603">
+    <testcase name="The judge cannot tell" time="0.603">
+      <failure message="JUDGE_INCONCLUSIVE">the score 0.55 is between the fail and pass thresholds</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Login" tests="1" failures="0" time="0.903">
+    <testcase name="Signing in with a declared secret" time="0.903">
+    </testcase>
+  </testsuite>
+  <testsuite name="Non discriminative criteria" tests="1" failures="0" time="0.601">
+    <testcase name="An already true criterion is not accepted as a check" time="0.601">
+    </testcase>
+  </testsuite>
+  <testsuite name="Parallel scenarios" tests="1" failures="1" time="0.904">
+    <testcase name="First scenario" time="0.904">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Parallel scenarios" tests="1" failures="1" time="0.906">
+    <testcase name="Second scenario" time="0.906">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Parallel scenarios" tests="1" failures="1" time="0.904">
+    <testcase name="Third scenario" time="0.904">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Parallel scenarios" tests="1" failures="1" time="0.905">
+    <testcase name="Fourth scenario" time="0.905">
+      <failure message="MODEL_OUTPUT_INVALID">no fake rule matched purpose=act</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Semantic resolution" tests="1" failures="1" time="0.604">
+    <testcase name="A free-tier workspace is seeded through a synonym" time="0.604">
+      <failure message="SETUP_UNBOUND">Setup step has no binding: &quot;there&apos;s a free-tier workspace called Acme&quot;</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Semantic resolution" tests="1" failures="1" time="0.601">
+    <testcase name="The negation trap must not bind" time="0.601">
+      <failure message="SETUP_UNBOUND">Setup step has no binding: &quot;Seed an empty workspace&quot;</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Slow screens" tests="1" failures="1" time="5.227">
+    <testcase name="Spinner then content" time="5.227">
+      <failure message="SCREEN_NOT_SETTLED">the screen did not settle within the quiet window before the deadline</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

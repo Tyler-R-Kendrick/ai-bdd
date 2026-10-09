@@ -224,6 +224,72 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
 
+  packages/cli:
+    dependencies:
+      '@ai-bdd/assert':
+        specifier: workspace:*
+        version: link:../assert
+      '@ai-bdd/cache':
+        specifier: workspace:*
+        version: link:../cache
+      '@ai-bdd/codegen':
+        specifier: workspace:*
+        version: link:../codegen
+      '@ai-bdd/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-bdd/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ai-bdd/driver-fake':
+        specifier: workspace:*
+        version: link:../driver-fake
+      '@ai-bdd/evidence':
+        specifier: workspace:*
+        version: link:../evidence
+      '@ai-bdd/judge':
+        specifier: workspace:*
+        version: link:../judge
+      '@ai-bdd/models':
+        specifier: workspace:*
+        version: link:../models
+      '@ai-bdd/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@ai-bdd/spec-directives':
+        specifier: workspace:*
+        version: link:../spec-directives
+      '@ai-bdd/spec-gauge':
+        specifier: workspace:*
+        version: link:../spec-gauge
+      '@ai-bdd/spec-gherkin':
+        specifier: workspace:*
+        version: link:../spec-gherkin
+      commander:
+        specifier: ^15.0.0
+        version: 15.0.0
+    devDependencies:
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+    optionalDependencies:
+      '@ai-bdd/driver-e2e':
+        specifier: workspace:*
+        version: link:../driver-e2e
+
+  packages/codegen:
+    dependencies:
+      '@ai-bdd/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+
   packages/conformance:
     dependencies:
       '@ai-bdd/contracts':
@@ -246,6 +312,22 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/core:
+    dependencies:
+      '@ai-bdd/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-bdd/registry':
+        specifier: workspace:*
+        version: link:../registry
+      '@ai-bdd/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+    devDependencies:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))

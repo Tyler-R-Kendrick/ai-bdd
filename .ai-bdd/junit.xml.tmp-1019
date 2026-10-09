@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="ai-bdd" tests="2" failures="0" time="0.215">
+  <testsuite name="Workspace billing" tests="1" failures="0" time="0.146">
+    <testcase name="Member upgrades to Pro" time="0.146">
+    </testcase>
+  </testsuite>
+  <testsuite name="Workspace billing" tests="1" failures="0" time="0.069">
+    <testcase name="Downgrade is blocked with unpaid invoices" time="0.069">
+    </testcase>
+  </testsuite>
+</testsuites>

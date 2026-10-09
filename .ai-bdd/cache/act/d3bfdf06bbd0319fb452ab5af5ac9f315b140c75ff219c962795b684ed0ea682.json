@@ -1,0 +1,65 @@
+{
+  "key": "d3bfdf06bbd0319fb452ab5af5ac9f315b140c75ff219c962795b684ed0ea682",
+  "version": 1,
+  "createdAt": "2026-10-09T17:32:25.602Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "d3bfdf06bbd0319fb452ab5af5ac9f315b140c75ff219c962795b684ed0ea682",
+    "text": "Open the login page",
+    "driver": "fake",
+    "driverMajor": 1,
+    "params": [],
+    "start": {
+      "landmarks": []
+    },
+    "actions": [
+      {
+        "verb": "navigate",
+        "value": {
+          "literal": "/login"
+        }
+      }
+    ],
+    "effect": {
+      "elements": [
+        {
+          "selector": {
+            "role": "heading",
+            "name": "Sign in"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "textbox",
+            "name": "User name",
+            "testId": "user"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "textbox",
+            "name": "Password",
+            "testId": "password"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "button",
+            "name": "Sign in",
+            "testId": "signIn"
+          },
+          "change": "appeared"
+        }
+      ],
+      "route": {
+        "after": "/login"
+      }
+    },
+    "recordedAt": "2026-10-09T17:32:25.000Z",
+    "pending": false
+  }
+}

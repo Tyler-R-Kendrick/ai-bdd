@@ -1,0 +1,25 @@
+{
+  "key": "9e8b7e75854a40f50c9fd529373a653b37344b167f97d84902cd47f5b25bb5e9",
+  "version": 1,
+  "createdAt": "2026-10-09T17:32:25.602Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "9e8b7e75854a40f50c9fd529373a653b37344b167f97d84902cd47f5b25bb5e9",
+    "text": "The dashboard heading is visible",
+    "driver": "fake",
+    "driverMajor": 1,
+    "predicates": [
+      {
+        "kind": "exists",
+        "selector": {
+          "role": "heading",
+          "name": "Dashboard"
+        }
+      }
+    ],
+    "classification": "change",
+    "generatedBy": "fake:checkgen",
+    "verified": true
+  }
+}

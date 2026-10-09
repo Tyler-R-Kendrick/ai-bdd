@@ -1,0 +1,69 @@
+{
+  "key": "7d3875b53033232ca8dad032518ee1b91d4746675148013dc13f66e9f28bae43",
+  "version": 1,
+  "createdAt": "2026-10-09T17:33:10.287Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "7d3875b53033232ca8dad032518ee1b91d4746675148013dc13f66e9f28bae43",
+    "text": "Upgrade the workspace to the Pro plan",
+    "driver": "fake",
+    "driverMajor": 1,
+    "params": [],
+    "start": {
+      "route": "/settings/billing",
+      "landmarks": [
+        {
+          "role": "heading",
+          "name": "Billing settings"
+        }
+      ]
+    },
+    "actions": [
+      {
+        "verb": "tap",
+        "selector": {
+          "role": "button",
+          "name": "Upgrade to Pro",
+          "testId": "upgrade"
+        }
+      },
+      {
+        "verb": "tap",
+        "selector": {
+          "role": "button",
+          "name": "Confirm upgrade",
+          "testId": "confirmUpgrade"
+        }
+      }
+    ],
+    "effect": {
+      "elements": [
+        {
+          "selector": {
+            "role": "text",
+            "name": "Plan: Pro plan"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "text",
+            "name": "Prorated amount: 12.00",
+            "testId": "prorated"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "text",
+            "name": "Plan: Free plan"
+          },
+          "change": "disappeared"
+        }
+      ]
+    },
+    "recordedAt": "2026-10-09T17:33:10.217Z",
+    "pending": false
+  }
+}

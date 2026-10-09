@@ -1,0 +1,586 @@
+{
+  "runId": "01a121b9-d844-74bd-9ff1-01f46ed045cf",
+  "version": "0.1.0",
+  "startedAt": "2026-10-09T17:33:10.084Z",
+  "finishedAt": "2026-10-09T17:33:10.357Z",
+  "status": "passed",
+  "driver": "web",
+  "scenarios": [
+    {
+      "scenarioId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro",
+      "name": "Member upgrades to Pro",
+      "specName": "Workspace billing",
+      "uri": "/workspace/fixtures/specs/billing.spec.md",
+      "tags": [
+        "upgrade"
+      ],
+      "status": "passed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#1",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "setup",
+          "kindSource": "binding",
+          "resolution": {
+            "type": "exact",
+            "bindingId": "ts:local#seed-workspace",
+            "bindingHash": "4f78f53956743620e823a61b3258a952fff6b69a360519e12c4929bd9fdc993e",
+            "params": {
+              "name": "Acme",
+              "plan": "free"
+            }
+          },
+          "traceId": "677b73715a87768cb43349360b38052d",
+          "traceparent": "00-677b73715a87768cb43349360b38052d-6b6193ceb7507200-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 4,
+            "column": 1
+          },
+          "status": "passed",
+          "evidence": [
+            {
+              "evidenceId": "07a7337c916bf612",
+              "kind": "observation",
+              "sha256": "07a7337c916bf612d3282c82c67e5f5170c40e59b6adf278af59c3dde6a2d5f1"
+            }
+          ],
+          "durationMs": 28
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "677b73715a87768cb43349360b38052d",
+          "traceparent": "00-677b73715a87768cb43349360b38052d-ea6cc3602157126a-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 7,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987"
+          },
+          "evidence": [],
+          "durationMs": 25,
+          "modelCalls": 2
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#3",
+          "text": "Upgrade the workspace to the Pro plan",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "677b73715a87768cb43349360b38052d",
+          "traceparent": "00-677b73715a87768cb43349360b38052d-6e42db03d781b4f1-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 8,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "7d3875b53033232ca8dad032518ee1b91d4746675148013dc13f66e9f28bae43"
+          },
+          "evidence": [],
+          "durationMs": 23,
+          "modelCalls": 3
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#4",
+          "text": "The plan badge reads \"Pro\"",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "677b73715a87768cb43349360b38052d",
+          "traceparent": "00-677b73715a87768cb43349360b38052d-69bfb95ea07fdd9e-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 9,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "2ab903108ec70b94c59d923bbb08b01ca34f2688ed29f5762b90586e684c1fdb",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "textContains",
+                  "selector": {
+                    "role": "text"
+                  },
+                  "value": "plan"
+                },
+                "result": "satisfied",
+                "detail": "expected to contain \"plan\""
+              }
+            ],
+            "status": "passed",
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "b9ef1dd959a84f30ec0ebf3fd13469297adbce765bf4057d68d9d3efeb1c4643",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 24
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#5",
+          "text": "The invoice preview shows a prorated amount",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "677b73715a87768cb43349360b38052d",
+          "traceparent": "00-677b73715a87768cb43349360b38052d-8e193a6a20bd7aec-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 10,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "707263ade0e51812fd2171932c3e284efb1c92cc1e3b2976e4c4cdd4a59f198a",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 22
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#6",
+          "text": "No error toast is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "677b73715a87768cb43349360b38052d",
+          "traceparent": "00-677b73715a87768cb43349360b38052d-279e0776af02ce00-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 12,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "notExists",
+                  "selector": {
+                    "role": "alert"
+                  }
+                },
+                "result": "satisfied"
+              }
+            ],
+            "status": "passed",
+            "invariant": true,
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "41220309cc17d57921344717339b70bc1fd1ea6f79b304dc73cb80d41f7cdc53",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 21
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#7",
+          "text": "Reset test data",
+          "kind": "setup",
+          "kindSource": "binding",
+          "resolution": {
+            "type": "exact",
+            "bindingId": "ts:local#reset",
+            "bindingHash": "3c7d7bf229ce9ae6a684f6364cb5a6bc9b44dbe3217254526a711caa52b5285e",
+            "params": {}
+          },
+          "traceId": "677b73715a87768cb43349360b38052d",
+          "traceparent": "00-677b73715a87768cb43349360b38052d-0d59c5f6f9e73474-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 19,
+            "column": 1
+          },
+          "status": "passed",
+          "evidence": [
+            {
+              "evidenceId": "141bd675d05425eb",
+              "kind": "observation",
+              "sha256": "141bd675d05425ebcb7a6f679d35a76cd1c3fa6cf183d4649f09ede1c116008a"
+            }
+          ],
+          "durationMs": 2
+        }
+      ],
+      "durationMs": 146,
+      "traceId": "677b73715a87768cb43349360b38052d",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices",
+      "name": "Downgrade is blocked with unpaid invoices",
+      "specName": "Workspace billing",
+      "uri": "/workspace/fixtures/specs/billing.spec.md",
+      "tags": [],
+      "status": "passed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#1",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "setup",
+          "kindSource": "binding",
+          "resolution": {
+            "type": "exact",
+            "bindingId": "ts:local#seed-workspace",
+            "bindingHash": "4f78f53956743620e823a61b3258a952fff6b69a360519e12c4929bd9fdc993e",
+            "params": {
+              "name": "Acme",
+              "plan": "free"
+            }
+          },
+          "traceId": "55d0420132fefd8226f5351b03c543be",
+          "traceparent": "00-55d0420132fefd8226f5351b03c543be-653be44d9b910054-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 4,
+            "column": 1
+          },
+          "status": "passed",
+          "evidence": [
+            {
+              "evidenceId": "2d3df3aa0b7019eb",
+              "kind": "observation",
+              "sha256": "2d3df3aa0b7019ebd6c005000b82728ce44adb81b52195fc07f263811c09fccb"
+            }
+          ],
+          "durationMs": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#2",
+          "text": "Seed 2 unpaid invoices for \"Acme\"",
+          "kind": "setup",
+          "kindSource": "binding",
+          "resolution": {
+            "type": "exact",
+            "bindingId": "ts:local#seed-invoices",
+            "bindingHash": "90e37eab13b18c5a411da8d7676157d24f1ade0f251ee97348347df324b960f2",
+            "params": {
+              "count": 2,
+              "name": "Acme"
+            }
+          },
+          "traceId": "55d0420132fefd8226f5351b03c543be",
+          "traceparent": "00-55d0420132fefd8226f5351b03c543be-975d9ca512c6e32b-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 14,
+            "column": 1
+          },
+          "status": "passed",
+          "evidence": [
+            {
+              "evidenceId": "872b602141df7faa",
+              "kind": "observation",
+              "sha256": "872b602141df7faa86fda12330f01523a920e5335950c4769e1d292648aa1720"
+            }
+          ],
+          "durationMs": 3
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#3",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "55d0420132fefd8226f5351b03c543be",
+          "traceparent": "00-55d0420132fefd8226f5351b03c543be-f4d9f9a739586c9a-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 15,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "replayed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "invalidation": []
+          },
+          "evidence": [],
+          "durationMs": 21,
+          "modelCalls": 0
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#4",
+          "text": "Try to downgrade to the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "55d0420132fefd8226f5351b03c543be",
+          "traceparent": "00-55d0420132fefd8226f5351b03c543be-e3be5032fb9cdb23-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 16,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "e2acf47b971b32dfb274807889fe3138d615ef9b1171f8a99d5197663d8e861f",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 21,
+          "modelCalls": 2
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#5",
+          "text": "A message explains that unpaid invoices must be settled first",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "55d0420132fefd8226f5351b03c543be",
+          "traceparent": "00-55d0420132fefd8226f5351b03c543be-780bbb76b0910db8-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 17,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "e95cbf79eeebc63318930b62161451f7969f567741dcb1a46fd2df76e8b2cbcd",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "textContains",
+                  "selector": {
+                    "role": "alert"
+                  },
+                  "value": "settle unpaid invoices"
+                },
+                "result": "satisfied",
+                "detail": "expected to contain \"settle unpaid invoices\""
+              }
+            ],
+            "status": "passed",
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "2525728d3cf18b060b552e4f046a73520185f93f623893d447479cf0167d34fa",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 22
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#6",
+          "text": "Reset test data",
+          "kind": "setup",
+          "kindSource": "binding",
+          "resolution": {
+            "type": "exact",
+            "bindingId": "ts:local#reset",
+            "bindingHash": "3c7d7bf229ce9ae6a684f6364cb5a6bc9b44dbe3217254526a711caa52b5285e",
+            "params": {}
+          },
+          "traceId": "55d0420132fefd8226f5351b03c543be",
+          "traceparent": "00-55d0420132fefd8226f5351b03c543be-5bab9a60536f2750-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 19,
+            "column": 1
+          },
+          "status": "passed",
+          "evidence": [
+            {
+              "evidenceId": "a214a3e4efd5d051",
+              "kind": "observation",
+              "sha256": "a214a3e4efd5d0510cf723ac16677c586c6eed3b2ce3801a45ebdf2ed25d9560"
+            }
+          ],
+          "durationMs": 1
+        }
+      ],
+      "durationMs": 69,
+      "traceId": "55d0420132fefd8226f5351b03c543be",
+      "driver": "fake"
+    }
+  ],
+  "stats": {
+    "scenarios": 2,
+    "passed": 2,
+    "failed": 0,
+    "healed": 0,
+    "skipped": 0,
+    "steps": 13,
+    "judgeOnly": 1,
+    "semanticResolutions": 0,
+    "actReplays": 1,
+    "heals": 0,
+    "modelCalls": 7
+  },
+  "cost": {
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "byPurpose": {}
+  },
+  "lock": {
+    "added": 0,
+    "changed": 0,
+    "revalidated": 7,
+    "unchanged": 0,
+    "ambiguous": 0
+  },
+  "diagnostics": [],
+  "exitCode": 0,
+  "frozen": false,
+  "strictCache": false,
+  "runDir": "/workspace/.ai-bdd/runs/01a121b9-d844-74bd-9ff1-01f46ed045cf",
+  "rootHash": "9c0cd84cd314e5e2f4248a2e1ad9f1708da2d8e2081f24190dab0f182172d1b7"
+}

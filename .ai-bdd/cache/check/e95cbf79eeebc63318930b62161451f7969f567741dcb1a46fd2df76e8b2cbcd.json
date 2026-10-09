@@ -1,0 +1,25 @@
+{
+  "key": "e95cbf79eeebc63318930b62161451f7969f567741dcb1a46fd2df76e8b2cbcd",
+  "version": 1,
+  "createdAt": "2026-10-09T17:33:10.356Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "e95cbf79eeebc63318930b62161451f7969f567741dcb1a46fd2df76e8b2cbcd",
+    "text": "A message explains that unpaid invoices must be settled first",
+    "driver": "fake",
+    "driverMajor": 1,
+    "predicates": [
+      {
+        "kind": "textContains",
+        "selector": {
+          "role": "alert"
+        },
+        "value": "settle unpaid invoices"
+      }
+    ],
+    "classification": "change",
+    "generatedBy": "fake:checkgen",
+    "verified": true
+  }
+}

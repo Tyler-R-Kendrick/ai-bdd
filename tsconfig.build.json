@@ -50,6 +50,15 @@
       "path": "packages/runtime"
     },
     {
+      "path": "packages/cli"
+    },
+    {
+      "path": "packages/codegen"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
       "path": "packages/conformance"
     }
   ]

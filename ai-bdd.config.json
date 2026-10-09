@@ -1,0 +1,59 @@
+{
+  "specs": [
+    "fixtures/specs/**/*.spec.md",
+    "fixtures/specs/**/*.spec",
+    "fixtures/specs/**/*.feature"
+  ],
+  "concepts": [
+    "fixtures/specs/**/*.cpt"
+  ],
+  "bindings": [
+    "fixtures/bindings/**/*.ts"
+  ],
+  "drivers": {
+    "web": {
+      "use": "@ai-bdd/driver-fake",
+      "options": {
+        "modelPath": "fixtures/app/model.json"
+      }
+    }
+  },
+  "defaultDriver": "web",
+  "context": "Plans are called tiers. The workspace is the billing account. The prorated amount is the partial invoice preview.",
+  "resolution": {
+    "threshold": 0.85,
+    "margin": 0.1,
+    "allowAgentSetup": false
+  },
+  "concurrency": {
+    "scenarios": 1
+  },
+  "cache": {
+    "mode": "read-write",
+    "dir": ".ai-bdd/cache",
+    "invalidation": [
+      "effect-verify"
+    ]
+  },
+  "evidence": {
+    "dir": ".ai-bdd/runs",
+    "video": "off",
+    "requireSettled": true,
+    "settle": {
+      "quietMs": 20,
+      "intervalMs": 10,
+      "timeoutMs": 300
+    }
+  },
+  "secrets": {
+    "adminPassword": {
+      "env": "AI_BDD_ADMIN_PASSWORD"
+    }
+  },
+  "reporters": [
+    "json",
+    "markdown",
+    "junit",
+    "cucumber-messages"
+  ]
+}

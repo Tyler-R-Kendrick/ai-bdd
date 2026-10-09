@@ -1,0 +1,3657 @@
+{
+  "runId": "01a121b9-1780-767f-aaef-a62ef06faaaa",
+  "version": "0.1.0",
+  "startedAt": "2026-10-09T17:32:20.736Z",
+  "finishedAt": "2026-10-09T17:32:31.735Z",
+  "status": "failed",
+  "driver": "fake",
+  "scenarios": [
+    {
+      "scenarioId": "/workspace/fixtures/specs/ambiguous.spec.md#near-identical-bindings",
+      "name": "Near identical bindings",
+      "specName": "Ambiguity",
+      "uri": "/workspace/fixtures/specs/ambiguous.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/ambiguous.spec.md#near-identical-bindings#1",
+          "text": "Store the workspace \"Acme\" on the \"free\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 310,
+          "traceId": "b7eacf7e29d3359a4834e428f176473d",
+          "traceparent": "00-b7eacf7e29d3359a4834e428f176473d-5888b5c97c9556c8-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 310,
+      "traceId": "b7eacf7e29d3359a4834e428f176473d",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "gherkin:workspace-fixtures-specs-billing-feature#downgrade-is-blocked-with-unpaid-invoices",
+      "name": "Downgrade is blocked with unpaid invoices",
+      "specName": "Workspace billing",
+      "uri": "/workspace/fixtures/specs/billing.feature",
+      "tags": [
+        "@billing",
+        "@smoke"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#downgrade-is-blocked-with-unpaid-invoices#0",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "setup",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "unbound",
+            "reason": "setup-unbound",
+            "message": "Setup step has no binding: \"Seed a workspace \"Acme\" on the \"free\" plan\""
+          },
+          "traceId": "94a48326c285569d13d4960f66ecba7f",
+          "traceparent": "00-94a48326c285569d13d4960f66ecba7f-a4a48238e45979f7-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "failed",
+          "evidence": [],
+          "durationMs": 3,
+          "error": {
+            "code": "SETUP_UNBOUND",
+            "message": "Setup step has no binding: \"Seed a workspace \"Acme\" on the \"free\" plan\"",
+            "retryable": false
+          }
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#downgrade-is-blocked-with-unpaid-invoices#1",
+          "text": "Seed 2 unpaid invoices for \"Acme\"",
+          "kind": "setup",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "unbound",
+            "reason": "setup-unbound",
+            "message": "Setup step has no binding: \"Seed 2 unpaid invoices for \"Acme\"\""
+          },
+          "traceId": "94a48326c285569d13d4960f66ecba7f",
+          "traceparent": "00-94a48326c285569d13d4960f66ecba7f-0138c1aa237fcdd7-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "failed",
+          "evidence": [],
+          "durationMs": 2,
+          "error": {
+            "code": "SETUP_UNBOUND",
+            "message": "Setup step has no binding: \"Seed 2 unpaid invoices for \"Acme\"\"",
+            "retryable": false
+          }
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#downgrade-is-blocked-with-unpaid-invoices#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "94a48326c285569d13d4960f66ecba7f",
+          "traceparent": "00-94a48326c285569d13d4960f66ecba7f-51d82cae9d58a241-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 307,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#downgrade-is-blocked-with-unpaid-invoices#3",
+          "text": "Try to downgrade to the free plan",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "94a48326c285569d13d4960f66ecba7f",
+          "traceparent": "00-94a48326c285569d13d4960f66ecba7f-6f01855de66aeaa7-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "failed",
+          "cache": {
+            "mode": "missed",
+            "key": "e2acf47b971b32dfb274807889fe3138d615ef9b1171f8a99d5197663d8e861f"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "modelCalls": 1,
+          "error": {
+            "code": "DRIVER_INCOMPATIBLE",
+            "message": "target missing",
+            "retryable": false
+          }
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#downgrade-is-blocked-with-unpaid-invoices#4",
+          "text": "A message explains that unpaid invoices must be settled first",
+          "kind": "assertion",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "94a48326c285569d13d4960f66ecba7f",
+          "traceparent": "00-94a48326c285569d13d4960f66ecba7f-622c727adcc823b5-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "1e5b9d79e8736e3368ac36590d34cd2c4c95cb4968906c2435c0cb138bdecb2a",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 303
+        }
+      ],
+      "durationMs": 918,
+      "traceId": "94a48326c285569d13d4960f66ecba7f",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "gherkin:workspace-fixtures-specs-billing-feature#member-upgrades-to-pro",
+      "name": "Member upgrades to Pro",
+      "specName": "Workspace billing",
+      "uri": "/workspace/fixtures/specs/billing.feature",
+      "tags": [
+        "@billing",
+        "@smoke",
+        "@upgrade"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#member-upgrades-to-pro#0",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "setup",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "unbound",
+            "reason": "setup-unbound",
+            "message": "Setup step has no binding: \"Seed a workspace \"Acme\" on the \"free\" plan\""
+          },
+          "traceId": "b5abca0fbcd32e2f258fb6b41decd376",
+          "traceparent": "00-b5abca0fbcd32e2f258fb6b41decd376-74c0fe84c6f3e295-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "failed",
+          "evidence": [],
+          "durationMs": 3,
+          "error": {
+            "code": "SETUP_UNBOUND",
+            "message": "Setup step has no binding: \"Seed a workspace \"Acme\" on the \"free\" plan\"",
+            "retryable": false
+          }
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#member-upgrades-to-pro#1",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "b5abca0fbcd32e2f258fb6b41decd376",
+          "traceparent": "00-b5abca0fbcd32e2f258fb6b41decd376-c2974dcb21a741da-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987"
+          },
+          "evidence": [],
+          "durationMs": 308,
+          "modelCalls": 2
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#member-upgrades-to-pro#2",
+          "text": "Upgrade the workspace to the Pro plan",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "b5abca0fbcd32e2f258fb6b41decd376",
+          "traceparent": "00-b5abca0fbcd32e2f258fb6b41decd376-1eff18a8bb015756-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "7d3875b53033232ca8dad032518ee1b91d4746675148013dc13f66e9f28bae43"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "modelCalls": 3
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#member-upgrades-to-pro#3",
+          "text": "The plan badge reads \"Pro\"",
+          "kind": "assertion",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "b5abca0fbcd32e2f258fb6b41decd376",
+          "traceparent": "00-b5abca0fbcd32e2f258fb6b41decd376-5da351c7d9fe59c7-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "2ab903108ec70b94c59d923bbb08b01ca34f2688ed29f5762b90586e684c1fdb",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "textContains",
+                  "selector": {
+                    "role": "text"
+                  },
+                  "value": "plan"
+                },
+                "result": "satisfied",
+                "detail": "expected to contain \"plan\""
+              }
+            ],
+            "status": "passed",
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "81856b21ce7bed0389d3a7f2c3c071444ac9209a6a09305d503258699effbd56",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 303
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#member-upgrades-to-pro#4",
+          "text": "The invoice preview shows a prorated amount",
+          "kind": "assertion",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "b5abca0fbcd32e2f258fb6b41decd376",
+          "traceparent": "00-b5abca0fbcd32e2f258fb6b41decd376-ff935bdda10a4411-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "40a1b66e3da3f1d3d69730b729cc2189e87cf96cce5b58348092907d1e0f951e",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 302
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-billing-feature#member-upgrades-to-pro#5",
+          "text": "No error toast is visible",
+          "kind": "assertion",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "b5abca0fbcd32e2f258fb6b41decd376",
+          "traceparent": "00-b5abca0fbcd32e2f258fb6b41decd376-564068f85ec12e6c-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "notExists",
+                  "selector": {
+                    "role": "alert"
+                  }
+                },
+                "result": "satisfied"
+              }
+            ],
+            "status": "passed",
+            "invariant": true,
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "1a5b1322fe3ab3555656f8ccac8bf2d64578bd3a8dccb2793d6884b1f343b420",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 302
+        }
+      ],
+      "durationMs": 1521,
+      "traceId": "b5abca0fbcd32e2f258fb6b41decd376",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "gherkin:workspace-fixtures-specs-cross-dialect-feature#shared-sentences",
+      "name": "Shared sentences",
+      "specName": "Cross dialect",
+      "uri": "/workspace/fixtures/specs/cross-dialect.feature",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-cross-dialect-feature#shared-sentences#0",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "setup",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "unbound",
+            "reason": "setup-unbound",
+            "message": "Setup step has no binding: \"Seed a workspace \"Acme\" on the \"free\" plan\""
+          },
+          "traceId": "d5d3ac387ed370bed7096df15c20fb92",
+          "traceparent": "00-d5d3ac387ed370bed7096df15c20fb92-5a6f62a16591e608-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/cross-dialect.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "failed",
+          "evidence": [],
+          "durationMs": 0,
+          "error": {
+            "code": "SETUP_UNBOUND",
+            "message": "Setup step has no binding: \"Seed a workspace \"Acme\" on the \"free\" plan\"",
+            "retryable": false
+          }
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-cross-dialect-feature#shared-sentences#1",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "d5d3ac387ed370bed7096df15c20fb92",
+          "traceparent": "00-d5d3ac387ed370bed7096df15c20fb92-2a2a8b3611dd1875-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/cross-dialect.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-cross-dialect-feature#shared-sentences#2",
+          "text": "Upgrade the workspace to the Pro plan",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "d5d3ac387ed370bed7096df15c20fb92",
+          "traceparent": "00-d5d3ac387ed370bed7096df15c20fb92-880bd3b2515b41e6-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/cross-dialect.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "7d3875b53033232ca8dad032518ee1b91d4746675148013dc13f66e9f28bae43",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-cross-dialect-feature#shared-sentences#3",
+          "text": "The plan badge reads \"Pro\"",
+          "kind": "assertion",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "d5d3ac387ed370bed7096df15c20fb92",
+          "traceparent": "00-d5d3ac387ed370bed7096df15c20fb92-a4d7699cb615dbb3-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/cross-dialect.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "15d445b040373c4286096685775fbe576117fc899fb1afe83e95d674cfa6350d",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 301
+        }
+      ],
+      "durationMs": 905,
+      "traceId": "d5d3ac387ed370bed7096df15c20fb92",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices",
+      "name": "Downgrade is blocked with unpaid invoices",
+      "specName": "Workspace billing",
+      "uri": "/workspace/fixtures/specs/billing.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#1",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "traceId": "bd22144f40e7cf469cb640ea0039b1e9",
+          "traceparent": "00-bd22144f40e7cf469cb640ea0039b1e9-4d813d7e49381ca7-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#2",
+          "text": "Seed 2 unpaid invoices for \"Acme\"",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "traceId": "bd22144f40e7cf469cb640ea0039b1e9",
+          "traceparent": "00-bd22144f40e7cf469cb640ea0039b1e9-079f5b16f1fa6c07-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#3",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "bd22144f40e7cf469cb640ea0039b1e9",
+          "traceparent": "00-bd22144f40e7cf469cb640ea0039b1e9-c71496f63cef9f4e-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 15,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#4",
+          "text": "Try to downgrade to the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "bd22144f40e7cf469cb640ea0039b1e9",
+          "traceparent": "00-bd22144f40e7cf469cb640ea0039b1e9-1b323206803172a9-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 16,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "e2acf47b971b32dfb274807889fe3138d615ef9b1171f8a99d5197663d8e861f",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#5",
+          "text": "A message explains that unpaid invoices must be settled first",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "bd22144f40e7cf469cb640ea0039b1e9",
+          "traceparent": "00-bd22144f40e7cf469cb640ea0039b1e9-ace7c68503c3b7a5-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 17,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "1e5b9d79e8736e3368ac36590d34cd2c4c95cb4968906c2435c0cb138bdecb2a",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 301
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#downgrade-is-blocked-with-unpaid-invoices#6",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "bd22144f40e7cf469cb640ea0039b1e9",
+          "traceparent": "00-bd22144f40e7cf469cb640ea0039b1e9-c2b0fab7719423c7-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 1812,
+      "traceId": "bd22144f40e7cf469cb640ea0039b1e9",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro",
+      "name": "Member upgrades to Pro",
+      "specName": "Workspace billing",
+      "uri": "/workspace/fixtures/specs/billing.spec.md",
+      "tags": [
+        "upgrade"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#1",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 309,
+          "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+          "traceparent": "00-4a1828e2d7d063771a11196ea859a4cf-59fb9a34833b9ea8-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+          "traceparent": "00-4a1828e2d7d063771a11196ea859a4cf-7da1c02b0f0b561d-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 7,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#3",
+          "text": "Upgrade the workspace to the Pro plan",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+          "traceparent": "00-4a1828e2d7d063771a11196ea859a4cf-fe6914e048ff4434-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 8,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "7d3875b53033232ca8dad032518ee1b91d4746675148013dc13f66e9f28bae43",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#4",
+          "text": "The plan badge reads \"Pro\"",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+          "traceparent": "00-4a1828e2d7d063771a11196ea859a4cf-163e7bf1cba5f15d-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 9,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "15d445b040373c4286096685775fbe576117fc899fb1afe83e95d674cfa6350d",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 303
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#5",
+          "text": "The invoice preview shows a prorated amount",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+          "traceparent": "00-4a1828e2d7d063771a11196ea859a4cf-499008888cc3b2a5-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 10,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "7f4c33c439859e6552fbf4f1459dda283ce60d2dc70a4364cbc29e5babe51dd5",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 300
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#6",
+          "text": "No error toast is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+          "traceparent": "00-4a1828e2d7d063771a11196ea859a4cf-a3671d4928e9ca4f-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/billing.spec.md",
+            "line": 12,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "notExists",
+                  "selector": {
+                    "role": "alert"
+                  }
+                },
+                "result": "satisfied"
+              }
+            ],
+            "status": "passed",
+            "invariant": true,
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "7e586b75c376b7f329d5547bb8b6dca96431ba0b1dffe4b21bb36225c06cfda5",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 301
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/billing.spec.md#member-upgrades-to-pro#7",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+          "traceparent": "00-4a1828e2d7d063771a11196ea859a4cf-a8d7b7db5218e787-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 2121,
+      "traceId": "4a1828e2d7d063771a11196ea859a4cf",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/cross-dialect.spec.md#shared-sentences",
+      "name": "Shared sentences",
+      "specName": "Cross dialect",
+      "uri": "/workspace/fixtures/specs/cross-dialect.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/cross-dialect.spec.md#shared-sentences#1",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "5618a7dae997cf0c112e91b2c672198c",
+          "traceparent": "00-5618a7dae997cf0c112e91b2c672198c-2f927dfd98205e14-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/cross-dialect.spec.md#shared-sentences#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "5618a7dae997cf0c112e91b2c672198c",
+          "traceparent": "00-5618a7dae997cf0c112e91b2c672198c-8c64227a065bb2b6-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/cross-dialect.spec.md",
+            "line": 5,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/cross-dialect.spec.md#shared-sentences#3",
+          "text": "Upgrade the workspace to the Pro plan",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "5618a7dae997cf0c112e91b2c672198c",
+          "traceparent": "00-5618a7dae997cf0c112e91b2c672198c-6ab678bd079552ef-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/cross-dialect.spec.md",
+            "line": 6,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "7d3875b53033232ca8dad032518ee1b91d4746675148013dc13f66e9f28bae43",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/cross-dialect.spec.md#shared-sentences#4",
+          "text": "The plan badge reads \"Pro\"",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "5618a7dae997cf0c112e91b2c672198c",
+          "traceparent": "00-5618a7dae997cf0c112e91b2c672198c-455e6084d51dff31-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/cross-dialect.spec.md",
+            "line": 7,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "15d445b040373c4286096685775fbe576117fc899fb1afe83e95d674cfa6350d",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 302
+        }
+      ],
+      "durationMs": 1207,
+      "traceId": "5618a7dae997cf0c112e91b2c672198c",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[1]",
+      "name": "A workspace can be seeded per row",
+      "specName": "Data driven plans",
+      "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+      "tags": [],
+      "dataRow": [
+        "Acme",
+        "free"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[1]#1",
+          "text": "Seed a workspace Acme on the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "d2cbd07fef77ec09712823fb5850bf50",
+          "traceparent": "00-d2cbd07fef77ec09712823fb5850bf50-b7ad72f1615a264b-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[1]#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "d2cbd07fef77ec09712823fb5850bf50",
+          "traceparent": "00-d2cbd07fef77ec09712823fb5850bf50-8da29df9a9cc34e8-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 11,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[1]#3",
+          "text": "The plan badge reads free",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "d2cbd07fef77ec09712823fb5850bf50",
+          "traceparent": "00-d2cbd07fef77ec09712823fb5850bf50-65ed84e817518e99-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 12,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "ae8e458ba2c6e4e224c2066f89f2a87680c5db8c5be3d467289dc010bd596bcf",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 302
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[1]#4",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "d2cbd07fef77ec09712823fb5850bf50",
+          "traceparent": "00-d2cbd07fef77ec09712823fb5850bf50-bb54427e0f85d114-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 1206,
+      "traceId": "d2cbd07fef77ec09712823fb5850bf50",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[2]",
+      "name": "A workspace can be seeded per row",
+      "specName": "Data driven plans",
+      "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+      "tags": [],
+      "dataRow": [
+        "Globex",
+        "pro"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[2]#1",
+          "text": "Seed a workspace Globex on the pro plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "d908e0ac6e4f1e489ff869f337f8e293",
+          "traceparent": "00-d908e0ac6e4f1e489ff869f337f8e293-9a2a2b42956b7192-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[2]#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "d908e0ac6e4f1e489ff869f337f8e293",
+          "traceparent": "00-d908e0ac6e4f1e489ff869f337f8e293-9166ea34234a4b57-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 11,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[2]#3",
+          "text": "The plan badge reads pro",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "d908e0ac6e4f1e489ff869f337f8e293",
+          "traceparent": "00-d908e0ac6e4f1e489ff869f337f8e293-ebda6c4d7513c0dd-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 12,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "27ac3cc204aa523fec86ce8da2638278d59ae66d11c481eb1b897d4c54f94f6a",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 302
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[2]#4",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 300,
+          "traceId": "d908e0ac6e4f1e489ff869f337f8e293",
+          "traceparent": "00-d908e0ac6e4f1e489ff869f337f8e293-80d6a4b79aca2053-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 1206,
+      "traceId": "d908e0ac6e4f1e489ff869f337f8e293",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[3]",
+      "name": "A workspace can be seeded per row",
+      "specName": "Data driven plans",
+      "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+      "tags": [],
+      "dataRow": [
+        "Initech",
+        "free"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[3]#1",
+          "text": "Seed a workspace Initech on the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "10820cb855e750f73f230e53c3a2e962",
+          "traceparent": "00-10820cb855e750f73f230e53c3a2e962-b1d3a53c8e24c9ea-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[3]#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "10820cb855e750f73f230e53c3a2e962",
+          "traceparent": "00-10820cb855e750f73f230e53c3a2e962-27c8b53e78b94a80-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 11,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[3]#3",
+          "text": "The plan badge reads free",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "10820cb855e750f73f230e53c3a2e962",
+          "traceparent": "00-10820cb855e750f73f230e53c3a2e962-3409db85b5c5f8bd-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 12,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "ae8e458ba2c6e4e224c2066f89f2a87680c5db8c5be3d467289dc010bd596bcf",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 302
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-workspace-can-be-seeded-per-row[3]#4",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "10820cb855e750f73f230e53c3a2e962",
+          "traceparent": "00-10820cb855e750f73f230e53c3a2e962-c7ed6be51b2734b6-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 1207,
+      "traceId": "10820cb855e750f73f230e53c3a2e962",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/forms.spec.md#submitting-an-ambiguous-form",
+      "name": "Submitting an ambiguous form",
+      "specName": "Two forms",
+      "uri": "/workspace/fixtures/specs/forms.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/forms.spec.md#submitting-an-ambiguous-form#1",
+          "text": "Open the two form page",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "62441912e6b228d60c9bf6849d0208d5",
+          "traceparent": "00-62441912e6b228d60c9bf6849d0208d5-503ee7048740a5ef-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/forms.spec.md#submitting-an-ambiguous-form#2",
+          "text": "Submit the form",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "62441912e6b228d60c9bf6849d0208d5",
+          "traceparent": "00-62441912e6b228d60c9bf6849d0208d5-e16a0b3770ae2142-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/forms.spec.md",
+            "line": 5,
+            "column": 1
+          },
+          "status": "failed",
+          "cache": {
+            "mode": "missed",
+            "key": "dfffd92b69a69e3a53ebb9d51eae4e0d54eabdee32472db797e7ea3a4acb24f5",
+            "reason": "ambiguous grounding"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 2,
+          "error": {
+            "code": "ACT_TARGET_AMBIGUOUS",
+            "message": "more than one candidate above the grounding threshold: button \"Submit\", button \"Submit\"",
+            "retryable": false
+          }
+        }
+      ],
+      "durationMs": 604,
+      "traceId": "62441912e6b228d60c9bf6849d0208d5",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[1]",
+      "name": "A concept drives the upgrade",
+      "specName": "Data driven plans",
+      "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+      "tags": [],
+      "dataRow": [
+        "Acme",
+        "free"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[1]#1",
+          "text": "Seed a workspace Acme on the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "91fe3beec17e4ac8b06fc194eec6e3cb",
+          "traceparent": "00-91fe3beec17e4ac8b06fc194eec6e3cb-0d9afa8c75d9879c-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[1]#2",
+          "text": "Walk through the upgrade flow for the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "91fe3beec17e4ac8b06fc194eec6e3cb",
+          "traceparent": "00-91fe3beec17e4ac8b06fc194eec6e3cb-3b0bb241c300dc3e-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[1]#3",
+          "text": "No error toast is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "91fe3beec17e4ac8b06fc194eec6e3cb",
+          "traceparent": "00-91fe3beec17e4ac8b06fc194eec6e3cb-af32852866c96d04-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 17,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "notExists",
+                  "selector": {
+                    "role": "alert"
+                  }
+                },
+                "result": "satisfied"
+              }
+            ],
+            "status": "passed",
+            "invariant": true,
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "7e586b75c376b7f329d5547bb8b6dca96431ba0b1dffe4b21bb36225c06cfda5",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 302
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[1]#4",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "91fe3beec17e4ac8b06fc194eec6e3cb",
+          "traceparent": "00-91fe3beec17e4ac8b06fc194eec6e3cb-aaab5e1a2616e0d7-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 1207,
+      "traceId": "91fe3beec17e4ac8b06fc194eec6e3cb",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[2]",
+      "name": "A concept drives the upgrade",
+      "specName": "Data driven plans",
+      "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+      "tags": [],
+      "dataRow": [
+        "Globex",
+        "pro"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[2]#1",
+          "text": "Seed a workspace Globex on the pro plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "6bca75d3aff6c1717edd13f4ae0de8a9",
+          "traceparent": "00-6bca75d3aff6c1717edd13f4ae0de8a9-a83b15e359a52dd5-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[2]#2",
+          "text": "Walk through the upgrade flow for the pro plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "6bca75d3aff6c1717edd13f4ae0de8a9",
+          "traceparent": "00-6bca75d3aff6c1717edd13f4ae0de8a9-c1ee5c863d3cacc2-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[2]#3",
+          "text": "No error toast is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "6bca75d3aff6c1717edd13f4ae0de8a9",
+          "traceparent": "00-6bca75d3aff6c1717edd13f4ae0de8a9-41c659d7fbcccad1-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 17,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "notExists",
+                  "selector": {
+                    "role": "alert"
+                  }
+                },
+                "result": "satisfied"
+              }
+            ],
+            "status": "passed",
+            "invariant": true,
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "7e586b75c376b7f329d5547bb8b6dca96431ba0b1dffe4b21bb36225c06cfda5",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 303
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[2]#4",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "6bca75d3aff6c1717edd13f4ae0de8a9",
+          "traceparent": "00-6bca75d3aff6c1717edd13f4ae0de8a9-8ec0ad4b2338eb5e-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 1208,
+      "traceId": "6bca75d3aff6c1717edd13f4ae0de8a9",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[3]",
+      "name": "A concept drives the upgrade",
+      "specName": "Data driven plans",
+      "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+      "tags": [],
+      "dataRow": [
+        "Initech",
+        "free"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[3]#1",
+          "text": "Seed a workspace Initech on the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "8f46797ed31541ba132b2edf2b4281c8",
+          "traceparent": "00-8f46797ed31541ba132b2edf2b4281c8-6553e64502a621b9-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[3]#2",
+          "text": "Walk through the upgrade flow for the free plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "8f46797ed31541ba132b2edf2b4281c8",
+          "traceparent": "00-8f46797ed31541ba132b2edf2b4281c8-d413af99892fb98c-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[3]#3",
+          "text": "No error toast is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "8f46797ed31541ba132b2edf2b4281c8",
+          "traceparent": "00-8f46797ed31541ba132b2edf2b4281c8-b004a8c649f86259-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+            "line": 17,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "notExists",
+                  "selector": {
+                    "role": "alert"
+                  }
+                },
+                "result": "satisfied"
+              }
+            ],
+            "status": "passed",
+            "invariant": true,
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "7e586b75c376b7f329d5547bb8b6dca96431ba0b1dffe4b21bb36225c06cfda5",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 301
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/data-driven.spec.md#a-concept-drives-the-upgrade[3]#4",
+          "text": "Reset test data",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "traceId": "8f46797ed31541ba132b2edf2b4281c8",
+          "traceparent": "00-8f46797ed31541ba132b2edf2b4281c8-e61c6d06d2bf18e3-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        }
+      ],
+      "durationMs": 1207,
+      "traceId": "8f46797ed31541ba132b2edf2b4281c8",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/judge-inconclusive.spec.md#the-judge-cannot-tell",
+      "name": "The judge cannot tell",
+      "specName": "Judge band",
+      "uri": "/workspace/fixtures/specs/judge-inconclusive.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/judge-inconclusive.spec.md#the-judge-cannot-tell#1",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "b8b55b5bbbf8f8ce4d17386c3c6a280c",
+          "traceparent": "00-b8b55b5bbbf8f8ce4d17386c3c6a280c-81fa48f243fb39fb-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/judge-inconclusive.spec.md",
+            "line": 4,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 300,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/judge-inconclusive.spec.md#the-judge-cannot-tell#2",
+          "text": "The plan badge shows a reasonable tier",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "b8b55b5bbbf8f8ce4d17386c3c6a280c",
+          "traceparent": "00-b8b55b5bbbf8f8ce4d17386c3c6a280c-669670d820bbd9e2-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/judge-inconclusive.spec.md",
+            "line": 5,
+            "column": 1
+          },
+          "status": "failed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.55,
+            "verdict": "inconclusive",
+            "samples": [
+              {
+                "probability": 0.55,
+                "verdict": "holds",
+                "explanation": "the badge shows a tier",
+                "observed": "Plan: Pro plan"
+              },
+              {
+                "probability": 0.55,
+                "verdict": "holds",
+                "explanation": "the badge shows a tier",
+                "observed": "Plan: Pro plan"
+              },
+              {
+                "probability": 0.55,
+                "verdict": "holds",
+                "explanation": "the badge shows a tier",
+                "observed": "Plan: Pro plan"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "728f245f9c167dc6352f84035b409d4940b3feb4eb977308c7ce3141ebdf074c",
+            "reused": false,
+            "reason": "the score 0.55 is between the fail and pass thresholds"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "error": {
+            "code": "JUDGE_INCONCLUSIVE",
+            "message": "the score 0.55 is between the fail and pass thresholds",
+            "retryable": false
+          }
+        }
+      ],
+      "durationMs": 603,
+      "traceId": "b8b55b5bbbf8f8ce4d17386c3c6a280c",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/login.spec.md#signing-in-with-a-declared-secret",
+      "name": "Signing in with a declared secret",
+      "specName": "Login",
+      "uri": "/workspace/fixtures/specs/login.spec.md",
+      "tags": [],
+      "status": "passed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/login.spec.md#signing-in-with-a-declared-secret#1",
+          "text": "Open the login page",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "caa7abca51e53a26164f998baa24352b",
+          "traceparent": "00-caa7abca51e53a26164f998baa24352b-fd6c49b478541bc2-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/login.spec.md",
+            "line": 4,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "d3bfdf06bbd0319fb452ab5af5ac9f315b140c75ff219c962795b684ed0ea682"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 2
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/login.spec.md#signing-in-with-a-declared-secret#2",
+          "text": "Sign in as \"admin\" with <secret:adminPassword>",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "caa7abca51e53a26164f998baa24352b",
+          "traceparent": "00-caa7abca51e53a26164f998baa24352b-883628561e694746-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/login.spec.md",
+            "line": 5,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "29b6ac7bf58146b87877a8c4f9df16f7917c100da612783c90b5be3a8957408c"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 3
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/login.spec.md#signing-in-with-a-declared-secret#3",
+          "text": "The dashboard heading is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "caa7abca51e53a26164f998baa24352b",
+          "traceparent": "00-caa7abca51e53a26164f998baa24352b-926fe27afe50cb55-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/login.spec.md",
+            "line": 6,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "programKey": "9e8b7e75854a40f50c9fd529373a653b37344b167f97d84902cd47f5b25bb5e9",
+            "results": [
+              {
+                "predicate": {
+                  "kind": "exists",
+                  "selector": {
+                    "role": "heading",
+                    "name": "Dashboard"
+                  }
+                },
+                "result": "satisfied"
+              }
+            ],
+            "status": "passed",
+            "generated": true,
+            "attempts": 1
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "c20f0b9c1939ee57756ba501df82924079b5fbbb2fba3a81e6b51ae204116d50",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 301
+        }
+      ],
+      "durationMs": 903,
+      "traceId": "caa7abca51e53a26164f998baa24352b",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/non-discriminative.spec.md#an-already-true-criterion-is-not-accepted-as-a-check",
+      "name": "An already true criterion is not accepted as a check",
+      "specName": "Non discriminative criteria",
+      "uri": "/workspace/fixtures/specs/non-discriminative.spec.md",
+      "tags": [],
+      "status": "passed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/non-discriminative.spec.md#an-already-true-criterion-is-not-accepted-as-a-check#1",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "04d600f19c61965ea83b641c2c8af19f",
+          "traceparent": "00-04d600f19c61965ea83b641c2c8af19f-4aabfba3b198a7f9-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/non-discriminative.spec.md",
+            "line": 4,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/non-discriminative.spec.md#an-already-true-criterion-is-not-accepted-as-a-check#2",
+          "text": "The plan badge is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "04d600f19c61965ea83b641c2c8af19f",
+          "traceparent": "00-04d600f19c61965ea83b641c2c8af19f-eb1a850e89e74b11-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/non-discriminative.spec.md",
+            "line": 5,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "a62e68ad4f51df5126d7159bc6e842b649f93ad2409a882a494a25df5240f9f9",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 300
+        }
+      ],
+      "durationMs": 601,
+      "traceId": "04d600f19c61965ea83b641c2c8af19f",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/parallel.spec.md#first-scenario",
+      "name": "First scenario",
+      "specName": "Parallel scenarios",
+      "uri": "/workspace/fixtures/specs/parallel.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#first-scenario#1",
+          "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "701f1d180e2ed9021ec20116f7b1788c",
+          "traceparent": "00-701f1d180e2ed9021ec20116f7b1788c-d33249195af053e6-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#first-scenario#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "701f1d180e2ed9021ec20116f7b1788c",
+          "traceparent": "00-701f1d180e2ed9021ec20116f7b1788c-d63da1393cb5fd72-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 6,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 300,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#first-scenario#3",
+          "text": "The plan badge reads \"free\"",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "701f1d180e2ed9021ec20116f7b1788c",
+          "traceparent": "00-701f1d180e2ed9021ec20116f7b1788c-7c8e3a90643665ce-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 7,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "fba4bf66dbceddc2dcc2c1336342095e4885b6f96cee6dff714d9b5931df60c7",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 301
+        }
+      ],
+      "durationMs": 904,
+      "traceId": "701f1d180e2ed9021ec20116f7b1788c",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/parallel.spec.md#second-scenario",
+      "name": "Second scenario",
+      "specName": "Parallel scenarios",
+      "uri": "/workspace/fixtures/specs/parallel.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#second-scenario#1",
+          "text": "Seed a workspace \"Globex\" on the \"pro\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "traceId": "10913b73baf040b6650aae010f38247f",
+          "traceparent": "00-10913b73baf040b6650aae010f38247f-28ce8a001f1a3588-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#second-scenario#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "10913b73baf040b6650aae010f38247f",
+          "traceparent": "00-10913b73baf040b6650aae010f38247f-9a55c0238daceb5d-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 11,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#second-scenario#3",
+          "text": "The plan badge reads \"pro\"",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "10913b73baf040b6650aae010f38247f",
+          "traceparent": "00-10913b73baf040b6650aae010f38247f-414d3155c24b6966-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 12,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "cfdcdf26bdf960d71afe87ed8f308c513e7bb6eff8fa4a8c7e7750ee90b4e9f8",
+            "reused": false
+          },
+          "evidence": [],
+          "durationMs": 303
+        }
+      ],
+      "durationMs": 906,
+      "traceId": "10913b73baf040b6650aae010f38247f",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/parallel.spec.md#third-scenario",
+      "name": "Third scenario",
+      "specName": "Parallel scenarios",
+      "uri": "/workspace/fixtures/specs/parallel.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#third-scenario#1",
+          "text": "Seed a workspace \"Initech\" on the \"free\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "58e2b55f4e30ed8e065e13f0cc99e1d9",
+          "traceparent": "00-58e2b55f4e30ed8e065e13f0cc99e1d9-7d302a6568be409a-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#third-scenario#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "58e2b55f4e30ed8e065e13f0cc99e1d9",
+          "traceparent": "00-58e2b55f4e30ed8e065e13f0cc99e1d9-caff7d1b06257bc1-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 16,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#third-scenario#3",
+          "text": "The plan badge reads \"free\"",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "58e2b55f4e30ed8e065e13f0cc99e1d9",
+          "traceparent": "00-58e2b55f4e30ed8e065e13f0cc99e1d9-a9858d19bda22b1c-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 17,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "fba4bf66dbceddc2dcc2c1336342095e4885b6f96cee6dff714d9b5931df60c7",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 301
+        }
+      ],
+      "durationMs": 904,
+      "traceId": "58e2b55f4e30ed8e065e13f0cc99e1d9",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/parallel.spec.md#fourth-scenario",
+      "name": "Fourth scenario",
+      "specName": "Parallel scenarios",
+      "uri": "/workspace/fixtures/specs/parallel.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#fourth-scenario#1",
+          "text": "Seed a workspace \"Umbrella\" on the \"pro\" plan",
+          "kind": "action",
+          "kindSource": "default",
+          "status": "failed",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "traceId": "0304acd511af6ae038c02cfd8e34700e",
+          "traceparent": "00-0304acd511af6ae038c02cfd8e34700e-2c9cea792025f1d3-01",
+          "error": {
+            "code": "MODEL_OUTPUT_INVALID",
+            "message": "no fake rule matched purpose=act",
+            "retryable": false,
+            "group": "model"
+          }
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#fourth-scenario#2",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "0304acd511af6ae038c02cfd8e34700e",
+          "traceparent": "00-0304acd511af6ae038c02cfd8e34700e-a559edc259a371df-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 21,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 303,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/parallel.spec.md#fourth-scenario#3",
+          "text": "The plan badge reads \"pro\"",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "0304acd511af6ae038c02cfd8e34700e",
+          "traceparent": "00-0304acd511af6ae038c02cfd8e34700e-29b8f47e92ab511b-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/parallel.spec.md",
+            "line": 22,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "cfdcdf26bdf960d71afe87ed8f308c513e7bb6eff8fa4a8c7e7750ee90b4e9f8",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 301
+        }
+      ],
+      "durationMs": 905,
+      "traceId": "0304acd511af6ae038c02cfd8e34700e",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "gherkin:workspace-fixtures-specs-semantic-feature#a-free-tier-workspace-is-seeded-through-a-synonym",
+      "name": "A free-tier workspace is seeded through a synonym",
+      "specName": "Semantic resolution",
+      "uri": "/workspace/fixtures/specs/semantic.feature",
+      "tags": [
+        "@semantic"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-semantic-feature#a-free-tier-workspace-is-seeded-through-a-synonym#0",
+          "text": "there's a free-tier workspace called Acme",
+          "kind": "setup",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "unbound",
+            "reason": "setup-unbound",
+            "message": "Setup step has no binding: \"there's a free-tier workspace called Acme\""
+          },
+          "traceId": "337eb456131fd5f22b70fa7a8be441c7",
+          "traceparent": "00-337eb456131fd5f22b70fa7a8be441c7-c9a3b86931dda727-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/semantic.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "failed",
+          "evidence": [],
+          "durationMs": 0,
+          "error": {
+            "code": "SETUP_UNBOUND",
+            "message": "Setup step has no binding: \"there's a free-tier workspace called Acme\"",
+            "retryable": false
+          }
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-semantic-feature#a-free-tier-workspace-is-seeded-through-a-synonym#1",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "337eb456131fd5f22b70fa7a8be441c7",
+          "traceparent": "00-337eb456131fd5f22b70fa7a8be441c7-18cf3e37c4308afc-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/semantic.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 302,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-semantic-feature#a-free-tier-workspace-is-seeded-through-a-synonym#2",
+          "text": "The plan badge reads \"free\"",
+          "kind": "assertion",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "337eb456131fd5f22b70fa7a8be441c7",
+          "traceparent": "00-337eb456131fd5f22b70fa7a8be441c7-5fd6b42dff93f64c-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/semantic.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "fba4bf66dbceddc2dcc2c1336342095e4885b6f96cee6dff714d9b5931df60c7",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 302
+        }
+      ],
+      "durationMs": 604,
+      "traceId": "337eb456131fd5f22b70fa7a8be441c7",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "gherkin:workspace-fixtures-specs-semantic-feature#the-negation-trap-must-not-bind",
+      "name": "The negation trap must not bind",
+      "specName": "Semantic resolution",
+      "uri": "/workspace/fixtures/specs/semantic.feature",
+      "tags": [
+        "@semantic"
+      ],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-semantic-feature#the-negation-trap-must-not-bind#0",
+          "text": "Seed an empty workspace",
+          "kind": "setup",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "unbound",
+            "reason": "setup-unbound",
+            "message": "Setup step has no binding: \"Seed an empty workspace\""
+          },
+          "traceId": "aecb19e5dc45ddf0b1035695bbc25cc2",
+          "traceparent": "00-aecb19e5dc45ddf0b1035695bbc25cc2-0c6b17826b584be4-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/semantic.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "failed",
+          "evidence": [],
+          "durationMs": 0,
+          "error": {
+            "code": "SETUP_UNBOUND",
+            "message": "Setup step has no binding: \"Seed an empty workspace\"",
+            "retryable": false
+          }
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-semantic-feature#the-negation-trap-must-not-bind#1",
+          "text": "Open billing settings",
+          "kind": "action",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "aecb19e5dc45ddf0b1035695bbc25cc2",
+          "traceparent": "00-aecb19e5dc45ddf0b1035695bbc25cc2-e2c1689affbf7c67-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/semantic.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+            "reason": "no observable effect; nothing recorded"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 1
+        },
+        {
+          "stepId": "gherkin:workspace-fixtures-specs-semantic-feature#the-negation-trap-must-not-bind#2",
+          "text": "The plan badge reads \"free\"",
+          "kind": "assertion",
+          "kindSource": "keyword",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "aecb19e5dc45ddf0b1035695bbc25cc2",
+          "traceparent": "00-aecb19e5dc45ddf0b1035695bbc25cc2-3dad8e9c4fa075e7-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/semantic.feature",
+            "line": 1,
+            "column": 1
+          },
+          "status": "passed",
+          "check": {
+            "results": [],
+            "status": "skipped",
+            "judgeOnly": true
+          },
+          "judge": {
+            "score": 0.92,
+            "verdict": "pass",
+            "samples": [
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              },
+              {
+                "probability": 0.92,
+                "verdict": "holds",
+                "explanation": "the after state satisfies the criterion",
+                "observed": "observed"
+              }
+            ],
+            "spread": 0,
+            "modelId": "fake:judge",
+            "promptVersion": "judge-1",
+            "cacheKey": "fba4bf66dbceddc2dcc2c1336342095e4885b6f96cee6dff714d9b5931df60c7",
+            "reused": true
+          },
+          "evidence": [],
+          "durationMs": 300
+        }
+      ],
+      "durationMs": 601,
+      "traceId": "aecb19e5dc45ddf0b1035695bbc25cc2",
+      "driver": "fake"
+    },
+    {
+      "scenarioId": "/workspace/fixtures/specs/slow.spec.md#spinner-then-content",
+      "name": "Spinner then content",
+      "specName": "Slow screens",
+      "uri": "/workspace/fixtures/specs/slow.spec.md",
+      "tags": [],
+      "status": "failed",
+      "steps": [
+        {
+          "stepId": "/workspace/fixtures/specs/slow.spec.md#spinner-then-content#1",
+          "text": "Open the slow page with 10000 ms",
+          "kind": "action",
+          "kindSource": "default",
+          "resolution": {
+            "type": "agent",
+            "mode": "act",
+            "reason": "no-match"
+          },
+          "traceId": "7cd7eef29b72f2b6bf30f6ed76da3985",
+          "traceparent": "00-7cd7eef29b72f2b6bf30f6ed76da3985-7c8ffb27570b4279-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/slow.spec.md",
+            "line": 4,
+            "column": 1
+          },
+          "status": "passed",
+          "cache": {
+            "mode": "missed",
+            "key": "a285edb8e68eff037c306d930756cfe445b929751395d85ca02a7ffd4768a8e1"
+          },
+          "evidence": [],
+          "durationMs": 301,
+          "modelCalls": 2
+        },
+        {
+          "stepId": "/workspace/fixtures/specs/slow.spec.md#spinner-then-content#2",
+          "text": "The slow content is visible",
+          "kind": "assertion",
+          "kindSource": "prefix",
+          "resolution": {
+            "type": "agent",
+            "mode": "assert",
+            "reason": "no-match"
+          },
+          "traceId": "7cd7eef29b72f2b6bf30f6ed76da3985",
+          "traceparent": "00-7cd7eef29b72f2b6bf30f6ed76da3985-38040afeec5aac1c-01",
+          "location": {
+            "uri": "/workspace/fixtures/specs/slow.spec.md",
+            "line": 5,
+            "column": 1
+          },
+          "status": "failed",
+          "evidence": [],
+          "durationMs": 4926,
+          "error": {
+            "code": "SCREEN_NOT_SETTLED",
+            "message": "the screen did not settle within the quiet window before the deadline",
+            "retryable": false
+          }
+        }
+      ],
+      "durationMs": 5227,
+      "traceId": "7cd7eef29b72f2b6bf30f6ed76da3985",
+      "driver": "fake"
+    }
+  ],
+  "stats": {
+    "scenarios": 24,
+    "passed": 2,
+    "failed": 22,
+    "healed": 0,
+    "skipped": 0,
+    "steps": 86,
+    "judgeOnly": 18,
+    "semanticResolutions": 0,
+    "actReplays": 0,
+    "heals": 0,
+    "modelCalls": 35
+  },
+  "cost": {
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "byPurpose": {}
+  },
+  "lock": {
+    "added": 44,
+    "changed": 0,
+    "revalidated": 0,
+    "unchanged": 1,
+    "ambiguous": 0
+  },
+  "diagnostics": [
+    {
+      "code": "GAUGE_UNRESOLVED_PARAM",
+      "severity": "error",
+      "message": "Dynamic parameter <plan> could not be resolved.",
+      "location": {
+        "uri": "/workspace/fixtures/specs/billing.cpt",
+        "line": 3,
+        "column": 1
+      },
+      "details": {
+        "parameter": "plan"
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/ambiguous.spec.md",
+        "line": 4,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/billing.spec.md",
+        "line": 4,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/billing.spec.md",
+        "line": 4,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/billing.spec.md",
+        "line": 14,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/cross-dialect.spec.md",
+        "line": 4,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/billing.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/billing.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 10,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 10,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 10,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 15,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 16,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 15,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 15,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/forms.spec.md",
+        "line": 4,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 16,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 16,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/data-driven.spec.md",
+        "line": 19,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/parallel.spec.md",
+        "line": 5,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/parallel.spec.md",
+        "line": 10,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/parallel.spec.md",
+        "line": 15,
+        "column": 1
+      }
+    },
+    {
+      "code": "MODEL_OUTPUT_INVALID",
+      "severity": "error",
+      "message": "no fake rule matched purpose=act",
+      "location": {
+        "uri": "/workspace/fixtures/specs/parallel.spec.md",
+        "line": 20,
+        "column": 1
+      }
+    }
+  ],
+  "exitCode": 2,
+  "frozen": false,
+  "strictCache": false,
+  "runDir": "/workspace/.ai-bdd/runs/01a121b9-1780-767f-aaef-a62ef06faaaa",
+  "rootHash": "856e352053fb0f58712cd728eeb39a9556c988789706d2a33430e8bcd2c57461"
+}

@@ -1,0 +1,25 @@
+{
+  "key": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+  "version": 1,
+  "createdAt": "2026-10-09T17:33:10.287Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "ad237a7e47be93e0d321c5d5158ac9eabb4f9b407194de21c46d9d63fe3fbff5",
+    "text": "No error toast is visible",
+    "driver": "fake",
+    "driverMajor": 1,
+    "predicates": [
+      {
+        "kind": "notExists",
+        "selector": {
+          "role": "alert"
+        }
+      }
+    ],
+    "classification": "invariant",
+    "invariant": true,
+    "generatedBy": "fake:checkgen",
+    "verified": true
+  }
+}

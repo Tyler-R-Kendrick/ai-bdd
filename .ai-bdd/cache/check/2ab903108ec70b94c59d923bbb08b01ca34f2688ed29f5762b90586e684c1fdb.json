@@ -1,0 +1,25 @@
+{
+  "key": "2ab903108ec70b94c59d923bbb08b01ca34f2688ed29f5762b90586e684c1fdb",
+  "version": 1,
+  "createdAt": "2026-10-09T17:33:10.287Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "2ab903108ec70b94c59d923bbb08b01ca34f2688ed29f5762b90586e684c1fdb",
+    "text": "The plan badge reads \"Pro\"",
+    "driver": "fake",
+    "driverMajor": 1,
+    "predicates": [
+      {
+        "kind": "textContains",
+        "selector": {
+          "role": "text"
+        },
+        "value": "plan"
+      }
+    ],
+    "classification": "change",
+    "generatedBy": "fake:checkgen",
+    "verified": true
+  }
+}

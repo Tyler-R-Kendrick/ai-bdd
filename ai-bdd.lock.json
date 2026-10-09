@@ -1,0 +1,717 @@
+{
+  "version": 1,
+  "generator": "ai-bdd/lock@0.1.0",
+  "entries": [
+    {
+      "key": "0ec77e070928cd15843141ea3e6908c05ec3b31f539de3003e16dc23506bea31",
+      "stepText": "Seed a workspace \"Umbrella\" on the \"pro\" plan",
+      "normalizedStepText": "Seed a workspace \"Umbrella\" on the \"pro\" plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.604Z"
+    },
+    {
+      "key": "104cbc99cf0ff9bcae5c6702235088fdea5638ded0f9b0e3af3e2c7291c026ea",
+      "stepText": "Seed a workspace \"Initech\" on the \"free\" plan",
+      "normalizedStepText": "Seed a workspace \"Initech\" on the \"free\" plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.603Z"
+    },
+    {
+      "key": "164e5e6ea1294fe157c4b1e46b588a8fb8c8aff8427387d173a78ab0bc03fdc3",
+      "stepText": "there's a free-tier workspace called Acme",
+      "normalizedStepText": "there's a free-tier workspace called Acme",
+      "kind": "setup",
+      "kindClass": "explicit-keyword",
+      "status": "inferred-kind",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "unbound",
+        "reason": "setup-unbound",
+        "message": "Setup step has no binding: \"there's a free-tier workspace called Acme\""
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:26.203Z"
+    },
+    {
+      "key": "1ade71641429760408c561860ed143efa555bb18b4f027df0c4c58be18d8c85a",
+      "stepText": "The plan badge shows a reasonable tier",
+      "normalizedStepText": "The plan badge shows a reasonable tier",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:24.997Z"
+    },
+    {
+      "key": "1adfc228de1719d86532b539e19a2f9dd3f2672cb9fb3858a9ccb9daf071812b",
+      "stepText": "Open billing settings",
+      "normalizedStepText": "Open billing settings",
+      "kind": "action",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:20.769Z"
+    },
+    {
+      "key": "1cda15af9d45cd8b16db3fda2ee4a52f4320199689584c154c185fa3b7d1efe6",
+      "stepText": "The plan badge reads \"Pro\"",
+      "normalizedStepText": "The plan badge reads \"Pro\"",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "3c96c39fc918d09331b8902fe39c1147995544b9447370dde2f1dd93fa1172e1",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "revalidated": true,
+      "updatedAt": "2026-10-09T17:32:21.679Z"
+    },
+    {
+      "key": "1f5c00c4aeb1de03962fd6d63d0a31698d801a6f7374839e3b48955b6f074f14",
+      "stepText": "The invoice preview shows a prorated amount",
+      "normalizedStepText": "The invoice preview shows a prorated amount",
+      "kind": "assertion",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:21.681Z"
+    },
+    {
+      "key": "1f78dc390448fbdd5a60ba65ba7fa7732cd850bf6f42d5fdf06d92f2d7295b94",
+      "stepText": "Open the login page",
+      "normalizedStepText": "Open the login page",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:24.699Z"
+    },
+    {
+      "key": "24125453e06c091b9029b3c53978ae21a7e144e1c3055a15bbfd8bbd3fafca44",
+      "stepText": "The slow content is visible",
+      "normalizedStepText": "The slow content is visible",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:26.808Z"
+    },
+    {
+      "key": "2873c335a22325c98993f31176df929ba58f130592d94abcbbeedc3094db10a3",
+      "stepText": "Seed a workspace \"Globex\" on the \"pro\" plan",
+      "normalizedStepText": "Seed a workspace \"Globex\" on the \"pro\" plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.300Z"
+    },
+    {
+      "key": "2cc8b187ae4d7724c086c021eaef3fe2b706daaa9521e7f6fa8bc543143da8df",
+      "stepText": "Seed an empty workspace",
+      "normalizedStepText": "Seed an empty workspace",
+      "kind": "setup",
+      "kindClass": "explicit-keyword",
+      "status": "inferred-kind",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "unbound",
+        "reason": "setup-unbound",
+        "message": "Setup step has no binding: \"Seed an empty workspace\""
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:26.206Z"
+    },
+    {
+      "key": "3030458766e0d17fe6a441195cd44c1138a51c9d1fef8f242808a4a7a8298706",
+      "stepText": "The invoice preview shows a prorated amount",
+      "normalizedStepText": "The invoice preview shows a prorated amount",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "3c96c39fc918d09331b8902fe39c1147995544b9447370dde2f1dd93fa1172e1",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "revalidated": true,
+      "updatedAt": "2026-10-09T17:32:21.982Z"
+    },
+    {
+      "key": "32e78b3808513cfd34f9a921e9d20003ce26a053aec48c29d7526bbff52d8235",
+      "stepText": "Open the two form page",
+      "normalizedStepText": "Open the two form page",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:24.093Z"
+    },
+    {
+      "key": "3f8e08c171b9595d4ba1a7cd6e032aa9a50c37ede22015eff0e518002b9d97fd",
+      "stepText": "The plan badge is visible",
+      "normalizedStepText": "The plan badge is visible",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.303Z"
+    },
+    {
+      "key": "440a3af15516dc07cdd717e0e6cad8871676770043a06e73443bf5449ac51bc8",
+      "stepText": "Try to downgrade to the free plan",
+      "normalizedStepText": "Try to downgrade to the free plan",
+      "kind": "action",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:21.076Z"
+    },
+    {
+      "key": "58002eef07aa13c9cf110a48507a659415bc1fd899972573096541f7a2de6125",
+      "stepText": "Sign in as \"admin\" with <secret:adminPassword>",
+      "normalizedStepText": "Sign in as \"admin\" with <secret:adminPassword>",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.000Z"
+    },
+    {
+      "key": "5fb9af8fe60c10c5d7d17df65fc2c348121f1a51aedfe65fa29734af0332df18",
+      "stepText": "Submit the form",
+      "normalizedStepText": "Submit the form",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:24.394Z"
+    },
+    {
+      "key": "60ce520509adab5b128560e2fba734e1cd5e35e700daf896ebfca105b4f72738",
+      "stepText": "Seed a workspace Acme on the free plan",
+      "normalizedStepText": "Seed a workspace Acme on the free plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:22.588Z"
+    },
+    {
+      "key": "62c64e7edc894736bd38154546df4cfacc56940c14641da77207cc5bc971227a",
+      "stepText": "The plan badge reads \"pro\"",
+      "normalizedStepText": "The plan badge reads \"pro\"",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.903Z"
+    },
+    {
+      "key": "6c95019b565aca544d11016ab04fa0aa73f4e1587a08b762b2660d6be8d252bb",
+      "stepText": "The plan badge reads pro",
+      "normalizedStepText": "The plan badge reads pro",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:23.489Z"
+    },
+    {
+      "key": "7ba20c89df0ae0772aa97716b7bfbad398b33f90f6de43db596eeacb029b1bad",
+      "stepText": "A message explains that unpaid invoices must be settled first",
+      "normalizedStepText": "A message explains that unpaid invoices must be settled first",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "3c96c39fc918d09331b8902fe39c1147995544b9447370dde2f1dd93fa1172e1",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "revalidated": true,
+      "updatedAt": "2026-10-09T17:32:22.282Z"
+    },
+    {
+      "key": "802fe6d015f244add9eefbe182b9cbe57ca1f0e8471ef852cb8e4c89c8bf91f2",
+      "stepText": "Seed a workspace \"Acme\" on the \"free\" plan",
+      "normalizedStepText": "Seed a workspace \"Acme\" on the \"free\" plan",
+      "kind": "setup",
+      "kindClass": "explicit-keyword",
+      "status": "inferred-kind",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "unbound",
+        "reason": "setup-unbound",
+        "message": "Setup step has no binding: \"Seed a workspace \"Acme\" on the \"free\" plan\""
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:20.766Z"
+    },
+    {
+      "key": "80ee202c44bf22fbf9bc6abc98850777f543327b3d4550da53246901eea517aa",
+      "stepText": "Open the slow page with 10000 ms",
+      "normalizedStepText": "Open the slow page with 10000 ms",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:26.507Z"
+    },
+    {
+      "key": "8be9c5166aff7d78814cfd8b78313810968537327a69c553c02aaf25179a65d1",
+      "stepText": "Walk through the upgrade flow for the pro plan",
+      "normalizedStepText": "Walk through the upgrade flow for the pro plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:24.095Z"
+    },
+    {
+      "key": "9c6669ccaebda29c07f7b68d063319efa2f90fb4335d618b99485a1d34325a87",
+      "stepText": "Seed a workspace Globex on the pro plan",
+      "normalizedStepText": "Seed a workspace Globex on the pro plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:22.885Z"
+    },
+    {
+      "key": "a64eb8ca3ee73cdb54dda45f53b8b2a79d66e94ca9a55991007898afbd0905e2",
+      "stepText": "The dashboard heading is visible",
+      "normalizedStepText": "The dashboard heading is visible",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.301Z"
+    },
+    {
+      "key": "a8e134c6dc417d1a561ada5efbf5de02869dda457428ff568a8f75bba8954cce",
+      "stepText": "Seed 2 unpaid invoices for \"Acme\"",
+      "normalizedStepText": "Seed 2 unpaid invoices for \"Acme\"",
+      "kind": "setup",
+      "kindClass": "explicit-keyword",
+      "status": "inferred-kind",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "unbound",
+        "reason": "setup-unbound",
+        "message": "Setup step has no binding: \"Seed 2 unpaid invoices for \"Acme\"\""
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:20.769Z"
+    },
+    {
+      "key": "b7bfec36205326916ffbaca5c2a1d9f1e86262dcc30677d0d281b71ef4e65574",
+      "stepText": "Open billing settings",
+      "normalizedStepText": "Open billing settings",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "3c96c39fc918d09331b8902fe39c1147995544b9447370dde2f1dd93fa1172e1",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "revalidated": true,
+      "updatedAt": "2026-10-09T17:32:21.073Z"
+    },
+    {
+      "key": "bc03d8db6174345941be4ea884cb50198198492d5891b38ab1b74f3a762227fa",
+      "stepText": "Store the workspace \"Acme\" on the \"free\" plan",
+      "normalizedStepText": "Store the workspace \"Acme\" on the \"free\" plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:20.767Z"
+    },
+    {
+      "key": "bc9fd22d05b9e2d0095fa1161f3ad25fa2301029ce4bfa35cbe91ef5e29aa2e0",
+      "stepText": "Try to downgrade to the free plan",
+      "normalizedStepText": "Try to downgrade to the free plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "3c96c39fc918d09331b8902fe39c1147995544b9447370dde2f1dd93fa1172e1",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "revalidated": true,
+      "updatedAt": "2026-10-09T17:32:21.981Z"
+    },
+    {
+      "key": "c0b8c22f90b69e778e5090dfe57b324794bdf89e8555bd61a118d6f42a37561b",
+      "stepText": "A message explains that unpaid invoices must be settled first",
+      "normalizedStepText": "A message explains that unpaid invoices must be settled first",
+      "kind": "assertion",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:21.379Z"
+    },
+    {
+      "key": "c17e421e04e20faff8b45f9f844ef18ad3aa838a44122f0ab2a8f7dd36f1ccec",
+      "stepText": "The plan badge reads \"free\"",
+      "normalizedStepText": "The plan badge reads \"free\"",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:25.902Z"
+    },
+    {
+      "key": "c6aca6e44e18861bed461697b450dfa04e90e9f804083cfe807bf555a98f4b3e",
+      "stepText": "Seed a workspace Initech on the free plan",
+      "normalizedStepText": "Seed a workspace Initech on the free plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:22.886Z"
+    },
+    {
+      "key": "c6bef4c7c1e82b9999e43dacaa8007bcabba5ecbc79b06a179025f27ee74565b",
+      "stepText": "Seed a workspace \"Acme\" on the \"free\" plan",
+      "normalizedStepText": "Seed a workspace \"Acme\" on the \"free\" plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:20.767Z"
+    },
+    {
+      "key": "ce35870c612ad17d70b85cd7b9333eb4a00c9c5aba07769effed7b64dcc0addb",
+      "stepText": "Upgrade the workspace to the Pro plan",
+      "normalizedStepText": "Upgrade the workspace to the Pro plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "3c96c39fc918d09331b8902fe39c1147995544b9447370dde2f1dd93fa1172e1",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "revalidated": true,
+      "updatedAt": "2026-10-09T17:32:21.376Z"
+    },
+    {
+      "key": "e649f1812a82349afebb771e08e0b1c0880ca675e57e09ebdbb69013c07164d2",
+      "stepText": "The plan badge reads free",
+      "normalizedStepText": "The plan badge reads free",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:23.190Z"
+    },
+    {
+      "key": "e7b9e2b41c8783840d70bab43ff30062ff1f73aa1bf2a4d85f05d6c22f918eb2",
+      "stepText": "No error toast is visible",
+      "normalizedStepText": "No error toast is visible",
+      "kind": "assertion",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:21.983Z"
+    },
+    {
+      "key": "ea402a68c40dd45a45fd255ac5411f0d0f8dc6d43aeea03a2b01c643918552ed",
+      "stepText": "Seed 2 unpaid invoices for \"Acme\"",
+      "normalizedStepText": "Seed 2 unpaid invoices for \"Acme\"",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:21.376Z"
+    },
+    {
+      "key": "ee8d0c540a53f1e0fc62a5822b52608e57558d8f1571ac0928dfec4d434ee615",
+      "stepText": "The plan badge reads \"free\"",
+      "normalizedStepText": "The plan badge reads \"free\"",
+      "kind": "assertion",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:26.505Z"
+    },
+    {
+      "key": "ef74135d01a681225091ed2b7b18bf53f16696411c338288ea6077e898911ca8",
+      "stepText": "The plan badge reads \"Pro\"",
+      "normalizedStepText": "The plan badge reads \"Pro\"",
+      "kind": "assertion",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:21.378Z"
+    },
+    {
+      "key": "f0c5c525d591fbbc8ac2f9abe198f704c81dfdd85e7045e8f92cbdee3498d66e",
+      "stepText": "Upgrade the workspace to the Pro plan",
+      "normalizedStepText": "Upgrade the workspace to the Pro plan",
+      "kind": "action",
+      "kindClass": "explicit-keyword",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:21.075Z"
+    },
+    {
+      "key": "f45acb057829fdda99a9e099af8c2455820d8a48c44552b42c80d32de1bd5701",
+      "stepText": "No error toast is visible",
+      "normalizedStepText": "No error toast is visible",
+      "kind": "assertion",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "3c96c39fc918d09331b8902fe39c1147995544b9447370dde2f1dd93fa1172e1",
+      "resolution": {
+        "type": "agent",
+        "mode": "assert",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "revalidated": true,
+      "updatedAt": "2026-10-09T17:32:22.282Z"
+    },
+    {
+      "key": "f856ff8612fde315a715708e637c18a6e437a09987dfbc12b005d149bf24eb2c",
+      "stepText": "Reset test data",
+      "normalizedStepText": "Reset test data",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:22.583Z"
+    },
+    {
+      "key": "fdd6567c56c4b16709d7aa26d65bb28ca2610092bfbf844b97eefebddb53c57c",
+      "stepText": "Walk through the upgrade flow for the free plan",
+      "normalizedStepText": "Walk through the upgrade flow for the free plan",
+      "kind": "action",
+      "kindClass": "inferred",
+      "status": "agent",
+      "bindingSetHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resolution": {
+        "type": "agent",
+        "mode": "act",
+        "reason": "no-match"
+      },
+      "candidates": [],
+      "updatedAt": "2026-10-09T17:32:23.793Z"
+    }
+  ]
+}

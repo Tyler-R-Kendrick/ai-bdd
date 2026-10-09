@@ -1,0 +1,28 @@
+# ai-bdd run summary
+
+- run: `01a121b9-6741-7a69-b42b-e3ef889e9b35`
+- driver: `fake`
+- status: **failed** (exit code 1)
+- scenarios: 0 passed, 2 failed, 0 healed
+- steps: 13 (semantic resolutions: 0, act replays: 0)
+- judge-only assertions: 2
+- model calls: 7
+- evidence: `/workspace/.ai-bdd/runs/01a121b9-6741-7a69-b42b-e3ef889e9b35`
+- evidence root hash: `934fc38ec99614c35c32f3ed28a582fd373a3c303c4243c8b029e9b6c6c80755`
+
+## Lockfile
+
+- added: 0, changed: 0, revalidated: 0, unchanged: 0
+
+## Failures
+
+### Downgrade is blocked with unpaid invoices
+- `failed` Seed a workspace "Acme" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Seed 2 unpaid invoices for "Acme" — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Try to downgrade to the free plan — DRIVER_INCOMPATIBLE: target missing
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Member upgrades to Pro
+- `failed` Seed a workspace "Acme" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+

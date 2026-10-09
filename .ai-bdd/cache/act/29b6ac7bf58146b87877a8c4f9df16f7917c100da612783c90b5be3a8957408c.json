@@ -1,0 +1,100 @@
+{
+  "key": "29b6ac7bf58146b87877a8c4f9df16f7917c100da612783c90b5be3a8957408c",
+  "version": 1,
+  "createdAt": "2026-10-09T17:32:25.602Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "29b6ac7bf58146b87877a8c4f9df16f7917c100da612783c90b5be3a8957408c",
+    "text": "Sign in as \"admin\" with <secret:adminPassword>",
+    "driver": "fake",
+    "driverMajor": 1,
+    "params": [],
+    "start": {
+      "route": "/login",
+      "landmarks": [
+        {
+          "role": "heading",
+          "name": "Sign in"
+        }
+      ]
+    },
+    "actions": [
+      {
+        "verb": "typeSecret",
+        "selector": {
+          "role": "textbox",
+          "name": "Password",
+          "testId": "password"
+        },
+        "value": {
+          "literal": "adminPassword"
+        }
+      },
+      {
+        "verb": "tap",
+        "selector": {
+          "role": "button",
+          "name": "Sign in",
+          "testId": "signIn"
+        }
+      }
+    ],
+    "effect": {
+      "elements": [
+        {
+          "selector": {
+            "role": "heading",
+            "name": "Dashboard",
+            "testId": "dashboardHeading"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "text",
+            "name": "Welcome, undefined"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "heading",
+            "name": "Sign in"
+          },
+          "change": "disappeared"
+        },
+        {
+          "selector": {
+            "role": "textbox",
+            "name": "User name",
+            "testId": "user"
+          },
+          "change": "disappeared"
+        },
+        {
+          "selector": {
+            "role": "textbox",
+            "name": "Password",
+            "testId": "password"
+          },
+          "change": "disappeared"
+        },
+        {
+          "selector": {
+            "role": "button",
+            "name": "Sign in",
+            "testId": "signIn"
+          },
+          "change": "disappeared"
+        }
+      ],
+      "route": {
+        "before": "/login",
+        "after": "/dashboard"
+      }
+    },
+    "recordedAt": "2026-10-09T17:32:25.301Z",
+    "pending": false
+  }
+}

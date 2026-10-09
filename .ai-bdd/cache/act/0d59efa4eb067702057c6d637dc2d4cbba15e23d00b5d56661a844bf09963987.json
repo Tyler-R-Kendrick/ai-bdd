@@ -1,0 +1,71 @@
+{
+  "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+  "version": 1,
+  "createdAt": "2026-10-09T17:33:10.286Z",
+  "mode": "read-write",
+  "program": {
+    "version": 1,
+    "key": "0d59efa4eb067702057c6d637dc2d4cbba15e23d00b5d56661a844bf09963987",
+    "text": "Open billing settings",
+    "driver": "fake",
+    "driverMajor": 1,
+    "params": [],
+    "start": {
+      "landmarks": []
+    },
+    "actions": [
+      {
+        "verb": "navigate",
+        "value": {
+          "literal": "/settings/billing"
+        }
+      }
+    ],
+    "effect": {
+      "elements": [
+        {
+          "selector": {
+            "role": "heading",
+            "name": "Billing settings"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "text",
+            "name": "Plan: Free plan"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "text",
+            "name": "Workspace: Acme"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "button",
+            "name": "Upgrade to Pro",
+            "testId": "upgrade"
+          },
+          "change": "appeared"
+        },
+        {
+          "selector": {
+            "role": "button",
+            "name": "Downgrade",
+            "testId": "downgrade"
+          },
+          "change": "appeared"
+        }
+      ],
+      "route": {
+        "after": "/settings/billing"
+      }
+    },
+    "recordedAt": "2026-10-09T17:33:10.194Z",
+    "pending": false
+  }
+}

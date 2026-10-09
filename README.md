@@ -26,12 +26,17 @@ pnpm build
 # 1. Run the fixture app (a dependency-free Node server)
 node fixtures/app/server.mjs --port 0
 
-# 2. Run the sample corpus with the deterministic fake model and fake driver
-AI_BDD_FAKE=1 node packages/cli/dist/bin.js run fixtures/specs
+# 2. Run a spec with the deterministic fake model and fake driver
+AI_BDD_FAKE=1 node packages/cli/dist/bin.js run fixtures/specs/billing.spec.md
+
+# fixtures/specs also holds the acceptance corpus: several files fail on purpose
+# (the negation trap, the settle timeout, the judge band). See docs/status.md.
+AI_BDD_FAKE=1 node packages/cli/dist/bin.js resolve fixtures/specs
 
 # 3. Inspect what the run produced
 head -40 .ai-bdd/report.json
 node packages/cli/dist/bin.js verify-evidence .ai-bdd/runs/<runId>
+node packages/cli/dist/bin.js codegen --framework cucumber-js
 ```
 
 To point ai-bdd at a real browser and a real model, copy the config in

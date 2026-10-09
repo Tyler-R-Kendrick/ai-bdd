@@ -9,5 +9,7 @@ export { defineConfig, loadConfig, resolveConfig, DEFAULT_SPECS, DEFAULT_CONCEPT
 export { discover, expandGlobs, type DiscoveryResult } from './discover.js';
 export { buildReport, computeStats, writeReports, markdownSummary, junitReport, messagesReport } from './report.js';
 export { runScenario, describeTree, lockKeyForStep, runsDirFor, type PipelineDependencies } from './pipeline.js';
-export { globToRegExp, walkFiles } from './glob.js';
+export { globToRegExp, normalizeSpecGlobs, walkFiles } from './glob.js';
 export { newTrace, parseTraceparent, span, type TraceContext } from './trace.js';
+export { resolveAll, type ResolvedStepRow, type ResolveAllOptions } from './resolve-all.js';
+export { expandBindingGlobs } from './bindings.js';

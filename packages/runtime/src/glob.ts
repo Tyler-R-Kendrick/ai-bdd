@@ -70,3 +70,25 @@ export function expandGlobs(projectRoot: string, patterns: string[]): string[] {
   const matches = files.filter((file) => regexps.some((regexp) => regexp.test(file)));
   return matches.map((file) => join(projectRoot, file));
 }
+
+const SPEC_SUFFIXES = ['*.spec.md', '*.spec', '*.feature'];
+const CONCEPT_SUFFIX = '*.cpt';
+
+/**
+ * Turns CLI arguments into globs: a directory expands to the spec suffixes it
+ * contains, so `ai-bdd run fixtures/specs` does what a user expects.
+ */
+export function normalizeSpecGlobs(projectRoot: string, patterns: string[]): string[] {
+  return patterns.flatMap((pattern) => {
+    if (/[*?{]/u.test(pattern)) return [pattern];
+    const absolute = pattern.startsWith('/') ? pattern : join(projectRoot, pattern);
+    try {
+      if (!statSync(absolute).isDirectory()) return [pattern];
+    } catch {
+      return [pattern];
+    }
+    const relative = absolute.startsWith(projectRoot) ? absolute.slice(projectRoot.length + 1) : pattern;
+    const base = relative.length === 0 ? '' : `${relative.replace(/\/$/u, '')}/`;
+    return [...SPEC_SUFFIXES.map((suffix) => `${base}**/${suffix}`), `${base}**/${CONCEPT_SUFFIX}`];
+  });
+}

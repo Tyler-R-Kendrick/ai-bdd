@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
   AiBddConfig,
+  ResolvedConfig,
   Diagnostic,
   DriverFactory,
   RunEvent,
@@ -20,6 +21,8 @@ import { createCalibrationJournal, createJudgeCache } from '@ai-bdd/judge';
 import type { ModelSet } from '@ai-bdd/contracts';
 import { resolveConfig } from './config.js';
 import { discover } from './discover.js';
+import { normalizeSpecGlobs } from './glob.js';
+import { expandBindingGlobs } from './bindings.js';
 import { runScenario, type PipelineDependencies } from './pipeline.js';
 import { newTrace } from './trace.js';
 import { buildReport, writeReports } from './report.js';
@@ -59,9 +62,10 @@ export class Runtime {
   private readonly config: ReturnType<typeof resolveConfig>;
   private readonly options: RuntimeOptions;
 
-  constructor(config: AiBddConfig, options: RuntimeOptions) {
+  constructor(config: AiBddConfig | ResolvedConfig, options: RuntimeOptions) {
     const projectRoot = options.projectRoot ?? process.cwd();
-    this.config = resolveConfig(config, projectRoot, options.env ?? process.env);
+    // The CLI already resolved the config (it validated it), so accept both shapes.
+    this.config = isResolvedConfig(config) ? config : resolveConfig(config, projectRoot, options.env ?? process.env);
     this.options = { ...options, projectRoot };
   }
 
@@ -106,7 +110,9 @@ export class Runtime {
     }
 
     // 2. Discovery.
-    const discovery = discover(config.projectRoot, runOptions.globs ?? config.specs, config.concepts);
+    const globs = normalizeSpecGlobs(config.projectRoot, runOptions.globs ?? config.specs);
+    const conceptGlobs = normalizeSpecGlobs(config.projectRoot, config.concepts).filter((glob) => glob.endsWith('.cpt'));
+    const discovery = discover(config.projectRoot, globs, conceptGlobs);
     diagnostics.push(...discovery.diagnostics);
     emit({ type: 'spec:parsed', uri: '*', dialect: 'gauge', scenarios: discovery.documents.reduce((total, doc) => total + doc.scenarios.length, 0), diagnostics: discovery.diagnostics });
 
@@ -247,7 +253,7 @@ export class Runtime {
   }
 }
 
-export function createRuntime(config: AiBddConfig, options: RuntimeOptions): Runtime {
+export function createRuntime(config: AiBddConfig | ResolvedConfig, options: RuntimeOptions): Runtime {
   return new Runtime(config, options);
 }
 
@@ -320,44 +326,6 @@ export function compileTagExpression(expression: string): (tags: string[]) => bo
   return predicate;
 }
 
-function expandBindingGlobs(config: ReturnType<typeof resolveConfig>): string[] {
-  return config.bindings.flatMap((pattern) => {
-    const root = config.projectRoot;
-    const matches: string[] = [];
-    const walk = (dir: string): void => {
-      for (const entry of safeReadDir(dir)) {
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) walk(full);
-        else if (matchesPattern(full.slice(root.length + 1), pattern)) matches.push(full);
-      }
-    };
-    walk(root);
-    return matches;
-  });
-}
-
-function safeReadDir(dir: string): Array<{ name: string; isDirectory: () => boolean }> {
-  try {
-    return Array.from(readdirSync(dir, { withFileTypes: true })).map((entry) => ({
-      name: entry.name,
-      isDirectory: () => entry.isDirectory(),
-    }));
-  } catch {
-    return [];
-  }
-}
-
-function matchesPattern(path: string, pattern: string): boolean {
-  if (pattern.includes('**')) {
-    const [prefix, suffix] = pattern.split('**');
-    const head = (prefix ?? '').replace(/\/$/u, '');
-    const tail = (suffix ?? '').replace(/^\//u, '');
-    return (!head || path.includes(head)) && (!tail || path.endsWith(tail.replace(/^\*/u, '').replace(/^\./u, '.')));
-  }
-  return path === pattern;
-}
-
-import { readdirSync } from 'node:fs';
 
 /** Writes a report file, used by the CLI. */
 export function writeJson(path: string, value: unknown): void {
@@ -365,3 +333,13 @@ export function writeJson(path: string, value: unknown): void {
 }
 
 export type { StepOptions };
+
+function isResolvedConfig(config: AiBddConfig | ResolvedConfig): config is ResolvedConfig {
+  const candidate = config as Partial<ResolvedConfig>;
+  return (
+    typeof candidate.projectRoot === 'string' &&
+    typeof candidate.resolution === 'object' &&
+    Array.isArray(candidate.kinds?.assertionVerbs) &&
+    typeof candidate.evidence?.dir === 'string'
+  );
+}

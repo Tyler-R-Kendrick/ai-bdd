@@ -1,0 +1,99 @@
+# ai-bdd run summary
+
+- run: `01a121b9-1780-767f-aaef-a62ef06faaaa`
+- driver: `fake`
+- status: **failed** (exit code 2)
+- scenarios: 2 passed, 22 failed, 0 healed
+- steps: 86 (semantic resolutions: 0, act replays: 0)
+- judge-only assertions: 18
+- model calls: 35
+- evidence: `/workspace/.ai-bdd/runs/01a121b9-1780-767f-aaef-a62ef06faaaa`
+- evidence root hash: `856e352053fb0f58712cd728eeb39a9556c988789706d2a33430e8bcd2c57461`
+
+## Lockfile
+
+- added: 44, changed: 0, revalidated: 0, unchanged: 1
+
+## Failures
+
+### Near identical bindings
+- `failed` Store the workspace "Acme" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Downgrade is blocked with unpaid invoices
+- `failed` Seed a workspace "Acme" on the "free" plan — SETUP_UNBOUND: Setup step has no binding: "Seed a workspace "Acme" on the "free" plan"
+- `failed` Seed 2 unpaid invoices for "Acme" — SETUP_UNBOUND: Setup step has no binding: "Seed 2 unpaid invoices for "Acme""
+- `failed` Try to downgrade to the free plan — DRIVER_INCOMPATIBLE: target missing
+
+### Member upgrades to Pro
+- `failed` Seed a workspace "Acme" on the "free" plan — SETUP_UNBOUND: Setup step has no binding: "Seed a workspace "Acme" on the "free" plan"
+
+### Shared sentences
+- `failed` Seed a workspace "Acme" on the "free" plan — SETUP_UNBOUND: Setup step has no binding: "Seed a workspace "Acme" on the "free" plan"
+
+### Downgrade is blocked with unpaid invoices
+- `failed` Seed a workspace "Acme" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Seed 2 unpaid invoices for "Acme" — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Member upgrades to Pro
+- `failed` Seed a workspace "Acme" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Shared sentences
+- `failed` Seed a workspace "Acme" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### A workspace can be seeded per row
+- `failed` Seed a workspace Acme on the free plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### A workspace can be seeded per row
+- `failed` Seed a workspace Globex on the pro plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### A workspace can be seeded per row
+- `failed` Seed a workspace Initech on the free plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Submitting an ambiguous form
+- `failed` Open the two form page — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Submit the form — ACT_TARGET_AMBIGUOUS: more than one candidate above the grounding threshold: button "Submit", button "Submit"
+
+### A concept drives the upgrade
+- `failed` Seed a workspace Acme on the free plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Walk through the upgrade flow for the free plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### A concept drives the upgrade
+- `failed` Seed a workspace Globex on the pro plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Walk through the upgrade flow for the pro plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### A concept drives the upgrade
+- `failed` Seed a workspace Initech on the free plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Walk through the upgrade flow for the free plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+- `failed` Reset test data — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### The judge cannot tell
+- `failed` The plan badge shows a reasonable tier — JUDGE_INCONCLUSIVE: the score 0.55 is between the fail and pass thresholds
+
+### First scenario
+- `failed` Seed a workspace "Acme" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Second scenario
+- `failed` Seed a workspace "Globex" on the "pro" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Third scenario
+- `failed` Seed a workspace "Initech" on the "free" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### Fourth scenario
+- `failed` Seed a workspace "Umbrella" on the "pro" plan — MODEL_OUTPUT_INVALID: no fake rule matched purpose=act
+
+### A free-tier workspace is seeded through a synonym
+- `failed` there's a free-tier workspace called Acme — SETUP_UNBOUND: Setup step has no binding: "there's a free-tier workspace called Acme"
+
+### The negation trap must not bind
+- `failed` Seed an empty workspace — SETUP_UNBOUND: Setup step has no binding: "Seed an empty workspace"
+
+### Spinner then content
+- `failed` The slow content is visible — SCREEN_NOT_SETTLED: the screen did not settle within the quiet window before the deadline
+
