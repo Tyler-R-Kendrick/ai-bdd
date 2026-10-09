@@ -247,6 +247,9 @@ importers:
       '@ai-bdd/driver-fake':
         specifier: workspace:*
         version: link:../driver-fake
+      '@ai-bdd/e2e-host':
+        specifier: workspace:*
+        version: link:../e2e-host
       '@ai-bdd/evidence':
         specifier: workspace:*
         version: link:../evidence
@@ -401,6 +404,31 @@ importers:
       '@ai-bdd/conformance':
         specifier: workspace:*
         version: link:../conformance
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/e2e-host:
+    dependencies:
+      '@ai-bdd/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-bdd/lock':
+        specifier: workspace:*
+        version: link:../lock
+      '@ai-bdd/registry':
+        specifier: workspace:*
+        version: link:../registry
+      '@ai-bdd/spec-gauge':
+        specifier: workspace:*
+        version: link:../spec-gauge
+      '@ai-bdd/spec-gherkin':
+        specifier: workspace:*
+        version: link:../spec-gherkin
+      e2e:
+        specifier: '>=0.19 <0.21'
+        version: 0.19.0
+    devDependencies:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))

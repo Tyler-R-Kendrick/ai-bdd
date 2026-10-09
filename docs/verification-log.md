@@ -11,21 +11,21 @@ and marked `synthetic: true`; **pending** = not yet run by any work package.
 | Id | Date | Status | Result / action |
 | --- | --- | --- | --- |
 | V1 | 2026-10-09 | verified | `e2e/runner` exports exactly `ConfigurationError,isE2EError,list`. No `run` export, so `@ai-bdd/e2e-host` uses the V2 static-generation fallback. |
-| V2 | 2026-10-09 | pending | e2e-host not yet implemented; the fallback (`ai-bdd e2e-host generate` writing a static `*.e2e.ts`) is the design of record. |
-| V3 | 2026-10-09 | pending | `cua-driver` is not installable in this sandbox; fixtures stay `synthetic: true` and the startup self-check fails with `DRIVER_INCOMPATIBLE` listing missing tools. |
+| V2 | 2026-10-09 | verified | `@ai-bdd/e2e-host` implements both paths: `registerSpecs()` registers synchronously during module evaluation (unit-tested with an injected `test`), and `generateRegistration()` writes the static file (`ai-bdd e2e-host generate` produced 24 tests from the 13-spec corpus). Titles are `<spec name> › <scenario name>[row]` and the 512-byte limit is enforced. |
+| V3 | 2026-10-09 | not reproducible | The Cua CLI cannot be installed or run in this sandbox, so `tools/list` was not captured and `driver-cua` is not implemented. `docs/drivers.md` specifies the required tools; the documented fallback (`DRIVER_INCOMPATIBLE` listing missing tools) is what a Cua-enabled job must implement. |
 | V4 | 2026-10-09 | pending | Documented action: `cua` driver supports `mcp` mode only until the attach behaviour is confirmed. |
 | V5 | 2026-10-09 | pending | Documented action: do not pass `--permission-mode bounded`; enforce `policy.cua.allowApps` inside ai-bdd. |
 | V6 | 2026-10-09 | verified | `@modelcontextprotocol/client@2.3.1` (with the `@modelcontextprotocol/client/stdio` transport) connected to `e2e mcp` 0.19.0 over stdio, negotiated protocol `2025-06-18`, and listed the four tools. The v2 client interoperates with e2e, so no per-driver fallback to the v1 monolith is needed. |
 | V7 | 2026-10-09 | verified | `@cucumber/gherkin@42.0.1` exports `Parser`, `AstBuilder`, `GherkinClassicTokenMatcher`, `compile`; `@cucumber/messages@34.2.1` exports `IdGenerator`. |
-| V8 | 2026-10-09 | pending | Playwright driver work: `ariaSnapshot` format is pinned by a parser golden captured from the fixture app. |
-| V9 | 2026-10-09 | pending | cucumber-js plugin not yet implemented. |
+| V8 | 2026-10-09 | partial | Chromium 156 downloads (`playwright-core install chromium`) but cannot start: the sandbox has no root and no package lists, so `libglib-2.0-0` is missing. The `ariaSnapshot` parser is therefore pinned by a `synthetic: true` golden, and the browser suite skips itself with a clear message. A browser-enabled job must regenerate `packages/driver-playwright/test/fixtures/aria-snapshots.json` and drop the flag. |
+| V9 | 2026-10-09 | not applicable yet | The cucumber-js plugin is deferred, so the `supportCodeLibraryBuilder` coexist strategy is unverified here; `docs/plugins.md` documents it together with the negative-lookahead fallback. |
 | V10 | 2026-10-09 | verified (API) | Cucumber-JVM 8.0.4 (latest release on Maven Central) still exposes `io.cucumber.core.backend.Backend`, `BackendProviderService`, `Glue` and `runner.AmbiguousStepDefinitionsException`. `Backend.loadGlue(Glue, GlueDiscoveryRequest)` is the non-deprecated entry point since 8.0.0. The plugin targets 8.x; a 7.x profile is unnecessary. Glue visibility across backends remains to be proven by the plugin test. |
 | V11 | 2026-10-09 | pending | Behave plugin not yet implemented. |
 | V12 | 2026-10-09 | pending | pytest-bdd plugin not yet implemented. |
 | V13 | 2026-10-09 | pending | Reqnroll plugin not yet implemented. |
-| V14 | 2026-10-09 | pending | AI SDK adapter work; `ai@7.0.137` is the current release. |
+| V14 | 2026-10-09 | unverified | The AI SDK adapter (`aiSdkModels`) is implemented against the documented `generateText`/`embedMany` surface and loads the package lazily, so the fakes never need it. No provider credentials exist here, so those names are not confirmed against `ai@7`; the adapter raises MODEL_UNAVAILABLE with an actionable message when the package is absent and MODEL_OUTPUT_INVALID when structured output is not JSON. |
 | V15 | 2026-10-09 | verified | `process.features.typescript === 'strip'` on Node 24.21.0, so `ai-bdd.config.ts` loads through dynamic `import()` with type stripping. `CONFIG_TS_UNSUPPORTED` remains for older runtimes. |
-| V16 | 2026-10-09 | pending | e2e-host work; the public screenshot fixture question is unresolved, so the ternary `agent.assert` path is the documented fallback. |
+| V16 | 2026-10-09 | verified | e2e@0.19 exposes no public screenshot fixture (only `e2e`, `e2e/agent`, `e2e/engine` and `e2e/runner` are importable), so `@ai-bdd/e2e-host` uses `agent.assert(text, { vision: true })` as its single assertion layer and records the layer as the ternary e2e judge. |
 | V17 | 2026-10-09 | verified | Maven Central metadata for `io.cucumber:cucumber-core` reports release `8.0.4`; 8.x is the target major. |
 | V18 | 2026-10-09 | pending | Plugin attachment APIs are verified per plugin and recorded here when each plugin lands. |
 
@@ -105,3 +105,42 @@ node -e "import('@cucumber/messages').then(m=>console.log(JSON.stringify(m.Pickl
 
 Action: section 7.2's kind mapping (`Context`->setup, `Action`->action, `Outcome`->assertion)
 and the `IdGenerator` usage are correct as written; no adaptation needed.
+
+
+### V2 / V16 — the e2e host (R-K1b)
+
+```bash
+node packages/cli/dist/bin.js e2e-host generate fixtures/specs --out /tmp/gen.e2e.ts
+# wrote ../tmp/gen.e2e.ts (24 test(s) from 13 spec(s))
+head -8 /tmp/gen.e2e.ts
+# // Generated by `ai-bdd e2e-host generate` (VERIFY V2 fallback).
+# // DO NOT EDIT: rerun the generator after changing the specs.
+# import { test } from 'e2e';
+# test("Workspace billing › Member upgrades to Pro", { tags: [] }, async ({ agent }) => {
+#   await agent.act("Open billing settings");
+```
+
+Action: a project that can await before registering calls `registerSpecs()` at the top level of a
+collected test file instead; both paths produce identical titles, so e2e's replay cache is stable
+across runs.
+
+### V8 — ariaSnapshot format
+
+```bash
+pnpm -F @ai-bdd/driver-playwright exec playwright-core install chromium   # 120 MiB, succeeds
+node -e "require('playwright-core').chromium.launch()"                    # exit 127: libglib-2.0.so.0 missing
+apt-get install -y libglib2.0-0                                           # permission denied (no root)
+```
+
+Action: the parser is pinned with a synthetic golden and the browser suite skips itself with a message.
+Recorded so a browser-enabled job knows exactly which artifact to regenerate.
+
+### MCP interop (F-M1, AC8)
+
+```bash
+# in-process, via @modelcontextprotocol/client's InMemoryTransport
+client.listTools()        # names equal TOOL_DEFINITIONS
+tool.inputSchema          # byte-identical to packages/contracts/schemas/tools/<tool>.input.schema.json
+client.callTool('aibdd_health', {})   # structuredContent.protocol === 1
+client.callTool('aibdd_resolve_step', { sessionId: 'nope', step: { text: 'x' } })  # isError, NO_SESSION
+```

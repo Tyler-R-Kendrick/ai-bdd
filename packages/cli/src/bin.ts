@@ -12,6 +12,7 @@ import {
   codegenCommand,
   defaultIo,
   doctor,
+  e2eHostGenerate,
   evidenceVerify,
   init,
   lint,
@@ -165,6 +166,17 @@ export function buildProgram(io: CliIo): Command {
     .option('--config <path>', 'config file path')
     .action(async (options: { stdio?: boolean; http?: boolean; port?: number; config?: string }) => {
       await guard(io, () => serveCommand(io, { ...options, fake: globalFake() }));
+    });
+
+  program
+    .command('e2e-host')
+    .description('e2e host integration helpers')
+    .command('generate')
+    .description('write the static e2e registration file (VERIFY V2 fallback)')
+    .argument('[globs...]')
+    .option('--out <file>', 'output file (default tests/ai-bdd.generated.e2e.ts)')
+    .action(async (globs: string[], options: { out?: string }) => {
+      await guard(io, () => e2eHostGenerate(io, { globs, ...options }));
     });
 
   return program;

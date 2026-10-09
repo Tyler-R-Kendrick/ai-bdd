@@ -392,3 +392,25 @@ export async function serveCommand(io: CliIo, options: ServeOptions = {}): Promi
   await handle.close();
   return EXIT_CODES.ok;
 }
+
+export interface E2eHostGenerateOptions {
+  globs?: string[];
+  out?: string;
+}
+
+/** Writes the static e2e registration file (VERIFY V2 fallback for `@ai-bdd/e2e-host`). */
+export async function e2eHostGenerate(io: CliIo, options: E2eHostGenerateOptions = {}): Promise<number> {
+  const { defaultOutFile, describeOutput, generateRegistration } = (await import('@ai-bdd/e2e-host')) as {
+    defaultOutFile: (root: string) => string;
+    describeOutput: (root: string, file: string) => string;
+    generateRegistration: (input: { projectRoot: string; globs: string[]; outFile: string }) => { tests: number; documents: number };
+  };
+  const outFile = options.out ? (options.out.startsWith('/') ? options.out : join(io.cwd, options.out)) : defaultOutFile(io.cwd);
+  const result = generateRegistration({
+    projectRoot: io.cwd,
+    globs: options.globs && options.globs.length > 0 ? options.globs : ['specs/**/*.spec.md', 'specs/**/*.spec', 'features/**/*.feature'],
+    outFile,
+  });
+  io.out(`wrote ${describeOutput(io.cwd, outFile)} (${result.tests} test(s) from ${result.documents} spec(s))`);
+  return EXIT_CODES.ok;
+}

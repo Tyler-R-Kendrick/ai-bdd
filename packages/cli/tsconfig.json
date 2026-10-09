@@ -48,6 +48,9 @@
     },
     {
       "path": "../reporters"
+    },
+    {
+      "path": "../e2e-host"
     }
   ]
 }
