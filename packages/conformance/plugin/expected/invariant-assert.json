@@ -1,0 +1,10 @@
+{
+  "feature": "invariant-assert.feature",
+  "steps": [
+    {
+      "text": "Then No error toast is visible",
+      "status": "passed",
+      "resolution": "agent"
+    }
+  ]
+}

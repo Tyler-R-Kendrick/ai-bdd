@@ -1,0 +1,11 @@
+{
+  "feature": "screen-not-settled.feature",
+  "steps": [
+    {
+      "text": "Then The slow content is visible",
+      "status": "failed",
+      "resolution": "agent",
+      "errorCode": "SCREEN_NOT_SETTLED"
+    }
+  ]
+}

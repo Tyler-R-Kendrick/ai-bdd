@@ -129,7 +129,7 @@ export interface ActOutcome {
   summary?: string;
   /** Number of replayed actions before a hand-off, when healed. */
   replayedActions?: number;
-  error?: { code: string; message: string };
+  error?: { code: string; message: string; retryable?: boolean };
   pending?: () => Promise<void>;
 }
 
@@ -141,9 +141,12 @@ export interface AssertOutcome {
     status: 'passed' | 'failed' | 'skipped';
     invariant?: boolean;
     judgeOnly?: boolean;
+    /** True when the program was generated in this run rather than cached. */
+    generated?: boolean;
+    attempts?: number;
   };
   judge?: import('./judge.js').JudgeVerdict;
   modelCalls?: number;
   evidence?: ArtifactRef[];
-  error?: { code: string; message: string };
+  error?: { code: string; message: string; retryable?: boolean };
 }

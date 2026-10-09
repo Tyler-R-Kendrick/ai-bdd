@@ -1,0 +1,10 @@
+{
+  "feature": "evidence-attachment.feature",
+  "steps": [
+    {
+      "text": "Then The invoice preview shows a prorated amount",
+      "status": "passed",
+      "resolution": "agent"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "feature": "pending-step.feature",
+  "steps": [
+    {
+      "text": "When Confirm the upgrade",
+      "status": "pending",
+      "resolution": "agent"
+    }
+  ]
+}

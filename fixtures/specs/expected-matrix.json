@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "description": "Mandatory scenario matrix (section 14.4). Consumed by packages/runtime/test/integration and by the Playwright parity job.",
+  "cases": [
+    {
+      "id": "M1",
+      "spec": "billing.spec.md",
+      "scenario": "Member upgrades to Pro",
+      "expect": {
+        "status": "passed",
+        "firstRun": { "actCache": "missed", "checkGenerated": true },
+        "secondRun": { "actCache": "replayed", "actModelCalls": 0, "checkGenModelCalls": 0, "judgeCallsPerAssertion": "samples" }
+      }
+    },
+    {
+      "id": "M2",
+      "spec": "semantic.feature",
+      "scenario": "A free-tier workspace is seeded through a synonym",
+      "expect": {
+        "status": "passed",
+        "resolution": "semantic",
+        "bindingId": "ts:local#seed-workspace",
+        "params": { "name": "Acme", "plan": "free" },
+        "lockStatus": "new"
+      }
+    },
+    {
+      "id": "M3",
+      "spec": "semantic.feature",
+      "scenario": "The negation trap must not bind",
+      "expect": { "status": "failed", "stepKind": "setup", "errorCode": "SETUP_UNBOUND" }
+    },
+    {
+      "id": "M4",
+      "spec": "ambiguous.spec.md",
+      "scenario": "Near identical bindings",
+      "expect": { "status": "failed", "errorCode": "STEP_AMBIGUOUS", "reason": "margin" }
+    },
+    {
+      "id": "M5",
+      "spec": "forms.spec.md",
+      "scenario": "Submitting an ambiguous form",
+      "expect": { "status": "failed", "errorCode": "ACT_TARGET_AMBIGUOUS" }
+    },
+    {
+      "id": "M6",
+      "spec": "billing.spec.md",
+      "scenario": "Member upgrades to Pro",
+      "mutations": ["rename-plan-badge-button"],
+      "expect": {
+        "status": "passed",
+        "cacheMode": "healed",
+        "strictCacheErrorCode": "CACHE_REPLAY_DIVERGED"
+      }
+    },
+    {
+      "id": "M7",
+      "spec": "non-discriminative.spec.md",
+      "scenario": "An already true criterion is not accepted as a check",
+      "expect": {
+        "status": "passed",
+        "checkRejections": ["CHECK_NOT_DISCRIMINATIVE"],
+        "judgeOnly": true,
+        "requireDeterministicErrorCode": "CHECK_GENERATION_FAILED"
+      }
+    },
+    {
+      "id": "M8",
+      "spec": "billing.spec.md",
+      "scenario": "Member upgrades to Pro",
+      "step": "No error toast is visible",
+      "expect": { "status": "passed", "invariant": true }
+    },
+    {
+      "id": "M9",
+      "spec": "judge-inconclusive.spec.md",
+      "scenario": "The judge cannot tell",
+      "expect": { "status": "failed", "errorCode": "JUDGE_INCONCLUSIVE" }
+    },
+    {
+      "id": "M10",
+      "spec": "slow.spec.md",
+      "scenario": "Spinner then content",
+      "expect": { "status": "failed", "errorCode": "SCREEN_NOT_SETTLED" }
+    },
+    {
+      "id": "M11",
+      "spec": "login.spec.md",
+      "scenario": "Signing in with a declared secret",
+      "expect": {
+        "status": "passed",
+        "tainted": true,
+        "judgeReceivesPixels": false,
+        "secretAbsentFrom": [".ai-bdd", "report.json", "ai-bdd.lock.json", "model-call-log"]
+      }
+    },
+    {
+      "id": "M12",
+      "spec": "semantic.feature",
+      "scenario": "A free-tier workspace is seeded through a synonym",
+      "flags": ["--frozen"],
+      "expect": { "exitCode": 4, "errorCode": "RESOLUTION_NOT_LOCKED" }
+    },
+    {
+      "id": "M13",
+      "spec": "semantic.feature",
+      "scenario": "A free-tier workspace is seeded through a synonym",
+      "mutations": ["add-unrelated-binding"],
+      "expect": { "lockStatus": "revalidated", "frozenFailure": false }
+    },
+    {
+      "id": "M14",
+      "spec": "billing.spec.md",
+      "scenario": "Member upgrades to Pro",
+      "mutations": ["flip-artifact-byte"],
+      "expect": { "verifyEvidenceExitCode": 1, "namesRecord": true }
+    },
+    {
+      "id": "M15",
+      "spec": "data-driven.spec.md",
+      "expect": { "scenarioInstances": 6, "conceptOriginChain": true, "teardownRunsAfterFailure": true }
+    },
+    {
+      "id": "M16",
+      "spec": "cross-dialect.spec.md",
+      "pair": "cross-dialect.feature",
+      "expect": { "identicalResolution": true }
+    },
+    {
+      "id": "M17",
+      "spec": "billing.spec.md",
+      "scenario": "Member upgrades to Pro",
+      "mutations": ["canary-in-act-transcript"],
+      "expect": { "judgePromptContainsCanary": false }
+    },
+    {
+      "id": "M18",
+      "spec": "parallel.spec.md",
+      "flags": ["--workers", "4"],
+      "expect": { "exclusiveResourceSerialized": true, "crossSessionLeak": false }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "feature": "healed-action.feature",
+  "steps": [
+    {
+      "text": "When Upgrade the workspace to the Pro plan",
+      "status": "healed",
+      "resolution": "agent"
+    }
+  ]
+}

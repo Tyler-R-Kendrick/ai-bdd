@@ -1,0 +1,11 @@
+{
+  "feature": "setup-unbound.feature",
+  "steps": [
+    {
+      "text": "Given Seed an empty workspace",
+      "status": "failed",
+      "resolution": "unbound",
+      "errorCode": "SETUP_UNBOUND"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+ai-bdd
+Copyright (c) 2026 Tyler Kendrick
+
+This product includes software developed by third parties. No third-party source
+code was copied into this repository; the components below are consumed as
+dependencies, or their documented formats were reimplemented.
+
+------------------------------------------------------------------------------
+Runtime and build dependencies (as installed, see package.json files)
+
+* TesterArmy e2e (https://github.com/tester-army/e2e) — Apache-2.0
+  Optional driver and host integration (`@ai-bdd/driver-e2e`, `@ai-bdd/e2e-host`).
+  Consumed as a dependency through e2e's public exports only: `e2e`,
+  `e2e/agent`, `e2e/engine`, `e2e/runner`, and the `e2e mcp` CLI. No code copied.
+
+* Cua Driver (https://github.com/trycua/cua) — MIT
+  Optional driver integration (`@ai-bdd/driver-cua`) through the `cua-driver mcp`
+  CLI and the typed contract tools. No code copied. The optional
+  `cua-perception` extension (AGPL-3.0-only) is deliberately NOT a dependency.
+
+* Gauge (https://github.com/getgauge/gauge) — Apache-2.0
+  The Gauge markdown spec format is reimplemented from the published syntax
+  documentation and parser behaviour. No Gauge code was copied, and ai-bdd is not
+  a Gauge plugin.
+
+* @cucumber/gherkin, @cucumber/messages, @cucumber/cucumber-expressions,
+  @cucumber/tag-expressions, @cucumber/cucumber — MIT
+* playwright-core — Apache-2.0
+* zod — MIT
+* fast-check — MIT
+* pixelmatch — ISC
+* fast-png — MIT
+* commander — MIT
+* @modelcontextprotocol/server, @modelcontextprotocol/client — MIT
+* vitest, vite, esbuild, oxlint, typescript, tsx — MIT / Apache-2.0
+
+------------------------------------------------------------------------------
+License note
+
+The ai-bdd specification suggests Apache-2.0 for this project. This repository
+was created with an MIT `LICENSE` file authored by the copyright holder, and that
+pre-existing license is preserved here: relicensing a project is the copyright
+holder's decision, not an automated change. The third-party obligations above are
+satisfied either way (all consumed components are permissive). See
+`docs/verification-log.md` for the recorded decision.

@@ -1,0 +1,104 @@
+{
+  "serverInfo": {
+    "name": "e2e",
+    "title": "e2e",
+    "version": "0.19.0"
+  },
+  "protocolVersion": "2025-06-18",
+  "tools": [
+    {
+      "name": "open_session",
+      "description": "Open a live session on one target of an e2e project: loads the config, starts the app command the target declares (if any), boots the engine (a browser, a simulator), opens the app URL, and returns the session id, the catalog of tools it can run, and the first observation. Several sessions can be open at once, one per agent, each with its own engine: pass the returned session id to every later call. Then act with call and look with call {tool: \"observe\"}.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "target": {
+            "description": "Target name from the config; required when the config declares several",
+            "type": "string",
+            "minLength": 1
+          },
+          "config": {
+            "description": "Path to an e2e config file, relative to the server's directory; default: the nearest e2e.config.ts",
+            "type": "string",
+            "minLength": 1
+          },
+          "headed": {
+            "description": "Show the browser or simulator, when the engine supports it; pass true when the user wants to watch. Default: headless, unless the server was started with --headed",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "tools",
+      "description": "List the tools a session can run through call: observe, the grammar its engine honors (one tool per action the engine declares, type_secret when a secret is configured, and screenshot and the point tools, which answer PIXEL_TAINTED once a secret has been filled), locate, start_recording and stop_recording when the engine records video, and the project's own tools. With tool, shows that tool's full description and the JSON Schema of its arguments.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "tool": {
+            "description": "A catalog tool name, for its full contract",
+            "type": "string",
+            "minLength": 1
+          },
+          "session": {
+            "description": "Session id from open_session; may be omitted only while one session is open",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "call",
+      "description": "Run one tool of a session by name, with its arguments as an object: call {tool: \"tap\", args: {target: \"n42\"}, session: \"<id>\"}. The session's catalog (from open_session or tools) names the tools and their arguments. Actions report what changed on screen; node ids are valid only for the newest observation.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "tool": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A catalog tool name, e.g. \"observe\", \"tap\", \"locate\", \"screenshot\""
+          },
+          "args": {
+            "description": "The tool's arguments; omit for a tool without any",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "session": {
+            "description": "Session id from open_session; may be omitted only while one session is open",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "tool"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "close_session",
+      "description": "Close a live session: save a recording still running, end the attempt, dispose the engine, and stop the app processes the session started.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "session": {
+            "description": "Session id from open_session; may be omitted only while one session is open",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "feature": "act-action.feature",
+  "steps": [
+    {
+      "text": "When Open billing settings",
+      "status": "passed",
+      "resolution": "agent"
+    }
+  ]
+}

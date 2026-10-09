@@ -1,0 +1,10 @@
+{
+  "feature": "docstring-passthrough.feature",
+  "steps": [
+    {
+      "text": "When Seed a workspace from a document",
+      "status": "passed",
+      "resolution": "exact"
+    }
+  ]
+}

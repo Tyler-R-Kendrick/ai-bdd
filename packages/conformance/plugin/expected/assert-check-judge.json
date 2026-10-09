@@ -1,0 +1,10 @@
+{
+  "feature": "assert-check-judge.feature",
+  "steps": [
+    {
+      "text": "Then The plan badge reads \"Pro\"",
+      "status": "passed",
+      "resolution": "agent"
+    }
+  ]
+}

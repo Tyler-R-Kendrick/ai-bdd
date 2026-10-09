@@ -1,0 +1,15 @@
+{
+  "feature": "outline-rows.feature",
+  "steps": [
+    {
+      "text": "Given Seed a workspace \"Acme\" on the \"free\" plan",
+      "status": "passed",
+      "resolution": "exact"
+    },
+    {
+      "text": "Then The plan badge reads \"free\"",
+      "status": "passed",
+      "resolution": "agent"
+    }
+  ]
+}

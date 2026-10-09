@@ -1,0 +1,10 @@
+{
+  "feature": "judge-only-assert.feature",
+  "steps": [
+    {
+      "text": "Then The invoice preview shows a prorated amount",
+      "status": "passed",
+      "resolution": "agent"
+    }
+  ]
+}

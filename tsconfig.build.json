@@ -1,29 +1,56 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/contracts" },
-    { "path": "packages/spec-directives" },
-    { "path": "packages/spec-gauge" },
-    { "path": "packages/spec-gherkin" },
-    { "path": "packages/registry" },
-    { "path": "packages/semantic" },
-    { "path": "packages/lock" },
-    { "path": "packages/cache" },
-    { "path": "packages/models" },
-    { "path": "packages/evidence" },
-    { "path": "packages/judge" },
-    { "path": "packages/assert" },
-    { "path": "packages/act" },
-    { "path": "packages/driver-fake" },
-    { "path": "packages/driver-playwright" },
-    { "path": "packages/driver-e2e" },
-    { "path": "packages/driver-cua" },
-    { "path": "packages/runtime" },
-    { "path": "packages/daemon" },
-    { "path": "packages/reporters" },
-    { "path": "packages/codegen" },
-    { "path": "packages/core" },
-    { "path": "packages/conformance" },
-    { "path": "packages/cli" }
+    {
+      "path": "packages/contracts"
+    },
+    {
+      "path": "packages/spec-directives"
+    },
+    {
+      "path": "packages/spec-gauge"
+    },
+    {
+      "path": "packages/spec-gherkin"
+    },
+    {
+      "path": "packages/registry"
+    },
+    {
+      "path": "packages/semantic"
+    },
+    {
+      "path": "packages/lock"
+    },
+    {
+      "path": "packages/cache"
+    },
+    {
+      "path": "packages/models"
+    },
+    {
+      "path": "packages/evidence"
+    },
+    {
+      "path": "packages/judge"
+    },
+    {
+      "path": "packages/assert"
+    },
+    {
+      "path": "packages/act"
+    },
+    {
+      "path": "packages/driver-fake"
+    },
+    {
+      "path": "packages/driver-e2e"
+    },
+    {
+      "path": "packages/runtime"
+    },
+    {
+      "path": "packages/conformance"
+    }
   ]
 }

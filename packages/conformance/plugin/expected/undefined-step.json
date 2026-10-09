@@ -1,0 +1,10 @@
+{
+  "feature": "undefined-step.feature",
+  "steps": [
+    {
+      "text": "Then The legacy badge is visible",
+      "status": "undefined",
+      "resolution": "agent"
+    }
+  ]
+}

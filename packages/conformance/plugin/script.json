@@ -1,0 +1,602 @@
+{
+  "version": 1,
+  "description": "Deterministic responses for `ai-bdd serve --fake` (plugin conformance kit). Each entry is a queue: the Nth call returns the Nth response, and the last response repeats.",
+  "responses": {
+    "health": [
+      {
+        "ok": true,
+        "version": "0.1.0",
+        "protocol": 1,
+        "drivers": [
+          {
+            "name": "fake",
+            "ok": true,
+            "problems": []
+          }
+        ]
+      }
+    ],
+    "open_session": [
+      {
+        "sessionId": "00000000-0000-7000-8000-000000000001",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "driver": "fake",
+        "capabilities": {
+          "verbs": [
+            "navigate",
+            "tap",
+            "type",
+            "typeSecret",
+            "press",
+            "scroll"
+          ],
+          "pixels": true,
+          "tree": true,
+          "video": false,
+          "nativePredicates": false,
+          "maskingProven": true
+        }
+      }
+    ],
+    "register_bindings": [
+      {
+        "bindingSetHash": "00000000000000000000000000000000000000000000000000000000000000aa",
+        "accepted": 1,
+        "rejected": []
+      }
+    ],
+    "resolve_step": [
+      {
+        "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+        "resolution": {
+          "type": "exact",
+          "bindingId": "ts:local#seed-workspace",
+          "bindingHash": "b1",
+          "params": {
+            "name": "Acme",
+            "plan": "free"
+          }
+        },
+        "kind": "setup",
+        "kindSource": "keyword",
+        "next": "invoke-local"
+      },
+      {
+        "text": "there's a free-tier workspace called Acme",
+        "resolution": {
+          "type": "semantic",
+          "bindingId": "ts:local#seed-workspace",
+          "bindingHash": "b1",
+          "params": {
+            "name": "Acme",
+            "plan": "free"
+          },
+          "score": 0.91,
+          "margin": 0.2,
+          "candidates": [],
+          "extraction": {
+            "modelId": "fake:extract",
+            "promptVersion": "extract-1",
+            "raw": {},
+            "validated": true
+          }
+        },
+        "kind": "setup",
+        "kindSource": "keyword",
+        "next": "invoke-local"
+      },
+      {
+        "text": "Open billing settings",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "kind": "action",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "The plan badge reads \"Pro\"",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "Store the workspace \"Acme\" on the \"free\" plan",
+        "resolution": {
+          "type": "ambiguous",
+          "reason": "margin",
+          "candidates": [],
+          "message": "two bindings are within the margin"
+        },
+        "kind": "action",
+        "kindSource": "default",
+        "next": "fail"
+      },
+      {
+        "text": "Seed an empty workspace",
+        "resolution": {
+          "type": "unbound",
+          "reason": "setup-unbound",
+          "message": "no setup binding matches"
+        },
+        "kind": "setup",
+        "kindSource": "default",
+        "next": "fail"
+      },
+      {
+        "text": "The plan badge reads \"free\"",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "Seed invoices from the table",
+        "resolution": {
+          "type": "exact",
+          "bindingId": "ts:local#seed-invoices",
+          "bindingHash": "b1",
+          "params": {
+            "name": "Acme",
+            "plan": "free"
+          }
+        },
+        "kind": "setup",
+        "kindSource": "keyword",
+        "next": "invoke-local"
+      },
+      {
+        "text": "Seed a workspace from a document",
+        "resolution": {
+          "type": "exact",
+          "bindingId": "ts:local#seed-workspace",
+          "bindingHash": "b1",
+          "params": {
+            "name": "Acme",
+            "plan": "free"
+          }
+        },
+        "kind": "setup",
+        "kindSource": "keyword",
+        "next": "invoke-local"
+      },
+      {
+        "text": "Upgrade the workspace to the Pro plan",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "kind": "action",
+        "kindSource": "default",
+        "next": "run-step"
+      },
+      {
+        "text": "The invoice preview shows a prorated amount",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "The plan badge reads \"Enterprise\"",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "The plan badge shows a reasonable tier",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "The slow content is visible",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "Sign in as \"admin\" with <secret:adminPassword>",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "kind": "action",
+        "kindSource": "default",
+        "next": "run-step"
+      },
+      {
+        "text": "Confirm the upgrade",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "kind": "action",
+        "kindSource": "default",
+        "next": "run-step"
+      },
+      {
+        "text": "The legacy badge is visible",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "next": "run-step"
+      },
+      {
+        "text": "No error toast is visible",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "kind": "assertion",
+        "kindSource": "prefix",
+        "next": "run-step"
+      },
+      {
+        "text": "Reset test data now",
+        "resolution": {
+          "type": "ambiguous",
+          "reason": "multiple-exact",
+          "candidates": [],
+          "message": "two exact bindings match"
+        },
+        "kind": "action",
+        "kindSource": "default",
+        "next": "fail"
+      }
+    ],
+    "run_step": [
+      {
+        "stepId": "step-1",
+        "text": "Open billing settings",
+        "kind": "action",
+        "kindSource": "keyword",
+        "status": "passed",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "cache": {
+          "mode": "missed"
+        },
+        "evidence": [],
+        "durationMs": 12
+      },
+      {
+        "stepId": "step-2",
+        "text": "Upgrade the workspace to the Pro plan",
+        "kind": "action",
+        "kindSource": "default",
+        "status": "healed",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "cache": {
+          "mode": "healed"
+        },
+        "healing": {
+          "reason": "selector missing",
+          "replayedActions": 1,
+          "totalActions": 3
+        },
+        "evidence": [],
+        "durationMs": 40
+      },
+      {
+        "stepId": "step-3",
+        "text": "The plan badge reads \"Pro\"",
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "status": "passed",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "check": {
+          "status": "passed",
+          "results": [],
+          "generated": true,
+          "attempts": 1
+        },
+        "judge": {
+          "score": 0.92,
+          "verdict": "pass",
+          "samples": [],
+          "spread": 0.05,
+          "modelId": "fake:judge",
+          "promptVersion": "judge-1",
+          "cacheKey": "k",
+          "reused": false
+        },
+        "evidence": [],
+        "durationMs": 30
+      },
+      {
+        "stepId": "step-4",
+        "text": "The plan badge reads \"Enterprise\"",
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "status": "failed",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "check": {
+          "status": "failed",
+          "results": [],
+          "generated": true
+        },
+        "evidence": [],
+        "durationMs": 30,
+        "error": {
+          "code": "CHECK_FAILED",
+          "message": "a deterministic check predicate was not satisfied",
+          "retryable": false
+        }
+      },
+      {
+        "stepId": "step-5",
+        "text": "The plan badge shows a reasonable tier",
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "status": "failed",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "check": {
+          "status": "passed",
+          "results": [],
+          "judgeOnly": true
+        },
+        "judge": {
+          "score": 0.5,
+          "verdict": "inconclusive",
+          "samples": [],
+          "spread": 0.6,
+          "modelId": "fake:judge",
+          "promptVersion": "judge-1",
+          "cacheKey": "k2",
+          "reused": false
+        },
+        "evidence": [],
+        "durationMs": 30,
+        "error": {
+          "code": "JUDGE_INCONCLUSIVE",
+          "message": "the judge verdict was inconclusive",
+          "retryable": false
+        }
+      },
+      {
+        "stepId": "step-6",
+        "text": "The slow content is visible",
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "status": "failed",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "evidence": [],
+        "durationMs": 5000,
+        "error": {
+          "code": "SCREEN_NOT_SETTLED",
+          "message": "the screen did not settle before the deadline",
+          "retryable": false
+        }
+      },
+      {
+        "stepId": "step-7",
+        "text": "The legacy badge is visible",
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "status": "undefined",
+        "resolution": {
+          "type": "unbound",
+          "reason": "no-binding",
+          "message": "no binding and the agent is disabled"
+        },
+        "evidence": [],
+        "durationMs": 1
+      },
+      {
+        "stepId": "step-8",
+        "text": "The invoice preview shows a prorated amount",
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "status": "passed",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "check": {
+          "status": "passed",
+          "results": [],
+          "judgeOnly": true
+        },
+        "judge": {
+          "score": 0.88,
+          "verdict": "pass",
+          "samples": [],
+          "spread": 0.1,
+          "modelId": "fake:judge",
+          "promptVersion": "judge-1",
+          "cacheKey": "k3",
+          "reused": false
+        },
+        "evidence": [],
+        "durationMs": 25
+      },
+      {
+        "stepId": "step-9",
+        "text": "Confirm the upgrade",
+        "kind": "action",
+        "kindSource": "default",
+        "status": "pending",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "evidence": [],
+        "durationMs": 0
+      },
+      {
+        "stepId": "step-10",
+        "text": "Sign in as \"admin\" with <secret:adminPassword>",
+        "kind": "action",
+        "kindSource": "default",
+        "status": "passed",
+        "resolution": {
+          "type": "agent",
+          "mode": "act",
+          "reason": "no-match"
+        },
+        "cache": {
+          "mode": "recorded"
+        },
+        "evidence": [],
+        "durationMs": 55
+      },
+      {
+        "stepId": "step-11",
+        "text": "No error toast is visible",
+        "kind": "assertion",
+        "kindSource": "prefix",
+        "status": "passed",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "check": {
+          "status": "passed",
+          "results": [],
+          "generated": true,
+          "invariant": true
+        },
+        "judge": {
+          "score": 0.9,
+          "verdict": "pass",
+          "samples": [],
+          "spread": 0.08,
+          "modelId": "fake:judge",
+          "promptVersion": "judge-1",
+          "cacheKey": "k4",
+          "reused": false
+        },
+        "evidence": [],
+        "durationMs": 22
+      },
+      {
+        "stepId": "step-12",
+        "text": "The plan badge reads \"free\"",
+        "kind": "assertion",
+        "kindSource": "keyword",
+        "status": "passed",
+        "resolution": {
+          "type": "agent",
+          "mode": "assert",
+          "reason": "no-match"
+        },
+        "check": {
+          "status": "passed",
+          "results": [],
+          "generated": true
+        },
+        "judge": {
+          "score": 0.95,
+          "verdict": "pass",
+          "samples": [],
+          "spread": 0.03,
+          "modelId": "fake:judge",
+          "promptVersion": "judge-1",
+          "cacheKey": "k5",
+          "reused": false
+        },
+        "evidence": [],
+        "durationMs": 20
+      }
+    ],
+    "report_binding_result": [
+      {
+        "stepId": "step-1",
+        "text": "Seed a workspace \"Acme\" on the \"free\" plan",
+        "kind": "setup",
+        "kindSource": "keyword",
+        "status": "passed",
+        "resolution": {
+          "type": "exact",
+          "bindingId": "ts:local#seed-workspace",
+          "bindingHash": "b1",
+          "params": {
+            "name": "Acme",
+            "plan": "free"
+          }
+        },
+        "evidence": [],
+        "durationMs": 3
+      }
+    ],
+    "close_session": [
+      {
+        "scenarioResult": {
+          "scenarioId": "scenario-1",
+          "name": "plugin conformance",
+          "specName": "conformance",
+          "uri": "plugin/features/exact-setup.feature",
+          "tags": [],
+          "status": "passed",
+          "steps": [],
+          "durationMs": 1
+        }
+      }
+    ]
+  }
+}

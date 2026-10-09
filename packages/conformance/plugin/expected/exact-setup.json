@@ -1,0 +1,10 @@
+{
+  "feature": "exact-setup.feature",
+  "steps": [
+    {
+      "text": "Given Seed a workspace \"Acme\" on the \"free\" plan",
+      "status": "passed",
+      "resolution": "exact"
+    }
+  ]
+}

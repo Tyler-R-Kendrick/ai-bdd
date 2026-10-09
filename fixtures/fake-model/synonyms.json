@@ -1,0 +1,10 @@
+{
+  "free-tier": "free",
+  "called": "named",
+  "create": "seed",
+  "creates": "seed",
+  "make": "seed",
+  "remove": "delete",
+  "removes": "delete",
+  "deletes": "delete"
+}

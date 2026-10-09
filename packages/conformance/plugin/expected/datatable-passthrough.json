@@ -1,0 +1,10 @@
+{
+  "feature": "datatable-passthrough.feature",
+  "steps": [
+    {
+      "text": "When Seed invoices from the table",
+      "status": "passed",
+      "resolution": "exact"
+    }
+  ]
+}

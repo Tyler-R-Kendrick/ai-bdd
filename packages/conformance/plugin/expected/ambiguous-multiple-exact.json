@@ -1,0 +1,11 @@
+{
+  "feature": "ambiguous-multiple-exact.feature",
+  "steps": [
+    {
+      "text": "When Reset test data now",
+      "status": "failed",
+      "resolution": "ambiguous",
+      "errorCode": "STEP_AMBIGUOUS"
+    }
+  ]
+}

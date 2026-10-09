@@ -1,0 +1,16 @@
+{"synthetic": true, "source": "e2e 0.19.0", "note": "The tools/list entry was captured from a live `e2e mcp` 0.19.0 handshake (see docs/evidence/e2e-mcp-0.19.0.tools.json and docs/verification-log.md V6). The observe/perform payloads are hand-authored from the documented session tool formats (F-E3) because no live target was available in the sandbox."}
+{"tool": "tools/list", "result": {"tools": [{"name": "open_session"}, {"name": "tools"}, {"name": "call"}, {"name": "close_session"}]}}
+{"tool": "open_session", "args": {"target": "web"}, "result": {"session_id": "s-1", "url": "http://localhost:3000/settings/billing", "tools": ["observe", "tap", "double_tap", "long_press", "right_click", "hover", "type", "press", "select", "check", "scroll", "scroll_to", "drag", "upload", "navigate", "back", "type_secret", "dismiss_keyboard", "locate", "screenshot", "tap_at", "hover_at", "type_at", "press_at", "select_at", "start_recording", "stop_recording"], "observation": "#s1 heading \"Billing settings\"\n#s2 text \"Free plan\"\n#s3 button \"Upgrade to Pro\"\n#s4 button \"Downgrade\""}}
+{"tool": "observe", "result": "#s1 heading \"Billing settings\"\n#s2 text \"Free plan\"\n#s3 button \"Upgrade to Pro\"\n#s4 button \"Downgrade\""}
+{"tool": "tap", "args": {"id": "e2e-s3"}, "result": {"url": "http://localhost:3000/settings/billing?dialog=upgrade"}}
+{"tool": "observe", "result": "#s5 dialog \"Upgrade to Pro\"\n  #s6 text \"You are upgrading to the Pro plan\"\n  #s7 button \"Confirm\" [focused]\n  #s8 button \"Cancel\""}
+{"tool": "tap", "args": {"id": "e2e-s7"}, "result": {"url": "http://localhost:3000/settings/billing?plan=pro"}}
+{"tool": "observe", "result": "#s9 heading \"Billing settings\"\n#s10 text \"Pro plan\"\n#s11 text \"Prorated amount: 12.00\"\n#s12 button \"Downgrade\""}
+{"tool": "screenshot", "result": {"base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=="}}
+{"tool": "navigate", "args": {"text": "/login"}, "result": {"url": "http://localhost:3000/login"}}
+{"tool": "observe", "result": "#s13 heading \"Sign in\"\n#s14 textbox \"Password\"\n#s15 button \"Sign in\""}
+{"tool": "type_secret", "args": {"id": "e2e-s14", "name": "adminPassword"}, "result": {"url": "http://localhost:3000/login", "tainted": true}}
+{"tool": "observe", "result": "#s16 heading \"Dashboard\"\n#s17 text \"Welcome, admin\""}
+{"tool": "screenshot", "isError": true, "errorCode": "PIXEL_TAINTED", "result": "PIXEL_TAINTED: the screen contains a secret fill"}
+{"tool": "drag", "isError": true, "errorCode": "POLICY_DENIED", "result": "POLICY_DENIED: the target is outside the allowlist"}
+{"tool": "close_session", "result": {"closed": true}}

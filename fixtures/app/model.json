@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "generatedFrom": "fixtures/app/screens.mjs",
+  "initial": {
+    "workspace": null,
+    "plan": "free",
+    "unpaid": 0,
+    "now": null,
+    "toast": null,
+    "dialog": null,
+    "signedIn": false
+  },
+  "screens": [
+    {
+      "route": "/settings/billing",
+      "title": "Billing settings",
+      "nodes": [
+        {
+          "role": "heading",
+          "name": "Billing settings"
+        },
+        {
+          "role": "text",
+          "name": "Plan: {{planLabel}}"
+        },
+        {
+          "role": "text",
+          "name": "Workspace: {{workspaceLabel}}"
+        },
+        {
+          "role": "button",
+          "name": "Upgrade to Pro",
+          "testId": "upgrade",
+          "transition": {
+            "dialog": "upgrade"
+          }
+        },
+        {
+          "role": "button",
+          "name": "Downgrade",
+          "testId": "downgrade",
+          "transition": {
+            "action": "downgrade"
+          }
+        },
+        {
+          "role": "text",
+          "name": "Prorated amount: {{prorated}}",
+          "testId": "prorated",
+          "visibleWhen": "plan:pro"
+        },
+        {
+          "role": "alert",
+          "name": "Downgrade is blocked: settle unpaid invoices first",
+          "testId": "blocked",
+          "visibleWhen": "blocked"
+        }
+      ],
+      "dialogs": {
+        "upgrade": [
+          {
+            "role": "dialog",
+            "name": "Upgrade to Pro"
+          },
+          {
+            "role": "text",
+            "name": "You are upgrading to the Pro plan"
+          },
+          {
+            "role": "button",
+            "name": "Confirm upgrade",
+            "testId": "confirmUpgrade",
+            "transition": {
+              "action": "upgrade"
+            }
+          },
+          {
+            "role": "button",
+            "name": "Cancel",
+            "testId": "cancelUpgrade",
+            "transition": {
+              "dialog": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "route": "/forms/two",
+      "title": "Two forms",
+      "nodes": [
+        {
+          "role": "heading",
+          "name": "Two forms"
+        },
+        {
+          "role": "form",
+          "name": "Shipping form"
+        },
+        {
+          "role": "button",
+          "name": "Submit",
+          "testId": "submit-shipping",
+          "transition": {
+            "toast": "shipping-submitted"
+          },
+          "ancestors": [
+            {
+              "role": "form",
+              "name": "Shipping form"
+            }
+          ]
+        },
+        {
+          "role": "form",
+          "name": "Billing form"
+        },
+        {
+          "role": "button",
+          "name": "Submit",
+          "testId": "submit-billing",
+          "transition": {
+            "toast": "billing-submitted"
+          },
+          "ancestors": [
+            {
+              "role": "form",
+              "name": "Billing form"
+            }
+          ]
+        }
+      ],
+      "dialogs": {}
+    },
+    {
+      "route": "/slow",
+      "title": "Slow screen",
+      "spinnerMs": 1000,
+      "nodes": [
+        {
+          "role": "heading",
+          "name": "Slow screen"
+        },
+        {
+          "role": "text",
+          "name": "Loading…",
+          "testId": "spinner",
+          "visibleWhen": "loading"
+        },
+        {
+          "role": "text",
+          "name": "Slow content is ready",
+          "testId": "slowContent",
+          "visibleWhen": "loaded"
+        }
+      ],
+      "dialogs": {}
+    },
+    {
+      "route": "/login",
+      "title": "Sign in",
+      "nodes": [
+        {
+          "role": "heading",
+          "name": "Sign in"
+        },
+        {
+          "role": "textbox",
+          "name": "User name",
+          "testId": "user"
+        },
+        {
+          "role": "textbox",
+          "name": "Password",
+          "testId": "password",
+          "secret": true
+        },
+        {
+          "role": "button",
+          "name": "Sign in",
+          "testId": "signIn",
+          "transition": {
+            "action": "signIn"
+          }
+        }
+      ],
+      "dialogs": {}
+    },
+    {
+      "route": "/dashboard",
+      "title": "Dashboard",
+      "nodes": [
+        {
+          "role": "heading",
+          "name": "Dashboard",
+          "testId": "dashboardHeading"
+        },
+        {
+          "role": "text",
+          "name": "Welcome, {{user}}"
+        }
+      ],
+      "dialogs": {}
+    },
+    {
+      "route": "/clock",
+      "title": "Clock",
+      "nodes": [
+        {
+          "role": "heading",
+          "name": "Clock"
+        },
+        {
+          "role": "text",
+          "name": "Server time: {{now}}",
+          "testId": "clock"
+        }
+      ],
+      "dialogs": {}
+    },
+    {
+      "route": "/toast",
+      "title": "Toast",
+      "nodes": [
+        {
+          "role": "heading",
+          "name": "Toast"
+        },
+        {
+          "role": "alert",
+          "name": "Something went wrong",
+          "testId": "errorToast",
+          "visibleWhen": "toast:error"
+        }
+      ],
+      "dialogs": {}
+    }
+  ]
+}

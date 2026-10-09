@@ -1,0 +1,10 @@
+{
+  "feature": "semantic-setup.feature",
+  "steps": [
+    {
+      "text": "Given there's a free-tier workspace called Acme",
+      "status": "passed",
+      "resolution": "semantic"
+    }
+  ]
+}

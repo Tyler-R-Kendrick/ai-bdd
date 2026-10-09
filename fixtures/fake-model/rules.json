@@ -1,0 +1,559 @@
+{
+  "_comment": "Deterministic responses for the fake chat model (section 14.2). Rules match in order against the last user message; the first match wins and no match throws MODEL_OUTPUT_INVALID. `variants` supply successive outputs for repeated calls.",
+  "rules": [
+    {
+      "purpose": "extract",
+      "match": {
+        "contains": [
+          "Extract the parameters",
+          "free-tier workspace called"
+        ]
+      },
+      "respond": {
+        "object": {
+          "name": "Acme",
+          "plan": "free"
+        }
+      }
+    },
+    {
+      "purpose": "extract",
+      "match": {
+        "contains": [
+          "Extract the parameters"
+        ]
+      },
+      "respond": {
+        "object": {}
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Open billing settings"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "navigate",
+                "args": {
+                  "value": "/settings/billing"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "billing settings are open"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Upgrade the workspace to the Pro plan"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Upgrade to Pro"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Confirm upgrade"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "upgraded to Pro"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Try to downgrade to the free plan"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Downgrade"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "downgrade attempted"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Open the login page"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "navigate",
+                "args": {
+                  "value": "/login"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "login page is open"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Sign in as"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "typeSecret",
+                "args": {
+                  "role": "textbox",
+                  "name": "Password",
+                  "value": "adminPassword"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Sign in"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "signed in"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Sign in as",
+          "Password"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Sign in"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "signed in"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Open the slow page with"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "navigate",
+                "args": {
+                  "value": "/slow?ms=10000"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "slow page requested"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "act",
+      "match": {
+        "contains": [
+          "Instruction: Submit the form"
+        ]
+      },
+      "respond": {
+        "variants": [
+          {
+            "toolCalls": [
+              {
+                "name": "navigate",
+                "args": {
+                  "value": "/forms/two"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "tap",
+                "args": {
+                  "role": "button",
+                  "name": "Submit"
+                }
+              }
+            ]
+          },
+          {
+            "toolCalls": [
+              {
+                "name": "complete_step",
+                "args": {
+                  "status": "done",
+                  "summary": "submitted"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "purpose": "checkgen",
+      "match": {
+        "contains": [
+          "Criterion: No error toast is visible"
+        ]
+      },
+      "respond": {
+        "object": {
+          "classification": "invariant",
+          "predicates": [
+            {
+              "kind": "notExists",
+              "selector": {
+                "role": "alert"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "purpose": "checkgen",
+      "match": {
+        "contains": [
+          "Criterion: The invoice preview shows a prorated amount"
+        ]
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "kind": "textContains",
+              "selector": {
+                "role": "text"
+              },
+              "value": "Prorated amount"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "purpose": "checkgen",
+      "match": {
+        "contains": [
+          "Criterion: The plan badge reads"
+        ]
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "kind": "textContains",
+              "selector": {
+                "role": "text"
+              },
+              "value": "plan"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "purpose": "checkgen",
+      "match": {
+        "contains": [
+          "Criterion: A message explains that unpaid invoices"
+        ]
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "kind": "textContains",
+              "selector": {
+                "role": "alert"
+              },
+              "value": "settle unpaid invoices"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "purpose": "checkgen",
+      "match": {
+        "contains": [
+          "Criterion: The dashboard heading is visible"
+        ]
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "kind": "exists",
+              "selector": {
+                "role": "heading",
+                "name": "Dashboard"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "purpose": "checkgen",
+      "match": {
+        "contains": [
+          "Criterion: The slow content is visible"
+        ]
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "kind": "exists",
+              "selector": {
+                "role": "text",
+                "name": "Slow content is ready"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "purpose": "checkgen",
+      "match": {
+        "contains": [
+          "Criterion:"
+        ]
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "kind": "exists",
+              "selector": {
+                "role": "heading",
+                "name": "Billing settings"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "purpose": "judge",
+      "match": {
+        "contains": [
+          "CRITERION:",
+          "The slow content is visible"
+        ]
+      },
+      "respond": {
+        "object": {
+          "probability": 0.5,
+          "verdict": "cannot_tell",
+          "explanation": "the screen never settled",
+          "observed": ""
+        }
+      }
+    },
+    {
+      "purpose": "judge",
+      "match": {
+        "contains": [
+          "CRITERION:",
+          "reasonable tier"
+        ]
+      },
+      "respond": {
+        "object": {
+          "probability": 0.55,
+          "verdict": "holds",
+          "explanation": "the badge shows a tier",
+          "observed": "Plan: Pro plan"
+        }
+      }
+    },
+    {
+      "purpose": "judge",
+      "match": {
+        "contains": [
+          "CRITERION:"
+        ]
+      },
+      "respond": {
+        "object": {
+          "probability": 0.92,
+          "verdict": "holds",
+          "explanation": "the after state satisfies the criterion",
+          "observed": "observed"
+        }
+      }
+    },
+    {
+      "purpose": "grounding",
+      "match": {
+        "contains": [
+          "Submit"
+        ]
+      },
+      "respond": {
+        "object": {
+          "candidates": [
+            {
+              "role": "button",
+              "name": "Submit"
+            },
+            {
+              "role": "button",
+              "name": "Submit"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

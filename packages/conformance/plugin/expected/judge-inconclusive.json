@@ -1,0 +1,11 @@
+{
+  "feature": "judge-inconclusive.feature",
+  "steps": [
+    {
+      "text": "Then The plan badge shows a reasonable tier",
+      "status": "failed",
+      "resolution": "agent",
+      "errorCode": "JUDGE_INCONCLUSIVE"
+    }
+  ]
+}

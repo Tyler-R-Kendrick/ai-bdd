@@ -1,0 +1,11 @@
+{
+  "feature": "ambiguous-margin.feature",
+  "steps": [
+    {
+      "text": "When Store the workspace \"Acme\" on the \"free\" plan",
+      "status": "failed",
+      "resolution": "ambiguous",
+      "errorCode": "STEP_AMBIGUOUS"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@ai-bdd/lock",
+  "version": "0.1.0",
+  "description": "Resolution chain orchestration and the deterministic, diff-friendly resolution lockfile.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^22.22.3 || >=24.8.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "lint": "oxlint src test"
+  },
+  "dependencies": {
+    "@ai-bdd/contracts": "workspace:*",
+    "@ai-bdd/registry": "workspace:*",
+    "@ai-bdd/semantic": "workspace:*"
+  },
+  "devDependencies": {
+    "fast-check": "^4.10.2",
+    "vitest": "^5.0.3"
+  }
+}

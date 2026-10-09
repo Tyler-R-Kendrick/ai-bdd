@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "dist", "tsBuildInfoFile": "dist/.tsbuildinfo" },
+  "include": ["src"],
+  "references": [
+    { "path": "../contracts" },
+    { "path": "../spec-directives" },
+    { "path": "../spec-gauge" },
+    { "path": "../spec-gherkin" },
+    { "path": "../registry" },
+    { "path": "../semantic" },
+    { "path": "../lock" },
+    { "path": "../cache" },
+    { "path": "../act" },
+    { "path": "../assert" },
+    { "path": "../judge" },
+    { "path": "../evidence" }
+  ]
+}

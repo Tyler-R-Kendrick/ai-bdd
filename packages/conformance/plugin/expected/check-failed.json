@@ -1,0 +1,11 @@
+{
+  "feature": "check-failed.feature",
+  "steps": [
+    {
+      "text": "Then The plan badge reads \"Enterprise\"",
+      "status": "failed",
+      "resolution": "agent",
+      "errorCode": "CHECK_FAILED"
+    }
+  ]
+}
