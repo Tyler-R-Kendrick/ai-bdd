@@ -29,8 +29,6 @@ export const NON_TEST_COVERAGE = {
   'R-K1a': 'e2e-host is deferred: the core owns its own act loop, cache and judge (packages/act, assert, judge)',
   'R-K1b': 'e2e-host is not implemented in this build; docs/status.md records it as deferred',
   'R-K1c': 'enforced mechanically instead: scripts/check-e2e-imports.mjs fails on any non-public e2e import',
-  'R-K12a': 'the daemon surface is deferred; packages/contracts/src/tools-table.ts already defines the single tool table',
-  'R-K12b': 'driver MCP pinning is deferred with the e2e and cua drivers',
   'R-K20': 'license, engines and packaging audit: scripts/check-licenses.mjs plus the NOTICE and engines fields',
   'R-K24': 'the language plugins are deferred; docs/plugins.md documents the per-framework minimum glue',
 };

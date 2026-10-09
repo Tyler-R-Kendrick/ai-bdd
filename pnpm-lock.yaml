@@ -241,6 +241,9 @@ importers:
       '@ai-bdd/core':
         specifier: workspace:*
         version: link:../core
+      '@ai-bdd/daemon':
+        specifier: workspace:*
+        version: link:../daemon
       '@ai-bdd/driver-fake':
         specifier: workspace:*
         version: link:../driver-fake
@@ -332,6 +335,31 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
 
+  packages/daemon:
+    dependencies:
+      '@ai-bdd/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-bdd/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@modelcontextprotocol/server':
+        specifier: ^2.3.1
+        version: 2.3.1
+    devDependencies:
+      '@ai-bdd/driver-fake':
+        specifier: workspace:*
+        version: link:../driver-fake
+      '@ai-bdd/models':
+        specifier: workspace:*
+        version: link:../models
+      '@modelcontextprotocol/client':
+        specifier: ^2.3.1
+        version: 2.3.1
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+
   packages/driver-e2e:
     dependencies:
       '@ai-bdd/contracts':
@@ -419,6 +447,19 @@ importers:
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/reporters:
+    dependencies:
+      '@ai-bdd/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ai-bdd/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+    devDependencies:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
@@ -745,6 +786,10 @@ packages:
 
   '@modelcontextprotocol/server@2.3.0':
     resolution: {integrity: sha512-+6b0LdsQLmHsvS7J6sQJ4weTpzUn61fU1JKS+321/+IyDYoHW5CR2Tgqcs6GgAAQvlesCo6yX3xttgmx+XGtJw==}
+    engines: {node: '>=20'}
+
+  '@modelcontextprotocol/server@2.3.1':
+    resolution: {integrity: sha512-e59MfWuSssj6DoQ96JCTqdW1AXT5/XtnTl0WWd6MU1Ka434fFUGGosCLJbGNySDhHGvxQWoRWK137FXYFkYNWw==}
     engines: {node: '>=20'}
 
   '@oxc-parser/binding-android-arm-eabi@0.152.0':
@@ -1824,6 +1869,11 @@ snapshots:
   '@modelcontextprotocol/server@2.3.0':
     dependencies:
       '@modelcontextprotocol/core': 2.3.0
+      zod: 4.6.5
+
+  '@modelcontextprotocol/server@2.3.1':
+    dependencies:
+      '@modelcontextprotocol/core': 2.3.1
       zod: 4.6.5
 
   '@oxc-parser/binding-android-arm-eabi@0.152.0': {}

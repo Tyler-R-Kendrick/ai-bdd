@@ -181,7 +181,7 @@ describe('session behaviour over a recorded transcript', () => {
     await expect(session.observe()).rejects.toThrow(/closed/u);
   });
 
-  it('selfCheck passes against a full catalog and reports missing tools otherwise', async () => {
+  it('R-K12b: selfCheck pins the catalog and reports missing tools instead of throwing', async () => {
     const factory = e2e({ caller: new ReplayCaller() });
     const driver = await factory.create({ sessionId: 's', scenarioId: 'sc', config: {} });
     const ok = await driver.selfCheck();

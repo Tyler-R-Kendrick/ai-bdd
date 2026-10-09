@@ -1,0 +1,37 @@
+{
+  "name": "@ai-bdd/daemon",
+  "version": "0.1.0",
+  "description": "The ai-bdd orchestrator daemon: MCP (stdio and Streamable HTTP) plus an equivalent HTTP JSON mirror.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^22.22.3 || >=24.8.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "lint": "oxlint src test"
+  },
+  "dependencies": {
+    "@ai-bdd/contracts": "workspace:*",
+    "@ai-bdd/runtime": "workspace:*",
+    "@modelcontextprotocol/server": "^2.3.1"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.3",
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@ai-bdd/models": "workspace:*",
+    "@ai-bdd/driver-fake": "workspace:*"
+  }
+}

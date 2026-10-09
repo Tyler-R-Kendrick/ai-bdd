@@ -60,6 +60,12 @@
     },
     {
       "path": "packages/conformance"
+    },
+    {
+      "path": "packages/reporters"
+    },
+    {
+      "path": "packages/daemon"
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { Diagnostic, ReporterName } from '@ai-bdd/contracts';
-import { AiBddError, EXIT_CODES } from '@ai-bdd/contracts';
+import { AiBddError, EXIT_CODES, TOOL_SHORT_NAMES } from '@ai-bdd/contracts';
 import { verifyEvidence } from '@ai-bdd/evidence';
 import { calibrate } from '@ai-bdd/judge';
 import type { CalibrationLabel } from '@ai-bdd/contracts';
@@ -329,3 +329,66 @@ function relative(root: string, path: string): string {
 }
 
 export { loadConfig };
+
+export interface ServeOptions {
+  stdio?: boolean;
+  http?: boolean;
+  port?: number;
+  config?: string;
+  fake?: boolean;
+}
+
+/**
+ * Runs the orchestrator daemon until the process is interrupted.
+ *
+ * The URL and the bearer token are written to `.ai-bdd/daemon.json` (mode 0600) so
+ * a language plugin can find them; the token is printed once for a human too.
+ */
+export async function serveCommand(io: CliIo, options: ServeOptions = {}): Promise<number> {
+  const context = await loadCliContext({
+    projectRoot: io.cwd,
+    env: process.env,
+    ...(options.config !== undefined ? { configPath: join(io.cwd, options.config) } : {}),
+    ...(options.fake !== undefined ? { fake: options.fake } : {}),
+  });
+  const { createSessionManager } = await import('@ai-bdd/runtime');
+  const daemon = (await import('@ai-bdd/daemon' as string)) as {
+    startDaemon: (options: unknown) => Promise<{ url?: string; token: string; close(): Promise<void> }>;
+  };
+
+  const sessionManager = createSessionManager({
+    config: context.config,
+    models: context.models,
+    drivers: context.drivers,
+    reapOrphans: true,
+  });
+  const handle = await daemon.startDaemon({
+    sessionManager,
+    projectRoot: io.cwd,
+    host: context.config.daemon.host,
+    port: options.port ?? context.config.daemon.port,
+    stdio: options.stdio === true,
+    http: options.http !== false,
+  });
+
+  if (handle.url) {
+    io.out(`ai-bdd daemon listening on ${handle.url}`);
+    io.out(`MCP tools: ${TOOL_SHORT_NAMES.map((short) => `aibdd_${short}`).join(', ')}`);
+    io.out('the URL and token are in .ai-bdd/daemon.json (mode 0600)');
+  } else {
+    io.err('ai-bdd daemon serving MCP over stdio');
+  }
+
+  await new Promise<void>((resolve) => {
+    const shutdown = (): void => {
+      process.off('SIGINT', shutdown);
+      process.off('SIGTERM', shutdown);
+      resolve();
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+    if (options.stdio === true) resolve();
+  });
+  await handle.close();
+  return EXIT_CODES.ok;
+}

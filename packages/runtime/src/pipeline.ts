@@ -47,7 +47,7 @@ export interface PipelineDependencies {
   diagnostics: Diagnostic[];
 }
 
-interface StepState {
+export interface StepState {
   windowBefore?: Observation;
   lastActionObservation?: Observation;
   pendingCommits: Array<() => Promise<void>>;
@@ -82,7 +82,7 @@ export async function runScenario(
     const trace = span(traceId);
     const stepStarted = deps.now().getTime();
     try {
-      const result = await runStep(deps, step, session, state, trace, scenario);
+      const result = await runPipelineStep(deps, step, session, state, trace, scenario);
       results.push({ ...result, durationMs: deps.now().getTime() - stepStarted });
       if (!isTeardown && result.status !== 'passed' && result.status !== 'healed') setStatus('failed');
       if (result.status === 'healed' && statusOf() !== 'failed') setStatus('healed');
@@ -144,6 +144,10 @@ export async function runScenario(
   };
 }
 
+export function createStepState(): StepState {
+  return { pendingCommits: [] };
+}
+
 interface Block {
   steps: Step[];
 }
@@ -163,7 +167,7 @@ function groupBlocks(steps: Step[]): Block[] {
   return blocks;
 }
 
-async function runStep(
+export async function runPipelineStep(
   deps: PipelineDependencies,
   step: Step,
   session: DriverSession,

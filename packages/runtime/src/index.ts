@@ -13,3 +13,16 @@ export { globToRegExp, normalizeSpecGlobs, walkFiles } from './glob.js';
 export { newTrace, parseTraceparent, span, type TraceContext } from './trace.js';
 export { resolveAll, type ResolvedStepRow, type ResolveAllOptions } from './resolve-all.js';
 export { expandBindingGlobs } from './bindings.js';
+export {
+  SessionManager,
+  createSessionManager,
+  type OpenSessionInput,
+  type OpenSessionOutput,
+  type RegisterBindingsInput,
+  type RegisterBindingsOutput,
+  type ReportBindingResultInput,
+  type ResolveStepOutput,
+  type SessionManagerOptions,
+  type StepPayload,
+} from './sessions.js';
+export { createStepState, runPipelineStep, type StepState } from './pipeline.js';

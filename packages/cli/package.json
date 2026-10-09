@@ -4,14 +4,29 @@
   "description": "The ai-bdd command line: init, run, resolve, lint, lock verify, codegen, verify-evidence, calibrate, doctor, serve.",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": "^22.22.3 || >=24.8.0" },
-  "bin": { "ai-bdd": "./dist/bin.js" },
+  "engines": {
+    "node": "^22.22.3 || >=24.8.0"
+  },
+  "bin": {
+    "ai-bdd": "./dist/bin.js"
+  },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md"],
-  "scripts": { "build": "tsc -b", "typecheck": "tsc -b", "test": "vitest run", "lint": "oxlint src test" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "lint": "oxlint src test"
+  },
   "dependencies": {
     "@ai-bdd/assert": "workspace:*",
     "@ai-bdd/cache": "workspace:*",
@@ -26,12 +41,15 @@
     "@ai-bdd/spec-directives": "workspace:*",
     "@ai-bdd/spec-gauge": "workspace:*",
     "@ai-bdd/spec-gherkin": "workspace:*",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "@ai-bdd/daemon": "workspace:*"
   },
   "optionalDependencies": {
     "@ai-bdd/driver-cua": "workspace:*",
     "@ai-bdd/driver-e2e": "workspace:*",
     "@ai-bdd/driver-playwright": "workspace:*"
   },
-  "devDependencies": { "vitest": "^5.0.3" }
+  "devDependencies": {
+    "vitest": "^5.0.3"
+  }
 }

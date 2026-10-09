@@ -7,7 +7,20 @@
  */
 import { Command } from 'commander';
 import { AiBddError, EXIT_CODES } from '@ai-bdd/contracts';
-import { calibrateCommand, codegenCommand, defaultIo, doctor, evidenceVerify, init, lint, lockVerify, resolveCommand, run, type CliIo } from './commands.js';
+import {
+  calibrateCommand,
+  codegenCommand,
+  defaultIo,
+  doctor,
+  evidenceVerify,
+  init,
+  lint,
+  lockVerify,
+  resolveCommand,
+  run,
+  serveCommand,
+  type CliIo,
+} from './commands.js';
 import { exitCodeFor } from './exit-codes.js';
 
 export const VERSION = '0.1.0';
@@ -145,20 +158,13 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('serve')
-    .description('run the orchestrator daemon (MCP stdio or Streamable HTTP plus the JSON mirror)')
+    .description('run the orchestrator daemon (MCP stdio or the HTTP JSON mirror)')
     .option('--stdio', 'serve MCP over stdio')
-    .option('--http', 'serve Streamable HTTP MCP and the /v1 mirror')
+    .option('--http', 'serve the HTTP JSON mirror (default)')
     .option('--port <n>', 'port for --http (default 0 = ephemeral)', (value) => Number(value))
-    .action(async () => {
-      await guard(io, async () => {
-        try {
-          const { startDaemon } = await import('@ai-bdd/daemon' as string);
-          await startDaemon(io);
-          return EXIT_CODES.ok;
-        } catch (error) {
-          throw new AiBddError('DRIVER_UNAVAILABLE', 'the daemon package is not installed in this build', { cause: error });
-        }
-      });
+    .option('--config <path>', 'config file path')
+    .action(async (options: { stdio?: boolean; http?: boolean; port?: number; config?: string }) => {
+      await guard(io, () => serveCommand(io, { ...options, fake: globalFake() }));
     });
 
   return program;

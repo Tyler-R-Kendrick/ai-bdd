@@ -207,6 +207,39 @@ describe('ai-bdd codegen', () => {
   });
 });
 
+describe('ai-bdd serve', () => {
+  it('starts the HTTP mirror, writes daemon.json and answers health', async () => {
+    const dir = makeFixtureProject();
+    const { io, out } = capture(dir);
+    const port = 4400 + Math.floor(Math.random() * 200);
+    const serving = runCli(['--fake', 'serve', '--http', '--port', String(port)], io);
+    // Give the server a moment, then talk to it the way a plugin would.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const health = await fetch(`http://127.0.0.1:${port}/v1/health`, { method: 'POST', body: '{}' });
+      expect(health.status).toBe(200);
+      const payload = (await health.json()) as { protocol: number; drivers: Array<{ name: string }> };
+      expect(payload.protocol).toBe(1);
+      expect(payload.drivers.map((driver) => driver.name)).toContain('fake');
+
+      const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/open_session`, { method: 'POST', body: '{}' });
+      expect(unauthorized.status).toBe(401);
+
+      const daemonJson = JSON.parse(readFileSync(join(dir, '.ai-bdd', 'daemon.json'), 'utf8')) as { token: string };
+      const authorized = await fetch(`http://127.0.0.1:${port}/v1/health`, {
+        method: 'POST',
+        body: '{}',
+        headers: { authorization: `Bearer ${daemonJson.token}` },
+      });
+      expect(authorized.status).toBe(200);
+      expect(out.join('\n')).toContain('daemon listening');
+    } finally {
+      process.emit('SIGINT');
+      await serving.catch(() => undefined);
+    }
+  });
+});
+
 describe('usage errors', () => {
   it('returns exit 2 for an unknown command', async () => {
     const dir = makeProject();
