@@ -1,8 +1,45 @@
 import type { CheckPredicate, JsonValue, Observation, ObservedNode, PredicateResult, PredicateResultValue, Selector } from '@ai-bdd/contracts';
 
+/**
+ * Role aliases used when matching a predicate selector to a node.
+ *
+ * Different drivers name the same surface differently: the fixture model calls a
+ * paragraph `text`, while Playwright's aria snapshot calls it `paragraph`. A spec
+ * should not have to know which driver it runs against, so the aliases below
+ * normalise the common cases. The list is intentionally small and documented.
+ */
+const ROLE_ALIASES: Record<string, string[]> = {
+  text: ['text', 'paragraph', 'span', 'generic', 'code', 'blockquote'],
+  paragraph: ['paragraph', 'text'],
+  heading: ['heading'],
+  image: ['image', 'img'],
+  link: ['link'],
+  list: ['list'],
+  listitem: ['listitem', 'listItem'],
+  textbox: ['textbox', 'input', 'searchbox'],
+  button: ['button'],
+  checkbox: ['checkbox'],
+  combobox: ['combobox', 'listbox'],
+  dialog: ['dialog', 'alertdialog'],
+  alert: ['alert', 'status'],
+  tab: ['tab'],
+  cell: ['cell', 'gridcell'],
+  row: ['row'],
+  table: ['table', 'grid'],
+};
+
+export function roleMatches(nodeRole: string, wanted: string): boolean {
+  if (nodeRole === wanted) return true;
+  const aliases = ROLE_ALIASES[wanted];
+  if (aliases?.includes(nodeRole)) return true;
+  // A heading level suffix (`heading[1]`) still matches a `heading` selector.
+  if (nodeRole.startsWith(wanted) && /^[a-z]+\[\d+\]$/u.test(nodeRole)) return true;
+  return false;
+}
+
 /** Matches a node against a predicate selector; `name`/`text` are optional filters. */
 export function matchesSelector(node: ObservedNode, selector: Selector): boolean {
-  if (selector.role && node.role !== selector.role) return false;
+  if (selector.role && !roleMatches(node.role, selector.role)) return false;
   if (selector.testId !== undefined && node.testId !== selector.testId) return false;
   if (selector.name !== undefined && node.name !== selector.name) return false;
   if (selector.text !== undefined && (node.text ?? node.name) !== selector.text) return false;

@@ -44,6 +44,9 @@
       "path": "packages/driver-fake"
     },
     {
+      "path": "packages/driver-playwright"
+    },
+    {
       "path": "packages/driver-e2e"
     },
     {

@@ -8,5 +8,5 @@
  *   discriminative rule (R-K9)
  */
 export { createAsserter, generateCheckProgram, describe, type AssertWindow, type Asserter, type AsserterDependencies, type CheckCacheReader } from './asserter.js';
-export { allSatisfied, anyUnknown, evaluatePredicates, flattenNodes, matchesSelector } from './evaluate.js';
+export { allSatisfied, anyUnknown, evaluatePredicates, flattenNodes, matchesSelector, roleMatches } from './evaluate.js';
 export { VOLATILE_PATTERNS, lintCheckProgram } from './lint.js';

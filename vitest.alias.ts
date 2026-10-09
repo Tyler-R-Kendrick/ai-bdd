@@ -26,6 +26,7 @@ export const alias: Record<string, string> = {
   '@ai-bdd/assert': src('assert'),
   '@ai-bdd/act': src('act'),
   '@ai-bdd/driver-fake': src('driver-fake'),
+  '@ai-bdd/driver-playwright': src('driver-playwright'),
   '@ai-bdd/driver-e2e': src('driver-e2e'),
   '@ai-bdd/runtime': src('runtime'),
   '@ai-bdd/conformance': src('conformance'),

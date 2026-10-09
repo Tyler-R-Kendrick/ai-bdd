@@ -279,6 +279,9 @@ importers:
       '@ai-bdd/driver-e2e':
         specifier: workspace:*
         version: link:../driver-e2e
+      '@ai-bdd/driver-playwright':
+        specifier: workspace:*
+        version: link:../driver-playwright
 
   packages/codegen:
     dependencies:
@@ -382,6 +385,22 @@ importers:
         specifier: workspace:*
         version: link:../contracts
     devDependencies:
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/driver-playwright:
+    dependencies:
+      '@ai-bdd/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      playwright-core:
+        specifier: 1.64.0
+        version: 1.64.0
+    devDependencies:
+      '@ai-bdd/conformance':
+        specifier: workspace:*
+        version: link:../conformance
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
@@ -1550,6 +1569,11 @@ packages:
     resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
     engines: {node: '>=16.20.0'}
 
+  playwright-core@1.64.0:
+    resolution: {integrity: sha512-T9r+MZkTECl2+oUcZ26YgZzTrYidTsIhYYkJix+6iDOymOb1FB2RLLSOxRGnZGv5DStt+aduIVbt+E8WygXYpg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   pngjs@7.0.0:
     resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
     engines: {node: '>=14.19.0'}
@@ -2359,6 +2383,8 @@ snapshots:
       pngjs: 7.0.0
 
   pkce-challenge@5.0.1: {}
+
+  playwright-core@1.64.0: {}
 
   pngjs@7.0.0: {}
 

@@ -90,7 +90,12 @@ export function register({ registry }: RegistrationContext): void {
       patternKind: 'cucumber-expression',
       kind: 'setup',
       description: 'Seeds a workspace with a name and a plan tier.',
-      examples: ['Seed a workspace "Acme" on the "free" plan'],
+      examples: [
+        'Seed a workspace "Acme" on the "free" plan',
+        // Two teams bind the same sentence and both list it as an example; the
+        // margin then decides, and M4 requires that decision to be ambiguous.
+        'Store the workspace "Acme" on the "free" plan',
+      ],
       counterExamples: ['Seed an empty workspace'],
       params: [
         { name: 'name', type: 'string' },
@@ -145,11 +150,17 @@ export function register({ registry }: RegistrationContext): void {
     {
       id: 'ts:local#store-workspace',
       provider: 'ts:local',
-      pattern: 'Store the workspace {string} on the {string} plan',
+      // Deliberately a paraphrase, not a pattern match: the step under test is
+      // "Store the workspace "Acme" on the "free" plan", which must therefore be
+      // decided by the semantic margin and come out ambiguous (M4).
+      pattern: 'Stash a workspace {string} for the {string} plan',
       patternKind: 'cucumber-expression',
       kind: 'setup',
       description: 'Seeds a workspace with a name and a plan tier.',
-      examples: ['Store the workspace "Acme" on the "free" plan'],
+      examples: [
+        'Stash a workspace "Acme" for the "free" plan',
+        'Store the workspace "Acme" on the "free" plan',
+      ],
       params: [
         { name: 'name', type: 'string' },
         { name: 'plan', type: 'enum', enumValues: ['free', 'pro'] },

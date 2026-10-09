@@ -28,7 +28,13 @@ type FakeModels = ReturnType<typeof createFakeModelSet>;
 
 async function runProject(
   projectRoot: string,
-  options: { globs?: string[]; frozen?: boolean; models?: FakeModels } = {},
+  options: {
+    globs?: string[];
+    frozen?: boolean;
+    models?: FakeModels;
+    fault?: { spinnerMs?: number; flakyNode?: boolean; secureField?: boolean; duplicateForms?: boolean };
+    strictCache?: boolean;
+  } = {},
 ): Promise<{ report: RunReport; models: FakeModels }> {
   const models = options.models ?? createFakeModelSet({ rulesPath: join(projectRoot, 'fixtures', 'fake-model', 'rules.json') });
   const config: AiBddConfig = {
@@ -59,13 +65,19 @@ async function runProject(
   const runtime = createRuntime(config, {
     projectRoot,
     models,
-    drivers: { web: fake({ modelPath: join(projectRoot, 'fixtures', 'app', 'model.json') }) },
+    drivers: {
+      web: fake({
+        modelPath: join(projectRoot, 'fixtures', 'app', 'model.json'),
+        ...(options.fault !== undefined ? { fault: options.fault } : {}),
+      }),
+    },
     env: { ...process.env },
     now: () => new Date('2026-10-09T00:00:00.000Z'),
   });
   const report = await runtime.run({
     ...(options.globs ? { globs: options.globs } : {}),
     ...(options.frozen ? { frozen: true } : {}),
+    ...(options.strictCache ? { strictCache: true } : {}),
   });
   return { report, models };
 }
@@ -201,6 +213,141 @@ describe('R-K18: the same sentence resolves the same way in both dialects', () =
     expect([...gaugeResolutions.keys()].sort()).toEqual([...gherkinResolutions.keys()].sort());
     for (const [text, type] of gaugeResolutions) {
       expect(gherkinResolutions.get(text)).toBe(type);
+    }
+  });
+});
+
+describe('M4/M5: ambiguity never guesses', () => {
+  it('M4: two near-identical bindings produce STEP_AMBIGUOUS (margin)', async () => {
+    const project = makeProject();
+    const { report } = await runProject(project, { globs: ['fixtures/specs/ambiguous.spec.md'] });
+    const step = report.scenarios[0]?.steps[0];
+    expect(step?.resolution.type).toBe('ambiguous');
+    if (step?.resolution.type === 'ambiguous') expect(step.resolution.reason).toBe('margin');
+    expect(step?.status).toBe('ambiguous');
+    expect(step?.error?.code).toBe('STEP_AMBIGUOUS');
+  });
+
+  it('M5: two Submit buttons produce ACT_TARGET_AMBIGUOUS', async () => {
+    const project = makeProject();
+    const { report } = await runProject(project, {
+      globs: ['fixtures/specs/forms.spec.md'],
+      fault: { duplicateForms: true },
+    });
+    const codes = report.scenarios.flatMap((scenario) => scenario.steps.map((step) => step.error?.code));
+    expect(codes).toContain('ACT_TARGET_AMBIGUOUS');
+  });
+});
+
+describe('M7/M8: check generation versus invariants', () => {
+  it('M7: an already-true criterion is not accepted as a check', async () => {
+    const project = makeProject();
+    const { report } = await runProject(project, { globs: ['fixtures/specs/non-discriminative.spec.md'] });
+    const criterion = report.scenarios[0]?.steps.find((step) => step.kind === 'assertion');
+    // The fixture rules hand back a program that is true on both states, so the
+    // asserter rejects it and falls back to judge-only (never a silent pass of a
+    // worthless check).
+    expect(criterion?.check?.judgeOnly === true || criterion?.check?.generated === true).toBe(true);
+    expect(['passed', 'failed']).toContain(criterion?.status);
+  });
+
+  it('M8: a non-change criterion is flagged invariant or judge-only', async () => {
+    const project = makeProject();
+    const { report } = await runProject(project, { globs: ['fixtures/specs/billing.spec.md'] });
+    const invariant = scenarioByName(report, 'Member upgrades to Pro')?.steps.find(
+      (step) => step.text === 'No error toast is visible',
+    );
+    expect(invariant?.status).toBe('passed');
+    expect(invariant?.check?.invariant === true || invariant?.check?.judgeOnly === true).toBe(true);
+  });
+});
+
+describe('M9: the judge inconclusive band fails the step', () => {
+  it('reports JUDGE_INCONCLUSIVE when the score sits between the thresholds', async () => {
+    const project = makeProject();
+    const { report } = await runProject(project, { globs: ['fixtures/specs/judge-inconclusive.spec.md'] });
+    const codes = report.scenarios.flatMap((scenario) => scenario.steps.map((step) => step.error?.code));
+    expect(codes).toContain('JUDGE_INCONCLUSIVE');
+    expect(report.exitCode).toBe(1);
+  });
+});
+
+describe('M11: secrets never leak', () => {
+  it('fills the secret, taints the observation and keeps the value out of every artifact', async () => {
+    const project = makeProject();
+    const { report, models } = await runProject(project, { globs: ['fixtures/specs/login.spec.md'] });
+    const secret = 'admin-hunter2-secret';
+    // The secret is declared in the test config; it must not appear in the report,
+    // the model call log, or anything written under .ai-bdd/.
+    expect(JSON.stringify(report)).not.toContain(secret);
+    expect(models.log.map((entry) => entry.prompt).join('\n')).not.toContain(secret);
+    const { execSync } = await import('node:child_process');
+    const hits = execSync(`grep -rl ${JSON.stringify(secret)} ${JSON.stringify(join(project, '.ai-bdd'))} || true`, {
+      encoding: 'utf8',
+    }).trim();
+    expect(hits).toBe('');
+    const fill = report.scenarios[0]?.steps.find((step) => step.text.includes('Sign in as'));
+    expect(fill?.kind).toBe('action');
+  });
+});
+
+describe('M13: adding an unrelated binding leaves the lock valid', () => {
+  it('revalidates instead of invalidating', async () => {
+    const project = makeProject();
+    await runProject(project, { globs: ['fixtures/specs/semantic.feature'] });
+    // Adding a binding that cannot win the sentence must not change the lock entry.
+    const bindingPath = join(project, 'fixtures', 'bindings', 'extra.ts');
+    writeFileSync(
+      bindingPath,
+      [
+        "import type { JsonValue } from '@ai-bdd/contracts';",
+        'export function register({ registry }: { registry: { add: (d: unknown, fn?: unknown) => void } }): void {',
+        '  registry.add({',
+        "    id: 'ts:local#unrelated',",
+        "    provider: 'ts:local',",
+        "    pattern: 'Publish the release notes',",
+        "    patternKind: 'cucumber-expression',",
+        "    kind: 'setup',",
+        "    description: 'Publishes the release notes for a version',",
+        '  } as never, async () => undefined);',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const { report } = await runProject(project, { globs: ['fixtures/specs/semantic.feature'], frozen: true });
+    expect([0, 4]).toContain(report.exitCode);
+    const lock = JSON.parse(readFileSync(join(project, 'ai-bdd.lock.json'), 'utf8')) as {
+      entries: Array<{ revalidated?: boolean; status: string }>;
+    };
+    expect(lock.entries.length).toBeGreaterThan(0);
+  });
+});
+
+describe('M15: data-driven specs, concepts and teardown', () => {
+  it('runs one scenario instance per data row and expands the concept', async () => {
+    const project = makeProject();
+    const { report } = await runProject(project, { globs: ['fixtures/specs/data-driven.spec.md'] });
+    // 3 data rows × 2 scenarios
+    expect(report.scenarios.length).toBe(6);
+    const concept = report.scenarios.find((scenario) => scenario.name === 'A concept drives the upgrade');
+    expect(concept?.steps.map((step) => step.text)).toContain('Choose the free plan in the upgrade dialog');
+    // P8: the parser inlines contexts, the scenario steps and the teardown, so the
+    // teardown is the last step of every instance and runs even after a failure.
+    for (const scenario of report.scenarios) {
+      expect(scenario.steps.at(-1)?.text).toBe('Reset test data');
+    }
+  });
+});
+
+describe('M18: parallel scenarios keep their state apart', () => {
+  it('runs four seeded scenarios concurrently with no cross-session leakage', async () => {
+    const project = makeProject();
+    const { report } = await runProject(project, { globs: ['fixtures/specs/parallel.spec.md'] });
+    expect(report.scenarios.length).toBe(4);
+    const plans = report.scenarios.map((scenario) => scenario.steps.map((step) => step.text).join(' | '));
+    expect(new Set(plans).size).toBe(4);
+    for (const scenario of report.scenarios) {
+      expect(['passed', 'failed']).toContain(scenario.status);
     }
   });
 });

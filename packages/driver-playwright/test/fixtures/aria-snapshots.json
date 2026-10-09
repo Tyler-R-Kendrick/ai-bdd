@@ -1,0 +1,13 @@
+{
+  "synthetic": true,
+  "source": "Playwright 1.64 ariaSnapshot format",
+  "note": "The sandbox cannot launch Chromium (missing libglib-2.0-0 and no root to install it), so these snapshots are hand-authored from the documented format and the fixture app's DOM. The parser golden pins the format; a browser-enabled CI job should regenerate this file with `pnpm -F @ai-bdd/driver-playwright exec tsx scripts/capture-aria.ts` and drop the synthetic flag (VERIFY V8).",
+  "snapshots": {
+    "/settings/billing": "- heading \"Billing settings\" [level=1]\n- paragraph: Plan: Free plan\n- paragraph: Workspace: none\n- button \"Upgrade to Pro\"\n- button \"Downgrade\"",
+    "/settings/billing?unpaid=2": "- heading \"Billing settings\" [level=1]\n- paragraph: Plan: Free plan\n- paragraph: Workspace: Acme\n- button \"Upgrade to Pro\"\n- button \"Downgrade\"\n- alert: Downgrade is blocked: settle unpaid invoices first",
+    "/settings/billing?dialog=upgrade": "- heading \"Billing settings\" [level=1]\n- paragraph: Plan: Free plan\n- button \"Upgrade to Pro\"\n- button \"Downgrade\"\n- dialog \"Upgrade to Pro\":\n  - paragraph: You are upgrading to the Pro plan\n  - button \"Confirm upgrade\"\n  - button \"Cancel\"",
+    "/settings/billing?plan=pro": "- heading \"Billing settings\" [level=1]\n- paragraph: Plan: Pro plan\n- paragraph: Workspace: Acme\n- button \"Upgrade to Pro\"\n- button \"Downgrade\"\n- paragraph: Prorated amount: 12.00",
+    "/login": "- heading \"Sign in\" [level=1]\n- generic \"User name\":\n  - textbox \"User name\"\n- generic \"Password\":\n  - textbox \"Password\"",
+    "/forms/two": "- heading \"Two forms\" [level=1]\n- form \"Shipping form\":\n  - button \"Submit\"\n- form \"Billing form\":\n  - button \"Submit\""
+  }
+}

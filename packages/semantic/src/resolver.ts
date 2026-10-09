@@ -65,8 +65,12 @@ function round(value: number): number {
 }
 
 function kindCompatible(binding: Binding, step: SemanticStep): boolean {
+  // R-K5c: a keyword-less Gauge step (kindSource 'default') accepts any binding
+  // kind, because its kind is not declared by the author; a binding that declares
+  // strictKind opts out of that. Steps whose kind was decided by a directive, a
+  // binding, a Gherkin keyword or a prefix heuristic must match the kind.
+  if (step.kindSource === 'default') return binding.strictKind !== true;
   if (binding.kind !== 'any' && binding.kind !== step.kind) return false;
-  if (step.kindSource === 'default' && binding.strictKind === true) return false;
   return true;
 }
 
