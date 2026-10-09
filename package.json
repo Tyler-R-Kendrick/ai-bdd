@@ -1,0 +1,30 @@
+{
+  "name": "ai-bdd-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ai-bdd: driver-agnostic, behavior-driven acceptance testing with semantic step bindings and AI fallback execution",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^22.22.3 || >=24.8.0"
+  },
+  "packageManager": "pnpm@12.10.1",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc -b tsconfig.build.json",
+    "test": "vitest run",
+    "lint": "oxlint --deny-warnings packages plugins fixtures scripts",
+    "gen:schemas": "pnpm -F @ai-bdd/contracts gen:schemas",
+    "check:requirements": "node scripts/check-requirements.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "fast-check": "^4.10.2",
+    "oxlint": "^1.87.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}

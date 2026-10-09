@@ -1,0 +1,26 @@
+{
+  "keys": [
+    "specs",
+    "concepts",
+    "bindings",
+    "drivers",
+    "defaultDriver",
+    "models",
+    "context",
+    "resolution",
+    "kinds",
+    "assertions",
+    "judge",
+    "grounding",
+    "agent",
+    "cache",
+    "evidence",
+    "secrets",
+    "policy",
+    "concurrency",
+    "daemon",
+    "hooks",
+    "reporters",
+    "prices"
+  ]
+}

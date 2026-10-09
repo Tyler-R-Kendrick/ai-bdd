@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ]
+    },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "holds",
+              "fails",
+              "cannot_tell"
+            ]
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "observed": {
+            "type": "string"
+          },
+          "contradictory": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "probability",
+          "verdict",
+          "explanation",
+          "observed"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "spread": {
+      "type": "number"
+    },
+    "modelId": {
+      "type": "string"
+    },
+    "promptVersion": {
+      "type": "string"
+    },
+    "cacheKey": {
+      "type": "string"
+    },
+    "reused": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "evidenceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "score",
+    "verdict",
+    "samples",
+    "spread",
+    "modelId",
+    "promptVersion",
+    "cacheKey",
+    "reused"
+  ],
+  "additionalProperties": false
+}

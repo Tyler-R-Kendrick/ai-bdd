@@ -1,0 +1,13 @@
+{
+  "names": [
+    "aibdd_health",
+    "aibdd_open_session",
+    "aibdd_register_bindings",
+    "aibdd_resolve_step",
+    "aibdd_run_step",
+    "aibdd_report_binding_result",
+    "aibdd_get_evidence",
+    "aibdd_close_session",
+    "aibdd_run"
+  ]
+}

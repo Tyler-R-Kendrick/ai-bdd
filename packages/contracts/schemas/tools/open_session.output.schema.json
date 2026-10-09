@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "traceId": {
+      "type": "string"
+    },
+    "driver": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "verbs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "doubleTap",
+              "longPress",
+              "secondaryTap",
+              "hover",
+              "type",
+              "typeSecret",
+              "press",
+              "select",
+              "check",
+              "scroll",
+              "scrollTo",
+              "drag",
+              "navigate",
+              "back",
+              "upload",
+              "tapAt",
+              "typeAt",
+              "invokeMenu"
+            ]
+          }
+        },
+        "pixels": {
+          "type": "boolean"
+        },
+        "tree": {
+          "type": "boolean"
+        },
+        "video": {
+          "type": "boolean"
+        },
+        "nativePredicates": {
+          "type": "boolean"
+        },
+        "maskingProven": {
+          "type": "boolean"
+        },
+        "deliveryModes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "background",
+              "foreground"
+            ]
+          }
+        }
+      },
+      "required": [
+        "verbs",
+        "pixels",
+        "tree",
+        "video",
+        "nativePredicates",
+        "maskingProven"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "sessionId",
+    "traceId",
+    "driver",
+    "capabilities"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@ai-bdd/contracts",
+  "version": "0.1.0",
+  "description": "Shared contracts for ai-bdd: AST, bindings, resolution, drivers, programs, judge, evidence, results.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^22.22.3 || >=24.8.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./helpers": {
+      "types": "./dist/helpers.d.ts",
+      "default": "./dist/helpers.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "lint": "oxlint src test",
+    "gen:schemas": "tsx scripts/gen-schemas.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "fast-check": "^4.10.2",
+    "vitest": "^5.0.3",
+    "tsx": "^4.23.15"
+  }
+}

@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "generator": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "stepText": {
+            "type": "string"
+          },
+          "normalizedStepText": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "setup",
+              "action",
+              "assertion"
+            ]
+          },
+          "kindClass": {
+            "type": "string",
+            "enum": [
+              "explicit-keyword",
+              "declared-binding",
+              "inferred",
+              "directive"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "semantic",
+              "agent",
+              "ambiguous",
+              "inferred-kind"
+            ]
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "exact"
+                  },
+                  "bindingId": {
+                    "type": "string"
+                  },
+                  "bindingHash": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  }
+                },
+                "required": [
+                  "type",
+                  "bindingId",
+                  "bindingHash",
+                  "params"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "semantic"
+                  },
+                  "bindingId": {
+                    "type": "string"
+                  },
+                  "bindingHash": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "margin": {
+                    "type": "number"
+                  },
+                  "candidates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "bindingId": {
+                          "type": "string"
+                        },
+                        "bindingHash": {
+                          "type": "string"
+                        },
+                        "score": {
+                          "type": "number"
+                        },
+                        "margin": {
+                          "type": "number"
+                        },
+                        "guard": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "bindingId",
+                        "bindingHash",
+                        "score"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "extraction": {
+                    "type": "object",
+                    "properties": {
+                      "modelId": {
+                        "type": "string"
+                      },
+                      "promptVersion": {
+                        "type": "string"
+                      },
+                      "raw": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "validated": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "modelId",
+                      "promptVersion",
+                      "raw",
+                      "validated"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "type",
+                  "bindingId",
+                  "bindingHash",
+                  "params",
+                  "score",
+                  "margin",
+                  "candidates",
+                  "extraction"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "agent"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "act",
+                      "assert"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "no-match",
+                      "guard-rejected",
+                      "below-threshold"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "mode",
+                  "reason"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "ambiguous"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "margin",
+                      "multiple-exact",
+                      "guard-rejected"
+                    ]
+                  },
+                  "candidates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "bindingId": {
+                          "type": "string"
+                        },
+                        "bindingHash": {
+                          "type": "string"
+                        },
+                        "score": {
+                          "type": "number"
+                        },
+                        "margin": {
+                          "type": "number"
+                        },
+                        "guard": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "bindingId",
+                        "bindingHash",
+                        "score"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "reason",
+                  "candidates",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "unbound"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "setup-unbound",
+                      "no-binding"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "reason",
+                  "message"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "bindingSetHash": {
+            "type": "string"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "bindingId": {
+                  "type": "string"
+                },
+                "bindingHash": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "margin": {
+                  "type": "number"
+                },
+                "guard": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "bindingId",
+                "bindingHash",
+                "score"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "extraction": {
+            "type": "object",
+            "properties": {
+              "modelId": {
+                "type": "string"
+              },
+              "promptVersion": {
+                "type": "string"
+              },
+              "raw": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "validated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "modelId",
+              "promptVersion",
+              "raw",
+              "validated"
+            ],
+            "additionalProperties": false
+          },
+          "revalidated": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "stepText",
+          "normalizedStepText",
+          "kind",
+          "kindClass",
+          "status",
+          "resolution",
+          "bindingSetHash",
+          "candidates",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "version",
+    "generator",
+    "entries"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    }
+  }
+}

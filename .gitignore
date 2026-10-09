@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# ai-bdd runtime output
+.ai-bdd/runs/
+.ai-bdd/sessions/
+.ai-bdd/daemon.json
+.ai-bdd/.tmp/
+.ai-bdd/calibration/*.jsonl
+
+# committed by design: .ai-bdd/cache/act, .ai-bdd/cache/check
+.ai-bdd/cache/judge/
+.ai-bdd/cache/embeddings/
+.certs/

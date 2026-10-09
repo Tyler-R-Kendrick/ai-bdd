@@ -1,0 +1,9 @@
+packages:
+  - 'packages/*'
+  - 'plugins/js/*'
+  - 'fixtures/*'
+
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+  "@rolldown/binding-linux-x64-gnu": true
