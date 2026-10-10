@@ -171,7 +171,7 @@ describe('context for the fake model', () => {
     const upgrade = nodes.find((n) => n.ref === 'upgrade');
     expect(upgrade).toEqual({ ref: 'upgrade', role: 'button', name: 'Upgrade to Pro', ancestors: ['Plan', 'Account'] });
     expect(nodes.find((n) => n.name === 'Account')?.ancestors).toEqual([]);
-    expect((h.model.requests[1]?.context as Record<string, unknown>)['turn']).toBe(1);
+    expect((h.model.requests[1] as ModelRequest).context['turn']).toBe(1);
   });
 
   it('context ancestors skip unnamed ancestors and the context is redacted', async () => {
@@ -180,7 +180,8 @@ describe('context for the fake model', () => {
     ]);
     const h = harness({ script: [[done()]], obs, secrets: { tok: 'tok-SECRET-9' } });
     await h.run();
-    const nodes = (h.model.requests[0]?.context as { nodes: { ref: string; name: string; ancestors: string[] }[] }).nodes;
+    const ctx = (h.model.requests[0] as ModelRequest).context;
+    const nodes = ctx['nodes'] as { ref: string; name: string; ancestors: string[] }[];
     const b = nodes.find((n) => n.ref === 'b');
     expect(b?.ancestors).toEqual(['Main']);
     expect(b?.name).toBe('[REDACTED:tok] go');

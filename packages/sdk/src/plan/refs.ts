@@ -130,7 +130,6 @@ export function computeDirty(doc: ChunkedDoc, previous: DocPlan | null, full: bo
       continue;
     }
     if (prev.hash !== s.hash && s.chunkIds.some((id) => newChunkIds.has(id))) dirty.add(s.id);
-    else if (prev.hash !== s.hash && !s.chunkIds.every((id) => previous.chunks.some((c) => c.id === id) || !newChunkIds.has(id))) dirty.add(s.id);
     for (const f of featuresBySection.get(s.id) ?? []) {
       forEachRef(f, (ref) => {
         if (ref.relation !== 'source') return;
@@ -147,7 +146,7 @@ export function computeDirty(doc: ChunkedDoc, previous: DocPlan | null, full: bo
  * A current chunk is "new" when no previous chunk with its hash is left over after in-place matches and moves.
  * A previous chunk is "vanished" when no current chunk accounts for it.
  */
-function classifyChunks(doc: ChunkedDoc, previous: DocPlan, _idx: DocIndex): { newChunkIds: Set<string>; vanishedAnchors: string[] } {
+function classifyChunks(doc: ChunkedDoc, previous: DocPlan, idx: DocIndex): { newChunkIds: Set<string>; vanishedAnchors: string[] } {
   const curActive = doc.chunks.filter((c) => !isIgnored(c));
   const prevInPlace = new Set<string>();
   const curInPlace = new Set<string>();
@@ -169,6 +168,12 @@ function classifyChunks(doc: ChunkedDoc, previous: DocPlan, _idx: DocIndex): { n
     else newChunkIds.add(c.id);
   }
   const vanishedAnchors: string[] = [];
-  for (const ids of prevLeft.values()) for (const id of ids) vanishedAnchors.push(chunkAnchor(id, previous.docUri));
+  for (const ids of prevLeft.values()) {
+    for (const id of ids) {
+      const now = idx.byId.get(id);
+      if (now !== undefined && isContext(idx, now)) continue; // context edits never dirty a section
+      vanishedAnchors.push(chunkAnchor(id, previous.docUri));
+    }
+  }
   return { newChunkIds, vanishedAnchors };
 }

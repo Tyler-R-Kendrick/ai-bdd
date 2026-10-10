@@ -45,7 +45,7 @@ export const TEXT = {
   downgrade: 'Downgrading to Free shows a confirmation dialog before the change applies.',
   perf: 'The page must respond within 200 ms at the 95th percentile.',
   curly: 'The dialog says “you’ll lose Pro features” — and a refund note…',
-  short: 'Pro badge shown',
+  short: 'Pro shown',
   invoices: 'A customer with two unpaid invoices sees a payment overdue alert.',
   login: 'The admin signs in with the adminPassword to manage billing.',
   context: 'Glossary: Pro plan means the paid tier of the product.',

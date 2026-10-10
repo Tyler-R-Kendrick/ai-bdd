@@ -6,6 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isMain, parseArgs } from './lib.mjs';
 
 /** Each step: script file, extra args, and whether `--allow-incomplete` tolerates its failure. */
@@ -52,6 +53,6 @@ export function runAll({ root, scriptsDir, steps = STEPS, allowIncomplete = fals
 
 if (isMain(import.meta.url)) {
   const { root, flags } = parseArgs(process.argv.slice(2), import.meta.url);
-  const { ok } = runAll({ root, scriptsDir: path.dirname(new URL(import.meta.url).pathname), allowIncomplete: flags.has('--allow-incomplete') });
+  const { ok } = runAll({ root, scriptsDir: path.dirname(fileURLToPath(import.meta.url)), allowIncomplete: flags.has('--allow-incomplete') });
   process.exit(ok ? 0 : 1);
 }

@@ -51,10 +51,9 @@ function isObj(v: unknown): v is Record<string, unknown> {
 
 function fillQuery(q: unknown): unknown {
   if (!isObj(q)) return q;
-  const w = isObj(q['within']) ? q['within'] : q['within'] ?? null;
   return {
     ...q,
-    role: q['role'] ?? null, name: q['name'] ?? null, nameMatch: q['nameMatch'] ?? null, testId: q['testId'] ?? null, within: w,
+    role: q['role'] ?? null, name: q['name'] ?? null, nameMatch: q['nameMatch'] ?? null, testId: q['testId'] ?? null, within: q['within'] ?? null,
   };
 }
 
