@@ -3,9 +3,11 @@ import type {
   ActRequest,
   ActResult,
   ArtifactRef,
+  CheckGenResult,
   CheckProgram,
   PerformedAction,
   Recorder,
+  ReplayResult,
   FixtureContext,
   FuzzyReason,
   JudgeRequest,
@@ -267,6 +269,11 @@ async function runAction(sc: StepCtx): Promise<StepBody> {
   return characterizeBranch(sc, startsRun);
 }
 
+/** `Recorder.replay` may report whether its starting screen settled (an extension of `ReplayResult`); absent means settled. */
+function replayBeforeSettled(replay: ReplayResult): boolean {
+  return (replay as ReplayResult & { beforeSettled?: boolean }).beforeSettled !== false;
+}
+
 /** C1: deterministic recording. */
 async function replayBranch(sc: StepCtx, rec: StepRecording, program: ActProgram, startsRun: boolean): Promise<StepBody> {
   const { env, st, idx, phase, sink, acc } = sc;
@@ -280,7 +287,10 @@ async function replayBranch(sc: StepCtx, rec: StepRecording, program: ActProgram
   st.ring.invalidate();
   acc.actions += replay.completedActions;
   acc.finalObs = replay.after;
-  if (startsRun) st.lastRunBefore = replay.before;
+  if (startsRun) {
+    st.lastRunBefore = replay.before;
+    st.lastRunBeforeSettled = replayBeforeSettled(replay);
+  }
 
   if (replay.outcome === 'replayed') {
     return { status: 'passed', path: 'replay', determinism: 'deterministic', fuzzyReasons: [] };
@@ -317,6 +327,7 @@ async function replayBranch(sc: StepCtx, rec: StepRecording, program: ActProgram
   const reasons = dedupe<FuzzyReason>([
     ...rec.fuzzyReasons,
     ...rerecorded.fuzzyReasons,
+    ...(!replayBeforeSettled(replay) && config.settle.requireSettled ? (['check-not-discriminative'] as const) : []),
     ...(healCount >= config.characterize.healThreshold ? (['heal-threshold'] as const) : []),
   ]);
   const determinism = reasons.length > 0 ? 'fuzzy' : 'deterministic';
@@ -337,7 +348,11 @@ async function replayBranch(sc: StepCtx, rec: StepRecording, program: ActProgram
 async function fuzzyActionBranch(sc: StepCtx, rec: StepRecording, startsRun: boolean): Promise<StepBody> {
   const { env, st } = sc;
   if (env.opts.noAgent) return noAgent('agent', 'fuzzy');
-  if (startsRun) st.lastRunBefore = await settledObservation(env, st, false);
+  if (startsRun) {
+    const b = await settledObservation(env, st, false);
+    st.lastRunBefore = b.observation;
+    st.lastRunBeforeSettled = b.settled;
+  }
   const res = await callActor(sc, rec.act?.actions);
   if (res.status !== 'done') return actFailure(res, 'agent', 'fuzzy');
   const reasons = rec.determinism === 'fuzzy' ? rec.fuzzyReasons : (['directive'] as FuzzyReason[]);
@@ -351,8 +366,12 @@ async function characterizeBranch(sc: StepCtx, startsRun: boolean): Promise<Step
   if (opts.noAgent) return noAgent('agent', 'n/a');
   sink.dirty = true; // a characterization was attempted: a recording is pending even if the step fails
 
-  const before = await settledObservation(env, st, false);
-  if (startsRun) st.lastRunBefore = before;
+  const beforeR = await settledObservation(env, st, false);
+  const before = beforeR.observation;
+  if (startsRun) {
+    st.lastRunBefore = before;
+    st.lastRunBeforeSettled = beforeR.settled;
+  }
   const res = await callActor(sc, undefined);
   if (res.status !== 'done') return actFailure(res, 'agent', 'n/a');
 
@@ -360,7 +379,13 @@ async function characterizeBranch(sc: StepCtx, startsRun: boolean): Promise<Step
   await deps.clock.sleep(deps.config.characterize.probeMs, opts.signal);
   const probeR = await settleState(env, st, false);
   const rerecorded = rerecord(sc, res.actions, before, afterR.observation, probeR.observation);
-  const reasons = dedupe<FuzzyReason>([...rerecorded.fuzzyReasons, ...(env.fuzzyTagged ? (['directive'] as const) : [])]);
+  // An effect measured against a screen that was still loading is not an effect of the action (R-AS1, R-RN1).
+  const unsettledBaseline = !beforeR.settled && deps.config.settle.requireSettled;
+  const reasons = dedupe<FuzzyReason>([
+    ...rerecorded.fuzzyReasons,
+    ...(unsettledBaseline ? (['check-not-discriminative'] as const) : []),
+    ...(env.fuzzyTagged ? (['directive'] as const) : []),
+  ]);
   const determinism = reasons.length > 0 ? 'fuzzy' : 'deterministic';
   sink.entries[idx] = newEntry(step, determinism, reasons, { act: rerecorded.act });
   sink.dirty = true;
@@ -495,19 +520,32 @@ async function runThen(sc: StepCtx): Promise<StepBody> {
   if (phase === 'main') sink.dirty = true;
   const v = await callJudge(sc, before, after, actionPreceded);
   if (v.verdict !== 'pass') return judgeBody(v, 'judge', 'n/a', []);
-  await deps.clock.sleep(config.characterize.probeMs, opts.signal);
-  const afterProbe = (await settleState(env, st, false)).observation;
-  const gen = await deps.asserter.generate({
-    scenarioId: env.target.scenario.id,
-    stepKey: step.key,
-    criterion: step.text,
-    params: step.params,
-    before,
-    after,
-    afterProbe,
-    actionPreceded,
-    ...(opts.signal ? { signal: opts.signal } : {}),
-  });
+  // An unsettled baseline cannot prove that a check fails without the action (the page may simply have been loading),
+  // so no deterministic check is generated for it (R-AS1, R-RN1). `requireSettled: false` is the explicit opt-out.
+  const baselineUnsettled = actionPreceded && !st.lastRunBeforeSettled && config.settle.requireSettled;
+  let gen: CheckGenResult;
+  if (baselineUnsettled) {
+    gen = {
+      fuzzyReasons: ['check-not-discriminative'],
+      attempts: 0,
+      usage: zeroUsage(),
+      errors: ['the observation before the action did not settle, so a check cannot be shown to be false before the action'],
+    };
+  } else {
+    await deps.clock.sleep(config.characterize.probeMs, opts.signal);
+    const afterProbe = (await settleState(env, st, false)).observation;
+    gen = await deps.asserter.generate({
+      scenarioId: env.target.scenario.id,
+      stepKey: step.key,
+      criterion: step.text,
+      params: step.params,
+      before,
+      after,
+      afterProbe,
+      actionPreceded,
+      ...(opts.signal ? { signal: opts.signal } : {}),
+    });
+  }
   addUsage(acc.usage, gen.usage);
   if (gen.program !== undefined) {
     const verified: CheckProgram = { ...gen.program, verified: { ...gen.program.verified, judgePassed: true } };

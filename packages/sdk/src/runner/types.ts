@@ -53,6 +53,11 @@ export interface SessionState {
   firstObs: Observation;
   /** Settled observation captured immediately before the first action of the latest contiguous action run (§9.6). */
   lastRunBefore: Observation | undefined;
+  /**
+   * Whether `lastRunBefore` was captured on a settled screen. An unsettled baseline cannot show that a check is
+   * discriminative (the page may have been mid-load), so it blocks deterministic check generation (R-AS1, R-RN1).
+   */
+  lastRunBeforeSettled: boolean;
   inRun: boolean;
   cleanups: { name: string; run(): Promise<void> }[];
   priorSteps: ActRequest['priorSteps'];

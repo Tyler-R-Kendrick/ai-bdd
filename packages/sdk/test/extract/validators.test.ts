@@ -432,7 +432,7 @@ const paramCases: Case[] = [
 ];
 
 // ───────────────────────── fixtures (R-FX1, R-EX3)
-const fxText = 'the account is on the pro plan with two unpaid invoices';
+const fxText = 'the account is on the pro plan with 2 unpaid invoices';
 function fx(args: { name: string; value: string | number | boolean }[], over: { name?: string; kind?: 'given' | 'when'; text?: string } = {}): Extraction {
   const kind = over.kind ?? 'given';
   return withSteps([
@@ -466,20 +466,46 @@ const fixtureCases: Case[] = [
     check: (r) => expect(firstScenario(r).steps[0]?.fixture?.args).toEqual({ plan: 'pro' }),
   },
   {
-    name: 'R-FX1: boolean args are accepted when typed correctly',
+    name: 'R-FX1: a non-derived boolean arg is rejected (it cannot be tied to the step text)',
     ex: fx([
       { name: 'plan', value: 'pro' },
       { name: 'trial', value: true },
     ]),
-    check: (r) => expect(firstScenario(r).steps[0]?.fixture?.args).toEqual({ plan: 'pro', trial: true }),
+    check: (r) => {
+      expect(firstScenario(r).steps[0]?.fixture).toBeUndefined();
+      expect(codes(r)).toContain('EXTRACT_FIXTURE_INVALID');
+    },
   },
   {
-    name: 'R-FX1: number args need not occur verbatim in the step text',
+    name: 'R-FX1: a derived boolean arg is accepted when typed correctly',
+    ex: fx([{ name: 'flag', value: false }], { name: 'toggleFlag', text: 'the feature flag is switched' }),
+    opts: { input: { fixtures: [{ name: 'toggleFlag', description: 'Sets a flag', params: { flag: { type: 'boolean', derived: true } } }] } },
+    check: (r) => expect(firstScenario(r).steps[0]?.fixture?.args).toEqual({ flag: false }),
+  },
+  {
+    name: 'R-FX1: a number arg must occur as a whole token in the step text',
     ex: fx([
       { name: 'plan', value: 'pro' },
       { name: 'unpaid', value: 7 },
     ]),
-    check: (r) => expect(firstScenario(r).steps[0]?.fixture?.args).toEqual({ plan: 'pro', unpaid: 7 }),
+    check: (r) => {
+      expect(firstScenario(r).steps[0]?.fixture).toBeUndefined();
+      expect(codes(r)).toContain('EXTRACT_FIXTURE_INVALID');
+    },
+  },
+  {
+    name: 'R-FX1: a number arg that is only a fragment of a longer number is rejected',
+    ex: fx([
+      { name: 'plan', value: 'pro' },
+      { name: 'unpaid', value: 2 },
+    ], { text: 'the account is on the pro plan with 120 unpaid invoices' }),
+    check: (r) => expect(firstScenario(r).steps[0]?.fixture).toBeUndefined(),
+  },
+  {
+    name: 'R-FX1: a derived number arg need not occur in the step text',
+    ex: fx([{ name: 'count', value: 7 }], { name: 'seedCount', text: 'the account has many invoices' }),
+    opts: { input: { fixtures: [{ name: 'seedCount', description: 'Seeds invoices', params: { count: { type: 'number', derived: true } } }] } },
+    check: (r) => expect(firstScenario(r).steps[0]?.fixture?.args).toEqual({ count: 7 }),
   },
   {
     name: 'R-FX1: a derived string param need not occur verbatim in the step text',

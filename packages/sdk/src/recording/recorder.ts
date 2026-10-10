@@ -152,9 +152,9 @@ export function createRecorder(deps: RecorderDeps): CapabilityAwareRecorder {
     intervalMs: deps.config.settle?.intervalMs ?? DEFAULT_SETTLE.intervalMs,
     timeoutMs: deps.config.settle?.timeoutMs ?? DEFAULT_SETTLE.timeoutMs,
   };
-  const settle = async (session: DriverSession, signal: AbortSignal | undefined): Promise<Observation> => {
+  const settle = async (session: DriverSession, signal: AbortSignal | undefined): Promise<{ observation: Observation; settled: boolean }> => {
     const r = await deps.settler.settle(session, settleOpts, signal === undefined ? undefined : { signal });
-    return r.observation;
+    return { observation: r.observation, settled: r.settled };
   };
 
   return {

@@ -28,11 +28,17 @@ export async function settleState(
   return result;
 }
 
-/** A settled observation without needless re-observing (§9.6 ring). */
-export async function settledObservation(env: ScenarioEnv, st: SessionState, pixels: boolean): Promise<Observation> {
+/**
+ * A settled observation without needless re-observing (§9.6 ring). `settled` is false when the screen never reached the
+ * quiet window; callers decide what an unsettled observation may be used for (it is never silently treated as settled).
+ */
+export async function settledObservation(
+  env: ScenarioEnv, st: SessionState, pixels: boolean,
+): Promise<{ observation: Observation; settled: boolean }> {
   const cached = st.ring.take(pixels);
-  if (cached !== undefined) return cached;
-  return (await settleState(env, st, pixels)).observation;
+  if (cached !== undefined) return { observation: cached, settled: true };
+  const r = await settleState(env, st, pixels);
+  return { observation: r.observation, settled: r.settled };
 }
 
 function makeResolver(env: ScenarioEnv, holder: ResolveHolder): (v: ValueSource) => string {
@@ -96,7 +102,7 @@ export async function prepareSession(env: ScenarioEnv): Promise<SessionState> {
       }
     }
     const firstObs = (await settleState(env, { session, ring }, false)).observation;
-    return { session, holder, ring, firstObs, lastRunBefore: undefined, inRun: false, cleanups: [], priorSteps: [] };
+    return { session, holder, ring, firstObs, lastRunBefore: undefined, lastRunBeforeSettled: true, inRun: false, cleanups: [], priorSteps: [] };
   } catch (err) {
     await closeQuietly(session);
     throw err;
