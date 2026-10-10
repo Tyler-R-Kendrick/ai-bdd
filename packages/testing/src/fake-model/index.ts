@@ -64,7 +64,7 @@ export function createFakeModels(opts: FakeModelOptions = {}): ModelSet & { call
   const rules: FakeRule[] = [];
   (opts.rules ?? []).forEach((f, i) => rules.push(...validateFakeRuleFile(f, `rules[${i}]`).rules));
   if (opts.rulesDir !== undefined) for (const f of loadRuleFiles(opts.rulesDir)) rules.push(...f.rules);
-  const logPath = opts.logPath ?? (process.env['AI_BDD_FAKE_LOG'] || undefined);
+  const logPath = opts.logPath;
   if (logPath) mkdirSync(dirname(logPath), { recursive: true });
   const calls: FakeCall[] = [];
 
