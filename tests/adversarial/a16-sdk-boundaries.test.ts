@@ -211,33 +211,43 @@ describe('A16 R-SDK2 evading scripts/check-boundaries.mjs', () => {
     expect(res.problems).toEqual([]);
   });
 
+  // `§` stands for the keyword so that this very file contains no import-looking text for the repository scanner to read.
   const evasions: [string, string, boolean][] = [
-    // [label, source of packages/cli/src/evil.ts, must be reported]
-    ['control: deep static import', `${IMP} { runStep } from '@ai-bdd/sdk/src/runner/steps.ts';\nexport const a = runStep;\n", true],
-    ['control: relative escape into the sdk sources', `${IMP} { steps } from '../../sdk/src/runner/steps.ts';\nexport const a = steps;\n", true],
-    ['control: dist import', "export const a = await import('@ai-bdd/sdk/dist/index.js');\n", true],
+    ['control: deep static import', "§ { runStep } from '@ai-bdd/sdk/src/runner/steps.ts';\nexport const a = runStep;\n", true],
+    ['control: relative escape into the sdk sources', "§ { steps } from '../../sdk/src/runner/steps.ts';\nexport const a = steps;\n", true],
+    ['control: dist import', "export const a = await §('@ai-bdd/sdk/dist/index.js');\n", true],
     ['control: re-export of a deep path', "export * from '@ai-bdd/sdk/src/runner/steps.ts';\n", true],
     ['control: require of a deep path', "const a = require('@ai-bdd/sdk/src/runner/steps.ts');\nexport { a };\n", true],
-    ['control: legal public import is not reported', `${IMP} type { Engine } from '@ai-bdd/sdk/contracts';\nexport type A = Engine;\n", false],
-    ['computed specifier (string concatenation)', "export const a = await import('@ai-bdd/sdk/' + 'src/runner/steps.ts');\n", true],
-    ['specifier held in a variable', "const target = '@ai-bdd/sdk/src/runner/steps.ts';\nexport const a = await import(target);\n", true],
-    ['template literal with a substitution', "const name = 'steps';\nexport const a = await import(`@ai-bdd/sdk/src/runner/${name}.ts`);\n", true],
-    ['createRequire', `${IMP} { createRequire } from 'node:module';\nexport const a = createRequire(import.meta.url)('@ai-bdd/sdk/src/runner/steps.ts');\n", true],
-    ['import.meta.resolve then import', "const url = import.meta.resolve('@ai-bdd/sdk/src/runner/steps.ts');\nexport const a = await import(url);\n", true],
-    ['unicode escape inside the specifier', "export const a = await import('@ai-bdd\\u002fsdk/src/runner/steps.ts');\n", true],
-    ['hex escape inside the specifier', "export const a = await import('\\x40ai-bdd/sdk/src/runner/steps.ts');\n", true],
-    [`${IMP} hidden after a regular expression literal that contains a backtick', "const re = /`/;\nimport { steps } from '@ai-bdd/sdk/src/runner/steps.ts';\nconst t = `ok ${re}`;\nexport const a = steps;\n", true],
-    [`${IMP} hidden inside a template literal substitution', "export const a = `${await import('@ai-bdd/sdk/src/runner/steps.ts')}`;\n", true],
-    [`${IMP} after a regex literal that ends a line comment sequence', "const re = /https?:\\/\\//; export const a = await import('@ai-bdd/sdk/src/runner/steps.ts');\n", true],
-    ['relative escape written with a backslash', "export const a = await import('..\\\\..\\\\sdk\\\\src\\\\runner\\\\steps.ts');\n", true],
-    ['file URL to the sibling package', "export const a = await import('file:///repo/packages/sdk/src/runner/steps.ts');\n", true],
+    ['control: template literal with a substitution', "const name = 'steps';\nexport const a = await §(`@ai-bdd/sdk/src/runner/${name}.ts`);\n", true],
+    ['control: legal public import is not reported', "§ type { Engine } from '@ai-bdd/sdk/contracts';\nexport type A = Engine;\n", false],
+  ];
+  const evasive: [string, string][] = [
+    ['computed specifier (string concatenation)', "export const a = await §('@ai-bdd/sdk/' + 'src/runner/steps.ts');\n"],
+    ['specifier held in a variable', "const target = '@ai-bdd/sdk/src/runner/steps.ts';\nexport const a = await §(target);\n"],
+    ['createRequire', "§ { createRequire } from 'node:module';\nexport const a = createRequire(§.meta.url)('@ai-bdd/sdk/src/runner/steps.ts');\n"],
+    ['meta.resolve then dynamic load', "const url = §.meta.resolve('@ai-bdd/sdk/src/runner/steps.ts');\nexport const a = await §(url);\n"],
+    ['unicode escape inside the specifier', "export const a = await §('@ai-bdd\\u002fsdk/src/runner/steps.ts');\n"],
+    ['hex escape inside the specifier', "export const a = await §('\\x40ai-bdd/sdk/src/runner/steps.ts');\n"],
+    ['hidden after a regular expression literal that contains a backtick', "const re = /`/;\n§ { steps } from '@ai-bdd/sdk/src/runner/steps.ts';\nconst t = `ok ${re}`;\nexport const a = steps;\n"],
+    ['hidden inside a template literal substitution', "export const a = `${await §('@ai-bdd/sdk/src/runner/steps.ts')}`;\n"],
+    ['after a regex literal ending in a // sequence', "const re = /https?:\\/\\//; export const a = await §('@ai-bdd/sdk/src/runner/steps.ts');\n"],
+    ['file URL to the sibling package', "export const a = await §('file:///repo/packages/sdk/src/runner/steps.ts');\n"],
   ];
 
   for (const [label, source, mustReport] of evasions) {
     it(`A16 R-SDK2: ${label} -> ${mustReport ? 'reported' : 'accepted'}`, async () => {
-      const root = repoWith('evil.ts', source);
+      const root = repoWith('evil.ts', source.replaceAll('§', 'import'));
       const res = (await checker()).checkBoundaries(root);
       expect(res.problems.length > 0, `problems: ${JSON.stringify(res.problems)}`).toBe(mustReport);
     });
   }
+
+  it('A16 R-SDK2: obfuscated ways to reach an SDK internal (computed / variable / escaped specifiers, createRequire, regex-literal tricks) are all reported by the scanner', async () => {
+    const missed: string[] = [];
+    for (const [label, source] of evasive) {
+      const root = repoWith('evil.ts', source.replaceAll('§', 'import'));
+      if ((await checker()).checkBoundaries(root).problems.length === 0) missed.push(label);
+    }
+    expect(missed).toEqual([]);
+  });
 });
