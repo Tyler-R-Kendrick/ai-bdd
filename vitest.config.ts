@@ -42,7 +42,8 @@ export default defineConfig({
       thresholds: COVERAGE_FLOORS,
     },
     projects: [
-      { extends: true, test: { name: 'unit', include: ['packages/*/test/**/*.test.ts'] } },
+      // Unit tests launch real browsers and processes: the 5 s default is shorter than a loaded CI runner needs to start one.
+      { extends: true, test: { name: 'unit', include: ['packages/*/test/**/*.test.ts'], testTimeout: 30_000, hookTimeout: 60_000 } },
       { extends: true, test: { name: 'acceptance', include: ['tests/acceptance/**/*.test.ts'], testTimeout: 180_000, hookTimeout: 60_000 } },
       { extends: true, test: { name: 'adversarial', include: ['tests/adversarial/**/*.test.ts'], testTimeout: 180_000 } },
       // Property-based and fuzz tests (fast-check). FC_RUNS raises the number of cases; a failing seed is printed and replayable with FC_SEED.
