@@ -6,7 +6,7 @@ import {
   type SettleResult,
   type ValueSource,
 } from '../contracts/index.ts';
-import { checkNavigation } from '../util/index.ts';
+import { checkNavigation, raceAbort } from '../util/index.ts';
 import type { ResolveHolder, ScenarioEnv, SessionState } from './types.ts';
 import { ObservationRing } from './support.ts';
 
@@ -39,6 +39,30 @@ export async function settledObservation(
   if (cached !== undefined) return { observation: cached, settled: true };
   const r = await settleState(env, st, pixels);
   return { observation: r.observation, settled: r.settled };
+}
+
+/**
+ * A view of the session whose `observe`, `perform` and `request` give up with `ABORTED` when the run is aborted, even if the
+ * driver call itself never returns (a hung browser). Everything else is the driver's own session (methods are bound to it), so
+ * fixtures and drivers that reach for their own session type keep working, and `close` really closes it.
+ */
+function abortable(session: DriverSession, signal: AbortSignal | undefined): DriverSession {
+  if (signal === undefined) return session;
+  const guard = <T>(what: string, call: () => Promise<T>): Promise<T> => {
+    if (signal.aborted) return Promise.reject(new AiBddError('ABORTED', `${what} aborted`));
+    return raceAbort(call(), signal, what);
+  };
+  return new Proxy(session, {
+    get(target, prop) {
+      const value: unknown = Reflect.get(target, prop, target);
+      if (typeof value !== 'function') return value;
+      const method = value.bind(target) as (...args: unknown[]) => Promise<unknown>;
+      if (prop === 'observe' || prop === 'perform' || prop === 'request') {
+        return (...args: unknown[]) => guard(`driver ${prop}`, () => method(...args));
+      }
+      return method;
+    },
+  });
 }
 
 function makeResolver(env: ScenarioEnv, holder: ResolveHolder): (v: ValueSource) => string {
@@ -85,6 +109,7 @@ export async function prepareSession(env: ScenarioEnv): Promise<SessionState> {
   if (opts.sessionFactory) session = await opts.sessionFactory(sessionOpts);
   else if (env.driver) session = await env.driver.openSession(sessionOpts);
   else throw new AiBddError('CONFIG_INVALID', 'no driver available to open a session');
+  session = abortable(session, opts.signal);
 
   const ring = new ObservationRing();
   try {
