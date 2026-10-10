@@ -21,10 +21,6 @@ export const ACT_SYSTEM_PROMPT = [
   '- You do not judge whether the application behaves correctly; a separate component does that.',
 ].join('\n');
 
-export function isValueSource(v: unknown): v is ValueSource {
-  return typeof v === 'object' && v !== null;
-}
-
 function q(s: string): string {
   return JSON.stringify(s);
 }
@@ -109,8 +105,6 @@ export function neutralizeDelimiters(text: string): string {
 export function truncateTree(text: string, max: number = MAX_TREE_CHARS): string {
   return text.length <= max ? text : `${text.slice(0, max)}\n... [truncated ${text.length - max} chars]`;
 }
-
-export interface ObservationText { text: string; screenshotIncluded: boolean }
 
 /** Builds the observation parts of the user message: delimited tree text, optional screenshot (R-SE2). */
 export function observationParts(

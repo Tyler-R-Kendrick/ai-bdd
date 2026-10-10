@@ -1,6 +1,6 @@
 import { AiBddError } from '../contracts/index.ts';
 import type {
-  ActRequest, ActResult, Actor, AiBddErrorPayload, ArtifactRef, ChatModel, ContentPart, CreateActor, DriverAction,
+  ActRequest, ActResult, Actor, AiBddErrorPayload, ArtifactRef, ContentPart, CreateActor, DriverAction,
   DriverSession, JsonObject, JsonValue, ModelMessage, ModelRequest, ModelResponse, Observation, ObservedNode, PerformedAction,
   ToolCall, Usage,
 } from '../contracts/index.ts';
@@ -257,8 +257,6 @@ async function runAct(deps: ActorDeps, req: ActRequest, session: DriverSession):
               details: { turns: turn + 1 },
             }).toPayload(),
           };
-        } else {
-          history.push({ role: 'user', content: [{ type: 'text', text: 'You must respond with a tool call. Call an action tool or complete_step.' }] });
         }
       } else {
         emptyStreak = 0;
@@ -390,6 +388,3 @@ async function runAct(deps: ActorDeps, req: ActRequest, session: DriverSession):
     };
   }
 }
-
-// Re-exported for tests and the engine's type-level wiring.
-export type { ChatModel };
