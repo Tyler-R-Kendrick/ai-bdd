@@ -44,6 +44,9 @@ export function buildProgram(ctx: Ctx, result: { code: ExitCode }): Command {
     .configureOutput({
       writeOut: (s) => void ctx.io.stdout.write(s),
       writeErr: (s) => void ctx.io.stderr.write(s),
+      // Deterministic help layout unless writing to a real terminal.
+      getOutHelpWidth: () => (ctx.io.stdout === process.stdout && process.stdout.isTTY ? process.stdout.columns : 80),
+      getErrHelpWidth: () => (ctx.io.stderr === process.stderr && process.stderr.isTTY ? process.stderr.columns : 80),
     });
   program.hook('preAction', (thisCommand) => {
     ctx.configPath = thisCommand.opts<{ config?: string }>().config;

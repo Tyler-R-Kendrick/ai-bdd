@@ -310,7 +310,6 @@ export class Walker {
 
     let parentId = ctx.parentId;
     if (own.length > 0) {
-      const first = own[0] as MdNode;
       const last = own[own.length - 1] as MdNode;
       const itemRange = rangeOf(item);
       const lastRange = rangeOf(last);
@@ -323,7 +322,6 @@ export class Walker {
       const text = own.map((n) => inlineText(n, this.inlineHtmlWarning(rangeOf(n)))).join(' ');
       const id = this.emit('listItem', text, range, ctx, itemScopes);
       if (id !== undefined) parentId = id;
-      void first;
     }
     for (const d of deferred) this.walkBlock(d.node, { parentId, extra: [...ctx.extra, ...d.extra] });
   }
