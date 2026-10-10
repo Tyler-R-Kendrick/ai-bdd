@@ -12,6 +12,7 @@ import {
   NoSuchModelError,
   NoSuchToolError,
   RetryError,
+  ToolChoiceViolationError,
   TypeValidationError,
   UnsupportedFunctionalityError,
   APICallError,
@@ -34,6 +35,7 @@ function isOutputInvalid(error: unknown): boolean {
     TypeValidationError.isInstance(error) ||
     InvalidToolInputError.isInstance(error) ||
     NoSuchToolError.isInstance(error) ||
+    ToolChoiceViolationError.isInstance(error) ||
     InvalidResponseDataError.isInstance(error)
   );
 }

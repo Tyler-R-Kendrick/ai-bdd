@@ -6,7 +6,7 @@ it('dump', async () => {
   const m = mockModel(textResult('{"a":1}'));
   const set = aiSdkModels({ extract: m, act: m, checkgen: m, judge: m });
   const r = await set.act.generate(request({
-    seed: 3, temperature: 0.2, maxOutputTokens: 50, toolChoice: 'required',
+    seed: 3, temperature: 0.2, maxOutputTokens: 50, toolChoice: 'auto',
     tools: [{ name: 't', description: 'd', inputSchema: { type: 'object', properties: {} } }],
     output: { name: 'o', schema: { type: 'object', properties: { a: { type: 'number' } } } },
     messages: [
@@ -15,5 +15,5 @@ it('dump', async () => {
       { role: 'tool', toolCallId: 'c1', toolName: 't', result: { ok: true } },
     ],
   }));
-  console.log(JSON.stringify(m.doGenerateCalls[0], (k, v) => (v instanceof Uint8Array ? `U8[${[...v]}]` : v), 1), r);
+  (await import('node:fs')).writeFileSync('/tmp/claude-0/-home-user-ai-bdd/0a1cf405-8758-5453-981b-eb6b83c053de/scratchpad/dump.txt', JSON.stringify([JSON.stringify(m.doGenerateCalls[0], (k, v) => (v instanceof Uint8Array ? `U8[${[...v]}]` : v), 1), JSON.stringify(r)]));
 });
