@@ -14,7 +14,7 @@ it('probe', async () => {
       console.log('  fetched', resp.status(), resp.headers()['location']);
       const loc = resp.headers()['location'];
       if (loc && loc.includes('127.0.0.1')) { await route.abort('blockedbyclient'); return; }
-      await route.fulfill({ response: resp });
+      console.log('  headers', JSON.stringify(resp.headers())); const h = { ...resp.headers() }; for (const k of ['connection','keep-alive','transfer-encoding','content-encoding','content-length']) delete h[k]; await route.fulfill({ status: resp.status(), headers: h, body: await resp.body() });
       return;
     }
     await route.continue();

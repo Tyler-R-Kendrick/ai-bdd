@@ -22,14 +22,14 @@ afterEach(async () => {
 
 const SCENARIO_BILLING = 'docs-billing--billing/billing-works';
 const SCENARIO_DOWNGRADE = 'docs-billing--downgrading/downgrading-works';
-const SCENARIO_TODOS = 'docs-todos--todos/todos-works';
+const SCENARIO_TASKS = 'docs-todos--todos/todos-works';
 
 describe('run pipeline', () => {
   it('compiles stale docs first, runs every non-rejected scenario in selection order and reports totals', async () => {
     const { engine, world } = await setup();
     const report = await engine.run();
     expect(report.exitCode).toBe(0);
-    expect(report.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_BILLING, SCENARIO_DOWNGRADE, SCENARIO_TODOS]);
+    expect(report.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_BILLING, SCENARIO_DOWNGRADE, SCENARIO_TASKS]);
     expect(report.totals).toEqual({ passed: 3, failed: 0, healed: 0, blocked: 0, skipped: 0, inconclusive: 0, error: 0 });
     expect(modelUsage(world).extract).toBe(3);
     expect(report.schemaVersion).toBe(1);
@@ -54,9 +54,9 @@ describe('run pipeline', () => {
     const r1 = await engine.run({ compile: false, selectors: ['docs-billing--'] });
     expect(r1.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_BILLING, SCENARIO_DOWNGRADE]);
     const r2 = await engine.run({ compile: false, grep: 'TODOS' });
-    expect(r2.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_TODOS]);
+    expect(r2.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_TASKS]);
     const r3 = await engine.run({ compile: false, selectors: ['docs/t*.md'] });
-    expect(r3.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_TODOS]);
+    expect(r3.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_TASKS]);
     expect(totalModelCalls(world)).toBe(0);
   });
 
@@ -119,7 +119,7 @@ describe('run pipeline', () => {
   it('skips rejected scenarios (R-EX5) and reports coverage', async () => {
     const { engine } = await setup();
     await engine.compile();
-    await engine.review(SCENARIO_TODOS, 'reject');
+    await engine.review(SCENARIO_TASKS, 'reject');
     const report = await engine.run({ compile: false });
     expect(report.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_BILLING, SCENARIO_DOWNGRADE]);
     const todos = report.coverage.docs.find((d) => d.docUri === 'docs/todos.md');
@@ -139,7 +139,7 @@ describe('usage and cost', () => {
     });
     world.tokens = { inputTokens: 1_000_000, outputTokens: 500_000 };
     world.scenarioModelCalls = { act: 1, judge: 2 };
-    const report = await engine.run({ selectors: [SCENARIO_TODOS] });
+    const report = await engine.run({ selectors: [SCENARIO_TASKS] });
     expect(report.usage.byPurpose.extract).toEqual({ modelCalls: 3, inputTokens: 3_000_000, outputTokens: 1_500_000 });
     expect(report.usage.byPurpose.act).toEqual({ modelCalls: 1, inputTokens: 1_000_000, outputTokens: 500_000 });
     expect(report.usage.byPurpose.judge).toEqual({ modelCalls: 2, inputTokens: 2_000_000, outputTokens: 1_000_000 });
@@ -204,10 +204,10 @@ describe('exit codes (R-RN3)', () => {
     { name: 'healed fails with --strict', statuses: { [SCENARIO_BILLING]: 'healed' }, strict: true, expected: 1 },
     { name: 'skipped is not a failure', statuses: { [SCENARIO_BILLING]: 'skipped' }, expected: 0 },
     { name: 'failed', statuses: { [SCENARIO_BILLING]: 'failed' }, expected: 1 },
-    { name: 'inconclusive', statuses: { [SCENARIO_TODOS]: 'inconclusive' }, expected: 1 },
+    { name: 'inconclusive', statuses: { [SCENARIO_TASKS]: 'inconclusive' }, expected: 1 },
     { name: 'blocked', statuses: { [SCENARIO_DOWNGRADE]: 'blocked' }, expected: 1 },
     { name: 'error', statuses: { [SCENARIO_BILLING]: 'error' }, expected: 3 },
-    { name: 'error takes precedence over failed', statuses: { [SCENARIO_BILLING]: 'error', [SCENARIO_TODOS]: 'failed' }, expected: 3 },
+    { name: 'error takes precedence over failed', statuses: { [SCENARIO_BILLING]: 'error', [SCENARIO_TASKS]: 'failed' }, expected: 3 },
     { name: 'a failed scenario whose step hit DRIVER_UNAVAILABLE', statuses: { [SCENARIO_BILLING]: 'failed' }, stepError: 'DRIVER_UNAVAILABLE', expected: 3 },
     { name: 'a failed scenario whose step hit MODEL_UNAVAILABLE', statuses: { [SCENARIO_BILLING]: 'failed' }, stepError: 'MODEL_UNAVAILABLE', expected: 3 },
     { name: 'a failed scenario whose step hit an ordinary driver error stays 1', statuses: { [SCENARIO_BILLING]: 'failed' }, stepError: 'DRIVER_ERROR', expected: 1 },

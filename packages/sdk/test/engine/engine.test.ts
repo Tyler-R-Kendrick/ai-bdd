@@ -22,7 +22,7 @@ afterEach(async () => {
 
 const BILLING = 'docs-billing--billing/billing-works';
 const DOWNGRADE = 'docs-billing--downgrading/downgrading-works';
-const TODOS = 'docs-todos--todos/todos-works';
+const SC_TASKS = 'docs-todos--todos/todos-works';
 
 describe('createEngine', () => {
   it('is lazy: creating, closing and using no-module methods never touches the real (stub) sibling modules', async () => {
@@ -150,17 +150,17 @@ describe('plans, status, listScenarios, review', () => {
     if (sc) sc.tags = ['@smoke', 'fast'];
     const ids = async (f?: Parameters<Engine['listScenarios']>[0]) => (await engine.listScenarios(f)).map((t) => t.scenario.id);
 
-    expect(await ids()).toEqual([BILLING, DOWNGRADE, TODOS]);
-    expect(await ids({ selectors: [TODOS] })).toEqual([TODOS]);
+    expect(await ids()).toEqual([BILLING, DOWNGRADE, SC_TASKS]);
+    expect(await ids({ selectors: [SC_TASKS] })).toEqual([SC_TASKS]);
     expect(await ids({ selectors: ['docs-billing--'] })).toEqual([BILLING, DOWNGRADE]);
     expect(await ids({ selectors: ['docs-billing--downgrading/'] })).toEqual([DOWNGRADE]);
     expect(await ids({ selectors: ['docs-billing--downgrading'] })).toEqual([DOWNGRADE]); // feature id
-    expect(await ids({ selectors: ['docs/**/*.md'] })).toEqual([BILLING, DOWNGRADE, TODOS]);
-    expect(await ids({ selectors: ['docs/todos.md'] })).toEqual([TODOS]);
-    expect(await ids({ selectors: ['docs/b*.md', TODOS] })).toEqual([BILLING, DOWNGRADE, TODOS]);
+    expect(await ids({ selectors: ['docs/**/*.md'] })).toEqual([BILLING, DOWNGRADE, SC_TASKS]);
+    expect(await ids({ selectors: ['docs/todos.md'] })).toEqual([SC_TASKS]);
+    expect(await ids({ selectors: ['docs/b*.md', SC_TASKS] })).toEqual([BILLING, DOWNGRADE, SC_TASKS]);
     expect(await ids({ selectors: ['unknown'] })).toEqual([]);
-    expect(await ids({ tags: ['smoke'] })).toEqual([TODOS]);
-    expect(await ids({ tags: ['@fast', 'nope'] })).toEqual([TODOS]);
+    expect(await ids({ tags: ['smoke'] })).toEqual([SC_TASKS]);
+    expect(await ids({ tags: ['@fast', 'nope'] })).toEqual([SC_TASKS]);
     expect(await ids({ tags: ['nope'] })).toEqual([]);
     expect(await ids({ grep: 'DOWNGRADING' })).toEqual([DOWNGRADE]);
     expect(await ids({ selectors: ['docs-billing--'], grep: 'billing works' })).toEqual([BILLING]);
@@ -180,12 +180,12 @@ describe('plans, status, listScenarios, review', () => {
     await engine.review('docs-billing--billing', 'unpin');
     expect(world.plans.get('docs/billing.md')?.features.find((f) => f.id === 'docs-billing--billing')?.pinned).toBeUndefined();
 
-    await engine.review(TODOS, 'reject');
+    await engine.review(SC_TASKS, 'reject');
     expect(world.plans.get('docs/todos.md')?.rejected.map((r) => r.title)).toEqual(['Todos works']);
     expect((await engine.listScenarios()).map((t) => t.scenario.id)).toEqual([BILLING, DOWNGRADE]);
 
     await engine.compile({ full: true });
-    expect((await engine.listScenarios()).map((t) => t.scenario.id)).not.toContain(TODOS);
+    expect((await engine.listScenarios()).map((t) => t.scenario.id)).not.toContain(SC_TASKS);
   });
 
   it('review of an unknown id is SCENARIO_NOT_FOUND and saves nothing', async () => {
@@ -216,8 +216,8 @@ describe('prune', () => {
   it('keeps recordings of rejected scenarios (they are still in a plan)', async () => {
     const { engine, world } = await setup();
     await engine.compile();
-    await engine.review(TODOS, 'reject');
-    world.recordings.set(`fake/${TODOS}`, {});
+    await engine.review(SC_TASKS, 'reject');
+    world.recordings.set(`fake/${SC_TASKS}`, {});
     expect((await engine.prune()).removed).toEqual([]);
   });
 
