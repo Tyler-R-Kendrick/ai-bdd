@@ -97,6 +97,8 @@ describe('A16 R-SDK2 AST audit of the real sources', () => {
           else if (ref.kind === 'dynamic' && pkg === 'sdk' && /\bs\b|specifier|file|url|href/i.test(ref.expr)) {
             // the config loader imports the USER's config / driver packages by file URL: not an SDK internal
             continue;
+          } else if (ref.kind === 'createRequire' && file.endsWith('sdk/src/config/load.ts')) {
+            continue; // resolves the USER's driver / model packages from the project root
           } else {
             unverifiable.push(where);
             continue;
