@@ -67,8 +67,8 @@ export function windowOpenGuardScript(allowHosts: readonly string[]): string {
     ev.preventDefault();
     ev.stopImmediatePropagation();
   };
-  
-  
+  window.addEventListener('click', onActivate, true);
+  window.addEventListener('auxclick', onActivate, true);
   const formBlocked = (form, submitter) => {
     const sub = submitter && typeof submitter.getAttribute === 'function' ? submitter : null;
     const fa = sub ? sub.getAttribute('formaction') : null;
