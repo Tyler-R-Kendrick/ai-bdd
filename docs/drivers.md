@@ -4,8 +4,10 @@ A **driver** gives ai-bdd a way to see and operate one application. It is the on
 
 | Driver | Package | Use |
 |---|---|---|
-| `playwright` | `@ai-bdd/driver-playwright` | Real browsers (Chromium default). The driver for web apps. |
-| `fake` | `@ai-bdd/testing` | In-memory model of the Acme demo app. Deterministic, offline. Used by tests and the quickstart via `AI_BDD_FAKE=1`. |
+| `playwright` | `@ai-bdd/driver-playwright` | Real browsers (Chromium default). The driver for web apps, and the only one that ships. |
+| Yours | any package that exports `createDriverFactory(options)` | A computer-use harness, a browser-use agent runtime, a native or mobile bridge. See [Plugging in a driver](#plugging-in-a-driver). |
+
+Drivers are always real: they operate a real application. (`@ai-bdd/testing` has an in-memory double of the demo app for ai-bdd's own tests; it is not a product mode, see [sdk.md](sdk.md#test-doubles).)
 
 ## Configuring drivers
 
@@ -22,15 +24,15 @@ export default defineConfig({
 });
 ```
 
-In `ai-bdd.config.json`, name a package that exports `createDriverFactory(options)`:
+In `ai-bdd.config.json` (or any JS config), name a package that exports `createDriverFactory(options)`:
 
 ```json
 { "drivers": { "web": { "use": "@ai-bdd/driver-playwright", "options": { "browser": "chromium" } } }, "defaultDriver": "web" }
 ```
 
-`use` may also be a `./relative/file.mjs` resolved from the project root.
+`use` may also be a `./relative/file.mjs` resolved from the project root. [Plugging in a driver](#plugging-in-a-driver) shows both forms for several engines.
 
-Which driver runs a scenario: the `driver` directive in its source chunks, else `--driver <name>`, else `defaultDriver` (the only configured driver if there is just one). The names are your config keys; recordings are filed under the driver's **id** (`playwright`, `fake`): `.ai-bdd/recordings/<driverId>/<scenarioId>.json`. Switching drivers means characterizing again, and a change of the driver's **major** version invalidates its recordings.
+Which driver runs a scenario: the `driver` directive in its source chunks, else `--driver <name>`, else `defaultDriver` (the only configured driver if there is just one). The names are your config keys; recordings are filed under the driver's **id** (for example `playwright`): `.ai-bdd/recordings/<driverId>/<scenarioId>.json`. Switching drivers means characterizing again, and a change of the driver's **major** version invalidates its recordings.
 
 ## The Playwright driver
 
@@ -54,9 +56,320 @@ playwright({ browser?, headless?, launchOptions?, viewport?, recordVideo?, actio
 
 Use `sessionFromPage(page, sessionOptions, { policy, baseURL })` to wrap a Playwright `Page` you already have. See [sdk.md](sdk.md).
 
-## The fake driver
+## Plugging in a driver
 
-`@ai-bdd/testing` exports `fakeDriver({ flags, adminPassword, clockStepMs, maxSessions, exclusiveResource, testToken })` and `acmeFixtures`. With `AI_BDD_FAKE=1` the CLI registers it as `fake` (flags from `AI_BDD_FAKE_FLAGS`, comma separated: `v2`, `bug-upgrade-noop`) and makes it the default driver. It runs on a fake clock, so `/slow` pages and the todo sync indicator behave deterministically. It exists to test ai-bdd itself; it only knows the Acme demo app.
+A driver is a config entry. ai-bdd does not care what is behind it, only that it implements the [driver interface](#the-driver-interface). Every driver is plugged in one of two equivalent ways:
+
+- **`{ use: '<package or ./file>', options }`**: ai-bdd imports the package (resolved from the project root) and calls its `createDriverFactory(options)`. It works in `.json`, `.mjs` and `.js` configs, so the choice of engine can be a one-line JSON change.
+- **A factory object**: import the factory yourself and put it under `drivers`. This is the only form a typed `.ts` config accepts (`defineConfig` types `drivers` as `DriverFactory` values).
+
+The examples below use the built-in Playwright driver and two **hypothetical** packages, `my-cua-driver` and `my-browser-use-driver`. They are placeholders for whatever computer-use or browser-use driver package you or your vendor publish; they do not exist on npm and ai-bdd does not ship them. Everything else in the config (docs, models, secrets, policy, `baseURL`) stays the same when you swap the driver.
+
+### (a) The built-in Playwright driver
+
+```js
+// ai-bdd.config.mjs (or .json): the package form
+export default {
+  baseURL: 'http://localhost:3000',
+  drivers: { web: { use: '@ai-bdd/driver-playwright', options: { browser: 'chromium', headless: true } } },
+  defaultDriver: 'web',
+};
+```
+
+```ts check
+// ai-bdd.config.ts: the factory form
+import { defineConfig } from '@ai-bdd/sdk';
+import { playwright } from '@ai-bdd/driver-playwright';
+
+export default defineConfig({
+  baseURL: 'http://localhost:3000',
+  drivers: { web: playwright({ browser: 'chromium', headless: true }) },
+  defaultDriver: 'web',
+});
+```
+
+### (b) A computer-use (CUA) driver package
+
+A computer-use driver operates a screen (a browser window, a VM, a remote desktop) with screenshots and mouse and keyboard events. With a hypothetical `my-cua-driver`:
+
+```js
+// ai-bdd.config.mjs: the package form
+export default {
+  baseURL: 'https://staging.example.com',
+  drivers: {
+    screen: { use: 'my-cua-driver', options: { display: ':1', screenshotScale: 1, startUrl: 'https://staging.example.com' } },
+  },
+  defaultDriver: 'screen',
+  // models, secrets ... unchanged
+};
+```
+
+```js
+// ai-bdd.config.mjs: the factory form (a JS config can await the factory)
+import { createDriverFactory } from 'my-cua-driver';
+
+export default {
+  baseURL: 'https://staging.example.com',
+  drivers: { screen: await createDriverFactory({ display: ':1', screenshotScale: 1 }) },
+  defaultDriver: 'screen',
+};
+```
+
+Run it with `ai-bdd doctor` first (it calls the driver's `selfCheck`), then `ai-bdd run --driver screen` or set `defaultDriver`. Recordings are filed under the driver's id (`.ai-bdd/recordings/<driverId>/`), so characterizing on `screen` does not touch the recordings made on `playwright`. A screen shared by all sessions should declare `exclusiveResource` so scenarios run one at a time. How such a driver maps screenshots and coordinates onto the verb set, and what that costs, is in [Screenshot-and-coordinate drivers](#screenshot-and-coordinate-drivers-honest-limits).
+
+### (c) A browser-use driver package
+
+A browser-use style runtime drives a browser through the DevTools protocol and usually can report the page's accessibility tree and element handles, which is exactly what ai-bdd records against. With a hypothetical `my-browser-use-driver`:
+
+```js
+// ai-bdd.config.mjs: the package form
+export default {
+  baseURL: 'http://localhost:3000',
+  drivers: { agentic: { use: 'my-browser-use-driver', options: { headless: true, cdpUrl: 'ws://localhost:9222' } } },
+  defaultDriver: 'agentic',
+};
+```
+
+```js
+// ai-bdd.config.mjs: the factory form
+import { createDriverFactory } from 'my-browser-use-driver';
+
+export default {
+  baseURL: 'http://localhost:3000',
+  drivers: { agentic: await createDriverFactory({ headless: true, cdpUrl: 'ws://localhost:9222' }) },
+  defaultDriver: 'agentic',
+};
+```
+
+You can keep several drivers in one config (`drivers: { web: ..., screen: ... }`) and pick per scenario with the `driver` directive in the doc or per run with `--driver <name>`; `-c <file>` selects a different config file altogether (`ai-bdd -c ai-bdd.cua.config.mjs run`).
+
+### What a driver package must export
+
+| Export | Contract |
+|---|---|
+| `createDriverFactory(options)` | Required by the `{ use }` form. Receives the `options` object from the config (or `{}`); validate it and throw an `AiBddError('CONFIG_INVALID', ...)` for unknown or ill-typed keys. Returns a `DriverFactory` (or a promise of one). Do no heavy work here: launch browsers and connect to devices in `factory.create(ctx)` or on first `openSession`. |
+| the `DriverFactory` | `{ id, create(ctx) → Driver }`. `id` is the recording directory name: short, stable, filesystem-safe. `ctx` is `{ projectRoot, baseURL?, policy, artifactsDir }`. |
+| the `Driver` | `{ id, version, capabilities, openSession(opts), selfCheck(), dispose() }`. Bump the **major** `version` when a change would invalidate recordings. |
+| `capabilities` | `{ verbs, pixels, maskingProven, request, maxSessions, exclusiveResource? }`, honest and static (see [Capabilities](#capabilities)). The agent is offered only your `verbs`; the runner never exceeds `maxSessions`; a recording that needs a verb you lack becomes fuzzy. |
+| sessions | `DriverSession { id, driverId, driverVersion, capabilities, observe(), perform(action), request?(), close() }`, isolated from each other. |
+
+A driver package may also export convenience constructors (Playwright exports `playwright(opts)` next to `createDriverFactory`), but the config loader calls only `createDriverFactory`. Declare `@ai-bdd/sdk` as a peer dependency and import types from `@ai-bdd/sdk/contracts`.
+
+Typical capability sets (illustrative, set them to what your implementation really does):
+
+| | `verbs` | `pixels` | `maskingProven` | `request` | `maxSessions` | `exclusiveResource` |
+|---|---|---|---|---|---|---|
+| Playwright | all ten | `true` | `true` | `true` | 8 | none |
+| CUA, one shared screen | `navigate click fill press scroll hover wait` | `true` | `false` | `false` | 1 | `'screen'` |
+| Browser-use over CDP | the ten, if the runtime has them | `true` | `false` until you can show masking | `false` | a few | none |
+
+### Screenshot-and-coordinate drivers (honest limits)
+
+ai-bdd's action surface is **ref-based**: the agent picks a node from `observe()` and the driver performs `click` or `fill` on that ref. A computer-use backend speaks screenshots and `(x, y)`. The driver is the bridge:
+
+1. **`observe()` must still return nodes.** Per observation, take a screenshot and produce `ObservedNode`s with an ARIA role and an accessible name (and `level`, `states`, `url` where you can). The best source is the platform's accessibility tree (CDP accessibility tree, UIA, AX, AT-SPI) read at the same moment as the screenshot, keeping each node's bounding box in the session. If you only have pixels, a vision model can propose labelled regions, but that is a model call inside your driver on every observation, and its labels will wobble from run to run.
+2. **Refs carry the revision (`r<rev>:e<n>`) and map to boxes.** A `click` on a ref becomes a click at the centre of its box; `fill` is click, select all, type (resolve `{secret}` values at the moment of typing and taint the session); `hover` moves the mouse; `scroll` is a wheel event at a point; `press` sends the key; `navigate` and `back` use the browser or the OS. Reject refs of an older revision with `STALE_REF`. Verbs the backend cannot do reliably (`select` on a native dropdown, `check`) should be left out of `capabilities.verbs`.
+3. **Screenshots are evidence, not the oracle.** Set `pixels: true` to let `observe({ pixels: true })` return a PNG. They reach a model (the judge, with `judge.vision`) only while the session is untainted or when the PNG is `masked` **and** `maskingProven`. A coordinate-based backend cannot mask password fields unless you draw the masks yourself; leave `maskingProven: false` unless a test proves it.
+
+What this does and does not buy you:
+
+- **Recordings replay by selector, not by coordinate.** A recorded action stores the target's role, accessible name, named ancestors and index, never a pixel position. On replay ai-bdd observes, resolves the selector to a fresh ref, and your driver translates that ref to the current coordinates. Layout changes therefore do not break a replay as long as the role and name are still there.
+- **Coordinate-only targets are fuzzy.** If the node the agent acted on has no role or accessible name (an unlabelled region from a vision pass, a canvas), there is nothing stable to select, the step gets the reason `coordinate-action`, and it keeps running through the agent (model calls on every run) instead of replaying. Fixing it means exposing a real name (an accessibility tree, a label), not tuning coordinates.
+- **Missing verbs make steps fuzzy.** A step that needs a verb outside your `verbs` is `agent-only-driver`.
+- **No `busy` signal, no determinism.** If the screen cannot tell when it is loading, set `busy` from what you can see (a spinner node, a pending navigation); otherwise steps judge half-rendered screens and checks will not prove themselves.
+- **Navigation policy is yours to enforce.** `checkNavigation` guards the `navigate` verb, but a click on a link navigates by itself. A screen-driving backend must be confined at the platform level (a proxy, a browser policy, a locked-down VM) to the hosts in `policy.allowHosts`.
+- **Cost and speed.** The computer-use model that sits inside such a driver is separate from ai-bdd's own `act` model. Keep them from fighting: either ai-bdd's agent decides (the driver is only hands and eyes), or the driver embeds its own planner and exposes one coarse verb, in which case recordings will not be fine-grained.
+
+The skeleton below shows the bridge for a hypothetical `ScreenBackend`. It typechecks against the contracts; the backend and the perception layer are yours.
+
+```ts check
+import { checkNavigation, renderTree, sha256Hex, treeHash } from '@ai-bdd/sdk';
+import { AiBddError } from '@ai-bdd/sdk/contracts';
+import type {
+  ActionOutcome,
+  Driver,
+  DriverAction,
+  DriverCapabilities,
+  DriverFactory,
+  DriverSession,
+  Observation,
+  ObservedNode,
+  SessionOptions,
+} from '@ai-bdd/sdk/contracts';
+
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** What a computer-use harness gives you: pixels in, mouse and keyboard out, plus some form of perception. */
+interface ScreenBackend {
+  screenshot(): Promise<Uint8Array>;
+  /** Labelled regions with pixel boxes: from the accessibility tree read next to the screenshot, or from a vision pass. */
+  perceive(): Promise<Array<{ role: string; name: string; box: Box; level?: number }>>;
+  click(x: number, y: number): Promise<void>;
+  moveMouse(x: number, y: number): Promise<void>;
+  typeText(text: string): Promise<void>;
+  key(combo: string): Promise<void>;
+  scroll(x: number, y: number, dy: number): Promise<void>;
+  openUrl(url: string): Promise<void>;
+  close(): Promise<void>;
+}
+
+declare function connectBackend(options: { display: string }): Promise<ScreenBackend>;
+
+const CAPABILITIES: DriverCapabilities = {
+  verbs: ['navigate', 'click', 'fill', 'press', 'scroll', 'hover', 'wait'],
+  pixels: true,
+  maskingProven: false,
+  request: false,
+  maxSessions: 1,
+  exclusiveResource: 'screen',
+};
+
+const centre = (b: Box): [number, number] => [Math.round(b.x + b.w / 2), Math.round(b.y + b.h / 2)];
+
+class ScreenSession implements DriverSession {
+  readonly id: string;
+  readonly driverId = 'my-cua';
+  readonly driverVersion = '1.0.0';
+  readonly capabilities = CAPABILITIES;
+  private readonly backend: ScreenBackend;
+  private readonly options: SessionOptions;
+  private readonly boxes = new Map<string, Box>();
+  private revision = 0;
+  private route = '/';
+  private tainted = false;
+
+  constructor(id: string, backend: ScreenBackend, options: SessionOptions) {
+    this.id = id;
+    this.backend = backend;
+    this.options = options;
+  }
+
+  async observe(opts?: { pixels?: boolean }): Promise<Observation> {
+    this.revision += 1;
+    const found = await this.backend.perceive();
+    this.boxes.clear();
+    const nodes: ObservedNode[] = found.map((f, i) => {
+      const ref = `r${this.revision}:e${i}`;
+      this.boxes.set(ref, f.box);
+      const node: ObservedNode = { ref, role: f.role, name: f.name, states: {}, depth: 0 };
+      if (f.level !== undefined) node.level = f.level;
+      return node;
+    });
+    const observation: Observation = {
+      revision: this.revision,
+      route: this.route,
+      nodes,
+      busy: found.some((f) => f.role === 'progressbar'),
+      tainted: this.tainted,
+      treeText: renderTree(nodes, { refs: true }),
+      treeHash: treeHash(nodes),
+    };
+    if (opts?.pixels === true) {
+      const png = await this.backend.screenshot();
+      observation.screenshot = { png, sha256: sha256Hex(png), masked: false };
+    }
+    return observation;
+  }
+
+  async perform(action: DriverAction): Promise<ActionOutcome> {
+    if (this.options.policy.denyVerbs.includes(action.verb)) return this.fail('POLICY_DENIED', `${action.verb} is denied by policy`);
+    if (action.verb === 'wait') {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(action.ms, 5000)));
+      return { ok: true };
+    }
+    if (action.verb === 'navigate') {
+      const checked = checkNavigation(action.url, this.options.baseURL, this.options.policy);
+      if (!checked.ok) return this.fail('POLICY_DENIED', checked.reason);
+      await this.backend.openUrl(checked.url);
+      this.route = new URL(checked.url).pathname;
+      return { ok: true, navigatedTo: checked.url };
+    }
+    if (action.verb === 'back' || action.verb === 'select' || action.verb === 'check') {
+      return this.fail('VERB_UNSUPPORTED', `this driver cannot ${action.verb}`);
+    }
+    if (action.verb === 'press' && action.target === undefined) {
+      await this.backend.key(action.key);
+      return { ok: true };
+    }
+    if (action.verb === 'scroll' && action.target === undefined) {
+      await this.backend.scroll(0, 0, action.direction === 'down' ? 600 : -600);
+      return { ok: true };
+    }
+    const ref = action.target?.ref ?? '';
+    const box = this.boxes.get(ref);
+    if (box === undefined) return this.fail('STALE_REF', `ref ${ref} is not from the latest observation`);
+    const [x, y] = centre(box);
+    switch (action.verb) {
+      case 'click':
+        await this.backend.click(x, y);
+        break;
+      case 'hover':
+        await this.backend.moveMouse(x, y);
+        break;
+      case 'scroll':
+        await this.backend.scroll(x, y, action.direction === 'down' ? 600 : -600);
+        break;
+      case 'press':
+        await this.backend.click(x, y);
+        await this.backend.key(action.key);
+        break;
+      case 'fill':
+        if ('secret' in action.value) this.tainted = true; // taint first, even if typing fails
+        await this.backend.click(x, y);
+        await this.backend.key('ctrl+a');
+        await this.backend.typeText(this.options.resolveValue(action.value));
+        break;
+    }
+    return { ok: true };
+  }
+
+  async close(): Promise<void> {
+    // The screen is shared by every session of this driver; the driver's dispose() releases it.
+  }
+
+  private fail(code: 'STALE_REF' | 'POLICY_DENIED' | 'VERB_UNSUPPORTED', message: string): ActionOutcome {
+    return { ok: false, error: { code, message, retryable: false } };
+  }
+}
+
+/** The export a `{ use: 'my-cua-driver', options }` config entry calls. */
+export function createDriverFactory(options: unknown): DriverFactory {
+  const display = (options as { display?: unknown } | null)?.display;
+  if (typeof display !== 'string') throw new AiBddError('CONFIG_INVALID', 'my-cua-driver: options.display must be a string');
+  return {
+    id: 'my-cua',
+    async create(): Promise<Driver> {
+      const backend = await connectBackend({ display });
+      let sessions = 0;
+      return {
+        id: 'my-cua',
+        version: '1.0.0',
+        capabilities: CAPABILITIES,
+        async openSession(opts: SessionOptions): Promise<DriverSession> {
+          sessions += 1;
+          return new ScreenSession(`my-cua-${sessions}`, backend, opts);
+        },
+        async selfCheck() {
+          try {
+            await backend.screenshot();
+            return { ok: true, problems: [] };
+          } catch (err) {
+            return { ok: false, problems: [`cannot capture the screen: ${err instanceof Error ? err.message : String(err)}`] };
+          }
+        },
+        async dispose() {
+          await backend.close();
+        },
+      };
+    },
+  };
+}
+```
 
 ## The driver interface
 
@@ -247,11 +560,28 @@ Register it like any driver (`drivers: { counter: counterDriver() }`), or publis
 
 ### Conformance kit
 
-Inside this repository, `packages/sdk/test/kit/driver-conformance.ts` exports `runDriverConformance(name, makeFactory, options)`, a vitest suite that checks capabilities, observation shape and `treeHash` stability, stale-ref rejection, navigation policy (`javascript:`, `data:`, `file:`, off-host, credentials), taint after secret fills, busy detection, session isolation and `request()`. The app-level tests expect the Acme app (`startAcmeApp` from `@ai-bdd/testing`), so a driver for another platform adapts the same assertions. The kit is not published; copy it or import it relatively in a workspace.
+Validate a driver package with the shared conformance kit. It lives in this repository at `packages/sdk/test/kit/driver-conformance.ts` and exports `runDriverConformance(name, makeFactory, options)`, a vitest suite that checks capabilities, observation shape and `treeHash` stability, stale-ref rejection, navigation policy (`javascript:`, `data:`, `file:`, off-host, credentials), taint after secret fills, busy detection, session isolation and `request()`. The same kit runs against the Playwright driver in this repository (`packages/driver-playwright/test/conformance.test.ts`). The kit is not published as a package.
+
+To run it for your driver package:
+
+1. Work in a checkout of this repository (add your package as a workspace package under `packages/`, or keep it next to the checkout and import the kit by relative path), with `pnpm install` done. The kit needs `vitest`, which the workspace provides.
+2. Start the Acme demo app that the app-level tests drive: `startAcmeApp` from `@ai-bdd/testing` returns `{ url, close() }`. Without an `appUrl` the capability, policy-denial and identity tests still run and the app-dependent ones are skipped, so a skipped suite is not a pass.
+3. Write one test file that hands the kit a factory-maker, then run it with `pnpm exec vitest run <your test file>` from the repository root. Give slow backends room with `vi.setConfig({ testTimeout: 60_000 })`.
 
 ```ts
+import { afterAll, vi } from 'vitest';
+import { startAcmeApp } from '@ai-bdd/testing';
 import { runDriverConformance } from '../../sdk/test/kit/driver-conformance.ts';
-import { myDriver } from '../src/index.ts';
+import { createDriverFactory } from '../src/index.ts'; // the same export the config's { use } entry calls
 
-runDriverConformance('my driver', ({ appUrl }) => myDriver({ baseURL: appUrl }), { appUrl: process.env.ACME_URL });
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+
+const app = await startAcmeApp({});
+afterAll(() => app.close());
+
+runDriverConformance('my-cua-driver', () => createDriverFactory({ display: ':1' }), { appUrl: app.url });
 ```
+
+The app-level cases look for Acme roles and names (`/login`, `/settings/billing`, `/todos`, `/forms/two`, `/slow`, `/notes`). A driver that perceives the page through a vision model may not reproduce them exactly: treat the failures as information about how stable your perception is, since recordings depend on exactly that stability. `options` also takes `testToken`, `adminPassword`, `allowHosts` and `slowMs` for apps that differ from the defaults. If the kit does not fit your platform, copy it and adapt the assertions; the contracts it checks are the ones listed above in this document.
+
+Before publishing, also run `ai-bdd doctor` and one real characterize-then-replay of a scenario against your app with your driver plugged in through the config; the second run must report zero model calls for the steps you expect to be deterministic.

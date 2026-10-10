@@ -1,9 +1,12 @@
-// Opt-in live-model smoke tests. Not part of `pnpm test` (the root vitest projects do not include tests/live).
+// Opt-in end-to-end tests with real models, the real CLI and the real Playwright driver (no test doubles).
+// Not part of `pnpm test` (the root vitest projects do not include tests/live).
 //
 //   AI_BDD_LIVE=1 AI_GATEWAY_API_KEY=... pnpm exec vitest run -c tests/live/vitest.live.config.ts
 //
-// Provider credentials: any of AI_GATEWAY_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY (what the AI SDK resolves for the
-// model ids). Model ids: AI_BDD_LIVE_MODEL (default anthropic/claude-sonnet-5.5), AI_BDD_LIVE_JUDGE_MODEL (default: same).
+// Requirements, each reported as a visible skip reason when missing: AI_BDD_LIVE=1; a provider key (AI_GATEWAY_API_KEY,
+// ANTHROPIC_API_KEY or OPENAI_API_KEY: what the AI SDK resolves for the model ids); a Chromium (AI_BDD_CHROMIUM_PATH or one
+// that Playwright / PLAYWRIGHT_BROWSERS_PATH / /opt/pw-browsers provides). Model: AI_BDD_MODEL (default
+// anthropic/claude-sonnet-5.5), judge: AI_BDD_JUDGE_MODEL (default: same), both read by the corpus config.
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 

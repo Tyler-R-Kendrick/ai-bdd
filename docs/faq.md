@@ -87,7 +87,7 @@ Prefer editing the document. A hand-edited feature survives recompiles only if i
 
 ## Can it test things other than web apps?
 
-The engine only needs a `Driver`: an accessibility-style tree to observe, actions to perform and a navigation policy. Only the Playwright driver and the Acme fake driver ship today ([drivers.md](drivers.md#writing-a-driver)).
+The engine only needs a `Driver`: an accessibility-style tree to observe, actions to perform and a navigation policy. Only the Playwright driver ships today. Other engines plug in through config: a computer-use or browser-use driver package, or one you write ([drivers.md](drivers.md#plugging-in-a-driver), [writing a driver](drivers.md#writing-a-driver)). Note the honest limit for screenshot-and-coordinate engines: steps whose target has no role or accessible name are `fuzzy` (`coordinate-action`) and keep calling the model ([details](drivers.md#screenshot-and-coordinate-drivers-honest-limits)).
 
 ## How does it behave in parallel and in CI?
 
@@ -97,9 +97,13 @@ Scenarios run in isolated sessions, `--workers` at a time. A driver's `maxSessio
 
 The config and workspace sources are TypeScript run with Node's native type stripping, and the toolchain (commander 15, vitest 5) requires it. Use `.mjs` or `.json` config if your runtime cannot import `.ts` (`CONFIG_TS_UNSUPPORTED`).
 
-## Why do fake-model runs take seconds?
+## Why does a first run take longer than a replay?
 
-Characterization waits in real time (settle windows, the 500 ms probe, a confirm run in a fresh session). Replays are much faster.
+Characterization waits in real time (settle windows, the 500 ms probe, a confirm run in a fresh session) and calls the models; each model call takes seconds. Replays do neither and are much faster.
+
+## Are there fake models or a fake mode?
+
+No. The `ai-bdd` CLI always runs with the drivers and models your config plugs in, and the first run of a scenario needs a real agent and a real judge. `@ai-bdd/testing` contains deterministic doubles (`fakeDriver`, `createFakeModels`) and `writeTestConfig`, which generates a config file that plugs them in through the ordinary `drivers` and `models` keys. They exist for ai-bdd's own tests and for people who build integrations (a driver, a model adapter, a test-framework bridge) and want offline, deterministic tests of their glue code. A test selects that file with `ai-bdd -c <file>` or `loadConfig({ configPath })`. It is test scaffolding, not a mode of the product, and a suite verified only against the doubles has verified nothing about your app. See [sdk.md](sdk.md#test-doubles).
 
 ## Where do I look when something fails?
 
