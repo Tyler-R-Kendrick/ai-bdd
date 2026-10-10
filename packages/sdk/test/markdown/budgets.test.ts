@@ -38,7 +38,7 @@ describe('F-12 input budgets', () => {
     for (const make of [(n: number) => '['.repeat(n), (n: number) => '*a'.repeat(n), (n: number) => '[a](b '.repeat(n), (n: number) => ']'.repeat(n), (n: number) => '~~a'.repeat(n)]) {
       expect(cpuMs(() => chunker.chunk(makeDoc(`# T\n\n${make(30_000)}\n`), opts))).toBeLessThan(BUDGET_MS);
     }
-  });
+  }, 120_000); // five inputs of up to BUDGET_MS CPU time each; the wall-clock limit must not be what fails on a busy machine
 
   it('deep indentation is neutralized, shallow indentation is untouched, whitespace-only lines stay blank', () => {
     const deep = `${' '.repeat(MAX_INDENT_COLUMNS + 30)}- x`;
@@ -47,7 +47,7 @@ describe('F-12 input budgets', () => {
     expect(n.text.split('\n')[2]).toBe(' '.repeat(500));
     const text = `# T\n\n${Array.from({ length: 400 }, (_, i) => `${' '.repeat(i * 2)}- item ${i}`).join('\n')}\n`;
     expect(cpuMs(() => chunker.chunk(makeDoc(text), opts))).toBeLessThan(BUDGET_MS);
-  });
+  }, 60_000);
 
   it('a code block containing deep indentation keeps its text exactly', () => {
     const code = `${' '.repeat(MAX_INDENT_COLUMNS + 10)}wide line`;
