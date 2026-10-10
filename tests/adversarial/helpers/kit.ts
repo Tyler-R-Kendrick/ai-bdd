@@ -219,11 +219,15 @@ export class StubSession implements DriverSession {
   readonly performLog: { action: DriverAction; observes: number }[] = [];
   observes = 0;
   closed = false;
+  private readonly view: (self: StubSession) => { nodes: Omit<ObservedNode, 'ref'>[]; route?: string; busy?: boolean; tainted?: boolean };
+  private readonly onPerform: (a: DriverAction, self: StubSession) => ActionOutcome | void;
   constructor(
-    private readonly view: (self: StubSession) => { nodes: Omit<ObservedNode, 'ref'>[]; route?: string; busy?: boolean; tainted?: boolean },
-    private readonly onPerform: (a: DriverAction, self: StubSession) => ActionOutcome | void = () => ({ ok: true }),
+    view: (self: StubSession) => { nodes: Omit<ObservedNode, 'ref'>[]; route?: string; busy?: boolean; tainted?: boolean },
+    onPerform: (a: DriverAction, self: StubSession) => ActionOutcome | void = () => ({ ok: true }),
     opts: { driverId?: string; caps?: Partial<DriverCapabilities> } = {},
   ) {
+    this.view = view;
+    this.onPerform = onPerform;
     this.driverId = opts.driverId ?? 'stub';
     this.capabilities = { ...FULL_CAPS, ...(opts.caps ?? {}) };
   }

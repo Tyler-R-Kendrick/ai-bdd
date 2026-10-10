@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { DocPlan, ModelSet, ModelRequest, ModelResponse, ReviewState } from '@ai-bdd/sdk/contracts';
-import { createProject, openEngine, readPlans, allScenarios, type EngineHandle, type Project } from './helpers/kit.ts';
+import { createProject, openEngine, allScenarios, type EngineHandle, type Project } from './helpers/kit.ts';
 
 let project: Project | undefined;
 afterEach(() => {
@@ -26,7 +26,7 @@ function mutating(mutate: (features: DraftFeature[], req: ModelRequest) => void)
           if (res.object === undefined || res.object === null || typeof res.object !== 'object') return res;
           const copy = structuredClone(res.object) as { features: DraftFeature[] };
           mutate(copy.features, req);
-          return { ...res, object: copy as unknown as ModelResponse['object'] };
+          return { ...res, object: copy as unknown as NonNullable<ModelResponse['object']> };
         },
       },
     });
