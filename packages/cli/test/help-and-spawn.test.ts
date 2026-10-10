@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -74,7 +74,9 @@ describe('argument parsing helpers (G8)', () => {
     const b = await runCli(['-c', '/abs/c.json', 'status']);
     expect(b.loadConfig).toHaveBeenCalledWith(expect.objectContaining({ configPath: '/abs/c.json' }));
     const c = await runCli(['status']);
-    expect((c.loadConfig.mock.calls[0]?.[0] as Record<string, unknown>)['configPath']).toBeUndefined();
+    const firstArg = c.loadConfig.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    expect(firstArg).toBeDefined();
+    expect(firstArg).not.toHaveProperty('configPath');
   });
 
   it('passes the injected env and cwd to loadConfig', async () => {
@@ -132,7 +134,6 @@ describe('spawned bin (V1)', () => {
       const second = node(['init', '--json'], dir);
       expect(second.status).toBe(0);
       expect(await readFile(join(dir, 'docs', 'example.md'), 'utf8')).toBe('edited');
-      await mkdir(join(dir, 'x'), { recursive: true });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

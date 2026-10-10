@@ -1,5 +1,7 @@
 # Doc
 
+Lead paragraph.
+
 <!-- ai-bdd: ignore -->
 ## Skipped heading
 

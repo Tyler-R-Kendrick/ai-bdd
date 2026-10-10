@@ -69,8 +69,8 @@ export function asAiBddError(e: unknown): AiBddError | undefined {
   if (
     e instanceof Error &&
     e.name === 'AiBddError' &&
-    typeof (e as { code?: unknown }).code === 'string' &&
-    (e as { code: string }).code in EXIT_BY_ERROR_CODE
+    typeof (e as unknown as { code?: unknown }).code === 'string' &&
+    (e as unknown as { code: string }).code in EXIT_BY_ERROR_CODE
   ) {
     return e as AiBddError;
   }

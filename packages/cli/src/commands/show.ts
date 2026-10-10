@@ -152,7 +152,7 @@ export function renderSelection(sel: Selection, recs: ReadonlyMap<string, Scenar
 }
 
 export async function runShow(ctx: Ctx, query: string | undefined, flags: ShowFlags): Promise<ExitCode> {
-  return withEngine(ctx, {}, async ({ engine, config }) => {
+  return withEngine<ExitCode>(ctx, {}, async ({ engine, config }) => {
     const plans = await engine.plans();
     const selections = selectPlans(plans, query);
 

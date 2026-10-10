@@ -1,5 +1,7 @@
 # Doc
 
+Lead paragraph.
+
 <!-- ai-bdd: ignore -->
 Ignored paragraph.
 
@@ -8,6 +10,8 @@ Kept paragraph.
 <!-- ai-bdd: ignore -->
 - ignored one
 - ignored two
+
+Between the lists.
 
 - kept item
 

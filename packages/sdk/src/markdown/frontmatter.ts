@@ -40,6 +40,6 @@ export function parseFrontmatter(source: string): FrontmatterResult {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const firstLine = message.split('\n')[0] ?? 'invalid YAML';
-    return { ok: false, error: firstLine.slice(0, 300) };
+    return { ok: false, error: firstLine.replace(/[:\s]+$/, '').slice(0, 300) };
   }
 }

@@ -17,7 +17,7 @@ export function printStatus(ctx: Ctx, status: PlanStatus): void {
 }
 
 export async function runStatus(ctx: Ctx, flags: { json?: boolean | undefined }): Promise<ExitCode> {
-  return withEngine(ctx, {}, async ({ engine }) => {
+  return withEngine<ExitCode>(ctx, {}, async ({ engine }) => {
     const status = await engine.status();
     if (flags.json === true) ctx.out(JSON.stringify(status, null, 2));
     else printStatus(ctx, status);

@@ -2,7 +2,7 @@ import type { ExitCode } from '@ai-bdd/sdk/contracts';
 import { withEngine, type Ctx } from '../context.ts';
 
 export async function runPrune(ctx: Ctx, flags: { dryRun?: boolean | undefined }): Promise<ExitCode> {
-  return withEngine(ctx, {}, async ({ engine }) => {
+  return withEngine<ExitCode>(ctx, {}, async ({ engine }) => {
     const dryRun = flags.dryRun === true;
     const { removed } = await engine.prune({ dryRun });
     for (const r of removed) ctx.out(`${dryRun ? 'would remove' : 'removed'} ${r}`);
