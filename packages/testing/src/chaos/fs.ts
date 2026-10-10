@@ -55,18 +55,27 @@ export interface PermissionLock {
  * Make a directory unwritable (mode 0555) and report whether that really stops THIS process from creating files in it.
  * Running as root, or on a file system that ignores modes, `effective` is false and tests must use another mechanism.
  */
-export function lockDirectory(dir: string): PermissionLock {
+export function lockDirectory(dir: string, host: LockHost = {}): PermissionLock {
   const previous = lstatSync(dir).mode & 0o777;
   chmodSync(dir, 0o555);
   const restore = (): void => chmodSync(dir, previous === 0 ? 0o755 : previous);
   const probe = join(dir, `.chaos-probe-${process.pid}`);
   try {
-    writeFileSync(probe, '');
+    (host.write ?? writeFileSync)(probe, '');
     rmSync(probe, { force: true });
-    return { effective: false, reason: process.getuid?.() === 0 ? 'running as root: chmod does not restrict root' : 'the file system ignores directory modes', restore };
+    const uid = 'uid' in host ? host.uid : process.getuid?.();
+    return { effective: false, reason: uid === 0 ? 'running as root: chmod does not restrict root' : 'the file system ignores directory modes', restore };
   } catch {
     return { effective: true, restore };
   }
+}
+
+/** What {@link lockDirectory} asks of the machine; replaced in tests to reach both outcomes on any machine. */
+export interface LockHost {
+  /** Tries to create a file; throws when the directory is really unwritable. */
+  write?: (path: string, data: string) => void;
+  /** The effective user id (`undefined` where there is none, e.g. Windows). */
+  uid?: number | undefined;
 }
 
 export type MountResult = { ok: true; dir: string; unmount(): void; /** Remount the file system read-only: every write fails with EROFS, even for root. */ remountReadOnly(): void } | { ok: false; reason: string };
@@ -75,12 +84,15 @@ export type MountResult = { ok: true; dir: string; unmount(): void; /** Remount 
  * Mount a tiny tmpfs at `dir` (created if needed) to get a REAL "No space left on device". Needs root (or CAP_SYS_ADMIN) and
  * Linux; anywhere else it returns `{ ok: false, reason }` and the test should skip with that reason visible.
  */
-export function mountTinyTmpfs(dir: string, sizeKiB = 16): MountResult {
-  if (process.platform !== 'linux') return { ok: false, reason: `tmpfs mounts are only attempted on linux (platform is ${process.platform})` };
-  if (process.getuid?.() !== 0) return { ok: false, reason: 'mounting a tmpfs needs root (uid 0)' };
+export function mountTinyTmpfs(dir: string, sizeKiB = 16, host: MountHost = {}): MountResult {
+  const platform = host.platform ?? process.platform;
+  const uid = 'uid' in host ? host.uid : process.getuid?.();
+  const run = host.exec ?? ((cmd: string, args: string[]): void => void execFileSync(cmd, args, { stdio: 'pipe' }));
+  if (platform !== 'linux') return { ok: false, reason: `tmpfs mounts are only attempted on linux (platform is ${platform})` };
+  if (uid !== 0) return { ok: false, reason: 'mounting a tmpfs needs root (uid 0)' };
   mkdirSync(dir, { recursive: true });
   try {
-    execFileSync('mount', ['-t', 'tmpfs', '-o', `size=${sizeKiB}k`, 'tmpfs', dir], { stdio: 'pipe' });
+    run('mount', ['-t', 'tmpfs', '-o', `size=${sizeKiB}k`, 'tmpfs', dir]);
   } catch (err) {
     const stderr = (err as { stderr?: Buffer }).stderr?.toString('utf8').trim();
     return { ok: false, reason: `mount refused: ${stderr || (err instanceof Error ? err.message : String(err))}` };
@@ -89,27 +101,34 @@ export function mountTinyTmpfs(dir: string, sizeKiB = 16): MountResult {
     ok: true,
     dir,
     remountReadOnly() {
-      execFileSync('mount', ['-o', 'remount,ro', dir], { stdio: 'pipe' });
+      run('mount', ['-o', 'remount,ro', dir]);
     },
     unmount() {
       try {
-        execFileSync('umount', [dir], { stdio: 'pipe' });
+        run('umount', [dir]);
       } catch {
-        execFileSync('umount', ['-l', dir], { stdio: 'pipe' });
+        run('umount', ['-l', dir]);
       }
     },
   };
 }
 
+/** What {@link mountTinyTmpfs} asks of the machine; replaced in tests to reach every outcome on any machine. */
+export interface MountHost {
+  platform?: NodeJS.Platform;
+  uid?: number | undefined;
+  /** Runs a command, throwing (with an optional `stderr` buffer) when it fails. */
+  exec?: (cmd: string, args: string[]) => void;
+}
+
 /** Why `/dev/full` (a device whose every write fails with ENOSPC) cannot be used here, or null when it can. */
-export function devFullUnavailableReason(): string | null {
-  if (process.platform !== 'linux') return `/dev/full is linux-only (platform is ${process.platform})`;
-  return existsSync('/dev/full') ? null : '/dev/full does not exist';
+export function devFullUnavailableReason(platform: NodeJS.Platform = process.platform, exists: (path: string) => boolean = existsSync): string | null {
+  if (platform !== 'linux') return `/dev/full is linux-only (platform is ${platform})`;
+  return exists('/dev/full') ? null : '/dev/full does not exist';
 }
 
 /** Make writes through `path` fail with ENOSPC by pointing it at `/dev/full`. Appends and in-place writes hit it; a rename over it replaces the link. */
-export function linkToDevFull(path: string): void {
-  const reason = devFullUnavailableReason();
+export function linkToDevFull(path: string, reason: string | null = devFullUnavailableReason()): void {
   if (reason !== null) throw new Error(reason);
   replaceWithSymlink(path, '/dev/full');
 }
