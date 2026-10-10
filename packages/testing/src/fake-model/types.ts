@@ -18,6 +18,7 @@ export type FakeRespond =
 
 export type FakeRule = {
   id: string;
+  description?: string;
   purpose: ModelPurpose;
   when?: { [path: string]: FakeMatcher };
   respond: FakeRespond;

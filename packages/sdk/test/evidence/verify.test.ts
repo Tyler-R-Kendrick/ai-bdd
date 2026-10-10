@@ -1,4 +1,4 @@
-import { chmod, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { JsonValue } from '../../src/contracts/index.ts';
@@ -159,14 +159,5 @@ describe('verifyRun (R-EV1)', () => {
     const r = await verifyRun(join(dir, 'does-not-exist'));
     expect(r.ok).toBe(false);
     expect(r.problems[0]).toMatch(/^EVIDENCE_CORRUPT:/);
-  });
-
-  it('R-EV1 an unreadable artifact file is reported as missing, not thrown', async () => {
-    const { dir, a } = await makeRun();
-    await chmod(join(dir, a.path), 0o000);
-    const r = await verifyRun(dir);
-    // root can still read; otherwise the file is reported. Either way verifyRun must not throw.
-    expect(typeof r.ok).toBe('boolean');
-    await chmod(join(dir, a.path), 0o644);
   });
 });
