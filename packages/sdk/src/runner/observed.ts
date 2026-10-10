@@ -22,13 +22,21 @@ export function screenshotAllowed(obs: Observation, maskingProven: boolean): boo
   return !obs.tainted || (shot.masked && maskingProven);
 }
 
+const TRUNCATED = '...[truncated]';
+
+/** Same shape as the judge module's own evidence builder: redact first, then cut, never exceeding `max`. */
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  if (max <= TRUNCATED.length) return text.slice(0, max);
+  return text.slice(0, max - TRUNCATED.length) + TRUNCATED;
+}
+
 /**
  * Judge input for one observation: tree text without refs, redacted, truncated; screenshot only when allowed.
  * Built from the observation alone, so agent output can never reach the judge (R-JU1).
  */
 export function toJudgeEvidence(obs: Observation, opts: EvidenceOptions): JudgeEvidence {
-  const text = opts.redactor.redact(renderTree(obs.nodes, { refs: false })).slice(0, opts.maxTreeChars);
-  const ev: JudgeEvidence = { treeText: text };
+  const ev: JudgeEvidence = { treeText: truncate(opts.redactor.redact(renderTree(obs.nodes, { refs: false })), opts.maxTreeChars) };
   if (opts.vision && obs.screenshot !== undefined && screenshotAllowed(obs, opts.maskingProven)) {
     ev.screenshot = { png: obs.screenshot.png, sha256: obs.screenshot.sha256 };
   }

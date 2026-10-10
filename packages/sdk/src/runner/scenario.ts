@@ -2,6 +2,7 @@ import {
   AiBddError,
   type AiBddErrorPayload,
   type Driver,
+  type JsonObject,
   type RunEvent,
   type RunnerDeps,
   type ScenarioMode,
@@ -24,6 +25,7 @@ import {
   errorPayload,
   isFuzzyTagged,
   redactPayload,
+  toJson,
   zeroUsage,
 } from './support.ts';
 import type { PendingSink, ScenarioEnv, SessionState } from './types.ts';
@@ -62,6 +64,53 @@ function modeFor(updateRecordings: boolean, frontier: number, stepCount: number)
   return frontier >= stepCount ? 'replay' : 'mixed';
 }
 
+/** The runner owns `events.jsonl` (S-FACADE note): every run event becomes one evidence entry. */
+function eventEntry(event: RunEvent): JsonObject | undefined {
+  switch (event.type) {
+    case 'scenario-start':
+      return { type: event.type, scenarioId: event.scenarioId, driver: event.driver, mode: event.mode };
+    case 'step-start':
+      return { type: event.type, scenarioId: event.scenarioId, stepKey: event.stepKey, kind: event.kind, text: event.text };
+    case 'step-end': {
+      const r = event.result;
+      return toJson({
+        type: event.type,
+        scenarioId: event.scenarioId,
+        stepKey: r.stepKey,
+        kind: r.kind,
+        status: r.status,
+        path: r.path,
+        determinism: r.determinism,
+        fuzzyReasons: r.fuzzyReasons,
+        durationMs: r.durationMs,
+        actions: r.actions,
+        usage: r.usage,
+        evidence: r.evidence.map((e) => e.path),
+        error: r.error === undefined ? undefined : { code: r.error.code, message: r.error.message },
+      }) as JsonObject;
+    }
+    case 'scenario-end': {
+      const r = event.result;
+      return toJson({
+        type: event.type,
+        scenarioId: r.scenarioId,
+        driver: r.driver,
+        status: r.status,
+        mode: r.mode,
+        recording: r.recording,
+        durationMs: r.durationMs,
+        usage: r.usage,
+        confirm: r.confirm,
+        error: r.error === undefined ? undefined : { code: r.error.code, message: r.error.message },
+      }) as JsonObject;
+    }
+    case 'log':
+      return toJson({ type: event.type, level: event.level, message: event.message, scenarioId: event.scenarioId }) as JsonObject;
+    default:
+      return undefined;
+  }
+}
+
 const STEP_FAILURES = new Set(['failed', 'blocked', 'error']);
 const ERROR_BEARING = new Set<ScenarioStatus>(['error', 'failed', 'inconclusive', 'blocked']);
 
@@ -80,7 +129,15 @@ export async function executeScenario(
   const { scenario } = target;
   const steps = scenario.steps;
   const t0 = clock.now();
-  const emit = (event: RunEvent): void => safeEmit(deps, event);
+  let recordChain: Promise<void> = Promise.resolve();
+  const emit = (event: RunEvent): void => {
+    safeEmit(deps, event);
+    const entry = eventEntry(event);
+    if (entry !== undefined) {
+      // appended in emission order; a failing evidence store never affects the run
+      recordChain = recordChain.then(() => deps.evidence.record(entry)).catch(() => undefined);
+    }
+  };
 
   const env: ScenarioEnv = {
     deps,
@@ -239,6 +296,7 @@ export async function executeScenario(
   const error = scenarioError ?? firstStepError;
   if (error !== undefined) result.error = error;
   emit({ type: 'scenario-end', result });
+  await recordChain;
   return result;
 }
 

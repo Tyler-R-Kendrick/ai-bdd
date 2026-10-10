@@ -4,6 +4,9 @@ import type {
   ActResult,
   ArtifactRef,
   CheckProgram,
+  DriverCapabilities,
+  PerformedAction,
+  Recorder,
   FixtureContext,
   FuzzyReason,
   JudgeRequest,
@@ -238,6 +241,27 @@ async function callActor(sc: StepCtx, hints: RecordedAction[] | undefined): Prom
   return res;
 }
 
+type CapabilityAwareToRecording = (
+  ...args: [...Parameters<Recorder['toRecording']>, { capabilities: DriverCapabilities }]
+) => ReturnType<Recorder['toRecording']>;
+
+/**
+ * Re-record a performed step. The session capabilities travel as an optional sixth argument
+ * (contracts-proposals/S-RECORDING.md) so `agent-only-driver` can be derived; recorders that
+ * only know the frozen five-argument contract ignore it.
+ */
+function rerecord(
+  sc: StepCtx,
+  performed: readonly PerformedAction[],
+  before: Observation,
+  after: Observation,
+  afterProbe: Observation,
+): ReturnType<Recorder['toRecording']> {
+  const recorder = sc.env.deps.recorder;
+  const call = recorder.toRecording as CapabilityAwareToRecording;
+  return call.call(recorder, performed, before, after, afterProbe, sc.step, { capabilities: sc.st.session.capabilities });
+}
+
 function actFailure(res: ActResult, path: StepPath, determinism: StepBody['determinism']): StepBody {
   const error =
     res.error ?? makePayload(res.status === 'blocked' ? 'ACT_BLOCKED' : 'INTERNAL', res.summary || 'the agent did not complete the step');
@@ -256,7 +280,7 @@ async function runAction(sc: StepCtx): Promise<StepBody> {
 
 /** C1: deterministic recording. */
 async function replayBranch(sc: StepCtx, rec: StepRecording, program: ActProgram, startsRun: boolean): Promise<StepBody> {
-  const { env, st, step, idx, phase, sink, acc } = sc;
+  const { env, st, idx, phase, sink, acc } = sc;
   const { deps, opts } = env;
   const { config } = deps;
   const replayCtx: Parameters<typeof deps.recorder.replay>[2] = { policy: config.policy };
@@ -298,7 +322,7 @@ async function replayBranch(sc: StepCtx, rec: StepRecording, program: ActProgram
   const afterR = await settleState(env, st, false);
   await deps.clock.sleep(config.characterize.probeMs, opts.signal);
   const probeR = await settleState(env, st, false);
-  const rerecorded = deps.recorder.toRecording(res.actions, replay.before, afterR.observation, probeR.observation, step);
+  const rerecorded = rerecord(sc, res.actions, replay.before, afterR.observation, probeR.observation);
   const prefix = program.actions.slice(0, Math.min(replay.completedActions, program.actions.length));
   const healCount = rec.stats.healCount + 1;
   const reasons = dedupe<FuzzyReason>([
@@ -333,7 +357,7 @@ async function fuzzyActionBranch(sc: StepCtx, rec: StepRecording, startsRun: boo
 
 /** C3: no recording; characterize with before / after / probe. */
 async function characterizeBranch(sc: StepCtx, startsRun: boolean): Promise<StepBody> {
-  const { env, st, step, idx, sink } = sc;
+  const { env, st, idx, sink } = sc;
   const { deps, opts } = env;
   if (opts.noAgent) return noAgent('agent', 'n/a');
   sink.dirty = true; // a characterization was attempted: a recording is pending even if the step fails
@@ -346,7 +370,7 @@ async function characterizeBranch(sc: StepCtx, startsRun: boolean): Promise<Step
   const afterR = await settleState(env, st, false);
   await deps.clock.sleep(deps.config.characterize.probeMs, opts.signal);
   const probeR = await settleState(env, st, false);
-  const rerecorded = deps.recorder.toRecording(res.actions, before, afterR.observation, probeR.observation, step);
+  const rerecorded = rerecord(sc, res.actions, before, afterR.observation, probeR.observation);
   const reasons = dedupe<FuzzyReason>([...rerecorded.fuzzyReasons, ...(env.fuzzyTagged ? (['directive'] as const) : [])]);
   const determinism = reasons.length > 0 ? 'fuzzy' : 'deterministic';
   sink.entries[idx] = newEntry(step, determinism, reasons, { act: rerecorded.act });
