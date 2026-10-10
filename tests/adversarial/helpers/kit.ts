@@ -88,6 +88,15 @@ export function requestText(req: ModelRequest): string {
   return parts.join('\n');
 }
 
+/** Only the user-role text of a request (the system prompt excluded). */
+export function userText(req: ModelRequest): string {
+  const parts: string[] = [];
+  for (const m of req.messages) {
+    if (m.role === 'user') for (const p of m.content) parts.push(p.type === 'text' ? p.text : `[image ${p.sha256}]`);
+  }
+  return parts.join('\n');
+}
+
 /** The first user text block of a request. */
 export function firstUserText(req: ModelRequest): string {
   const m = req.messages[0];
