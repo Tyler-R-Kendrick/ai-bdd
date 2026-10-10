@@ -8,7 +8,7 @@ import { browserAvailable, launchRaw } from './browser.ts';
 
 /**
  * Integration tests against the Acme fixture app (`startAcmeApp` from @ai-bdd/testing, built by P-APP).
- * They are skipped, with the reason in the suite name, only while `startAcmeApp` is still a NOT_IMPLEMENTED stub.
+ * They are skipped, with the reason in the suite name, only while `startAcmeApp` is still an unimplemented stub.
  */
 type AcmeApp = { url: string; close(): Promise<void> };
 type StartAcme = (opts?: { port?: number; adminPassword?: string; testToken?: string; flags?: string[] }) => Promise<AcmeApp>;
@@ -43,7 +43,7 @@ const find = (obs: Observation, role: string, name: string): ObservedNode => {
 
 const suite = hasBrowser && startAcme !== undefined ? describe : describe.skip;
 const suiteName = startAcme === undefined
-  ? 'driver-playwright against the Acme app (SKIPPED: startAcmeApp from @ai-bdd/testing is still a NOT_IMPLEMENTED stub)'
+  ? 'driver-playwright against the Acme app (SKIPPED: startAcmeApp from @ai-bdd/testing is still an unimplemented stub)'
   : 'driver-playwright against the Acme app';
 
 suite(suiteName, () => {

@@ -368,7 +368,10 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
       for (const name of ['Open off-host', 'Open data', 'Open redirecting']) {
         const obs = await s.observe();
         await s.perform({ verb: 'click', target: { ref: find(obs, 'button', name).ref } });
-        await new Promise((r) => setTimeout(r, 600));
+        // The popup may exist for an instant before the session closes it; it must not survive.
+        const deadline = Date.now() + 5000;
+        while (ctx.pages().length > 1 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
+        await new Promise((r) => setTimeout(r, 300));
         expect(ctx.pages().length, name).toBe(1);
       }
       // Without the init script (borrowed context) Playwright cannot intercept a popup's first request; the popup is
@@ -519,7 +522,7 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
       const seen = await Promise.all(sessions.map(async (s) => (await s.observe()).nodes.find((n) => n.role === 'heading')?.name));
       expect(seen).toEqual(Array.from({ length: N }, (_, i) => `sid=session-${i}`));
       const viaRequest = await Promise.all(sessions.map((s) => s.request?.({ method: 'GET', path: '/api/whoami' })));
-      expect(viaRequest.map((r) => (r?.body as { sid: string }).sid)).toEqual(Array.from({ length: N }, (_, i) => `session-${i}`));
+      expect(viaRequest.map((r) => ((r?.body ?? {}) as { sid?: string }).sid)).toEqual(Array.from({ length: N }, (_, i) => `session-${i}`));
       await Promise.all(sessions.map((s) => s.close()));
       const fresh = await open();
       await go(fresh, '/whoami');
