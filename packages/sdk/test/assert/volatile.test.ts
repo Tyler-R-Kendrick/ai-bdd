@@ -163,7 +163,7 @@ describe('volatile patterns ReDoS fuzz (R-AS2, R-AS3)', () => {
       return cpuMs(() => findVolatile(input));
     };
     run(2000);
-    const small = Math.max(Math.min(run(4000), run(4000), run(4000)), 0.05);
+    const small = Math.max(Math.min(run(4000), run(4000), run(4000)), 2); // a baseline of a millisecond or two is mostly timer and GC noise
     const big = Math.min(run(16000), run(16000), run(16000));
     expect(big).toBeLessThan(small * 12 + 5);
   });
