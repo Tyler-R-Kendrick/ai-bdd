@@ -21,8 +21,11 @@ export interface Ctx {
   out(line?: string): void;
   /** Print a line to stderr. Secret values known to the CLI are scrubbed. */
   err(line?: string): void;
-  /** Register secret values that must never reach the terminal. */
-  addSecrets(values: Iterable<string | undefined>): void;
+  /**
+   * Register secret values that must never reach the terminal. `expand` lists the other forms a value may take on its way out
+   * (URL-encoded, base64, JSON-escaped); the raw value is always scrubbed.
+   */
+  addSecrets(values: Iterable<string | undefined>, expand?: (value: string) => string[]): void;
 }
 
 export function createCtx(io: CliIo, deps: CliDeps): Ctx {
@@ -38,8 +41,15 @@ export function createCtx(io: CliIo, deps: CliDeps): Ctx {
     configPath: undefined,
     out: (line = '') => void io.stdout.write(`${scrub(line)}\n`),
     err: (line = '') => void io.stderr.write(`${scrub(line)}\n`),
-    addSecrets(values) {
-      for (const v of values) if (typeof v === 'string' && v.length >= MIN_SCRUB_LENGTH) secrets.add(v);
+    addSecrets(values, expand) {
+      for (const v of values) {
+        if (typeof v !== 'string' || v.length < MIN_SCRUB_LENGTH) continue;
+        for (const form of expand === undefined ? [v] : expand(v)) if (form.length >= MIN_SCRUB_LENGTH) secrets.add(form);
+      }
+      // longest first, so a form that contains another is replaced as a whole
+      const ordered = [...secrets].sort((a, b) => b.length - a.length);
+      secrets.clear();
+      for (const form of ordered) secrets.add(form);
     },
   };
 }
@@ -91,7 +101,7 @@ export async function openEngine(ctx: Ctx, _opts: EngineOptions = {}): Promise<E
   const config = await loadResolvedConfig(ctx);
   const createEngine = await resolveCreateEngine(ctx.deps);
   const engine = await createEngine(config);
-  ctx.addSecrets(Object.values(engine.config.secrets).map((s) => ctx.io.env[s.env]));
+  ctx.addSecrets(Object.values(engine.config.secrets).map((s) => ctx.io.env[s.env]), (await sdk()).secretVariants);
   return { engine, config: engine.config };
 }
 

@@ -231,7 +231,8 @@ export class Core {
     this.driverMap.clear();
     this.listeners.clear();
     if (errors.length > 0) {
-      throw new AiBddError('INTERNAL', `engine close failed: ${errors.map(errorMessage).join('; ')}`, { cause: errors[0] });
+      // driver errors can echo anything, including a secret value: nothing leaves the engine unredacted (R-SE1)
+      throw new AiBddError('INTERNAL', this.redactor().redact(`engine close failed: ${errors.map(errorMessage).join('; ')}`), { cause: errors[0] });
     }
   }
 }
