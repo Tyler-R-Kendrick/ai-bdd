@@ -398,6 +398,35 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
       await s.close();
     });
 
+    it('R-AG3: in driver-owned sessions a target=_blank link or form to a denied host is cancelled before any request is sent', async () => {
+      fx.offHostHits.length = 0;
+      const s = await open();
+      await go(s, '/links');
+      for (const [role, name] of [['link', 'Off host popup link'], ['link', 'Off host named link'], ['button', 'Off host popup form']] as const) {
+        const obs = await s.observe();
+        await s.perform({ verb: 'click', target: { ref: find(obs, role, name).ref } });
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      expect(fx.offHostHits).toEqual([]);
+      expect((await s.observe()).route).toBe('/links');
+      await s.close();
+    });
+
+    it('R-AG3: a borrowed page is guarded for documents loaded after the session started; the popup never survives', async () => {
+      fx.offHostHits.length = 0;
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const s = await sessionFromPage(page, sessionOpts(), { policy: policyFor(), baseURL: fx.url });
+      await go(s, '/links');
+      const obs = await s.observe();
+      await s.perform({ verb: 'click', target: { ref: find(obs, 'link', 'Off host popup link').ref } });
+      await new Promise((r) => setTimeout(r, 600));
+      expect(ctx.pages().length).toBe(1);
+      expect(fx.offHostHits).toEqual([]);
+      await s.close();
+      await ctx.close();
+    });
+
     it('R-AG3: a same-host popup (target=_blank) is allowed to open', async () => {
       const ctx = await browser.newContext();
       const page = await ctx.newPage();

@@ -138,7 +138,9 @@ window.addEventListener('scroll',function(){out.textContent='scrolled:'+(window.
     if (p === '/links') {
       return html(page('Links', `<a href="${offHostUrl}/landed">Off host link</a> <a href="/redirect-off">Redirecting link</a>
 <a href="javascript:document.title='js-ran'">JS link</a> <a href="data:text/html,%3Ch1%3Edata%3C%2Fh1%3E">Data link</a>
-<a href="/todos" target="_blank">Same host popup link</a>`));
+<a href="/todos" target="_blank">Same host popup link</a>
+<a href="${offHostUrl}/landed" target="_blank">Off host popup link</a> <a href="${offHostUrl}/landed" target="named-window">Off host named link</a>
+<form action="${offHostUrl}/landed" method="post" target="_blank"><button>Off host popup form</button></form>`));
     }
     if (p === '/popup') {
       return html(page('Popup', `<button onclick="window.open('${offHostUrl}/landed')">Open off-host</button>
