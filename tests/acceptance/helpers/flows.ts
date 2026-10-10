@@ -2,18 +2,16 @@
 // (playwright.*.test.ts) call the same flow against a different DriverTarget and must see identical statuses (AC3).
 import { cpSync } from 'node:fs';
 import { expect } from 'vitest';
-import type { ArtifactRef, DriverFactory, ScenarioRecording, ScenarioResult, StepResult } from '@ai-bdd/sdk/contracts';
+import type { DriverFactory, ScenarioRecording, ScenarioResult, StepResult } from '@ai-bdd/sdk/contracts';
 import { countByPurpose, ofPurpose, type CallRecord } from './calls.ts';
-import { openEngine, statusSummary, type EngineHandle } from './engine.ts';
+import { openEngine } from './engine.ts';
 import { ACME_DEFAULT_ADMIN_PASSWORD } from './paths.ts';
 import { T, findScenario, readRecordings, recordingFiles, recordingOf, scenarioId, readPlans } from './plans.ts';
 import { createProject, type Project } from './project.ts';
-import { artifactsOfKind, latestRunDir, readManifest } from './runs.ts';
+import { artifactsOfKind, latestRunDir } from './runs.ts';
 import { findSecret, valueContainsSecret } from './scan.ts';
 import type { DriverTarget, PrepareOptions, PreparedTarget } from './targets.ts';
 import { timingLog } from './timing.ts';
-import { withoutProvenMasking } from './unmasked.ts';
-import { join } from 'node:path';
 
 export async function using<R>(target: DriverTarget, prep: PrepareOptions, fn: (p: PreparedTarget) => Promise<R>): Promise<R> {
   const p = await target.prepare(prep);
@@ -422,8 +420,6 @@ export interface LoginRuns {
   resultsHaveSecret: boolean;
   callsHaveSecret: boolean;
   fileHits: { file: string; form: string }[];
-  filesScanned: number;
-  runDirs: number;
 }
 
 export async function flowLogin(target: DriverTarget): Promise<LoginRuns> {
@@ -454,8 +450,6 @@ export async function flowLogin(target: DriverTarget): Promise<LoginRuns> {
         resultsHaveSecret: reportHasSecret || valueContainsSecret([first, second], SPECIAL_PASSWORD),
         callsHaveSecret: valueContainsSecret([...calls1, ...calls2], SPECIAL_PASSWORD),
         fileHits,
-        filesScanned: 1,
-        runDirs: 2,
       };
     });
   } finally {
@@ -504,7 +498,7 @@ export async function flowRelease(target: DriverTarget): Promise<ReleaseRuns> {
       const result = report.scenarios[0] as ScenarioResult;
       await h.close();
       const dir = latestRunDir(project);
-      const logs = artifactsOfKind(dir, 'action-log' as ArtifactRef['kind']).map((a) => a.text);
+      const logs = artifactsOfKind(dir, 'action-log').map((a) => a.text);
       const entries = logs.flatMap((t) => {
         try {
           const v = JSON.parse(t) as unknown;
@@ -635,8 +629,9 @@ export async function flowParallel(target: DriverTarget, o: { workers?: number; 
         const h = await openEngine(project, { target, prepared, wrapFactory: (f: DriverFactory) => timing.wrap(f), overrides: { concurrency: { scenarios: o.workers ?? 8 } } });
         await h.compile();
         const plans = await h.plans();
-        const expectedOrder = PARALLEL_TITLES.map((t) => scenarioId(plans, t));
-        const report = await h.run({ selectors: expectedOrder, workers: o.workers ?? 8 });
+        const ids = PARALLEL_TITLES.map((t) => scenarioId(plans, t));
+        const expectedOrder = (await h.engine.listScenarios({ selectors: ids })).map((t) => t.scenario.id);
+        const report = await h.run({ selectors: ids, workers: o.workers ?? 8 });
         await h.close();
         return {
           results: report.scenarios,
@@ -658,8 +653,5 @@ export function expectParallelPassed(res: ParallelRuns): void {
   for (const r of res.results) expect(r.status, `${r.title}: ${JSON.stringify(failedStep(r)?.error)}`).toBe('passed');
   expect(res.exitCode).toBe(0);
   // results are reported in selection order whatever the completion order was
-  expect(res.order.slice().sort()).toEqual(res.expectedOrder.slice().sort());
+  expect(res.order).toEqual(res.expectedOrder);
 }
-
-// keep imports used by other helper modules explicit
-export { withoutProvenMasking, join, type EngineHandle };
