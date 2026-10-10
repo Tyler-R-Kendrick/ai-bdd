@@ -147,7 +147,8 @@ describe('A6 R-AS3 the predicate DSL has no regex and evaluation is linear', () 
   it('A6 R-AS3: regex metacharacters in names and literals are plain text', () => {
     const p = (op: Predicate): boolean => evaluatePredicates([op], obs, {})[0]?.satisfied === true;
     expect(p({ op: 'exists', query: { role: 'heading', name: '.*' } })).toBe(false);
-    expect(p({ op: 'exists', query: { role: 'heading', name: '.*', nameMatch: 'contains' } })).toBe(false);
+    expect(p({ op: 'exists', query: { role: 'heading', name: 'g.*s', nameMatch: 'contains' } })).toBe(false);
+    expect(p({ op: 'exists', query: { role: 'heading', name: 'billing (a+)+', nameMatch: 'contains' } })).toBe(true);
     expect(p({ op: 'exists', query: { role: 'heading', name: 'billing (a+)+$ [x] .* ^start' } })).toBe(true);
     expect(p({ op: 'text', query: { role: 'status' }, match: 'contains', value: { literal: '(a+)+$' } })).toBe(false);
     expect(p({ op: 'text', query: { role: 'status' }, match: 'equals', value: { literal: 'a*' } })).toBe(false);
