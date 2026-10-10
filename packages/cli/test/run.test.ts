@@ -158,6 +158,12 @@ describe('exit-code matrix (R-RN3)', () => {
     expect(exitCodeForError('string thrown')).toBe(3);
   });
 
+  // Found by tests/fuzz/cli-args.test.ts: `code in EXIT_BY_ERROR_CODE` accepted prototype members, so the exit code became a function.
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])('R-RN3: a foreign error named AiBddError with the code %s is infrastructure (exit 3)', (code) => {
+    const forged = Object.assign(new Error('forged'), { name: 'AiBddError', code });
+    expect(exitCodeForError(forged)).toBe(3);
+  });
+
   it('R-RN3: errors from loadConfig are mapped before any engine exists', async () => {
     const loadConfig = vi.fn(async () => {
       throw new AiBddError('CONFIG_INVALID', 'bad key');
