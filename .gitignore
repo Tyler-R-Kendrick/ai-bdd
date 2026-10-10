@@ -6,3 +6,4 @@ coverage/
 .ai-bdd/report/
 test-results/
 playwright-report/
+.determinism-*/

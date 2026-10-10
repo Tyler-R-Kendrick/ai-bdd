@@ -28,29 +28,29 @@ Every `ERROR_CODES` entry of `@ai-bdd/sdk/contracts`. A code is `reserved` when 
 | `PLAN_CONTEXT_CHANGED` | no | plan | Plan context changed. | referenced |
 | `SCENARIO_NOT_FOUND` | no | scenario | Scenario not found. | referenced |
 | `FIXTURE_REQUIRED` | no | fixture | Fixture required. | referenced |
-| `FIXTURE_FAILED` | no | fixture | Fixture failed. | reserved |
+| `FIXTURE_FAILED` | no | fixture | Fixture failed. | referenced |
 | `ACT_BUDGET_EXHAUSTED` | no | act | Act budget exhausted. | referenced |
 | `ACT_BLOCKED` | no | act | Act blocked. | referenced |
 | `ACT_TARGET_AMBIGUOUS` | no | act | Act target ambiguous. | referenced |
-| `ACT_NO_AGENT` | no | act | Act no agent. | reserved |
-| `REPLAY_DIVERGED` | no | replay | Replay diverged. | reserved |
-| `CHARACTERIZATION_UNSTABLE` | no | characterization | Characterization unstable. | reserved |
+| `ACT_NO_AGENT` | no | act | Act no agent. | referenced |
+| `REPLAY_DIVERGED` | no | replay | Replay diverged. | referenced |
+| `CHARACTERIZATION_UNSTABLE` | no | characterization | Characterization unstable. | referenced |
 | `CHECK_FAILED` | no | check | Check failed. | referenced |
-| `CHECK_NOT_DISCRIMINATIVE` | no | check | Check not discriminative. | reserved |
+| `CHECK_NOT_DISCRIMINATIVE` | no | check | Check not discriminative. | referenced |
 | `CHECK_LINT_FAILED` | no | check | Check lint failed. | reserved |
-| `CHECK_GENERATION_FAILED` | no | check | Check generation failed. | reserved |
-| `CHECK_JUDGE_DISAGREEMENT` | no | check | Check judge disagreement. | reserved |
-| `JUDGE_FAILED` | no | judge | Judge failed. | reserved |
+| `CHECK_GENERATION_FAILED` | no | check | Check generation failed. | referenced |
+| `CHECK_JUDGE_DISAGREEMENT` | no | check | Check judge disagreement. | referenced |
+| `JUDGE_FAILED` | no | judge | Judge failed. | referenced |
 | `JUDGE_INCONCLUSIVE` | no | judge | Judge inconclusive. | referenced |
 | `JUDGE_SAME_AS_ACTOR` | no | judge | Judge same as actor. | referenced |
-| `SCREEN_NOT_SETTLED` | no | screen | Screen not settled. | reserved |
+| `SCREEN_NOT_SETTLED` | no | screen | Screen not settled. | referenced |
 | `DRIVER_UNAVAILABLE` | yes | driver | Driver unavailable. | referenced |
 | `DRIVER_ERROR` | yes | driver | Driver error. | referenced |
 | `STALE_REF` | no | stale | Stale ref. | referenced |
 | `TARGET_NOT_FOUND` | no | target | Target not found. | referenced |
 | `POLICY_DENIED` | no | policy | Policy denied. | referenced |
 | `PIXEL_TAINTED` | no | pixel | Pixel tainted. | reserved |
-| `SESSION_LIMIT` | no | session | Session limit. | reserved |
+| `SESSION_LIMIT` | no | session | Session limit. | referenced |
 | `VERB_UNSUPPORTED` | no | verb | Verb unsupported. | referenced |
 | `MODEL_UNAVAILABLE` | yes | model | Model unavailable. | referenced |
 | `MODEL_OUTPUT_INVALID` | no | model | Model output invalid. | referenced |

@@ -219,13 +219,28 @@ export class PlaywrightSession implements DriverSession {
       await popup.close().catch(() => undefined);
       return;
     }
+    // A blocked navigation inside a popup is answered with a cancelled download: the popup has nothing left to show.
+    const deniedAtOpen = this.denials.length;
+    const close = (reason: string): void => {
+      this.denials.push({ url: popup.url(), reason });
+      void popup.close().catch(() => undefined);
+    };
+    popup.on('download', () => void popup.close().catch(() => undefined));
+    const check = (): void => {
+      if (popup.isClosed()) return;
+      if (!allowed()) close('popup navigated to a disallowed URL');
+      else if (this.denials.length > deniedAtOpen && (popup.url() === 'about:blank' || popup.url() === '')) void popup.close().catch(() => undefined);
+    };
     popup.on('framenavigated', (f) => {
-      if (f !== popup.mainFrame()) return;
-      if (!allowed()) {
-        this.denials.push({ url: popup.url(), reason: 'popup navigated to a disallowed URL' });
-        void popup.close().catch(() => undefined);
-      }
+      if (f === popup.mainFrame()) check();
     });
+    popup.on('load', check);
+    popup.on('domcontentloaded', check);
+    // Events can race the popup's first commit, so also poll briefly.
+    const timer = setInterval(check, 100);
+    timer.unref();
+    setTimeout(() => clearInterval(timer), 5000).unref();
+    popup.on('close', () => clearInterval(timer));
   }
 
   private async guardMainFrame(url: string): Promise<void> {

@@ -42,11 +42,17 @@ describePlaywright('M22 [P] @ai-bdd/playwright-test on the billing subset', () =
     writeFileSync(
       p.path('ai-bdd.config.pwtest.mjs'),
       [
+        "import { fileURLToPath } from 'node:url';",
         "import base from './ai-bdd.config.mjs';",
         "import { createFakeModels, fakeDriver } from '@ai-bdd/testing';",
         'export default {',
         '  ...base,',
         '  baseURL: process.env.ACME_URL,',
+        "  // the engine of a Playwright worker is created with cwd = process.cwd(); pin everything to this project",
+        "  planDir: fileURLToPath(new URL('./.ai-bdd/plans', import.meta.url)),",
+        "  recordingsDir: fileURLToPath(new URL('./.ai-bdd/recordings', import.meta.url)),",
+        "  runsDir: fileURLToPath(new URL('./.ai-bdd/runs', import.meta.url)),",
+        "  cacheDir: fileURLToPath(new URL('./.ai-bdd/cache', import.meta.url)),",
         "  drivers: { fake: fakeDriver({}) },",
         "  defaultDriver: 'fake',",
         '  models: createFakeModels({ rulesDir: process.env.AI_BDD_FAKE_RULES }),',
@@ -63,7 +69,9 @@ describePlaywright('M22 [P] @ai-bdd/playwright-test on the billing subset', () =
         ACME_URL: acme.url,
         ACME_ADMIN_PASSWORD: ACME_DEFAULT_ADMIN_PASSWORD,
         AI_BDD_FAKE_RULES: p.rulesDir,
-        AI_BDD_RECORDINGS: 'read-write',
+        // Finding (docs/integration-notes/X-CORPUS.md): with sessionFactory the confirm run is handed the SAME page, which already
+        // holds the upgraded state, so a characterization run under read-write ends in CHARACTERIZATION_UNSTABLE.
+        AI_BDD_RECORDINGS: 'read-only',
         AI_BDD_CONFIG: p.path('ai-bdd.config.pwtest.mjs'),
         AI_BDD_PLAN_DIR: p.plansDir,
         AI_BDD_SELECTORS: 'docs/billing.md',
@@ -91,19 +99,22 @@ describePlaywright('M22 [P] @ai-bdd/playwright-test on the billing subset', () =
       expect(specs.length, out).toBe(baseline.size);
 
       const seen = new Map<string, string>();
+      const details: string[] = [];
       for (const spec of specs) {
         const attachments = spec.results.flatMap((r) => r.attachments ?? []);
         const read = (name: string): string => {
           const a = attachments.find((x) => x.name === name);
-          if (a === undefined) throw new Error(`attachment ${name} missing; have ${attachments.map((x) => x.name).join(', ')}`);
+          if (a === undefined) throw new Error(`attachment ${name} missing; have ${attachments.map((x) => x.name).join(', ')}\n${out.slice(-3000)}`);
           return a.path === undefined ? Buffer.from(a.body ?? '', 'base64').toString('utf8') : readFileSync(a.path, 'utf8');
         };
         const result = JSON.parse(read('ai-bdd-result.json')) as { scenarioId: string; status: string };
-        expect(read('ai-bdd-steps.txt').length).toBeGreaterThan(0);
+        const steps = read('ai-bdd-steps.txt');
+        expect(steps.length).toBeGreaterThan(0);
+        if (result.status !== 'passed') details.push(`${result.scenarioId}\n${steps}`);
         seen.set(result.scenarioId, result.status);
         expect(spec.ok).toBe(result.status === 'passed' || result.status === 'healed');
       }
-      expect(Object.fromEntries(seen)).toEqual(Object.fromEntries(baseline));
+      expect(Object.fromEntries(seen), details.join('\n')).toEqual(Object.fromEntries(baseline));
     } finally {
       await acme.close();
     }

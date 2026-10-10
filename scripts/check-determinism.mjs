@@ -41,7 +41,7 @@ export function digestOf(snap) {
 
 function compileOnce(root, cwd, timeoutMs) {
   const bin = path.join(root, 'packages', 'cli', 'src', 'bin.ts');
-  const env = { ...process.env, AI_BDD_FAKE: '1', NO_COLOR: '1' };
+  const env = { ...process.env, AI_BDD_FAKE: '1', NO_COLOR: '1', AI_BDD_FAKE_RULES: path.join(root, 'packages', 'testing', 'corpus', 'fake-model') };
   delete env.CI;
   delete env.AI_BDD_RECORDINGS;
   const r = spawnSync(process.execPath, ['--conditions=source', bin, 'compile'], { cwd, env, encoding: 'utf8', timeout: timeoutMs });
@@ -59,7 +59,8 @@ export function checkDeterminism(root, { allowSkip = false, timeoutMs = 120_000 
   if (!fs.existsSync(corpus)) return skip('corpus not ready');
   if (!fs.existsSync(bin)) return skip('cli not ready');
 
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-bdd-determinism-'));
+  // The copies live next to the corpus (inside packages/testing) so the config's `@ai-bdd/*` imports resolve through the workspace.
+  const tmp = fs.mkdtempSync(path.join(path.dirname(corpus), '.determinism-'));
   try {
     const dirs = ['a', 'b'].map((n) => path.join(tmp, n));
     for (const d of dirs) fs.cpSync(corpus, d, { recursive: true, filter: (src) => path.basename(src) !== 'node_modules' });
