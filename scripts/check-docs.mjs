@@ -286,6 +286,7 @@ function checkTypeScript(root, entries, log) {
     const { repo } = createSandbox(root, tmp);
     const dir = path.join(repo, 'docs-ts');
     fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), '{ "type": "module" }\n'); // blocks are ES modules whatever the root says
     const origin = new Map();
     entries.forEach((e, i) => {
       const name = `block-${String(i + 1).padStart(3, '0')}.ts`;
@@ -301,7 +302,7 @@ function checkTypeScript(root, entries, log) {
         noEmit: true,
         declaration: false,
         sourceMap: false,
-        ...(fs.existsSync(pwTest) ? { paths: { '@playwright/test': [pwTest] } } : {}),
+        ...(fs.existsSync(pwTest) ? { paths: { '@playwright/test': [path.join(pwTest, 'index.d.ts')] } } : {}),
       },
       include: ['./*.ts'],
     };
