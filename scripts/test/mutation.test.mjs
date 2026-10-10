@@ -97,7 +97,7 @@ test('main runs Stryker per target with only that target tests, reports the scor
   const root = makeRepo({ 'scripts/mutation-targets.json': TARGETS });
   try {
     const calls = [];
-    const run = (cmd, args, opts) => {
+    const run = (cmd, args) => {
       calls.push({ cmd, args });
       const name = path.basename(args[3], '.conf.json');
       write(root, `reports/mutation/${name}.json`, { files: { 'x.ts': { mutants: [{ status: 'Killed' }, { status: 'Survived' }] } } });
