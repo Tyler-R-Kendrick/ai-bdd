@@ -86,7 +86,13 @@ class PlaywrightDriver implements Driver {
   private readonly sessions = new Set<PlaywrightSession>();
   private disposed = false;
 
-  constructor(private readonly opts: PlaywrightOptions, private readonly ctx: DriverContext) {}
+  private readonly opts: PlaywrightOptions;
+  private readonly ctx: DriverContext;
+
+  constructor(opts: PlaywrightOptions, ctx: DriverContext) {
+    this.opts = opts;
+    this.ctx = ctx;
+  }
 
   private getBrowser(): Promise<Browser> {
     if (this.disposed) return Promise.reject(new AiBddError('DRIVER_UNAVAILABLE', 'driver is disposed'));

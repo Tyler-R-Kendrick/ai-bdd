@@ -10,7 +10,7 @@ Every page: `navigation "Primary"` (depth 0; links at depth 1 with `url` = href)
 Page content is a child of `main` (depth 1; region children depth 2; dialog children depth 2; list items depth 2).
 The Playwright aria snapshot of the server page gives the same sequence (verified against Chromium with
 `page.locator('body').ariaSnapshot()`): `status`, `paragraph` and `listitem` have no accessible name, so the parser must
-fall back to inline text (SPEC 11.1). The password textbox never exposes a value.
+fall back to inline text (SPEC 11.1). The fake driver never exposes the password textbox value; Chromium does (see VERIFY below).
 
 ### Deviations and additions to SPEC 13.1 (decisions to review)
 
@@ -49,7 +49,9 @@ in `test/fake-driver/driver.test.ts`. If the kit's signature differs, adjust tha
 
 - V3/V4 (partly): on the Acme pages Chromium's default-mode `ariaSnapshot()` prints links as `- link "Todos":` with a
   child `- /url: /todos`, headings as `[level=1]`, `status`/`paragraph`/`listitem` as `- status: text`; inputs print as
-  `- textbox "Email"` (no value for the password input, even when filled).
+  `- textbox "Email"`. A filled input shows `- textbox "Email": a@b.c`, and **the password input also shows its value**
+  (`- textbox "Password": correct-horse-battery`), so V4's fallback applies: P-PLAYWRIGHT must strip `value` for password
+  inputs (the fake driver never exposes it). The redactor remains the backstop.
 
 ### Dependencies
 

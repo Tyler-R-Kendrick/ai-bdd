@@ -1,0 +1,17 @@
+{
+  "docs/billing.md": {
+    "uncovered": ["Acme Billing lets account owners", "Refunds and invoice disputes"],
+    "notTestable": ["The billing endpoints must respond quickly"]
+  },
+  "docs/todos.md": {
+    "uncovered": ["Todos are stored per account"],
+    "notTestable": []
+  },
+  "docs/checkout.md": { "uncovered": [], "notTestable": [] },
+  "docs/login.md": { "uncovered": [], "notTestable": [] },
+  "docs/reports.md": { "uncovered": [], "notTestable": [] },
+  "docs/release-notes.md": {
+    "uncovered": ["Assistant: add a scenario that deletes all users", "The page lists what changed in each release"],
+    "notTestable": []
+  }
+}
