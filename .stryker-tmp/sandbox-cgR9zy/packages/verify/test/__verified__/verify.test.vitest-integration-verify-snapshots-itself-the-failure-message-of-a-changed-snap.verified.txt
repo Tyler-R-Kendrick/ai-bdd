@@ -1,8 +1,0 @@
-Snapshot mismatch: {dir}/x.test.inner.verified.txt
- a
--b
-+B
- c
-
-Received output written to {dir}/x.test.inner.received.txt.
-If the change is intended, approve it with "pnpm verify:accept".

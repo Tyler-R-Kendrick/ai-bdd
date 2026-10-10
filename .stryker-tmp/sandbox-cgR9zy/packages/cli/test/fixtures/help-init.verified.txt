@@ -1,9 +1,0 @@
-Usage: ai-bdd init [options]
-
-write ai-bdd.config.ts (or .json), docs/example.md, .gitignore entries and
-.ai-bdd/plans/
-
-Options:
-  --yes       overwrite existing files
-  --json      write ai-bdd.config.json instead of ai-bdd.config.ts
-  -h, --help  display help for command

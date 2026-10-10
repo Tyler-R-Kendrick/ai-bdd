@@ -1,5 +1,0 @@
----
----
-# Heading
-
-Body text.

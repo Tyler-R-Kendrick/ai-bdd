@@ -1,8 +1,0 @@
-{
-  "name": "ai-bdd-driver-vendor-fixture",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Test fixture: a third-party style ai-bdd driver package. Its factory only delegates to the in-repo deterministic fakeDriver; it exists to prove the generic { use, options } loading path.",
-  "exports": { ".": "./index.mjs" }
-}

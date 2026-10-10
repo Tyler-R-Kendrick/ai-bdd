@@ -12,3 +12,5 @@ packages/testing/.quickstart/
 *.received.*
 .stryker-tmp/
 reports/
+.stryker-tmp/
+reports/
