@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+.ai-bdd/runs/
+.ai-bdd/cache/
+.ai-bdd/report/
+test-results/
+playwright-report/

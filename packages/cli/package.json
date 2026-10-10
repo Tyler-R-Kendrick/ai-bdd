@@ -1,0 +1,45 @@
+{
+  "name": "@ai-bdd/cli",
+  "version": "0.1.0",
+  "description": "ai-bdd command line",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "bin": {
+    "ai-bdd": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@ai-bdd/sdk": "workspace:*",
+    "commander": "^15.0.0"
+  },
+  "peerDependencies": {
+    "@ai-bdd/driver-playwright": "workspace:*",
+    "@ai-bdd/models-ai-sdk": "workspace:*",
+    "@ai-bdd/testing": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@ai-bdd/driver-playwright": {
+      "optional": true
+    },
+    "@ai-bdd/models-ai-sdk": {
+      "optional": true
+    },
+    "@ai-bdd/testing": {
+      "optional": true
+    }
+  }
+}
