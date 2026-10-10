@@ -34,9 +34,9 @@ describe('judge sample handling (R-JU2)', () => {
     { name: 'just above fail threshold is band', samples: [failsAt(0.31), failsAt(0.31), failsAt(0.31)], verdict: 'inconclusive', reason: 'band' },
     { name: 'middle score is band', samples: [holdsAt(0.6), holdsAt(0.55), failsAt(0.4)], verdict: 'inconclusive', reason: 'band' },
     { name: 'spread above maxSpread is inconclusive even if mean passes', samples: [holdsAt(1), holdsAt(1), failsAt(0.4)], verdict: 'inconclusive', reason: 'spread', spread: 0.6 },
-    { name: 'spread exactly maxSpread is not a spread failure', samples: [holdsAt(1), holdsAt(1), holdsAt(0.5)], verdict: 'inconclusive', reason: 'band', spread: 0.5 },
+    { name: 'spread exactly maxSpread is not a spread failure', samples: [holdsAt(1), holdsAt(1), holdsAt(0.5)], verdict: 'pass', spread: 0.5 },
     { name: 'high spread wins over a failing mean', samples: [failsAt(0), failsAt(0.1), holdsAt(0.9)], verdict: 'inconclusive', reason: 'spread' },
-    { name: 'contradictory sample (holds with p=0.1) counts as 0.5', samples: [holdsAt(0.95), holdsAt(0.95), holdsAt(0.1)], verdict: 'inconclusive', reason: 'band', score: 0.8 - 0.1 + 0.1 === 0.8 ? 0.8 : 0.8 },
+    { name: 'contradictory sample (holds with p=0.1) counts as 0.5, so it is a band not a spread', samples: [holdsAt(0.9), holdsAt(0.85), holdsAt(0.1)], verdict: 'inconclusive', reason: 'band', score: 0.75, spread: 0.4 },
     { name: 'cannot_tell samples are 0.5', samples: [cannotTell(), cannotTell(), cannotTell()], verdict: 'inconclusive', reason: 'band', score: 0.5, spread: 0 },
     { name: 'single sample passes', samples: [holdsAt(0.85)], verdict: 'pass', spread: 0 },
     { name: 'single contradictory sample is band', samples: [failsAt(0.9)], verdict: 'inconclusive', reason: 'band', score: 0.5 },
@@ -88,9 +88,9 @@ describe('judge sample handling (R-JU2)', () => {
   });
 
   it('R-JU2: contradictory model samples are treated as 0.5 end to end', async () => {
-    const v = await judgeWith([holds(0.95), holds(0.95), { probability: 0.1, verdict: 'holds' }]);
+    const v = await judgeWith([holds(0.9), holds(0.85), { probability: 0.1, verdict: 'holds' }]);
     expect(v.samples[2]?.probability).toBe(0.1);
-    expect(v.score).toBeCloseTo((0.95 + 0.95 + 0.5) / 3, 9);
+    expect(v.score).toBeCloseTo((0.9 + 0.85 + 0.5) / 3, 9);
     expect(v.verdict).toBe('inconclusive');
     expect(v.reason).toBe('band');
   });

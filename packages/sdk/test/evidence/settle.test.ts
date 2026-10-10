@@ -82,12 +82,12 @@ describe('settle (R-RN1)', () => {
 
   it('R-RN1 pixel re-check: a differing treeHash keeps polling until a pixel observation agrees', async () => {
     const clock = fakeClock();
-    // First pixel observation reports a changed tree; later ones agree with the settled tree.
+    // The tree is 'A' on the first stable poll, but the first pixel observation already sees 'B'.
     let pixelCalls = 0;
     const session = scriptedSession((_i, pixels) => {
       if (!pixels) return obs(pixelCalls === 0 ? 'A' : 'B');
       pixelCalls += 1;
-      return obs(pixelCalls === 1 ? 'B' : 'B');
+      return obs('B');
     });
     const r = await createSettler({ clock }).settle(session, OPTS, { pixels: true });
     expect(r.settled).toBe(true);
