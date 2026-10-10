@@ -64,7 +64,6 @@
     "name": "Email",
     "states": {},
     "depth": 1,
-    "value": "",
     "parentRef": "e7"
   },
   {
@@ -73,7 +72,6 @@
     "name": "Password",
     "states": {},
     "depth": 1,
-    "value": "",
     "parentRef": "e7"
   },
   {
