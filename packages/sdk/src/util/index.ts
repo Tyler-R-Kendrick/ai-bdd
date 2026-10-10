@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { lstat, mkdir, open, realpath, rename, rm } from 'node:fs/promises';
+import { lstat, mkdir, open, readdir, realpath, rename, rm } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { AiBddError, type JsonValue, type ObservedNode, type Policy, type Sha256 } from '../contracts/index.ts';
 
@@ -177,8 +177,46 @@ export async function assertInsideRealRoot(target: string, root?: string): Promi
   }
 }
 
-/** Write via temp file + fsync + rename. Refuses to write through a symlink that leaves the root (see {@link assertInsideRealRoot}). */
-export async function atomicWriteFile(path: string, data: string | Uint8Array, opts: { root?: string } = {}): Promise<void> {
+/** `<target>.<pid>.<uuid>.tmp`, as written by {@link atomicWriteFile}. */
+const TEMP_NAME = /\.(\d+)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
+
+function processIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EPERM'; // exists, but belongs to someone else
+  }
+}
+
+/**
+ * Removes the temp files that interrupted atomic writes (a killed process) left in `dir`: files named by
+ * {@link atomicWriteFile} whose owning process no longer exists. Temp files of live processes (concurrent writers,
+ * including this one) are never touched. Best effort: never throws. Returns the number of files removed.
+ */
+export async function sweepStaleTemps(dir: string): Promise<number> {
+  let removed = 0;
+  try {
+    for (const name of await readdir(dir)) {
+      const m = TEMP_NAME.exec(name);
+      if (m === null) continue;
+      const pid = Number(m[1]);
+      if (pid === process.pid || processIsAlive(pid)) continue;
+      await rm(resolve(dir, name), { force: true });
+      removed += 1;
+    }
+  } catch {
+    // a vanishing directory or a race with another sweeper is not an error
+  }
+  return removed;
+}
+
+/**
+ * Write via temp file + fsync + rename. Refuses to write through a symlink that leaves the root (see {@link assertInsideRealRoot}).
+ * With `sweep`, temp files left next to the target by processes that died mid-write are removed afterwards, so interrupted runs
+ * never leave debris in directories that are committed to a repository.
+ */
+export async function atomicWriteFile(path: string, data: string | Uint8Array, opts: { root?: string; sweep?: boolean } = {}): Promise<void> {
   await assertInsideRealRoot(dirname(path), opts.root);
   await mkdir(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.${randomUUID()}.tmp`;
@@ -195,6 +233,34 @@ export async function atomicWriteFile(path: string, data: string | Uint8Array, o
     await rm(tmp, { force: true });
     throw err;
   }
+  if (opts.sweep === true) await sweepStaleTemps(dirname(path));
+}
+
+/**
+ * Settles with `promise`, or rejects with `ABORTED` as soon as `signal` fires. The promise itself keeps running (a hung call
+ * cannot be cancelled from outside); its late result or error is dropped. Without a signal the promise is returned as is.
+ */
+export function raceAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined, what: string): Promise<T> {
+  if (signal === undefined) return promise;
+  const aborted = (): AiBddError => new AiBddError('ABORTED', `${what} aborted`);
+  if (signal.aborted) {
+    promise.catch(() => undefined);
+    return Promise.reject(aborted());
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(aborted());
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (err: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(err);
+      },
+    );
+  });
 }
 
 export function toPosix(p: string): string {

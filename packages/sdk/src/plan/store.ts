@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { readFile, readdir, rm } from 'node:fs/promises';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   AiBddError,
   type CreatePlanStore,
@@ -9,7 +9,7 @@ import {
   type LoadPlansSync,
   type PlanStore,
 } from '../contracts/index.ts';
-import { atomicWriteFile, stableJson, toPosix } from '../util/index.ts';
+import { assertInsideRealRoot, atomicWriteFile, stableJson, toPosix } from '../util/index.ts';
 import { parseDocPlan } from './schema.ts';
 
 const SUFFIX = '.plan.json';
@@ -150,7 +150,8 @@ export const createPlanStore: CreatePlanStore = ({ dir, readOnly }) => {
       const file = planPathFor(dir, plan.docUri);
       const parsed = parseDocPlan(plan);
       if (!parsed.ok) throw new AiBddError('PLAN_CORRUPT', `refusing to write ${parsed.message}`, { details: { docUri: plan.docUri } });
-      await atomicWriteFile(file, stableJson(parsed.plan as unknown as JsonValue), { root: resolve(dir) });
+      await assertInsideRealRoot(dirname(file)); // a plans directory that is itself a symlink out of the project must not receive plans
+      await atomicWriteFile(file, stableJson(parsed.plan as unknown as JsonValue), { root: resolve(dir), sweep: true });
     },
     async remove(docUri) {
       if (readOnly) denyWrite('remove');

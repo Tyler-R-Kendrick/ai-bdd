@@ -1,4 +1,4 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import {
   AiBddError,
@@ -12,8 +12,9 @@ import {
   type ScenarioRunOptions,
   type ScenarioTarget,
 } from '../contracts/index.ts';
-import { assertInsideRealRoot, uuidv7 } from '../util/index.ts';
+import { assertInsideRealRoot, atomicWriteFile, uuidv7 } from '../util/index.ts';
 import { compile } from './compile.ts';
+import { assertOutputDirs } from './guard.ts';
 import type { Core } from './core.ts';
 import { buildUsage, computeCoverage, computeRunExitCode, countTotals } from './report.ts';
 import { selectTargets } from './scenarios.ts';
@@ -39,12 +40,15 @@ export async function runTarget(core: Core, target: ScenarioTarget, opts: Partia
   core.assertOpen();
   const full: RunnerOpts = { updateRecordings: false, strict: false, noAgent: false, audit: false, ...opts };
   guardRecordingsMode(core, full.updateRecordings);
+  await assertOutputDirs(core.config, ['recordings', 'runs', 'cache']);
   core.warnOnce();
   // An adopted session (sessionFactory) never needs a configured driver.
   if (full.sessionFactory === undefined) await core.ensureDrivers(neededDrivers(core, [target], full.driver));
   const runner = await core.sharedRunner();
   return runner.runScenario(target, full);
 }
+
+const REPORT_FILES = ['report.json', 'junit.xml', 'summary.md'];
 
 async function writeReports(core: Core, report: RunReport, outDir: string, names: ReporterName[] | undefined, plans: readonly DocPlan[]): Promise<void> {
   const reporters = core.modules.createReporters(names ?? core.config.reporters);
@@ -57,12 +61,17 @@ async function writeReports(core: Core, report: RunReport, outDir: string, names
       core.log('error', `reporter "${reporter.name}" failed: ${errorMessage(err)}`);
     }
   }
-  // Latest report copy: .ai-bdd/report/ next to the runs dir.
+  // Latest report copy: .ai-bdd/report/ next to the runs dir. Other `ai-bdd run` processes may do the same at the same time, so the
+  // directory is never removed and recreated; each file is replaced atomically (last writer wins) and only report files this run
+  // did not produce are removed.
   const latest = join(dirname(core.config.runsDir), 'report');
-  await rm(latest, { recursive: true, force: true });
+  const existing = await lstat(latest).catch(() => undefined);
+  if (existing !== undefined && !existing.isDirectory()) await rm(latest, { force: true }); // a file or a symlink where the directory belongs
   await assertInsideRealRoot(latest);
   await mkdir(latest, { recursive: true });
-  for (const file of written) await copyFile(file, join(latest, basename(file)));
+  const produced = new Set(written.map((file) => basename(file)));
+  for (const known of REPORT_FILES) if (!produced.has(known)) await rm(join(latest, known), { force: true });
+  for (const file of written) await atomicWriteFile(join(latest, basename(file)), await readFile(file));
 }
 
 /** The run pipeline: frozen check -> optional compile -> select -> runner -> reporters -> RunReport. */
@@ -78,6 +87,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
   const workers = opts.workers ?? config.concurrency.scenarios;
   guardRecordingsMode(core, updateRecordings);
   throwIfAborted(opts.signal);
+  await assertOutputDirs(config, ['plans', 'recordings', 'runs', 'cache']);
 
   const before = core.meter.snapshot();
   const startedAt = new Date(core.clock.now()).toISOString();

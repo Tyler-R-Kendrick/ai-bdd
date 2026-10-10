@@ -92,7 +92,9 @@ What this proves: the directory has not been corrupted or casually edited since 
 
 ## Files and paths
 
-Doc discovery rejects matches outside the project root, including through symlinks (`POLICY_DENIED`). Plan and recording paths are built from doc URIs and scenario ids and reject absolute paths, `..`, backslashes and unsafe characters. Files are written atomically (temp file, rename). Run ids are validated before use.
+Doc discovery rejects matches outside the project root, including through symlinks (`POLICY_DENIED`). Plan and recording paths are built from doc URIs and scenario ids and reject absolute paths, `..`, backslashes and unsafe characters. Files are written atomically (temp file, fsync, rename), so after a crash a file is either the previous complete version or the new complete one. The temp file of a write that was killed halfway (`<name>.<pid>.<uuid>.tmp`) is debris: the next write into the same plan or recordings directory removes the debris of processes that no longer exist. Run ids are validated before use.
+
+Output directories (`planDir`, `recordingsDir`, `runsDir`, `cacheDir`) are checked before anything runs, before any model call: a symlink that leads out of the project is `POLICY_DENIED`, and a file or a symlink loop where a directory belongs is `CONFIG_INVALID`, both exit 2 with the directory named. `report/` (the latest-report copy) is replaced file by file, so concurrent runs of one project never see it half-deleted.
 
 ## Residual risks
 

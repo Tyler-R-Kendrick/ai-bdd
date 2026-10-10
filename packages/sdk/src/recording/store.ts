@@ -100,7 +100,7 @@ export const createRecordingStore: CreateRecordingStore = (opts: { dir: string; 
       const bytes = stableJson(parsed.data as JsonValue);
       const existing = await readIfExists(path);
       if (existing === bytes) return 'unchanged';
-      await atomicWriteFile(path, bytes);
+      await atomicWriteFile(path, bytes, { sweep: true });
       return existing === null ? 'created' : 'updated';
     },
 
