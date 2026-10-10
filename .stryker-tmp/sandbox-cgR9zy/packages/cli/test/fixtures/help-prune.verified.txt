@@ -1,7 +1,0 @@
-Usage: ai-bdd prune [options]
-
-delete recordings whose scenario no longer exists in any plan
-
-Options:
-  --dry-run   list what would be deleted
-  -h, --help  display help for command
