@@ -407,8 +407,28 @@ describe('robustness', () => {
     expect(() => createChunker().chunk(doc, { sectionDepth: 2, maxSectionChars: 100 })).not.toThrow();
   });
 
-  it('R-EX4: deeply nested blocks degrade gracefully', () => {
-    const d = chunkText(`${'> '.repeat(1500)}deep quote\n`);
-    expect(d.chunks.map((c) => [c.kind, c.text])).toEqual([['blockquote', 'deep quote']]);
+  it('R-EX4: lines nested deeper than 100 containers are skipped with a warning and other lines keep their numbers', () => {
+    const d = chunkText(`first\n\n${'> '.repeat(1500)}deep quote\n\nlast\n`);
+    expect(d.chunks.map((c) => [c.text, c.range.startLine])).toEqual([
+      ['first', 1],
+      ['last', 7],
+    ]);
+    expect(d.diagnostics.map((x) => [x.code, x.severity, x.range?.startLine])).toEqual([['DOC_READ_FAILED', 'warning', 3]]);
+    const list = chunkText(`${'- '.repeat(2000)}x\n`);
+    expect(list.chunks).toEqual([]);
+    expect(list.diagnostics).toHaveLength(1);
+  });
+
+  it('R-EX4: moderately deep nesting is parsed normally', () => {
+    const d = chunkText(`${'> '.repeat(40)}deep quote\n\n${'- '.repeat(30)}deep item\n`);
+    expect(d.diagnostics).toEqual([]);
+    expect(d.chunks.map((c) => c.kind)).toEqual(['blockquote', 'listItem']);
+    expect(d.chunks[0]?.text).toBe('deep quote');
+  });
+
+  it('R-EX4: ordinary thematic breaks and numbered lists are not mistaken for deep nesting', () => {
+    const d = chunkText('* * * * * * *\n\n1. a\n   1. b\n\n- - -\n\ntext\n');
+    expect(d.diagnostics).toEqual([]);
+    expect(d.chunks.map((c) => c.text)).toEqual(['a', 'b', 'text']);
   });
 });

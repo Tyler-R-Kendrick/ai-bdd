@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { existsProgram } from './doubles/collaborators.ts';
-import { createHarness, entry, fixtureStep, fuzzyEntry, given, recordingOf, thenStep, when, type Harness } from './doubles/harness.ts';
+import { createHarness, entry, fixtureStep, fuzzyEntry, recordingOf, thenStep, when, type Harness } from './doubles/harness.ts';
 
 const ACT = 'the user clicks Upgrade to Pro';
 const CHECK = 'Plan: Pro';
@@ -297,7 +297,6 @@ describe('judge input (R-JU1, R-JU3)', () => {
 
   it('R-JU3: a tainted unmasked screenshot is withheld from the judge (R-SE2)', async () => {
     const h = createHarness({ steps: [thenStep('Signed in', { nature: 'subjective' })], initialPage: [{ role: 'heading', name: 'Signed in' }] });
-    h.effect('seed', () => undefined);
     const original = h.driver.openSession.bind(h.driver);
     h.driver.openSession = async (o) => {
       const s = await original(o);
@@ -356,8 +355,7 @@ describe('evidence and usage on assertion steps', () => {
     seeded(h);
     const r = await h.run();
     const kinds = r.steps[1]!.evidence.map((e) => e.kind);
-    expect(kinds).toEqual(['observation', 'screenshot'].filter((k) => kinds.includes(k as never)));
-    expect(kinds).toContain('observation');
+    expect(kinds).toEqual(['observation']); // deterministic checks request no pixels, so there is no screenshot
   });
 
   it('R-EV1: a failing evidence store never changes the step outcome', async () => {
@@ -391,6 +389,5 @@ describe('evidence and usage on assertion steps', () => {
     await h.run();
     expect(h.saved?.steps[1]?.check?.verified).toEqual({ afterTrue: true, probeTrue: true, beforeFalse: true, judgePassed: true });
     expect(h.saved?.steps[1]?.check?.classification).toBe('change');
-    expect(given('x').kind).toBe('given');
   });
 });
