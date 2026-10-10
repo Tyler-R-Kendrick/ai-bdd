@@ -98,7 +98,9 @@ describe('fuzz: resolveConfig', () => {
           // A success is a complete ResolvedConfig
           expect(r.projectRoot).toBe(ROOT);
           expect(r.judge.failThreshold).toBeLessThan(r.judge.passThreshold);
-          expect(r.policy.allowHosts.length).toBeGreaterThan(0);
+          // an explicit empty list is legitimate ("allow nothing", plus the baseURL host): the invariant is well-formed, duplicate-free entries
+          expect(r.policy.allowHosts.every((h) => typeof h === 'string' && h.length > 0)).toBe(true);
+          expect(new Set(r.policy.allowHosts).size).toBe(r.policy.allowHosts.length);
         } catch (e) {
           expect(e instanceof AiBddError, describeThrown(e)).toBe(true);
           expect((e as AiBddError).code, describeThrown(e)).toBe('CONFIG_INVALID');
@@ -233,5 +235,13 @@ describe('fuzz: loadConfig', () => {
       }),
       params({ scale: 0.3 }),
     );
+  });
+});
+
+describe('allowHosts replaces the defaults', () => {
+  it('an empty list allows nothing, and the baseURL host is still added', () => {
+    expect(resolveConfig({ policy: { allowHosts: [] } } as UserConfig, OPTS).policy.allowHosts).toEqual([]);
+    expect(resolveConfig({ policy: { allowHosts: [] }, baseURL: 'https://App.Example.com/x' } as UserConfig, OPTS).policy.allowHosts).toEqual(['app.example.com']);
+    expect(resolveConfig({ baseURL: 'https://app.example.com' } as UserConfig, OPTS).policy.allowHosts).toEqual(['localhost', '127.0.0.1', '[::1]', 'app.example.com']);
   });
 });
