@@ -6,9 +6,10 @@ const report = process.env.FAKE_APP_REPORT;
 const argv = process.argv.slice(2);
 const ignoreTerm = argv.includes('--ignore-term');
 
-if (report) writeFileSync(report, JSON.stringify({ pid: process.pid, argv, cwd: process.cwd(), env: process.env }));
 process.on('SIGTERM', () => {
   if (report) appendFileSync(`${report}.term`, 'term\n');
   if (!ignoreTerm) process.exit(0);
 });
+// The report is written last: once it exists the SIGTERM handler is in place.
+if (report) writeFileSync(report, JSON.stringify({ pid: process.pid, argv, cwd: process.cwd(), env: process.env }));
 setInterval(() => {}, 1000);

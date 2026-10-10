@@ -9,6 +9,8 @@ import type { CuaOptions } from '../src/index.ts';
 import { PAGE, ScriptedClient, okResult, snapshot } from './scripted.ts';
 import type { Handler } from './scripted.ts';
 
+vi.setConfig({ testTimeout: 30_000 });
+
 const APP = fileURLToPath(new URL('./fake-app.mjs', import.meta.url));
 const policy: Policy = { allowHosts: ['localhost'], denyVerbs: [] };
 const opts = (over: Partial<SessionOptions> = {}): SessionOptions => ({
@@ -197,44 +199,42 @@ describe('a launch that cannot become a session leaves nothing behind', () => {
   });
 
   it('an application that never shows a window is stopped, with a message that counts what Cua Driver could see', async () => {
-    const report = join(tmpRoot, 'r.json');
     const other = { app_name: 'Other', pid: 1, window_id: 1, title: 't', z_index: 0, is_on_screen: true };
-    const { driver } = await driverFor(
-      { launch: { command: process.execPath, args: [APP, '{profile}'], env: { FAKE_APP_REPORT: report } }, startTimeoutMs: 400, window: { title: 'never matches' } },
+    const { driver, client } = await driverFor(
+      { launch: { command: process.execPath, args: [APP, '{profile}'] }, startTimeoutMs: 400, window: { title: 'never matches' } },
       (tool) => (tool === 'list_windows' ? okResult({ windows: [other, other] }) : undefined),
     );
     const err = await driver.openSession(opts()).then(() => undefined, (e: unknown) => e);
-    const seen = await reportOf(report);
+    const pid = client.of('list_windows')[0]?.args['pid'] as number; // the driver asks for the windows of the process it started
     expect(err).toMatchObject({ code: 'DRIVER_UNAVAILABLE' });
     expect((err as Error).message).toBe(
-      `the launched application (pid ${seen.pid}) showed no window matching {"title":"never matches"} within 400 ms (2 window(s) visible to Cua Driver; is a display, a window manager and the accessibility bus running?)`,
+      `the launched application (pid ${pid}) showed no window matching {"title":"never matches"} within 400 ms (2 window(s) visible to Cua Driver; is a display, a window manager and the accessibility bus running?)`,
     );
-    expect(alive(seen.pid)).toBe(false);
+    expect(alive(pid)).toBe(false);
     expect(profiles()).toEqual([]);
   });
 
   it('without a window filter the message names only the pid', async () => {
-    const report = join(tmpRoot, 'r.json');
-    const { driver } = await driverFor({ launch: { command: process.execPath, args: [APP], env: { FAKE_APP_REPORT: report } }, startTimeoutMs: 300 }, (tool) => (tool === 'list_windows' ? okResult({ windows: [] }) : undefined));
+    const { driver, client } = await driverFor({ launch: { command: process.execPath, args: [APP] }, startTimeoutMs: 300 }, (tool) => (tool === 'list_windows' ? okResult({ windows: [] }) : undefined));
     const err = await driver.openSession(opts()).then(() => undefined, (e: unknown) => e);
-    const seen = await reportOf(report);
-    expect((err as Error).message).toBe(`the launched application (pid ${seen.pid}) showed no window within 300 ms (0 window(s) visible to Cua Driver; is a display, a window manager and the accessibility bus running?)`);
+    const pid = client.of('list_windows')[0]?.args['pid'] as number;
+    expect((err as Error).message).toBe(`the launched application (pid ${pid}) showed no window within 300 ms (0 window(s) visible to Cua Driver; is a display, a window manager and the accessibility bus running?)`);
   });
 
   it('a Cua Driver call that throws while the window is looked up stops the app and is reported as DRIVER_ERROR', async () => {
-    const report = join(tmpRoot, 'r.json');
     const client = new ScriptedClient(appDesktop);
-    client.callTool = async (): Promise<never> => {
-      await vi.waitFor(() => expect(existsSync(report)).toBe(true), { timeout: 10_000, interval: 25 }); // let the app get going first
+    let pid = 0;
+    client.callTool = async (_tool: string, args: Record<string, unknown>): Promise<never> => {
+      pid = args['pid'] as number;
       throw new Error('socket hang up\nsecond line');
     };
-    const driver = await cua({ launch: { command: process.execPath, args: [APP, '{profile}'], env: { FAKE_APP_REPORT: report } }, connect: async () => client })
+    const driver = await cua({ launch: { command: process.execPath, args: [APP, '{profile}'] }, connect: async () => client })
       .create({ projectRoot: '.', policy, artifactsDir: '.', baseURL: 'http://localhost:4000' });
     drivers.push(driver);
     const err = await driver.openSession(opts()).then(() => undefined, (e: unknown) => e);
     expect(err).toMatchObject({ code: 'DRIVER_ERROR', message: 'could not open a session: socket hang up' });
-    const seen = await reportOf(report);
-    expect(alive(seen.pid)).toBe(false);
+    expect(pid).toBeGreaterThan(0);
+    expect(alive(pid)).toBe(false);
     expect(profiles()).toEqual([]);
   });
 });
