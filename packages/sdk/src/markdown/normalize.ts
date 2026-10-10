@@ -102,7 +102,7 @@ export interface Neutralized {
   exhausted: boolean;
 }
 
-/** Characters that start a new block when they begin a line: a list marker that interrupts a paragraph (`-`, `+`, `*`, `1.`, `1)`). */
+/** A line that opens a list item that can interrupt a paragraph (`-`, `+`, `*` or `1.` / `1)` followed by a space and content). */
 function startsListItem(text: string, from: number, to: number): boolean {
   let i = from;
   let spaces = 0;
@@ -163,7 +163,7 @@ export function neutralizeHostile(text: string): Neutralized {
   while (start <= text.length) {
     let end = text.indexOf('\n', start);
     if (end === -1) end = text.length;
-    let line: string | undefined;
+    let line: string[] | undefined;
 
     // leading indentation
     let i = start;
@@ -184,9 +184,8 @@ export function neutralizeHostile(text: string): Neutralized {
         col += text.charCodeAt(k) === 9 ? 4 : 1;
         k++;
       }
-      let rest = '';
-      for (let j = k; j < i; j++) rest += swap(text.charAt(j));
-      line = text.slice(start, k) + rest + text.slice(i, end);
+      line = text.slice(start, end).split('');
+      for (let j = k; j < i; j++) line[j - start] = swap(text.charAt(j));
       indented.push(lineNo);
     }
 
@@ -202,19 +201,38 @@ export function neutralizeHostile(text: string): Neutralized {
           docActive++;
           continue;
         }
-        if (line === undefined) line = text.slice(start, end);
-        const at = j - start;
-        line = line.slice(0, at) + swap(text.charAt(j)) + line.slice(at + 1);
+        if (line === undefined) line = text.slice(start, end).split('');
+        line[j - start] = swap(text.charAt(j));
         delimiters++;
       }
     }
 
     if (line !== undefined) {
       if (out === undefined) out = text.split('\n');
-      out[lineNo - 1] = line;
+      out[lineNo - 1] = line.join('');
     }
     lineNo++;
     start = end + 1;
   }
   return { text: out === undefined ? text : out.join('\n'), restore, indented, delimiters, exhausted };
+}
+
+/** Maps placeholder characters back to the original text in every string field of the parsed tree. Iterative. */
+export function restorePlaceholders(root: unknown, restore: ReadonlyMap<string, string>): void {
+  if (restore.size === 0) return;
+  const chars = [...restore.keys()].map((c) => c.replace(/[\\\]^-]/g, '\\$&')).join('');
+  const re = new RegExp(`[${chars}]`, 'g');
+  const fix = (v: string): string => v.replace(re, (c) => restore.get(c) ?? c);
+  const fields = ['value', 'alt', 'title', 'url', 'label', 'lang', 'meta'] as const;
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop() as Record<string, unknown> | null;
+    if (node === null || typeof node !== 'object') continue;
+    for (const f of fields) {
+      const v = node[f];
+      if (typeof v === 'string') node[f] = fix(v);
+    }
+    const kids = node['children'];
+    if (Array.isArray(kids)) for (const k of kids) stack.push(k);
+  }
 }

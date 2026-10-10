@@ -24,7 +24,7 @@ import {
   type DirectiveSet,
 } from './directives.ts';
 import { parseFrontmatter } from './frontmatter.ts';
-import { limitNesting, MAX_CONTAINER_DEPTH, normalizeDocText } from './normalize.ts';
+import { limitNesting, MAX_CONTAINER_DEPTH, MAX_DOC_CHARS, neutralizeHostile, normalizeDocText, restorePlaceholders } from './normalize.ts';
 import { buildSections, type Member } from './sections.ts';
 import type { MdNode } from './text.ts';
 import { rangeOf, Walker } from './walker.ts';
@@ -54,8 +54,22 @@ function emptyDoc(doc: SourceDoc, diagnostics: Diagnostic[]): ChunkedDoc {
 
 function chunkDocument(doc: SourceDoc, rawOpts: ChunkOptions): ChunkedDoc {
   const opts = sanitize(rawOpts);
-  const limited = limitNesting(normalizeDocText(typeof doc.text === 'string' ? doc.text : ''));
-  const text = limited.text;
+  const raw = typeof doc.text === 'string' ? doc.text : '';
+  if (raw.length > MAX_DOC_CHARS) {
+    return emptyDoc(doc, [
+      {
+        code: 'DOC_READ_FAILED',
+        severity: 'error',
+        message: `document is ${raw.length} characters; the limit is ${MAX_DOC_CHARS}. Split it into smaller documents`,
+        uri: doc.uri,
+        details: { characters: raw.length, limit: MAX_DOC_CHARS },
+      },
+    ]);
+  }
+  const limited = limitNesting(normalizeDocText(raw));
+  const neutral = neutralizeHostile(limited.text);
+  if (neutral.exhausted) throw new Error('document uses every private-use character and exceeds the inline budgets');
+  const text = neutral.text;
   const diagnostics: Diagnostic[] = [];
   const diag = (code: ErrorCode, message: string, range?: SourceRange, details?: JsonValue): void => {
     const d: Diagnostic = { code, severity: 'warning', message, uri: doc.uri };
@@ -73,7 +87,20 @@ function chunkDocument(doc: SourceDoc, rawOpts: ChunkOptions): ChunkedDoc {
     });
   }
 
+  if (neutral.delimiters > 0) {
+    diag('DOC_READ_FAILED', `${neutral.delimiters} inline delimiter(s) beyond the per-paragraph budget are treated as literal text`);
+  }
+  for (const line of neutral.indented) {
+    diag('DOC_READ_FAILED', 'line indentation exceeds the supported depth; its leading whitespace is treated as text', {
+      startLine: line,
+      startColumn: 1,
+      endLine: line,
+      endColumn: 1,
+    });
+  }
+
   const tree = parseTree(text);
+  restorePlaceholders(tree, neutral.restore);
   const children = tree.children ?? [];
 
   // frontmatter
