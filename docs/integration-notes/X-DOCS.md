@@ -1,6 +1,8 @@
 # X-DOCS integration notes
 
-Owner: `README.md`, `docs/{concepts,authoring-docs,review-guide,drivers,sdk,cli,security,faq}.md`, `scripts/check-docs.mjs`, `scripts/test/check-docs.test.mjs`. Nothing outside these paths was edited.
+Owner: `README.md`, `docs/{concepts,authoring-docs,review-guide,drivers,sdk,cli,security,faq}.md`, `scripts/check-docs.mjs`, `scripts/test/check-docs.test.mjs`.
+
+> **Update (fake mode removed).** ai-bdd has no fake mode. The `in=project` harness below no longer sets environment variables: the checker generates a test config with `writeTestConfig` (from `@ai-bdd/testing`; deterministic doubles plugged in through the normal `drivers`/`models` keys, extending the corpus's real config) and its `ai-bdd` shim injects `-c <that file>` before the arguments of every documented command. **This is the checker's own harness, not a product feature.** The README quickstart and any docs that need real models or drivers are not tagged `sh run`; they cannot run in CI. Nothing outside these paths was edited.
 
 ## `scripts/check-docs.mjs`
 
@@ -11,7 +13,7 @@ node scripts/check-docs.mjs [--root <dir>] [--no-ts] [--no-run] [--no-links] [re
 Scans `README.md` and `docs/*.md` (not `errors.md`, `verification-log.md`, `adversarial-findings.md`, nor `docs/integration-notes/`):
 
 1. every fenced block tagged `ts check` is typechecked in one `tsc --noEmit` run with the repository's `tsconfig.base.json` (NodeNext, `source` condition, strict). `@playwright/test` is mapped to `packages/playwright-test/node_modules/@playwright/test`. Errors are reported as `docs/x.md:<line in the markdown file>`.
-2. every block tagged `sh run` runs with `bash -e -o pipefail`. Blocks of one file run in document order and share a sandbox; each file gets a fresh one. Tags: `sh run` (cwd is the sandbox repository root), `sh run in=project` (cwd is a fresh copy of `packages/testing/corpus` at `packages/testing/.docs-project`, with `AI_BDD_FAKE=1`, `AI_BDD_FAKE_RULES`, `ACME_ADMIN_PASSWORD` and an `ai-bdd` shim on PATH), `exit=N` (expected exit status). The first failing block of a file stops that file.
+2. every block tagged `sh run` runs with `bash -e -o pipefail`. Blocks of one file run in document order and share a sandbox; each file gets a fresh one. Tags: `sh run` (cwd is the sandbox repository root), `sh run in=project` (cwd is a fresh copy of `packages/testing/corpus` at `packages/testing/.docs-project`, with `ACME_ADMIN_PASSWORD`, a generated `ai-bdd.config.test.mjs` and an `ai-bdd` shim on PATH that runs `ai-bdd -c <generated config> ...`), `exit=N` (expected exit status). The first failing block of a file stops that file.
 3. every relative link and `#anchor` (GitHub slug rules) resolves.
 
 Unknown tags (`ts check foo`, `py run`) are errors.

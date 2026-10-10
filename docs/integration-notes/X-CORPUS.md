@@ -8,11 +8,11 @@ Owned paths: `packages/testing/corpus/**`, `tests/acceptance/**`, `tests/live/**
 
 - `packages/testing/corpus/docs/*.md` (billing, todos, checkout, login, reports, release-notes) and `ai-bdd.config.mjs`.
   The config registers `acmeFixtures`, secret `adminPassword -> ACME_ADMIN_PASSWORD`, an app `context` string and reads an optional
-  `.corpus-options.json` next to it (written by the harness so spawned CLI processes can be tuned). It registers no drivers or
-  models: tests pass them to `createEngine`, `AI_BDD_FAKE=1` injects them in the CLI. `baseURL` defaults to `http://localhost:4173`
-  (fake driver) or `$ACME_URL`.
+  `.corpus-options.json` next to it (written by the harness so spawned CLI processes can be tuned). **Updated:** the config is now a REAL one (Playwright
+  driver and AI SDK models via `{ use }`); tests generate `ai-bdd.config.test.mjs` with `writeTestConfig`, which extends it and plugs in the
+  fake driver and fake models, and select it with `-c`. `baseURL` defaults to `http://localhost:4173` or `$ACME_URL`.
 - `packages/testing/corpus/fake-model/*.json` is the complete base rule set (extract for every section, act scripts, checkgen
-  programs, judge sample pairs). Point `AI_BDD_FAKE_RULES` at this directory for the README quickstart.
+  programs, judge sample pairs). Pass this directory as `rulesDir` to `writeTestConfig` / `createFakeModels` (the README quickstart now uses real models and does not need it).
 - `packages/testing/corpus/fake-model-variants/<name>/*.json` are overlays that tests layer IN FRONT of the base set (first match wins):
   `v2-heal`, `bug-heal-done`, `injection-navigate`, `canary`, `edit-upgrade-step`, `bad-extract-hallucination`,
   `bad-extract-injection`, `bad-extract-schema-repair`, `bad-checkgen-non-discriminative`, `bad-checkgen-retry`,
@@ -35,7 +35,7 @@ Owned paths: `packages/testing/corpus/**`, `tests/acceptance/**`, `tests/live/**
   On the fake driver this step is honestly fuzzy (`no-observable-effect`).
 - Judge rules key on evidence in `afterTreeText` (a pass sample set when the evidence is present, a fail sample set otherwise), so app
   regressions (`bug-upgrade-noop`) fail the judge instead of passing silently.
-- `AI_BDD_FAKE_LOG`/`logPath` JSONL is only enabled where a test scans it (secrets, CLI).
+- The `logPath` JSONL (`writeTestConfig({ logPath })`; formerly also an environment variable) is only enabled where a test scans it (secrets, CLI).
 
 ### Matrix coverage (fake driver; P rows also under real Chromium with identical statuses)
 
@@ -64,8 +64,8 @@ Playwright tests skip with a visible reason when no Chromium is found; `AI_BDD_R
 3. Under `sessionFactory` (P-PWTEST) the confirm run is handed the same page, which already holds the upgraded state, so a
    characterization run in read-write mode ends in `CHARACTERIZATION_UNSTABLE`. `playwright.m22` runs the Playwright side with
    `AI_BDD_RECORDINGS=read-only` to work around it; the CLI baseline runs read-write.
-4. With `AI_BDD_FAKE=1`, `ai-bdd -c missing.config.mjs status` exits 0 (config silently replaced by defaults); without fake mode it
-   exits 2. An explicit `-c` that does not exist arguably should fail in both.
+4. (Historical: with the removed fake mode, `ai-bdd -c missing.config.mjs status` exited 0 because the config was silently replaced by
+   defaults. Now an explicit `-c` that does not exist fails with `CONFIG_NOT_FOUND`, exit 2.)
 5. Playwright Test workers create the engine with `cwd = process.cwd()`; the M22 config pins `planDir/recordingsDir/runsDir/cacheDir`
    to the temp project explicitly.
 6. Checkgen fake rules emit the contract shape (`{classification, predicates}` with optional keys omitted); S-ASSERT accepts it.
