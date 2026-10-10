@@ -6,6 +6,7 @@ import type {
 import { checkNavigation, renderTree, sha256Hex, treeHash, uuidv7 } from '@ai-bdd/sdk';
 import type { BrowserContext, CDPSession, Frame, Locator, Page, Request, Route } from 'playwright-core';
 import { parseAriaSnapshot, pruneWrappers } from './aria.ts';
+import { windowOpenGuardScript } from './guard.ts';
 
 export const DRIVER_ID = 'playwright';
 /** Bump when the observation grammar or ref scheme changes (recordings key on it). */
@@ -203,7 +204,29 @@ export class PlaywrightSession implements DriverSession {
     }
   }
 
+  /**
+   * Borrowed pages (`sessionFromPage`) cannot get the context-wide init script the driver installs in contexts it owns, so
+   * the guard is installed on the page itself: for every later document of the page (and its frames) and, best effort,
+   * for the documents it already shows. Residual: popups opened by other means than the guarded gestures are still only
+   * detected after their first request, and the init script outlives the session on that page (it is disabled in the
+   * current document by `close()`, and dies with the page).
+   */
+  private async installPageGuard(): Promise<void> {
+    const script = windowOpenGuardScript(this.policy.allowHosts);
+    try {
+      await this.page.addInitScript(script);
+    } catch {
+      return; // page already closed
+    }
+    for (const frame of this.page.frames()) await frame.evaluate(script).catch(() => undefined);
+  }
+
+  private async releasePageGuard(): Promise<void> {
+    for (const frame of this.page.frames()) await frame.evaluate('window.__aiBddGuardOff = true').catch(() => undefined);
+  }
+
   async install(): Promise<void> {
+    if (!this.internals.ownsContext) await this.installPageGuard();
     await this.context.route('**/*', this.routeHandler);
     await this.attachRedirectGuard(this.page);
     this.context.on('page', this.pageHandler);
@@ -612,6 +635,7 @@ export class PlaywrightSession implements DriverSession {
     this.context.off('page', this.pageHandler);
     this.context.off('request', this.requestHandler);
     for (const cdp of this.cdpSessions) await cdp.detach().catch(() => undefined);
+    if (!this.internals.ownsContext) await this.releasePageGuard();
     try {
       if (this.internals.ownsContext) await this.context.close();
       else await this.context.unroute('**/*', this.routeHandler);
