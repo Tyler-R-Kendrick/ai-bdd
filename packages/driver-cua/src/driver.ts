@@ -143,7 +143,7 @@ class CuaDriver implements Driver {
     let lastSeen = 0;
     for (;;) {
       const res = await client.callTool('list_windows', pid === undefined ? {} : { pid });
-      if (res.failed) throw new AiBddError('DRIVER_ERROR', `list_windows: ${res.text.split('\n')[0] ?? 'failed'}`);
+      if (res.failed) throw new AiBddError('DRIVER_ERROR', `list_windows: ${res.text.split('\n')[0] || 'failed'}`);
       const candidates = windowRecords(res.structured).filter((w) => (pid === undefined || w.pid === pid) && this.matches(w));
       lastSeen = windowRecords(res.structured).length;
       const best = candidates.sort((a, b) => Number(b.onScreen) - Number(a.onScreen) || b.z - a.z)[0];
