@@ -1,20 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { MockLanguageModelV4, MockProviderV4 } from 'ai/test';
+import type { MockLanguageModelV4 } from 'ai/test';
 import { aiSdkModels } from '../src/index.ts';
-import { mockModel, request, textResult, toolCallResult, usage } from './helpers.ts';
+import { ACT_TOOLS, mockModel, mockProvider, request, textResult, toolCallResult, usage } from './helpers.ts';
 
 function setOf(m: MockLanguageModelV4, opts?: { maxRetries?: number }) {
   return aiSdkModels({ extract: m, act: m, checkgen: m, judge: m }, opts);
 }
-
-const ACT_TOOLS = [
-  {
-    name: 'click',
-    description: 'Click an element',
-    inputSchema: { type: 'object', properties: { ref: { type: 'string' } }, required: ['ref'] },
-  },
-  { name: 'complete_step', description: 'Finish', inputSchema: { type: 'object', properties: {} } },
-] as const;
 
 describe('request mapping', () => {
   it('maps system, text messages, and ids', async () => {
@@ -69,7 +60,7 @@ describe('request mapping', () => {
           { role: 'assistant', content: [{ type: 'text', text: 'clicking' }], toolCalls: [{ id: 'c1', name: 'click', args: { ref: 'e1' } }] },
           { role: 'tool', toolCallId: 'c1', toolName: 'click', result: { ok: true } },
         ],
-        tools: [...ACT_TOOLS],
+        tools: ACT_TOOLS,
       }),
     );
     const prompt = m.doGenerateCalls[0]!.prompt;
@@ -88,16 +79,16 @@ describe('request mapping', () => {
 
   it('passes tools as schema-only function tools with the given toolChoice', async () => {
     const m = mockModel(toolCallResult([{ id: 'call-1', name: 'click', input: { ref: 'e7' } }]));
-    const res = await setOf(m).act.generate(request({ tools: [...ACT_TOOLS], toolChoice: 'required' }));
+    const res = await setOf(m).act.generate(request({ tools: ACT_TOOLS, toolChoice: 'required' }));
     const call = m.doGenerateCalls[0]!;
     expect(call.tools).toEqual([
       {
         type: 'function',
         name: 'click',
         description: 'Click an element',
-        inputSchema: ACT_TOOLS[0].inputSchema,
+        inputSchema: ACT_TOOLS[0]!.inputSchema,
       },
-      { type: 'function', name: 'complete_step', description: 'Finish', inputSchema: ACT_TOOLS[1].inputSchema },
+      { type: 'function', name: 'complete_step', description: 'Finish', inputSchema: ACT_TOOLS[1]!.inputSchema },
     ]);
     expect(call.toolChoice).toEqual({ type: 'required' });
     expect(res.toolCalls).toEqual([{ id: 'call-1', name: 'click', args: { ref: 'e7' } }]);
@@ -113,7 +104,7 @@ describe('request mapping', () => {
         { id: 'b', name: 'complete_step', input: {} },
       ]),
     );
-    const res = await setOf(m).act.generate(request({ tools: [...ACT_TOOLS], toolChoice: 'auto' }));
+    const res = await setOf(m).act.generate(request({ tools: ACT_TOOLS, toolChoice: 'auto' }));
     expect(res.toolCalls.map((c) => c.id)).toEqual(['a', 'b']);
     expect(m.doGenerateCalls).toHaveLength(1);
     expect(m.doGenerateCalls[0]!.toolChoice).toEqual({ type: 'auto' });
@@ -209,7 +200,7 @@ describe('response mapping', () => {
 
   it('omits text when the model returned none', async () => {
     const m = mockModel(toolCallResult([{ id: 'x', name: 'complete_step', input: {} }]));
-    const res = await setOf(m).act.generate(request({ tools: [...ACT_TOOLS] }));
+    const res = await setOf(m).act.generate(request({ tools: ACT_TOOLS }));
     expect('text' in res).toBe(false);
   });
 });
@@ -222,7 +213,7 @@ describe('string model ids', () => {
 
   it('are passed to the AI SDK as-is and resolved by its global provider', async () => {
     const m = mockModel(textResult('via provider'), 'claude-test');
-    globalThis.AI_SDK_DEFAULT_PROVIDER = new MockProviderV4({ languageModels: { 'vendor/claude-test': m } });
+    globalThis.AI_SDK_DEFAULT_PROVIDER = mockProvider({ 'vendor/claude-test': m });
     const set = aiSdkModels({
       extract: 'vendor/claude-test',
       act: 'vendor/claude-test',

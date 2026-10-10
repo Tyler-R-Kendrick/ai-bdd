@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { JsonObject } from '@ai-bdd/sdk/contracts';
 import { createFakeModels, type FakeRuleFile } from '@ai-bdd/testing';
 import { NODES, req } from './helpers.ts';
 
@@ -72,8 +73,8 @@ describe('fake-model act scripts', () => {
 });
 
 describe('fake-model target resolution (within)', () => {
-  const rule = (target: object): FakeRuleFile => ({ rules: [{ id: 'r', purpose: 'act', respond: { script: [{ tool: 'click', args: { target } }] } }] });
-  const run = async (target: object, nodes = NODES) => {
+  const rule = (target: JsonObject): FakeRuleFile => ({ rules: [{ id: 'r', purpose: 'act', respond: { script: [{ tool: 'click', args: { target } }] } }] });
+  const run = async (target: JsonObject, nodes = NODES) => {
     const m = createFakeModels({ rules: [rule(target)] });
     return (await m.act.generate(req('act', { turn: 0, nodes }))).toolCalls[0];
   };

@@ -41,8 +41,8 @@ describe('fake-model call log', () => {
   it('image hashing: images are replaced by {image: sha256} and bytes never reach the log', async () => {
     const m = createFakeModels({ rules, logPath: join(dir, 'log.jsonl') });
     await m.judge.generate(req('judge', { sample: 0 }, { messages: [{ role: 'user', content: [{ type: 'text', text: 'see' }, { type: 'image', png, sha256: shot }] }] }));
-    const content = (m.calls[0]?.request['messages'] as { content: unknown[] }[])[0]?.content;
-    expect(content).toEqual([{ type: 'text', text: 'see' }, { image: shot }]);
+    const content = (m.calls[0]?.request['messages'] as { content: unknown[] }[])[0];
+    expect(content?.content).toEqual([{ type: 'text', text: 'see' }, { image: shot }]);
     const raw = readFileSync(join(dir, 'log.jsonl'), 'utf8');
     expect(raw).toContain(`"image":"${shot}"`);
     expect(raw).not.toContain('"png"');
@@ -52,7 +52,8 @@ describe('fake-model call log', () => {
   it('image hash is computed from the bytes when the part carries an empty sha256', async () => {
     const m = createFakeModels({ rules });
     await m.judge.generate(req('judge', { sample: 0 }, { messages: [{ role: 'user', content: [{ type: 'image', png, sha256: '' }] }] }));
-    expect((m.calls[0]?.request['messages'] as { content: unknown[] }[])[0]?.content).toEqual([{ image: shot }]);
+    const msg = (m.calls[0]?.request['messages'] as { content: unknown[] }[])[0];
+    expect(msg?.content).toEqual([{ image: shot }]);
   });
 
   it('logPath: appends one JSONL line per call, parseable as FakeCall', async () => {

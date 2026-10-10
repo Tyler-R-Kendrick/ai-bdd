@@ -1,13 +1,8 @@
 import { APICallError, JSONParseError, RetryError, TypeValidationError } from 'ai';
-import { MockProviderV4 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { AiBddError, RETRYABLE_CODES } from '@ai-bdd/sdk/contracts';
 import { aiSdkModels } from '../src/index.ts';
-import { mockModel, request, textResult, toolCallResult } from './helpers.ts';
-
-const ACT_TOOLS = [
-  { name: 'click', description: 'Click', inputSchema: { type: 'object', properties: { ref: { type: 'string' } } } },
-];
+import { ACT_TOOLS, mockModel, mockProvider, request, textResult, toolCallResult } from './helpers.ts';
 
 function actModel(m: ReturnType<typeof mockModel>, maxRetries = 0) {
   return aiSdkModels({ extract: m, act: m, checkgen: m, judge: m }, { maxRetries }).act;
@@ -68,7 +63,7 @@ describe('provider errors -> MODEL_UNAVAILABLE', () => {
 
   it('marks configuration-class failures (unknown model id) as non-retryable', async () => {
     const previous = globalThis.AI_SDK_DEFAULT_PROVIDER;
-    globalThis.AI_SDK_DEFAULT_PROVIDER = new MockProviderV4({ languageModels: {} });
+    globalThis.AI_SDK_DEFAULT_PROVIDER = mockProvider({});
     try {
       const set = aiSdkModels({ extract: 'x/none', act: 'x/none', checkgen: 'x/none', judge: 'x/none' });
       const err = await failure(set.act.generate(request()));
@@ -112,21 +107,21 @@ describe('output errors -> MODEL_OUTPUT_INVALID', () => {
 
   it('maps a tool call whose arguments are not JSON', async () => {
     const m = mockModel(toolCallResult([{ id: 'c', name: 'click', input: '{not json' }]));
-    const err = await failure(actModel(m).generate(request({ tools: ACT_TOOLS.map((t) => ({ ...t })) })));
+    const err = await failure(actModel(m).generate(request({ tools: ACT_TOOLS })));
     expect(err.code).toBe('MODEL_OUTPUT_INVALID');
     expect(err.details).toMatchObject({ toolName: 'click' });
   });
 
   it('maps a tool call to an unknown tool', async () => {
     const m = mockModel(toolCallResult([{ id: 'c', name: 'teleport', input: {} }]));
-    const err = await failure(actModel(m).generate(request({ tools: ACT_TOOLS.map((t) => ({ ...t })) })));
+    const err = await failure(actModel(m).generate(request({ tools: ACT_TOOLS })));
     expect(err.code).toBe('MODEL_OUTPUT_INVALID');
   });
 
   it('maps a missing tool call when a tool call was required', async () => {
     const m = mockModel(textResult('I refuse to call tools'));
     const err = await failure(
-      actModel(m).generate(request({ tools: ACT_TOOLS.map((t) => ({ ...t })), toolChoice: 'required' })),
+      actModel(m).generate(request({ tools: ACT_TOOLS, toolChoice: 'required' })),
     );
     expect(err.code).toBe('MODEL_OUTPUT_INVALID');
   });

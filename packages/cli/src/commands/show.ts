@@ -99,11 +99,8 @@ function renderScenario(plan: DocPlan, s: Scenario, rec: ScenarioRecording | und
   out.push(`    # id: ${s.id}`);
   for (const l of sourceLines(plan, s.sources)) out.push(`    ${l}`);
   const frontier = frontierOf(rec, s.steps);
-  let prev: string | undefined;
   s.steps.forEach((step, i) => {
-    const word = step.kind === prev ? 'And' : KIND_WORD[step.kind];
-    prev = step.kind;
-    out.push(`    ${word} ${step.text}`);
+    out.push(`    ${KIND_WORD[step.kind]} ${step.text}`);
     const own = step.sources.length > 0 ? sourceLines(plan, step.sources) : sourceLines(plan, s.sources, ' [scenario source]');
     if (own.length === 0) own.push('# source: (none)');
     for (const l of own) out.push(`      ${l}`);

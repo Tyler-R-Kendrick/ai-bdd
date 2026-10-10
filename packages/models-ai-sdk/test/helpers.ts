@@ -1,5 +1,5 @@
-import { MockLanguageModelV4 } from 'ai/test';
-import type { ModelRequest } from '@ai-bdd/sdk/contracts';
+import { MockLanguageModelV4, MockProviderV4 } from 'ai/test';
+import type { ModelRequest, ToolSpec } from '@ai-bdd/sdk/contracts';
 
 type GenerateResult = Awaited<ReturnType<MockLanguageModelV4['doGenerate']>>;
 
@@ -56,3 +56,17 @@ export function request(overrides: Partial<ModelRequest> = {}): ModelRequest {
     ...overrides,
   };
 }
+
+/** A provider suitable for `globalThis.AI_SDK_DEFAULT_PROVIDER` that resolves the given language models. */
+export function mockProvider(languageModels: Record<string, MockLanguageModelV4>): NonNullable<typeof globalThis.AI_SDK_DEFAULT_PROVIDER> {
+  return new MockProviderV4({ languageModels }) as unknown as NonNullable<typeof globalThis.AI_SDK_DEFAULT_PROVIDER>;
+}
+
+export const ACT_TOOLS: ToolSpec[] = [
+  {
+    name: 'click',
+    description: 'Click an element',
+    inputSchema: { type: 'object', properties: { ref: { type: 'string' } }, required: ['ref'] },
+  },
+  { name: 'complete_step', description: 'Finish', inputSchema: { type: 'object', properties: {} } },
+];
