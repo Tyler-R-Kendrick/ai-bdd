@@ -46,9 +46,8 @@ No contract changes and no new dependencies requested (`playwright-core` 1.64.0 
   * `focused` appears in `states` for the active element, so `treeHash` changes with focus. The fake driver never sets it;
     compare with `focused` ignored;
   * nodes without a Playwright ref use `n<k>` refs (for example an empty `list "Todo items"`).
-* Acme goldens (`test/golden/acme-*.aria.txt`) pin the HTML P-APP renders today (clock times and frame prefixes are
-  normalized). If P-APP changes the markup, regenerate with `UPDATE_GOLDEN=1 pnpm exec vitest run --project unit
-  packages/driver-playwright/test/acme.test.ts` and review the diff.
+* Acme goldens (`test/golden/acme-*.aria.verified.txt`) pin the HTML P-APP renders today (clock times and frame prefixes are
+  normalized). If P-APP changes the markup, run the tests, review the `*.received.*` files and approve them with `pnpm verify:accept`.
 
 ## Tests
 

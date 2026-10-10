@@ -106,7 +106,7 @@ responses are parsed, everything else is returned as text. Violations throw `AiB
 `pnpm exec vitest run --project unit packages/driver-playwright/test`
 
 * `aria.test.ts` parser unit cases and goldens (`test/golden/*.aria.txt` are real Chromium output, `*.nodes.json` the
-  parsed result). `UPDATE_GOLDEN=1` rewrites them.
+  parsed result). Review a changed one and approve it with `pnpm verify:accept` (`@ai-bdd/verify`).
 * `driver.test.ts` behavior against an inline fixture server (`fixture.ts`): policy matrix, redirect and popup blocking,
   masking pixels, taint, busy, 20 parallel sessions, `request()`.
 * `acme.test.ts` the same driver against `startAcmeApp` (skipped, with the reason in the suite name, while it is a stub).

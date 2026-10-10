@@ -1,8 +1,9 @@
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verify } from '@ai-bdd/verify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DocPlan, JsonValue, ReporterName, RunReport } from '../../src/contracts/index.ts';
 import { createReporters } from '../../src/report/index.ts';
@@ -13,15 +14,10 @@ import { authPlan, billingPlan, fixturePlans, fixtureReport } from './fixtures/r
 const here = dirname(fileURLToPath(import.meta.url));
 const goldenDir = join(here, 'fixtures', 'golden');
 
-function expectGolden(file: string, actual: string): void {
-  const path = join(goldenDir, file);
-  if (process.env['UPDATE_GOLDEN'] === '1') {
-    mkdirSync(goldenDir, { recursive: true });
-    writeFileSync(path, actual);
-    return;
-  }
-  expect(existsSync(path), `missing golden ${file}; run with UPDATE_GOLDEN=1`).toBe(true);
-  expect(actual).toBe(readFileSync(path, 'utf8'));
+/** `junit.xml` -> `fixtures/golden/junit.verified.xml`; approve a changed output with `pnpm verify:accept`. */
+async function expectGolden(file: string, actual: string): Promise<void> {
+  const dot = file.lastIndexOf('.');
+  await verify(actual, { directory: goldenDir, fileName: file.slice(0, dot), extension: file.slice(dot + 1), scrubDefaults: false });
 }
 
 let outDir: string;
@@ -66,7 +62,7 @@ describe('json reporter', () => {
   it('matches the golden and is the stableJson of the report', async () => {
     const { text } = await renderOne('json');
     expect(text).toBe(stableJson(fixtureReport as unknown as JsonValue));
-    expectGolden('report.json', text);
+    await expectGolden('report.json', text);
   });
 
   it('round-trips the RunReport without loss', async () => {
@@ -77,7 +73,7 @@ describe('json reporter', () => {
 
 describe('junit reporter', () => {
   it('matches the golden', async () => {
-    expectGolden('junit.xml', (await renderOne('junit')).text);
+    await expectGolden('junit.xml', (await renderOne('junit')).text);
   });
 
   it('is well-formed XML with one testsuite per feature and one testcase per scenario', async () => {
@@ -149,7 +145,7 @@ describe('junit reporter', () => {
 
 describe('markdown reporter', () => {
   it('matches the golden', async () => {
-    expectGolden('summary.md', (await renderOne('markdown')).text);
+    await expectGolden('summary.md', (await renderOne('markdown')).text);
   });
 
   it('reports totals', async () => {
