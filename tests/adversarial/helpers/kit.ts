@@ -329,3 +329,17 @@ export function judgeSays(verdict: 'holds' | 'fails' | 'cannot_tell', probabilit
 export function toolCall(name: string, args: JsonObject, id = `call_${name}`): Partial<ModelResponse> {
   return { toolCalls: [{ id, name, args }], finishReason: 'tool-calls' };
 }
+
+/** Post-process the response of one purpose of the stock fake models (after the real rule ran). */
+export function mutating(purpose: ModelPurpose, fn: (res: ModelResponse, req: ModelRequest) => ModelResponse): (fake: ModelSet) => ModelSet {
+  return (fake) => {
+    const inner = fake[purpose];
+    const wrapped: ChatModel = {
+      id: inner.id,
+      async generate(req: ModelRequest): Promise<ModelResponse> {
+        return fn(await inner.generate(req), req);
+      },
+    };
+    return Object.assign({}, fake, { [purpose]: wrapped }) as ModelSet;
+  };
+}
