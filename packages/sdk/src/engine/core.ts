@@ -57,7 +57,7 @@ export class Core {
   private sameModelWarned = false;
 
   readonly redactor = memo((): Redactor => this.modules.createRedactor({ ...this.secretValues }));
-  readonly planner = memo((): Planner => this.modules.createPlanner(this.config));
+  readonly planner = memo((): Planner => this.modules.createPlanner(this.config, (text) => this.redactor().redact(text)));
   readonly planStore = memo((): PlanStore => this.modules.createPlanStore({ dir: this.config.planDir, readOnly: false }));
   readonly recordings = memo((): RecordingStore =>
     this.modules.createRecordingStore({ dir: this.config.recordingsDir, mode: this.config.recordingsMode }),

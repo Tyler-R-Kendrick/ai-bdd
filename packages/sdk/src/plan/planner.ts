@@ -325,7 +325,12 @@ interface Slot {
   prev: Feature | undefined;
 }
 
-export const createPlanner: CreatePlanner = (): Planner => {
+/** Optional text redaction applied to plan excerpts before they are sliced and stored (R-SE1). */
+export type PlanRedact = (text: string) => string;
+
+export type CreatePlannerRedacting = (config: Parameters<CreatePlanner>[0], redact?: PlanRedact) => Planner;
+
+export const createPlanner: CreatePlannerRedacting = (_config, redact): Planner => {
   const planner: Planner = {
     dirtySections(doc, previous, opts) {
       return computeDirty(doc, previous, opts.full, indexDoc(doc));
@@ -522,7 +527,7 @@ export const createPlanner: CreatePlanner = (): Planner => {
         }),
         chunks: doc.chunks
           .filter((c) => !isIgnored(c))
-          .map((c) => ({ id: c.id, hash: c.hash, kind: c.kind, range: { ...c.range }, excerpt: c.text.slice(0, EXCERPT_CHARS) })),
+          .map((c) => ({ id: c.id, hash: c.hash, kind: c.kind, range: { ...c.range }, excerpt: (redact === undefined ? c.text : redact(c.text)).slice(0, EXCERPT_CHARS) })),
         features,
         notTestable,
         rejected: rejectedList.map((r) => ({ fingerprint: r.fingerprint, title: r.title })),

@@ -37,7 +37,7 @@ export interface EngineModules {
   createChunker: CreateChunker;
   createExtractor: CreateExtractor;
   extractPromptVersion: string;
-  createPlanner: CreatePlanner;
+  createPlanner: (config: Parameters<CreatePlanner>[0], redact?: (text: string) => string) => ReturnType<CreatePlanner>;
   createPlanStore: CreatePlanStore;
   createActor: CreateActor;
   createRecorder: CreateRecorder;
@@ -64,7 +64,7 @@ export function defaultModules(): EngineModules {
     createChunker: () => createChunker(),
     createExtractor: (d) => createExtractor(d),
     extractPromptVersion: EXTRACT_PROMPT_VERSION,
-    createPlanner: (c) => createPlanner(c),
+    createPlanner: (c, redact) => createPlanner(c, redact),
     createPlanStore: (o) => createPlanStore(o),
     createActor: (d) => createActor(d),
     createRecorder: (d) => createRecorder(d),
