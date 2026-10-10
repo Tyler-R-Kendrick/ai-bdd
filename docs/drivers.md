@@ -424,6 +424,8 @@ Returns an `Observation`:
 | `treeHash` | `treeHash(nodes)` from `@ai-bdd/sdk`. Must be identical for identical pages and change when the page changes. |
 | `screenshot` | Only when asked for. `{ png, sha256, masked }`. |
 
+The engine checks every observation it receives. One that breaks this contract (a node without `ref`, `role`, `name`, numeric `depth` or `states`, two nodes with the same `ref`, a missing `route`, `treeHash`, `treeText` or `busy`) is a driver bug and fails the step with `DRIVER_ERROR` (not retryable) and a message that names the defect, for example `the driver returned a malformed observation: nodes[3].name is not a string`.
+
 Never put a secret value in a node. If the page echoes one (a password field exposing its value), strip it in the driver. The redactor is only the backstop.
 
 ### `perform(action)`
@@ -434,6 +436,7 @@ Rules:
 
 - **Never throw for ordinary failures.** Return `{ ok: false, error: { code, message, retryable } }` with `STALE_REF`, `TARGET_NOT_FOUND`, `POLICY_DENIED`, `VERB_UNSUPPORTED`, `DRIVER_ERROR` (retryable) or `DRIVER_UNAVAILABLE`. Throw only for a broken driver.
 - **Enforce policy.** Pass every URL through `checkNavigation(url, baseURL, policy)` (from `@ai-bdd/sdk`) and return `POLICY_DENIED` when it fails. Honor `policy.denyVerbs`. If your platform can navigate by itself (links, redirects, popups), block disallowed destinations there too.
+- **Bound your own waits.** The engine aborts a run (Ctrl-C, an `AbortSignal`) by abandoning the call that is in flight, but it cannot interrupt your code: give every call a timeout of its own (`actionTimeoutMs`-style), so that `close()` and `dispose()` can never hang.
 - **Taint** the session when a `{secret}` is used.
 - Report `navigatedTo` when the action changed the URL.
 
