@@ -146,6 +146,16 @@ async function realpathOfDeepestExisting(p: string): Promise<string> {
   }
 }
 
+/** Longest path segment (UTF-8 bytes) a store accepts for an id: leaves room for a file suffix and the temp-file suffix within the 255-byte file name limit. */
+export const MAX_ID_SEGMENT_BYTES = 180;
+/** Longest id (UTF-8 bytes) a store accepts as a whole, well below PATH_MAX. */
+export const MAX_ID_BYTES = 1024;
+
+/** True when a store id, or any `/`-separated segment of it, is too long to be a file name on common file systems. */
+export function idTooLong(id: string): boolean {
+  return Buffer.byteLength(id) > MAX_ID_BYTES || id.split('/').some((seg) => Buffer.byteLength(seg) > MAX_ID_SEGMENT_BYTES);
+}
+
 /** The directory that contains the last `.ai-bdd` segment of `path`, if any (the project root of default layouts). */
 function inferRoot(path: string): string | undefined {
   const abs = resolve(path);
@@ -163,12 +173,9 @@ function inferRoot(path: string): string | undefined {
 export async function assertInsideRealRoot(target: string, root?: string): Promise<void> {
   const base = root ?? inferRoot(target);
   if (base === undefined) return;
-  let realRoot: string;
-  try {
-    realRoot = await realpath(resolve(base));
-  } catch {
-    realRoot = resolve(base);
-  }
+  // The root may not exist yet (first save into a fresh directory): resolve its deepest existing ancestor, so a
+  // symlinked ancestor of the root (such as /tmp on macOS) is not mistaken for a symlink that leaves it.
+  const realRoot = await realpathOfDeepestExisting(base);
   const realTarget = await realpathOfDeepestExisting(target);
   if (!isInsideDir(realRoot, realTarget)) {
     throw new AiBddError('POLICY_DENIED', `refusing to write outside the project through a symlink: ${toPosix(resolve(target))}`, {

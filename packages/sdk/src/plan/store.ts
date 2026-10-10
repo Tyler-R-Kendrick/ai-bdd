@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { readFile, readdir, rm } from 'node:fs/promises';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   AiBddError,
   type CreatePlanStore,
@@ -9,7 +9,7 @@ import {
   type LoadPlansSync,
   type PlanStore,
 } from '../contracts/index.ts';
-import { atomicWriteFile, stableJson, toPosix } from '../util/index.ts';
+import { assertInsideRealRoot, atomicWriteFile, idTooLong, stableJson, toPosix } from '../util/index.ts';
 import { parseDocPlan } from './schema.ts';
 
 const SUFFIX = '.plan.json';
@@ -18,10 +18,11 @@ function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Rejects absolute paths, empty or dots-and-blanks-only path segments (`..`, `.`, `....`, `.. `; a name such as `a..b.md` is fine), backslashes, NUL and empty uris (R-PL4). Returns the absolute plan file path. */
+/** Rejects absolute paths, empty or dots-and-blanks-only path segments (`..`, `.`, `....`, `.. `; a name such as `a..b.md` is fine), backslashes, NUL, empty uris and uris too long to be file names (R-PL4). Returns the absolute plan file path. */
 export function planPathFor(dir: string, docUri: string): string {
   if (
     docUri.length === 0 ||
+    idTooLong(docUri) ||
     docUri.includes('\\') ||
     docUri.includes('\0') ||
     docUri.split('/').some((seg) => seg === '' || /^[.\s]+$/.test(seg)) ||
@@ -75,6 +76,11 @@ function relUri(dir: string, file: string): string {
   return toPosix(relative(resolve(dir), file)).slice(0, -SUFFIX.length);
 }
 
+/** Plans are listed in docUri order (code units), not file name order: `a` sorts before `a-b` although `a-b.plan.json` sorts before `a.plan.json`. */
+function sortByDocUri(dir: string, files: string[]): string[] {
+  return files.map((file) => ({ file, uri: relUri(dir, file) })).sort((a, b) => cmp(a.uri, b.uri)).map((e) => e.file);
+}
+
 function listSync(dir: string): string[] {
   const out: string[] = [];
   const walk = (d: string): void => {
@@ -92,7 +98,7 @@ function listSync(dir: string): string[] {
     }
   };
   walk(resolve(dir));
-  return out.sort((a, b) => cmp(toPosix(a), toPosix(b)));
+  return sortByDocUri(dir, out);
 }
 
 async function listAsync(dir: string): Promise<string[]> {
@@ -112,7 +118,7 @@ async function listAsync(dir: string): Promise<string[]> {
     }
   };
   await walk(resolve(dir));
-  return out.sort((a, b) => cmp(toPosix(a), toPosix(b)));
+  return sortByDocUri(dir, out);
 }
 
 /** Synchronous plan loading for collection-time registration (R-SDK1). Never touches models, drivers or the network. */
@@ -127,6 +133,7 @@ export const createPlanStore: CreatePlanStore = ({ dir, readOnly }) => {
     dir,
     async load(docUri) {
       const file = planPathFor(dir, docUri);
+      await assertInsideRealRoot(file, resolve(dir));
       let text: string;
       try {
         text = await readFile(file, 'utf8');
@@ -154,7 +161,9 @@ export const createPlanStore: CreatePlanStore = ({ dir, readOnly }) => {
     },
     async remove(docUri) {
       if (readOnly) denyWrite('remove');
-      await rm(planPathFor(dir, docUri), { force: true });
+      const file = planPathFor(dir, docUri);
+      await assertInsideRealRoot(dirname(file), resolve(dir));
+      await rm(file, { force: true });
     },
   };
   return store;

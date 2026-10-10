@@ -1,14 +1,14 @@
 import { readdir, readFile, rm, rmdir } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { AiBddError, type CreateRecordingStore, type JsonValue, type RecordingsMode, type RecordingStore, type ScenarioRecording } from '../contracts/index.ts';
-import { atomicWriteFile, stableJson } from '../util/index.ts';
+import { assertInsideRealRoot, atomicWriteFile, idTooLong, stableJson } from '../util/index.ts';
 import { ScenarioRecordingSchema } from './schema.ts';
 
 const SAFE_SEGMENT = /^[a-z0-9._-]+$/;
 const FILE_EXT = '.json';
 
 function assertSegment(kind: string, segment: string): void {
-  if (!SAFE_SEGMENT.test(segment) || /^\.+$/.test(segment)) {
+  if (!SAFE_SEGMENT.test(segment) || /^\.+$/.test(segment) || idTooLong(segment)) {
     throw new AiBddError('POLICY_DENIED', `unsafe ${kind} for recording path: ${JSON.stringify(segment)}`, { details: { kind, value: segment } });
   }
 }
@@ -16,6 +16,7 @@ function assertSegment(kind: string, segment: string): void {
 /** `${dir}/${driverId}/${scenarioId}.json`, the scenario id's `/` becoming a directory separator. */
 export function recordingPath(dir: string, driverId: string, scenarioId: string): string {
   assertSegment('driver id', driverId);
+  if (idTooLong(scenarioId)) throw new AiBddError('POLICY_DENIED', 'scenario id is too long for a recording path', { details: { kind: 'scenario id', length: scenarioId.length } });
   const segments = scenarioId.split('/');
   for (const s of segments) assertSegment('scenario id segment', s);
   const last = segments.pop() ?? '';
@@ -79,6 +80,7 @@ export const createRecordingStore: CreateRecordingStore = (opts: { dir: string; 
     async load(driverId, scenarioId) {
       if (mode === 'off') return null;
       const path = recordingPath(dir, driverId, scenarioId);
+      await assertInsideRealRoot(path, resolve(dir)); // a symlink inside the store must not serve files from elsewhere
       const text = await readIfExists(path);
       if (text === null) return null;
       const rec = parseRecording(text, path);
@@ -98,15 +100,17 @@ export const createRecordingStore: CreateRecordingStore = (opts: { dir: string; 
         });
       }
       const bytes = stableJson(parsed.data as JsonValue);
+      await assertInsideRealRoot(dirname(path), resolve(dir)); // ... nor receive writes through a symlinked directory
       const existing = await readIfExists(path);
       if (existing === bytes) return 'unchanged';
-      await atomicWriteFile(path, bytes);
+      await atomicWriteFile(path, bytes, { root: resolve(dir) });
       return existing === null ? 'created' : 'updated';
     },
 
     async remove(driverId, scenarioId) {
       requireWritable('remove a recording');
       const path = recordingPath(dir, driverId, scenarioId);
+      await assertInsideRealRoot(dirname(path), resolve(dir));
       await rm(path, { force: true });
       const root = resolve(dir);
       for (let d = dirname(path); d.startsWith(root + sep); d = dirname(d)) {
