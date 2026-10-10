@@ -249,11 +249,11 @@ describe('sections', () => {
 
   it('R-EX4: context chunks are offered to every section in document order, within the character budget', () => {
     const para = (n: number): string => `ctx${n} ${'w'.repeat(1500)}`;
-    const md = `# D\n\n<!-- ai-bdd: context -->\n${para(1)}\n\n<!-- ai-bdd: context -->\n${para(2)}\n\n<!-- ai-bdd: context -->\n${para(3)}\n`;
+    const md = `# D\n\nlead\n\n<!-- ai-bdd: context -->\n${para(1)}\n\n<!-- ai-bdd: context -->\n${para(2)}\n\n<!-- ai-bdd: context -->\n${para(3)}\n`;
     const d = chunkText(md);
     const withinBudget = d.contextChunkIds.map((id) => d.chunks.find((c) => c.id === id)?.text.length ?? 0);
     expect(withinBudget.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(CONTEXT_CHAR_BUDGET);
-    expect(d.contextChunkIds).toEqual(['docs/test.md#d/p1', 'docs/test.md#d/p2']);
+    expect(d.contextChunkIds).toEqual(['docs/test.md#d/p2', 'docs/test.md#d/p3']);
     expect(d.diagnostics.map((x) => x.code)).toEqual(['DIRECTIVE_INVALID']);
     expect(d.sections.flatMap((s) => s.chunkIds).some((id) => d.contextChunkIds.includes(id))).toBe(false);
   });
@@ -315,11 +315,13 @@ describe('line endings, BOM and positions', () => {
   const strip = (d: ChunkedDoc): string => stableJson(d as never);
 
   it('R-PL4: CRLF, lone CR and BOM inputs chunk exactly like LF input (ranges included)', () => {
-    const expected = strip(chunkText(lf));
-    expect(strip(chunkText(lf.replace(/\n/g, '\r\n')))).toBe(expected);
-    expect(strip(chunkText(lf.replace(/\n/g, '\r')))).toBe(expected);
-    expect(strip(chunkText(`﻿${lf}`))).toBe(expected);
-    expect(strip(chunkText(`﻿${lf.replace(/\n/g, '\r\n')}`))).toBe(expected);
+    const options = { sectionDepth: 2, maxSectionChars: 12000 };
+    const variant = (text: string): string => strip(createChunker().chunk(makeDoc(text, 'docs/test.md', lf), options));
+    const expected = variant(lf);
+    expect(variant(lf.replace(/\n/g, '\r\n'))).toBe(expected);
+    expect(variant(lf.replace(/\n/g, '\r'))).toBe(expected);
+    expect(variant(`\uFEFF${lf}`)).toBe(expected);
+    expect(variant(`\uFEFF${lf.replace(/\n/g, '\r\n')}`)).toBe(expected);
   });
 
   it('R-PL4: mixed line endings in one file are accepted', () => {
