@@ -51,7 +51,7 @@ Rough shape, per model purpose:
 | `judge` | 3 samples per judged `then` step: on characterization, on every `fuzzy` or `subjective` `then`, and with `--audit`. Pass and fail verdicts on identical evidence are cached. |
 | `checkgen` | 1 to 3 calls per characterized `then` step. |
 
-So the steady state of a healthy suite is zero model calls, and cost is proportional to what is fuzzy. Every report prints model calls and tokens per purpose; set `prices: { '<modelId>': { inputPerMTok, outputPerMTok } }` in config to get `estimatedCostUsd`. To reduce cost: fix `fuzzy` reasons (stable text, accessible names, observable feedback), keep subjective criteria few, use a cheaper `act` model than `judge`, and run `ai-bdd run --no-agent` in CI if you want proof that nothing needs a model.
+So the steady state of a healthy suite is zero model calls, and cost is proportional to what is fuzzy. Every report prints model calls and tokens per purpose; set `prices: { '<modelId>': { inputPerMTok, outputPerMTok } }` in config to get `estimatedCostUsd`. To reduce cost: fix `fuzzy` reasons (stable text, accessible names, observable feedback), keep subjective criteria few, use a cheaper `act` model than `judge`, and run `ai-bdd run --no-agent` if you want proof that no action step needs the agent (fuzzy `then` steps still call the judge).
 
 ## Which models should I use?
 
@@ -79,13 +79,7 @@ It means the recording no longer matched, the agent redid the step, and the judg
 
 ## Do I commit recordings?
 
-Yes: `.ai-bdd/plans/` and `.ai-bdd/recordings/`. Review them like snapshots. CI runs with read-only recordings and never writes them. Do not commit `.ai-bdd/runs/`, `.ai-bdd/cache/` or `.ai-bdd/report/` (`ai-bdd init` ignores the first two; add the third, see below).
-
-```text
-.ai-bdd/runs/
-.ai-bdd/cache/
-.ai-bdd/report/
-```
+Yes: `.ai-bdd/plans/` and `.ai-bdd/recordings/`. Review them like snapshots. CI runs with read-only recordings and never writes them. Do not commit `.ai-bdd/runs/`, `.ai-bdd/cache/` or `.ai-bdd/report/`. `ai-bdd init` adds the first two to `.gitignore`; add `.ai-bdd/report/` yourself.
 
 ## Can I edit the plan by hand?
 
