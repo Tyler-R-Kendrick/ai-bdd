@@ -402,6 +402,19 @@ describe('robustness', () => {
     }
   });
 
+  it('R-EX4: an unexpected internal failure becomes a DOC_READ_FAILED error diagnostic instead of an exception', () => {
+    const doc = makeDoc('x');
+    Object.defineProperty(doc, 'text', {
+      get() {
+        throw new Error('boom');
+      },
+    });
+    const out = createChunker().chunk(doc, { sectionDepth: 2, maxSectionChars: 100 });
+    expect(out.chunks).toEqual([]);
+    expect(out.diagnostics.map((d) => [d.code, d.severity])).toEqual([['DOC_READ_FAILED', 'error']]);
+    expect(out.doc.title).toBe('docs/test.md');
+  });
+
   it('R-EX4: a non-string text field is treated as empty instead of throwing', () => {
     const doc = { ...makeDoc('x'), text: undefined as unknown as string };
     expect(() => createChunker().chunk(doc, { sectionDepth: 2, maxSectionChars: 100 })).not.toThrow();
@@ -411,7 +424,7 @@ describe('robustness', () => {
     const d = chunkText(`first\n\n${'> '.repeat(1500)}deep quote\n\nlast\n`);
     expect(d.chunks.map((c) => [c.text, c.range.startLine])).toEqual([
       ['first', 1],
-      ['last', 7],
+      ['last', 5],
     ]);
     expect(d.diagnostics.map((x) => [x.code, x.severity, x.range?.startLine])).toEqual([['DOC_READ_FAILED', 'warning', 3]]);
     const list = chunkText(`${'- '.repeat(2000)}x\n`);
