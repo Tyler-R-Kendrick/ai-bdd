@@ -152,10 +152,7 @@ export function findVolatile(text: string): VolatileMatch[] {
     // long-number: a whole word of 5+ digits
     if ((f & WORD_DIGIT) !== 0 && l >= 5) push('long-number', i, i);
     // hex-id: a whole word of 8+ hex chars with at least one digit and one letter
-    if ((f & WORD_HEX) !== 0 && l >= 8 && (f & WORD_DIGIT) === 0 && (f & WORD_ALPHA) !== 0) {
-      // a hex word that is not all digits necessarily has a letter; require a digit too
-      if (hasDigit(t, i)) push('hex-id', i, i);
-    }
+    if ((f & WORD_HEX) !== 0 && l >= 8 && (f & WORD_ALPHA) !== 0 && hasDigit(t, i)) push('hex-id', i, i);
     // uuid: 8-4-4-4-12 hex words joined by single hyphens
     if (
       hexWord(t, i, 8) && sepIs(t, i + 1, '-') && hexWord(t, i + 2, 4) && sepIs(t, i + 3, '-') && hexWord(t, i + 4, 4) &&
