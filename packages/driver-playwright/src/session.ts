@@ -65,6 +65,11 @@ function routeOf(url: string): string {
   return url;
 }
 
+/** Resolves when `p` does, or after `ms` (default 2 s) without cancelling it: for cleanup that must never block `close()`. */
+function bounded(p: Promise<unknown>, ms = 2000): Promise<unknown> {
+  return Promise.race([p, new Promise<void>((resolve) => setTimeout(resolve, ms).unref())]);
+}
+
 function isClosedError(msg: string): boolean {
   return /Target (page, context or browser|closed)|has been closed|Browser has been closed|browser.*disconnected/i.test(msg);
 }
@@ -222,7 +227,7 @@ export class PlaywrightSession implements DriverSession {
   }
 
   private async releasePageGuard(): Promise<void> {
-    for (const frame of this.page.frames()) await frame.evaluate('window.__aiBddGuardOff = true').catch(() => undefined);
+    for (const frame of this.page.frames()) await bounded(frame.evaluate('window.__aiBddGuardOff = true').catch(() => undefined));
   }
 
   async install(): Promise<void> {
@@ -603,7 +608,8 @@ export class PlaywrightSession implements DriverSession {
           method, headers, ...(data === undefined ? {} : { data }), maxRedirects: 0, timeout: this.navTimeout, failOnStatusCode: false,
         });
         const loc = res.headers()['location'];
-        if ([301, 302, 303, 307, 308].includes(res.status()) && loc !== undefined && hop < 5) {
+        if ([301, 302, 303, 307, 308].includes(res.status()) && loc !== undefined) {
+          if (hop === 5) break; // the sixth redirect: give up instead of handing the caller a 3xx as if it were the answer
           url = new URL(loc, url);
           if (res.status() === 303 || ((res.status() === 301 || res.status() === 302) && method === 'POST')) { method = 'GET'; data = undefined; }
           continue;
@@ -634,11 +640,15 @@ export class PlaywrightSession implements DriverSession {
     this.page.off('framenavigated', this.navHandler);
     this.context.off('page', this.pageHandler);
     this.context.off('request', this.requestHandler);
-    for (const cdp of this.cdpSessions) await cdp.detach().catch(() => undefined);
-    if (!this.internals.ownsContext) await this.releasePageGuard();
+    if (!this.internals.ownsContext) {
+      // detach() and evaluate() can stall behind a navigation that is still pending (for example one that just timed out),
+      // so both are bounded. A context the driver owns needs none of this: closing it below ends its CDP sessions.
+      for (const cdp of this.cdpSessions) await bounded(cdp.detach().catch(() => undefined));
+      await this.releasePageGuard();
+    }
     try {
       if (this.internals.ownsContext) await this.context.close();
-      else await this.context.unroute('**/*', this.routeHandler);
+      else await bounded(this.context.unroute('**/*', this.routeHandler));
     } catch {
       // already closed
     } finally {
