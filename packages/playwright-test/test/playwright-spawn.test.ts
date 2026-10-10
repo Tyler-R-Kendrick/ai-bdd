@@ -56,7 +56,7 @@ async function stubReason(needs: { engine: boolean }): Promise<string | null> {
     const { createFakeModels, fakeDriver, startAcmeApp } = sibling.testing;
     if (await isStub(() => loadConfig({ cwd: scratch }))) return '@ai-bdd/sdk loadConfig is still a stub';
     if (await isStub(() => createEngine(undefined as never))) return '@ai-bdd/sdk createEngine is still a stub';
-    if (await isStub(() => sessionFromPage(null, undefined as never, undefined as never))) return '@ai-bdd/driver-playwright sessionFromPage is still a stub';
+    if (await isStub(() => sessionFromPage(null as never, undefined as never, undefined as never))) return '@ai-bdd/driver-playwright sessionFromPage is still a stub';
     if (await isStub(() => createFakeModels({ rules: [] }))) return '@ai-bdd/testing createFakeModels is still a stub';
     if (await isStub(() => fakeDriver({}))) return '@ai-bdd/testing fakeDriver is still a stub';
     if (await isStub(async () => (await startAcmeApp({})).close())) return '@ai-bdd/testing startAcmeApp is still a stub';

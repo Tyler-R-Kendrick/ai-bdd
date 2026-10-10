@@ -97,6 +97,29 @@ export async function startFixture(): Promise<Fixture> {
       return html(page('Slow', `<div id="c" role="progressbar" aria-label="Loading"></div>
 <script>setTimeout(function(){document.getElementById('c').outerHTML='<h1>Report ready</h1>'},${ms});</script>`));
     }
+    if (p === '/playground') {
+      return html(page('Playground', `<h1>Playground</h1>
+<input aria-label="Name" id="name">
+<button type="button" id="greet">Greet</button>
+<button type="button" id="remove">Remove me</button>
+<button type="button" id="off" disabled>Disabled action</button>
+<label><input type="checkbox" id="agree"> Agree</label>
+<select aria-label="Color" id="color"><option value="r">Red</option><option value="b">Blue</option></select>
+<button type="button" id="hov">Hover me</button>
+<p role="status" id="out">idle</p>
+<div style="height:3000px">tall</div>
+<script>
+var out=document.getElementById('out');
+document.getElementById('greet').onclick=function(){out.textContent='Hello '+document.getElementById('name').value;};
+document.getElementById('remove').onclick=function(){this.remove();out.textContent='removed';};
+document.getElementById('agree').onchange=function(){out.textContent='agree:'+this.checked;};
+document.getElementById('color').onchange=function(){out.textContent='color:'+this.value;};
+document.getElementById('hov').onmouseover=function(){out.textContent='hovered';};
+document.addEventListener('keydown',function(e){if(e.target===document.body)out.textContent='key:'+e.key;});
+document.getElementById('name').addEventListener('keydown',function(e){if(e.key==='Enter')out.textContent='enter:'+this.value;});
+window.addEventListener('scroll',function(){out.textContent='scrolled:'+(window.scrollY>0?'down':'top');});
+</script>`));
+    }
     if (p === '/busy-attr') return html(page('Busy', '<div aria-busy="true"><p>Working</p></div>'));
     if (p === '/native-progress') return html(page('Native', '<progress aria-label="Upload"></progress>'));
     if (p === '/set-cookie') {

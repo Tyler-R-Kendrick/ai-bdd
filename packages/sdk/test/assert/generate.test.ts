@@ -172,7 +172,7 @@ describe('check generation: rejection and retry (R-AS1, R-AS2)', () => {
   });
 
   it('R-AS2: a volatile literal quoted by the criterion is accepted', async () => {
-    const after = makeObs([...AFTER, leaf('status', 'Confirmation', { text: 'Your plan was upgraded at 12:30' })].slice(0, 2).concat(leaf('status', 'Confirmation', { text: 'upgraded at 12:30' })), '/billing');
+    const after = makeObs([...AFTER.slice(0, 2), leaf('status', 'Confirmation', { text: 'upgraded at 12:30' })], '/billing');
     const { asserter } = setup([volatileLiteral]);
     const res = await asserter.generate(request({ criterion: 'the confirmation says upgraded at 12:30', after, afterProbe: after }));
     expect(res.program).toBeDefined();
