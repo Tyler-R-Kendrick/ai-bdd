@@ -50,6 +50,19 @@ export async function startHostileSite(): Promise<HostileSite> {
       }
       case '/get-state':
         return html(page('State read', '<p id="out">pending</p>', `<script>addEventListener('DOMContentLoaded', function(){ document.title = 'State read'; var h = document.createElement('h2'); h.textContent = 'cookie=[' + document.cookie + '] local=[' + (localStorage.getItem('leak') || '') + '] session=[' + (sessionStorage.getItem('leak') || '') + ']'; document.querySelector('main').appendChild(h); });</script>`));
+      case '/swap': {
+        const swapped = url.searchParams.get('s') === '1';
+        const buttons = [['A', 'Alpha'], ['B', 'Beta']].map(([id, label]) => `<form method="get" action="/click"><input type="hidden" name="b" value="${id}"><button type="submit">${label}</button></form>`);
+        return html(page('Swap', (swapped ? buttons.reverse() : buttons).join('')));
+      }
+      case '/click':
+        return redirect('/swap?s=1&clicked=' + (url.searchParams.get('b') ?? ''), 303);
+      case '/spa-list':
+        return html(page('List', `<ul><li>one <button onclick="this.parentNode.remove()">Delete</button></li><li>two <button onclick="fetch('/mark?item=two')">Delete</button></li><li>three <button onclick="fetch('/mark?item=three')">Delete</button></li></ul>`));
+      case '/mark':
+        res.writeHead(204);
+        res.end();
+        return;
       case '/redirect302':
         return redirect(url.searchParams.get('to') ?? evilUrl());
       case '/redirect-chain':

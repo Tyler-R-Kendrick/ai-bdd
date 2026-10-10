@@ -215,6 +215,8 @@ export class StubSession implements DriverSession {
   readonly driverVersion = '1.0.0';
   readonly capabilities: DriverCapabilities;
   readonly performed: DriverAction[] = [];
+  /** Every perform() with the number of observe() calls made so far (a ref of revision r is fresh iff r === observes). */
+  readonly performLog: { action: DriverAction; observes: number }[] = [];
   observes = 0;
   closed = false;
   constructor(
@@ -232,6 +234,7 @@ export class StubSession implements DriverSession {
   }
   async perform(a: DriverAction): Promise<ActionOutcome> {
     this.performed.push(a);
+    this.performLog.push({ action: a, observes: this.observes });
     return this.onPerform(a, this) ?? { ok: true };
   }
   async close(): Promise<void> {
