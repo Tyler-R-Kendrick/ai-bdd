@@ -141,9 +141,14 @@ export function findVolatile(text: string): VolatileMatch[] {
   if (text.length === 0) return [];
   const t = tokenize(text);
   const out: VolatileMatch[] = [];
+  // Like a global regex scan, matches of one kind never overlap: a match starting inside the previous one is skipped.
+  const lastEnd: Partial<Record<VolatileKind, number>> = {};
   const push = (kind: VolatileKind, first: number, last: number): void => {
     const s = t.start[first] ?? 0;
-    out.push({ kind, text: text.slice(s, t.end[last] ?? s), index: s });
+    if (s < (lastEnd[kind] ?? 0)) return;
+    const e = t.end[last] ?? s;
+    lastEnd[kind] = e;
+    out.push({ kind, text: text.slice(s, e), index: s });
   };
   for (let i = 0; i < t.count; i += 1) {
     if (t.word[i] !== 1) continue;

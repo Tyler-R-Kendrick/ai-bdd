@@ -6,9 +6,9 @@ import { getEngine, closeAiBddEngines } from './engine.ts';
 import { collectScreenshots } from './evidence.ts';
 import { failureMessage, formatSteps } from './format.ts';
 import { normalizeTag, selectScenarios } from './select.ts';
-import type { RegisterOptions, TestInfoLike, TestFixturesLike } from './types.ts';
+import type { PageLike, RegisterOptions, TestInfoLike } from './types.ts';
 
-export type { RegisterOptions, TestLike, TestInfoLike, TestFixturesLike } from './types.ts';
+export type { PageLike, RegisterOptions, TestLike, TestInfoLike, TestFixturesLike } from './types.ts';
 export { closeAiBddEngines } from './engine.ts';
 
 const DEFAULT_PLAN_DIR = '.ai-bdd/plans';
@@ -68,7 +68,7 @@ function annotate(testInfo: TestInfoLike, plan: DocPlan, scenario: Scenario, res
 
 async function runScenarioTest(
   args: { plan: DocPlan; feature: Feature; scenario: Scenario; opts: RegisterOptions },
-  fixtures: TestFixturesLike,
+  page: PageLike,
   testInfo: TestInfoLike,
 ): Promise<void> {
   const { plan, feature, scenario, opts } = args;
@@ -80,7 +80,7 @@ async function runScenarioTest(
   try {
     // R-SDK3: the engine builds the SessionOptions; the host framework supplies the page.
     result = await engine.runScenario(scenario.id, {
-      sessionFactory: (sessionOpts) => sessionFromPage(fixtures.page, sessionOpts, ctx),
+      sessionFactory: (sessionOpts) => sessionFromPage(page, sessionOpts, ctx),
     });
   } catch (error) {
     const code = (error as { code?: unknown } | null)?.code;
@@ -122,9 +122,11 @@ export function registerAiBddScenarios(opts: RegisterOptions): void {
       const usedScenarioTitles = new Set<string>();
       for (const scenario of scenarios) {
         const title = uniqueTitle(usedScenarioTitles, scenario.title, scenario.id);
-        opts.test(title, { tag: playwrightTags(scenario) }, (fixtures, testInfo) =>
-          runScenarioTest({ plan, feature, scenario, opts }, fixtures, testInfo),
-        );
+        // Playwright inspects the first parameter to learn which fixtures to set up, so it must be a destructuring
+        // pattern naming `page` (a plain `fixtures` parameter is rejected at collection time).
+        opts.test(title, { tag: playwrightTags(scenario) }, async ({ page }, testInfo) => {
+          await runScenarioTest({ plan, feature, scenario, opts }, page, testInfo);
+        });
       }
     });
   }

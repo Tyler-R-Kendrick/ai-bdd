@@ -1,0 +1,129 @@
+{
+  "chunks": [
+    {
+      "anchor": "edge-tables/h",
+      "directives": {},
+      "docUri": "docs/table-edge.md",
+      "hash": "afc4785982fc2f3f4a334f67610e1af867d3cc1557232e13aa39b44189853759",
+      "headingPath": [
+        "Edge tables"
+      ],
+      "id": "docs/table-edge.md#edge-tables/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 14,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/table-edge.md#edge-tables",
+      "text": "Edge tables"
+    },
+    {
+      "anchor": "edge-tables/tr1",
+      "directives": {},
+      "docUri": "docs/table-edge.md",
+      "hash": "f674f61cc9a1cde56fbee02ed3b7e1f1a7ee980329e6d087ccda0a34d57afd14",
+      "headingPath": [
+        "Edge tables"
+      ],
+      "id": "docs/table-edge.md#edge-tables/tr1",
+      "kind": "tableRow",
+      "range": {
+        "endColumn": 58,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/table-edge.md#edge-tables",
+      "text": "Name: a | b; code; Notes: bold link"
+    },
+    {
+      "anchor": "edge-tables/tr2",
+      "directives": {},
+      "docUri": "docs/table-edge.md",
+      "hash": "067b491ae9e142c5dbe512213740918acbec6d6d253721fe9d1dd5d5c9385119",
+      "headingPath": [
+        "Edge tables"
+      ],
+      "id": "docs/table-edge.md#edge-tables/tr2",
+      "kind": "tableRow",
+      "range": {
+        "endColumn": 13,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/table-edge.md#edge-tables",
+      "text": "Name: only one"
+    },
+    {
+      "anchor": "edge-tables/tr3",
+      "directives": {},
+      "docUri": "docs/table-edge.md",
+      "hash": "5fa438afbd2f7d10e36d118b175b819ff7979f765c4619a7fdfd2fba93747bbb",
+      "headingPath": [
+        "Edge tables"
+      ],
+      "id": "docs/table-edge.md#edge-tables/tr3",
+      "kind": "tableRow",
+      "range": {
+        "endColumn": 22,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/table-edge.md#edge-tables",
+      "text": "Name: x; y; Notes: z; extra"
+    },
+    {
+      "anchor": "edge-tables/p1",
+      "directives": {},
+      "docUri": "docs/table-edge.md",
+      "hash": "5bb862e02b7d5e4083a5065eae2b5ca00845af7301a012741d5c53160b5f953c",
+      "headingPath": [
+        "Edge tables"
+      ],
+      "id": "docs/table-edge.md#edge-tables/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 19,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "sectionId": "docs/table-edge.md#edge-tables",
+      "text": "Text after tables."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "ba4e4214d47d5f8002af8c6d972c659659c9f8df03d6fb78eb7054052f9b3c95",
+    "title": "Edge tables",
+    "uri": "docs/table-edge.md"
+  },
+  "sections": [
+    {
+      "anchor": "edge-tables",
+      "chunkIds": [
+        "docs/table-edge.md#edge-tables/h",
+        "docs/table-edge.md#edge-tables/tr1",
+        "docs/table-edge.md#edge-tables/tr2",
+        "docs/table-edge.md#edge-tables/tr3",
+        "docs/table-edge.md#edge-tables/p1"
+      ],
+      "docUri": "docs/table-edge.md",
+      "hash": "a95df8a8d905835ce420fa4a4a82f9f3006b44474d18e6c9554ace8e8e4fcb2f",
+      "id": "docs/table-edge.md#edge-tables",
+      "level": 1,
+      "range": {
+        "endColumn": 19,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Edge tables"
+    }
+  ]
+}

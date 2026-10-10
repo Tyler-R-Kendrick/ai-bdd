@@ -1,0 +1,217 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {},
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {},
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "ba7f66627520f2b2a078b145b5c22bcd39f312482543296a25870f979d2a70b1",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 9,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc",
+      "text": "Visible."
+    },
+    {
+      "anchor": "doc/internal/h",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "2ea1842b445b0c813cc619b6d4740a41c2127a66b306a363d761ed4258862cc0",
+      "headingPath": [
+        "Doc",
+        "Internal"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/internal/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 12,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc/internal",
+      "text": "Internal"
+    },
+    {
+      "anchor": "doc/internal/p1",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "41156705deab314aafc9f49ec6dd39c458dba73ccb14e5c015d3cbe48e6310e2",
+      "headingPath": [
+        "Doc",
+        "Internal"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/internal/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 12,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc/internal",
+      "text": "Hidden one."
+    },
+    {
+      "anchor": "doc/internal/hidden-child/h",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "c215139c271c73bbb9f50bfff734381f7bb8eeac06fd9ecc70bbd2b8d0f0606b",
+      "headingPath": [
+        "Doc",
+        "Internal",
+        "Hidden child"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/internal/hidden-child/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 17,
+        "endLine": 10,
+        "startColumn": 1,
+        "startLine": 10
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc/internal",
+      "text": "Hidden child"
+    },
+    {
+      "anchor": "doc/internal/hidden-child/p1",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "79e2b4aa5bf9aeb08448ebbcc8eacd74f76d1b82cf16f4443b107fa7bade5c28",
+      "headingPath": [
+        "Doc",
+        "Internal",
+        "Hidden child"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/internal/hidden-child/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 12,
+        "endLine": 12,
+        "startColumn": 1,
+        "startLine": 12
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc/internal",
+      "text": "Hidden two."
+    },
+    {
+      "anchor": "doc/public/h",
+      "directives": {},
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "591935b15b1c88e2d5f6be0a054604fcf36f0585a6f51098fa3803826fff278c",
+      "headingPath": [
+        "Doc",
+        "Public"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/public/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 14,
+        "startColumn": 1,
+        "startLine": 14
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc/public",
+      "text": "Public"
+    },
+    {
+      "anchor": "doc/public/p1",
+      "directives": {},
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "0b8d4980d8572c3660398037ae54bfea8eb0499f278d4a6aff057fe1503b2c79",
+      "headingPath": [
+        "Doc",
+        "Public"
+      ],
+      "id": "docs/directive-ignore-subtree.md#doc/public/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 13,
+        "endLine": 16,
+        "startColumn": 1,
+        "startLine": 16
+      },
+      "sectionId": "docs/directive-ignore-subtree.md#doc/public",
+      "text": "Visible two."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "6fb547877e692d7711dd0dd6ba500e4e803e4e5dce4b6d201a9ae23c879ec60f",
+    "title": "Doc",
+    "uri": "docs/directive-ignore-subtree.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-ignore-subtree.md#doc/h",
+        "docs/directive-ignore-subtree.md#doc/p1"
+      ],
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "67c46126ec5e50d98b4ca8985270725f66b7573799a42a0f06bcc14871daaec0",
+      "id": "docs/directive-ignore-subtree.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 9,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    },
+    {
+      "anchor": "doc/public",
+      "chunkIds": [
+        "docs/directive-ignore-subtree.md#doc/public/h",
+        "docs/directive-ignore-subtree.md#doc/public/p1"
+      ],
+      "docUri": "docs/directive-ignore-subtree.md",
+      "hash": "750abfce34ec4ddceac0f105e41c4ec92576997e37250665e8276c996646e52d",
+      "id": "docs/directive-ignore-subtree.md#doc/public",
+      "level": 2,
+      "range": {
+        "endColumn": 13,
+        "endLine": 16,
+        "startColumn": 1,
+        "startLine": 14
+      },
+      "title": "Public"
+    }
+  ]
+}

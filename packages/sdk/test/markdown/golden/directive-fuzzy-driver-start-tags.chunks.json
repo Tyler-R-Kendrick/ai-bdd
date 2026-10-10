@@ -1,0 +1,194 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {
+        "driver": "web",
+        "fuzzy": true,
+        "start": "/home",
+        "tags": [
+          "a",
+          "b"
+        ]
+      },
+      "docUri": "docs/directive-fuzzy-driver-start-tags.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-fuzzy-driver-start-tags.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-fuzzy-driver-start-tags.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {
+        "driver": "web",
+        "fuzzy": true,
+        "start": "/home",
+        "tags": [
+          "a",
+          "b"
+        ]
+      },
+      "docUri": "docs/directive-fuzzy-driver-start-tags.md",
+      "hash": "9da7300d87cc7ba35350734873d1b47c867d169e0497f7eb1653d3a01e574f42",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-fuzzy-driver-start-tags.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 25,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 4
+      },
+      "sectionId": "docs/directive-fuzzy-driver-start-tags.md#doc",
+      "text": "Inherited by everything."
+    },
+    {
+      "anchor": "doc/child/h",
+      "directives": {
+        "driver": "mobile",
+        "fuzzy": true,
+        "start": "/home",
+        "tags": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ]
+      },
+      "docUri": "docs/directive-fuzzy-driver-start-tags.md",
+      "hash": "8053321281f5d162ee6c1c1263a0d1a88ee2d500e4c30c65dc343f37240aaefd",
+      "headingPath": [
+        "Doc",
+        "Child"
+      ],
+      "id": "docs/directive-fuzzy-driver-start-tags.md#doc/child/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 9,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/directive-fuzzy-driver-start-tags.md#doc/child",
+      "text": "Child"
+    },
+    {
+      "anchor": "doc/child/p1",
+      "directives": {
+        "driver": "mobile",
+        "fuzzy": true,
+        "start": "/home",
+        "tags": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ]
+      },
+      "docUri": "docs/directive-fuzzy-driver-start-tags.md",
+      "hash": "86f66b28a91ab6c2c3461e65c9d13a38362861d43a731089ef41f005280ce2ce",
+      "headingPath": [
+        "Doc",
+        "Child"
+      ],
+      "id": "docs/directive-fuzzy-driver-start-tags.md#doc/child/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 16,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/directive-fuzzy-driver-start-tags.md#doc/child",
+      "text": "Child override."
+    },
+    {
+      "anchor": "doc/child/p2",
+      "directives": {
+        "driver": "mobile",
+        "fuzzy": true,
+        "start": "/deep link?x=1",
+        "tags": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ]
+      },
+      "docUri": "docs/directive-fuzzy-driver-start-tags.md",
+      "hash": "6cc658dcff6ec73af2568b2321dc1d9ff9c2aeaad81b45d6829690c246fa982c",
+      "headingPath": [
+        "Doc",
+        "Child"
+      ],
+      "id": "docs/directive-fuzzy-driver-start-tags.md#doc/child/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 16,
+        "endLine": 12,
+        "startColumn": 1,
+        "startLine": 12
+      },
+      "sectionId": "docs/directive-fuzzy-driver-start-tags.md#doc/child",
+      "text": "Block override."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "67da62f4aa17935e79d97a5bf7b0294480aafa30b4b44f38337ff6f707f7ddf9",
+    "title": "Doc",
+    "uri": "docs/directive-fuzzy-driver-start-tags.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-fuzzy-driver-start-tags.md#doc/h",
+        "docs/directive-fuzzy-driver-start-tags.md#doc/p1"
+      ],
+      "docUri": "docs/directive-fuzzy-driver-start-tags.md",
+      "hash": "bf866497637d65a1a91721d3bf289a38f00a102656fde70966e3c7906bf228a0",
+      "id": "docs/directive-fuzzy-driver-start-tags.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 25,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    },
+    {
+      "anchor": "doc/child",
+      "chunkIds": [
+        "docs/directive-fuzzy-driver-start-tags.md#doc/child/h",
+        "docs/directive-fuzzy-driver-start-tags.md#doc/child/p1",
+        "docs/directive-fuzzy-driver-start-tags.md#doc/child/p2"
+      ],
+      "docUri": "docs/directive-fuzzy-driver-start-tags.md",
+      "hash": "16f9271f32ba49e57ecd9431ad53d1450f13491aab50e8a2c79426f9d37aaff6",
+      "id": "docs/directive-fuzzy-driver-start-tags.md#doc/child",
+      "level": 2,
+      "range": {
+        "endColumn": 16,
+        "endLine": 12,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "title": "Child"
+    }
+  ]
+}

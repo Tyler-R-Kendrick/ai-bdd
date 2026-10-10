@@ -347,8 +347,6 @@ describe('R-PL2: staleness by chunk hash with move relocation', () => {
       { title: 'Downgrading', paras: [BILLING_PARAS.downgrade, BILLING_PARAS.invoices] },
     ]);
     expect(planner.dirtySections(deleted, plan, { full: false })).toEqual(['docs/billing.md#upgrading']);
-    const added = billingDoc({}, []);
-    added.chunks.length = added.chunks.length; // no-op, keep doc intact
     const withNew = buildDoc('docs/billing.md', [
       { title: 'Upgrading', paras: [BILLING_PARAS.upgrade, BILLING_PARAS.perf] },
       { title: 'Downgrading', paras: [BILLING_PARAS.downgrade, BILLING_PARAS.invoices, 'A brand new paragraph appears.'] },
@@ -387,13 +385,19 @@ describe('R-PL2: staleness by chunk hash with move relocation', () => {
   });
 
   it('R-PL2: a ref whose old hash matches several current chunks is ambiguous and the section is dirty', () => {
-    const plan = firstCompile();
-    const dup = buildDoc('docs/billing.md', [
-      { title: 'Upgrading', paras: [BILLING_PARAS.upgrade, BILLING_PARAS.perf] },
-      { title: 'Downgrading', paras: [BILLING_PARAS.invoices, 'Filler.', BILLING_PARAS.invoices, BILLING_PARAS.downgrade] },
-    ]);
-    // The invoices paragraph exists twice now; the first copy keeps no id continuity, both new ids differ from p2.
-    expect(planner.dirtySections(dup, plan, { full: false })).toContain('docs/billing.md#downgrading');
+    const dupText = 'The same sentence appears twice in this document.';
+    const other = 'Some other paragraph that sits in between them.';
+    const doc = buildDoc('docs/dup.md', [{ title: 'Dups', paras: [dupText, dupText, other] }]);
+    const r = ref(doc, dupText);
+    const second = { ...r, chunkId: 'docs/dup.md#dups/p2' };
+    const plan = planner.merge(doc, null, mapOf(result(firstSectionId(doc, 0), [feature('Dups', [second], [scenario('Dup', [step('when', 'x', [second]), step('then', 'y', [second])], [second])])])), META).plan;
+    expect(planner.dirtySections(doc, plan, { full: false })).toEqual([]);
+    // Same multiset of chunks, but the cited copy's id now holds other text and the old hash sits at two other places.
+    const reordered = buildDoc('docs/dup.md', [{ title: 'Dups', paras: [dupText, other, dupText] }]);
+    expect(planner.dirtySections(reordered, plan, { full: false })).toEqual(['docs/dup.md#dups']);
+    // A reorder that leaves exactly one candidate is a clean move.
+    const unique = buildDoc('docs/dup.md', [{ title: 'Dups', paras: [dupText, dupText, other] }]);
+    expect(planner.dirtySections(unique, plan, { full: false })).toEqual([]);
   });
 
   it('R-PL2: renaming a section heading changes its id, so the section is dirty and its old features are dropped', () => {

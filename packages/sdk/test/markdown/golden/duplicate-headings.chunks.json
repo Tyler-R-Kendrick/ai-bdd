@@ -1,0 +1,348 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/duplicate-headings.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/duplicate-headings.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/setup/h",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "7013af4c42fe43802a9e8b0affc4f521fcd126160569969fb2ec09e1b7c422b1",
+      "headingPath": [
+        "Doc",
+        "Setup"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 9,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup",
+      "text": "Setup"
+    },
+    {
+      "anchor": "doc/setup/p1",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "0e637b4abbb6df4af064b9860e1cf25597fdeedadff19b58934af6b50a0e9098",
+      "headingPath": [
+        "Doc",
+        "Setup"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 12,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup",
+      "text": "first setup"
+    },
+    {
+      "anchor": "doc/setup-2/h",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "7013af4c42fe43802a9e8b0affc4f521fcd126160569969fb2ec09e1b7c422b1",
+      "headingPath": [
+        "Doc",
+        "Setup"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup-2/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 9,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup-2",
+      "text": "Setup"
+    },
+    {
+      "anchor": "doc/setup-2/p1",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "c040b7566c42eaf72db4e4b374d466dbad8105d37cfa437f8b8d25eafe4a4fb4",
+      "headingPath": [
+        "Doc",
+        "Setup"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup-2/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 13,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup-2",
+      "text": "second setup"
+    },
+    {
+      "anchor": "doc/setup-3/h",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "7013af4c42fe43802a9e8b0affc4f521fcd126160569969fb2ec09e1b7c422b1",
+      "headingPath": [
+        "Doc",
+        "Setup"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup-3/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 9,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 11
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup-3",
+      "text": "Setup"
+    },
+    {
+      "anchor": "doc/setup-3/p1",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "3bc1c64092a65e35cd24e6e9145f21ea9e75084f9fe5198406f9892f89dab74b",
+      "headingPath": [
+        "Doc",
+        "Setup"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup-3/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 12,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup-3",
+      "text": "third setup"
+    },
+    {
+      "anchor": "doc/setup-3/notes/h",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "8a7525b1492fb84833f5c4a69b30f4bfbb134f9b666b61a2c1872d63d234c085",
+      "headingPath": [
+        "Doc",
+        "Setup",
+        "Notes"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup-3/notes/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 15
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup-3",
+      "text": "Notes"
+    },
+    {
+      "anchor": "doc/setup-3/notes/p1",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "676b8bb84ce7267dd520deca4811c8f10a53e636352f06987f42fe425acedd80",
+      "headingPath": [
+        "Doc",
+        "Setup",
+        "Notes"
+      ],
+      "id": "docs/duplicate-headings.md#doc/setup-3/notes/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 3,
+        "endLine": 17,
+        "startColumn": 1,
+        "startLine": 17
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/setup-3",
+      "text": "n1"
+    },
+    {
+      "anchor": "doc/other/h",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "f97e9da0e3b879f0a9df979ae260a5f7e1371edb127c1862d4f861981166cdc1",
+      "headingPath": [
+        "Doc",
+        "Other"
+      ],
+      "id": "docs/duplicate-headings.md#doc/other/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 9,
+        "endLine": 19,
+        "startColumn": 1,
+        "startLine": 19
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/other",
+      "text": "Other"
+    },
+    {
+      "anchor": "doc/other/notes/h",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "8a7525b1492fb84833f5c4a69b30f4bfbb134f9b666b61a2c1872d63d234c085",
+      "headingPath": [
+        "Doc",
+        "Other",
+        "Notes"
+      ],
+      "id": "docs/duplicate-headings.md#doc/other/notes/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 21,
+        "startColumn": 1,
+        "startLine": 21
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/other",
+      "text": "Notes"
+    },
+    {
+      "anchor": "doc/other/notes/p1",
+      "directives": {},
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "0480a93d2e9b094b89e08e01976089ac18193af802c66b631cc8d2dc1bae8c88",
+      "headingPath": [
+        "Doc",
+        "Other",
+        "Notes"
+      ],
+      "id": "docs/duplicate-headings.md#doc/other/notes/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 3,
+        "endLine": 23,
+        "startColumn": 1,
+        "startLine": 23
+      },
+      "sectionId": "docs/duplicate-headings.md#doc/other",
+      "text": "n2"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "5d6a7d2ec3fe176a635fea432d68d3bf30ed14986c633025a893849552d2544d",
+    "title": "Doc",
+    "uri": "docs/duplicate-headings.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/duplicate-headings.md#doc/h"
+      ],
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "dd92bbae941a6e4dd0655797457ce9b6564d791668e35c3331f1ddda63a56acb",
+      "id": "docs/duplicate-headings.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    },
+    {
+      "anchor": "doc/setup",
+      "chunkIds": [
+        "docs/duplicate-headings.md#doc/setup/h",
+        "docs/duplicate-headings.md#doc/setup/p1"
+      ],
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "29b3f27e8b14b1c9806272382edeede96080684035fa2e7712b495e7060306c0",
+      "id": "docs/duplicate-headings.md#doc/setup",
+      "level": 2,
+      "range": {
+        "endColumn": 12,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "title": "Setup"
+    },
+    {
+      "anchor": "doc/setup-2",
+      "chunkIds": [
+        "docs/duplicate-headings.md#doc/setup-2/h",
+        "docs/duplicate-headings.md#doc/setup-2/p1"
+      ],
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "16875ba34c3ae540a5c9c7f8fda39c51c110d16439f21a07cb223b6e2d2bc058",
+      "id": "docs/duplicate-headings.md#doc/setup-2",
+      "level": 2,
+      "range": {
+        "endColumn": 13,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "title": "Setup"
+    },
+    {
+      "anchor": "doc/setup-3",
+      "chunkIds": [
+        "docs/duplicate-headings.md#doc/setup-3/h",
+        "docs/duplicate-headings.md#doc/setup-3/p1",
+        "docs/duplicate-headings.md#doc/setup-3/notes/h",
+        "docs/duplicate-headings.md#doc/setup-3/notes/p1"
+      ],
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "005c803c24b59ae0c5a30207da1a7892d0044da04e22f7cbdb0f4bdeee0d7356",
+      "id": "docs/duplicate-headings.md#doc/setup-3",
+      "level": 2,
+      "range": {
+        "endColumn": 3,
+        "endLine": 17,
+        "startColumn": 1,
+        "startLine": 11
+      },
+      "title": "Setup"
+    },
+    {
+      "anchor": "doc/other",
+      "chunkIds": [
+        "docs/duplicate-headings.md#doc/other/h",
+        "docs/duplicate-headings.md#doc/other/notes/h",
+        "docs/duplicate-headings.md#doc/other/notes/p1"
+      ],
+      "docUri": "docs/duplicate-headings.md",
+      "hash": "39b613ff4428444d114ede0c75456d538a49b4df126ab288a07b8e41e9443c7b",
+      "id": "docs/duplicate-headings.md#doc/other",
+      "level": 2,
+      "range": {
+        "endColumn": 3,
+        "endLine": 23,
+        "startColumn": 1,
+        "startLine": 19
+      },
+      "title": "Other"
+    }
+  ]
+}

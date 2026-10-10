@@ -1,0 +1,107 @@
+{
+  "chunks": [
+    {
+      "anchor": "heading/h",
+      "directives": {},
+      "docUri": "docs/frontmatter-not-first.md",
+      "hash": "b34f17f02ecf0307437429f667421d119aaf1bf819694236efe15c538850445c",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-not-first.md#heading/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/frontmatter-not-first.md#heading",
+      "text": "Heading"
+    },
+    {
+      "anchor": "heading/title-not-frontmatter/h",
+      "directives": {},
+      "docUri": "docs/frontmatter-not-first.md",
+      "hash": "d64590826d943713637527091d5adbee61dea34a9c98e6d3940b73e7948b7933",
+      "headingPath": [
+        "Heading",
+        "title: not frontmatter"
+      ],
+      "id": "docs/frontmatter-not-first.md#heading/title-not-frontmatter/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 4,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 4
+      },
+      "sectionId": "docs/frontmatter-not-first.md#heading/title-not-frontmatter",
+      "text": "title: not frontmatter"
+    },
+    {
+      "anchor": "heading/title-not-frontmatter/p1",
+      "directives": {},
+      "docUri": "docs/frontmatter-not-first.md",
+      "hash": "4319bbb0a28e6761cdf1b618cbd54d368d4eaf35a98c3f3802f4820dff1448a5",
+      "headingPath": [
+        "Heading",
+        "title: not frontmatter"
+      ],
+      "id": "docs/frontmatter-not-first.md#heading/title-not-frontmatter/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 11,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/frontmatter-not-first.md#heading/title-not-frontmatter",
+      "text": "Body text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "70a681bc71e70bf46a232b6315c22061d4374776d630832d64f760f4dd01cf19",
+    "title": "Heading",
+    "uri": "docs/frontmatter-not-first.md"
+  },
+  "sections": [
+    {
+      "anchor": "heading",
+      "chunkIds": [
+        "docs/frontmatter-not-first.md#heading/h"
+      ],
+      "docUri": "docs/frontmatter-not-first.md",
+      "hash": "d0d28d0f466b4fc94ffefcf22c015cd583928f466af77af5a06d71714457d183",
+      "id": "docs/frontmatter-not-first.md#heading",
+      "level": 1,
+      "range": {
+        "endColumn": 10,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Heading"
+    },
+    {
+      "anchor": "heading/title-not-frontmatter",
+      "chunkIds": [
+        "docs/frontmatter-not-first.md#heading/title-not-frontmatter/h",
+        "docs/frontmatter-not-first.md#heading/title-not-frontmatter/p1"
+      ],
+      "docUri": "docs/frontmatter-not-first.md",
+      "hash": "d753d5c319f54a338e9f8b5d8123b08e5112d6ad6ab578c37f5a017018fb0fdf",
+      "id": "docs/frontmatter-not-first.md#heading/title-not-frontmatter",
+      "level": 2,
+      "range": {
+        "endColumn": 11,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 4
+      },
+      "title": "title: not frontmatter"
+    }
+  ]
+}
