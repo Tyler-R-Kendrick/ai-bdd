@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AiBddError, type Driver, type DriverSession, type Observation } from '@ai-bdd/sdk/contracts';
 import { renderTree, treeHash } from '@ai-bdd/sdk';
 import { chaosDriver, fakeDriver, garbleObservation, seededRandom, type ChaosDriverFactory, type DriverRule } from '@ai-bdd/testing';
+import { hang } from '../../src/chaos/plan.ts';
 import { BASE, POLICY, sessionOptions } from '../fake-driver/helpers.ts';
 
 const CTX = { projectRoot: '/tmp', baseURL: BASE, policy: POLICY, artifactsDir: '/tmp/artifacts' };
@@ -38,6 +39,7 @@ describe('chaosDriver passthrough', () => {
     expect(a.driver.version).toBe('1.0.0');
     expect(a.driver.capabilities.verbs).toContain('click');
     expect(a.session.driverId).toBe('fake');
+    expect(a.session.driverVersion).toBe(a.driver.version);
     expect(a.session.capabilities).toBe(a.driver.capabilities);
     expect(await a.driver.selfCheck()).toEqual({ ok: true, problems: [] });
     expect(chaos.events).toEqual([]);
@@ -406,5 +408,22 @@ describe('rule matching and bookkeeping', () => {
     await session.perform({ verb: 'back' });
     await rejection(session.observe());
     expect(seen).toEqual(['1:perform:1:fail', '2:observe:0:throw']);
+  });
+});
+
+describe('hang', () => {
+  it('holds no timer by default, and a keep-alive interval when asked (so a hung test process does not exit early)', () => {
+    vi.useFakeTimers();
+    try {
+      void hang();
+      expect(vi.getTimerCount()).toBe(0);
+      void hang(true);
+      expect(vi.getTimerCount()).toBe(1);
+      vi.advanceTimersByTime(2 ** 30 + 1); // the interval fires without effect
+      expect(vi.getTimerCount()).toBe(1);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 });

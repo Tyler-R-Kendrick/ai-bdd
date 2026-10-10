@@ -124,7 +124,7 @@ export function makeOutsideDir(prefix = 'ai-bdd-chaos-outside-'): string {
  * not thrown, so a test can assert on each writer's outcome.
  */
 export async function raceStart<T>(tasks: readonly (() => Promise<T>)[]): Promise<PromiseSettledResult<T>[]> {
-  let release: () => void = () => {};
+  let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });

@@ -133,69 +133,87 @@ function blank(predicate: Predicate): PredicateResult {
   return { predicate, satisfied: 'unknown', actual: { matches: 0, blank: true } };
 }
 
+/** The predicate of one kind. */
+type Of<K extends Predicate['op']> = Extract<Predicate, { op: K }>;
+
+function evalExists(ctx: EvalContext, predicate: Of<'exists'>): PredicateResult {
+  const n = ctx.select(predicate.query).length;
+  if (predicate.negate === true && ctx.nodes.length === 0) return blank(predicate);
+  return { predicate, satisfied: predicate.negate === true ? n === 0 : n >= 1, actual: { matches: n } };
+}
+
+function evalCount(ctx: EvalContext, predicate: Of<'count'>): PredicateResult {
+  const n = ctx.select(predicate.query).length;
+  if (n === 0 && ctx.nodes.length === 0 && (predicate.cmp === 'lte' || (predicate.cmp === 'eq' && predicate.value === 0))) return blank(predicate);
+  const v = predicate.value;
+  let ok: boolean | 'unknown';
+  if (typeof v !== 'number') ok = false;
+  else if (predicate.cmp === 'eq') ok = n === v;
+  else if (predicate.cmp === 'gte') ok = n >= v;
+  else if (predicate.cmp === 'lte') ok = n <= v;
+  else ok = 'unknown';
+  return { predicate, satisfied: ok, actual: { matches: n } };
+}
+
+function evalText(ctx: EvalContext, predicate: Of<'text'>, params: Record<string, string>): PredicateResult {
+  const idx = ctx.select(predicate.query);
+  if (idx.length !== 1) return { predicate, satisfied: false, actual: { matches: idx.length } };
+  const node = ctx.nodes[idx[0] as number] as ObservedNode;
+  const tv = predicate.value as { literal?: string; param?: string };
+  let expectedRaw: string;
+  if (isStr(tv.literal)) {
+    expectedRaw = tv.literal;
+  } else if (isStr(tv.param)) {
+    if (!Object.hasOwn(params, tv.param) || !isStr(params[tv.param])) {
+      return { predicate, satisfied: false, actual: { matches: 1, missingParam: clip(tv.param) } };
+    }
+    expectedRaw = params[tv.param] as string;
+  } else {
+    return { predicate, satisfied: 'unknown', actual: { error: 'text value has neither literal nor param' } };
+  }
+  const expected = fold(expectedRaw);
+  const primary = node.text ?? node.name;
+  const candidates = node.value === undefined ? [primary] : [primary, node.value];
+  const hit = candidates.some((c) => {
+    const f = fold(c);
+    return predicate.match === 'equals' ? f === expected : f.includes(expected);
+  });
+  const actual: JsonObject = { matches: 1, text: clip(primary) };
+  if (node.value !== undefined) actual['value'] = clip(node.value);
+  return { predicate, satisfied: predicate.match === 'equals' || predicate.match === 'contains' ? hit : 'unknown', actual };
+}
+
+function evalState(ctx: EvalContext, predicate: Of<'state'>): PredicateResult {
+  const idx = ctx.select(predicate.query);
+  if (idx.length !== 1) return { predicate, satisfied: false, actual: { matches: idx.length } };
+  const node = ctx.nodes[idx[0] as number] as ObservedNode;
+  const key = predicate.state as string;
+  const raw: unknown = Object.hasOwn(node.states, key) ? (node.states as Record<string, unknown>)[key] : undefined;
+  const normalized: JsonValue = raw === undefined ? false : (raw as JsonValue);
+  return { predicate, satisfied: normalized === predicate.value, actual: { matches: 1, state: normalized } };
+}
+
+function evalRoute(ctx: EvalContext, predicate: Of<'route'>): PredicateResult {
+  const route = ctx.obs.route;
+  let ok: boolean | 'unknown';
+  if (predicate.match === 'equals') ok = route === predicate.value;
+  else if (predicate.match === 'prefix') ok = isStr(predicate.value) && route.startsWith(predicate.value);
+  else ok = 'unknown';
+  return { predicate, satisfied: ok, actual: { route: clip(route) } };
+}
+
 function evalOne(ctx: EvalContext, predicate: Predicate, params: Record<string, string>): PredicateResult {
   switch (predicate.op) {
-    case 'exists': {
-      const n = ctx.select(predicate.query).length;
-      if (predicate.negate === true && ctx.nodes.length === 0) return blank(predicate);
-      return { predicate, satisfied: predicate.negate === true ? n === 0 : n >= 1, actual: { matches: n } };
-    }
-    case 'count': {
-      const n = ctx.select(predicate.query).length;
-      if (n === 0 && ctx.nodes.length === 0 && (predicate.cmp === 'lte' || (predicate.cmp === 'eq' && predicate.value === 0))) return blank(predicate);
-      const v = predicate.value;
-      let ok: boolean | 'unknown';
-      if (typeof v !== 'number') ok = false;
-      else if (predicate.cmp === 'eq') ok = n === v;
-      else if (predicate.cmp === 'gte') ok = n >= v;
-      else if (predicate.cmp === 'lte') ok = n <= v;
-      else ok = 'unknown';
-      return { predicate, satisfied: ok, actual: { matches: n } };
-    }
-    case 'text': {
-      const idx = ctx.select(predicate.query);
-      if (idx.length !== 1) return { predicate, satisfied: false, actual: { matches: idx.length } };
-      const node = ctx.nodes[idx[0] as number] as ObservedNode;
-      const tv = predicate.value as { literal?: string; param?: string };
-      let expectedRaw: string;
-      if (isStr(tv.literal)) {
-        expectedRaw = tv.literal;
-      } else if (isStr(tv.param)) {
-        if (!Object.hasOwn(params, tv.param) || !isStr(params[tv.param])) {
-          return { predicate, satisfied: false, actual: { matches: 1, missingParam: clip(tv.param) } };
-        }
-        expectedRaw = params[tv.param] as string;
-      } else {
-        return { predicate, satisfied: 'unknown', actual: { error: 'text value has neither literal nor param' } };
-      }
-      const expected = fold(expectedRaw);
-      const primary = node.text ?? node.name;
-      const candidates = node.value === undefined ? [primary] : [primary, node.value];
-      const hit = candidates.some((c) => {
-        const f = fold(c);
-        return predicate.match === 'equals' ? f === expected : f.includes(expected);
-      });
-      const actual: JsonObject = { matches: 1, text: clip(primary) };
-      if (node.value !== undefined) actual['value'] = clip(node.value);
-      return { predicate, satisfied: predicate.match === 'equals' || predicate.match === 'contains' ? hit : 'unknown', actual };
-    }
-    case 'state': {
-      const idx = ctx.select(predicate.query);
-      if (idx.length !== 1) return { predicate, satisfied: false, actual: { matches: idx.length } };
-      const node = ctx.nodes[idx[0] as number] as ObservedNode;
-      const key = predicate.state as string;
-      const raw: unknown = Object.hasOwn(node.states, key) ? (node.states as Record<string, unknown>)[key] : undefined;
-      const normalized: JsonValue = raw === undefined ? false : (raw as JsonValue);
-      return { predicate, satisfied: normalized === predicate.value, actual: { matches: 1, state: normalized } };
-    }
-    case 'route': {
-      const route = ctx.obs.route;
-      let ok: boolean | 'unknown';
-      if (predicate.match === 'equals') ok = route === predicate.value;
-      else if (predicate.match === 'prefix') ok = isStr(predicate.value) && route.startsWith(predicate.value);
-      else ok = 'unknown';
-      return { predicate, satisfied: ok, actual: { route: clip(route) } };
-    }
+    case 'exists':
+      return evalExists(ctx, predicate);
+    case 'count':
+      return evalCount(ctx, predicate);
+    case 'text':
+      return evalText(ctx, predicate, params);
+    case 'state':
+      return evalState(ctx, predicate);
+    case 'route':
+      return evalRoute(ctx, predicate);
     default:
       return { predicate, satisfied: 'unknown', actual: { error: 'unsupported predicate' } };
   }
