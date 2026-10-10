@@ -4,7 +4,7 @@ import type {
   Policy, SessionOptions, ValueSource, Verb,
 } from '@ai-bdd/sdk/contracts';
 import { checkNavigation, renderTree, sha256Hex, treeHash, uuidv7 } from '@ai-bdd/sdk';
-import type { BrowserContext, Frame, Locator, Page, Request, Route } from 'playwright-core';
+import type { BrowserContext, CDPSession, Frame, Locator, Page, Request, Route } from 'playwright-core';
 import { parseAriaSnapshot, pruneWrappers } from './aria.ts';
 
 export const DRIVER_ID = 'playwright';
@@ -41,6 +41,7 @@ type Target =
 
 interface Denial { url: string; reason: string }
 
+const BLOCKED_RESPONSE = { status: 200, headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment' }, body: '' } as const;
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
 function errorPayload(code: AiBddErrorPayload['code'], message: string, retryable?: boolean, details?: JsonValue): AiBddErrorPayload {
@@ -93,6 +94,7 @@ export class PlaywrightSession implements DriverSession {
   private readonly pageHandler: (p: Page) => void;
   private readonly navHandler: (f: Frame) => void;
   private readonly requestHandler: (r: Request) => void;
+  private readonly cdpSessions: CDPSession[] = [];
 
   constructor(page: Page, opts: SessionOptions, ctx: { policy: Policy; baseURL?: string }, internals: SessionInternals, onClose?: () => void) {
     this.page = page;
@@ -123,7 +125,7 @@ export class PlaywrightSession implements DriverSession {
             this.denials.push({ url: req.url(), reason: verdict.reason });
             // Answer with a (cancelled) download instead of aborting: the page keeps its current document, whereas an
             // aborted navigation would replace it with Chromium's error page.
-            await route.fulfill({ status: 200, headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment' }, body: '' });
+            await route.fulfill(BLOCKED_RESPONSE);
             if (framePage !== undefined && framePage !== this.page) await framePage.close().catch(() => undefined);
             return;
           }
@@ -136,6 +138,7 @@ export class PlaywrightSession implements DriverSession {
     this.pageHandler = (popup: Page): void => {
       if (popup === this.page) return;
       void this.vetPopup(popup);
+      void this.attachRedirectGuard(popup);
     };
     this.navHandler = (frame: Frame): void => {
       if (frame !== this.page.mainFrame()) return;
@@ -161,8 +164,45 @@ export class PlaywrightSession implements DriverSession {
     };
   }
 
+  /**
+   * Chromium only: a dedicated CDP Fetch session that sees every top-level document request including redirect hops,
+   * which Playwright's own routing never exposes. Disallowed hops are answered with a cancelled download so that the
+   * request never reaches the network and the page keeps its current document. Best effort: failure falls back to
+   * `routeHandler` plus `requestHandler`.
+   */
+  private async attachRedirectGuard(page: Page): Promise<void> {
+    try {
+      const cdp = await this.context.newCDPSession(page);
+      const info = (await cdp.send('Target.getTargetInfo')) as { targetInfo: { targetId: string } };
+      const mainFrameId = info.targetInfo.targetId;
+      cdp.on('Fetch.requestPaused', (ev) => {
+        const send = (method: 'Fetch.continueRequest' | 'Fetch.fulfillRequest', params: object): void => {
+          void (cdp.send as (m: string, p: object) => Promise<unknown>)(method, params).catch(() => undefined);
+        };
+        const top = ev.resourceType === 'Document' && ev.frameId === mainFrameId;
+        const verdict = top ? checkNavigation(ev.request.url, undefined, this.policy) : undefined;
+        if (verdict !== undefined && !verdict.ok) {
+          this.denials.push({ url: ev.request.url, reason: ev.redirectedRequestId === undefined ? verdict.reason : `redirect: ${verdict.reason}` });
+          send('Fetch.fulfillRequest', {
+            requestId: ev.requestId, responseCode: 200,
+            responseHeaders: [{ name: 'content-type', value: 'application/octet-stream' }, { name: 'content-disposition', value: 'attachment' }],
+            body: '',
+          });
+          if (page !== this.page) void page.close().catch(() => undefined);
+          return;
+        }
+        send('Fetch.continueRequest', { requestId: ev.requestId });
+      });
+      await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', resourceType: 'Document', requestStage: 'Request' }] });
+      this.cdpSessions.push(cdp);
+    } catch {
+      // not Chromium, or the page is already gone
+    }
+  }
+
   async install(): Promise<void> {
     await this.context.route('**/*', this.routeHandler);
+    await this.attachRedirectGuard(this.page);
     this.context.on('page', this.pageHandler);
     this.context.on('request', this.requestHandler);
     this.page.on('framenavigated', this.navHandler);
@@ -517,6 +557,7 @@ export class PlaywrightSession implements DriverSession {
     this.page.off('framenavigated', this.navHandler);
     this.context.off('page', this.pageHandler);
     this.context.off('request', this.requestHandler);
+    for (const cdp of this.cdpSessions) await cdp.detach().catch(() => undefined);
     try {
       if (this.internals.ownsContext) await this.context.close();
       else await this.context.unroute('**/*', this.routeHandler);
