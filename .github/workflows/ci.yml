@@ -91,6 +91,9 @@ jobs:
       - name: Coverage gaps
         if: always()
         run: node scripts/coverage-report.mjs --gaps
+      # CRAP = complexity^2 * (1 - coverage)^3 + complexity per function; new offenders and regressions fail (scripts/crap-baseline.json).
+      - name: CRAP gate
+        run: node scripts/crap.mjs --check
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
