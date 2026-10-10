@@ -149,6 +149,14 @@ describe('R-PL4: plan files are deterministic and path-safe', () => {
     expect(DocPlanSchema.parse(plan)).toEqual(plan);
   });
 
+  it('R-PL4: a file name that merely contains two dots is a safe docUri (F-10)', () => {
+    expect(planPathFor('/p/plans', 'docs/release..notes.md')).toBe('/p/plans/docs/release..notes.md.plan.json');
+    expect(planPathFor('/p/plans', 'a..b.md')).toBe('/p/plans/a..b.md.plan.json');
+    for (const bad of ['a/../b.md', '../b.md', 'a/..', 'a//b.md', './b.md', '..../b.md']) {
+      expect(() => planPathFor('/p/plans', bad)).toThrowError(expect.objectContaining({ code: 'POLICY_DENIED' }));
+    }
+  });
+
   it('R-PL4: planPathFor stays inside the plan dir', () => {
     expect(planPathFor('/p/plans', 'docs/a.md')).toBe('/p/plans/docs/a.md.plan.json');
   });
@@ -165,7 +173,8 @@ describe('R-PL4: plan files are deterministic and path-safe', () => {
     fc.assert(
       fc.property(fc.string(), fc.constantFrom('..', '../', '/..', '\\', '/'), fc.string(), (a, evil, b) => {
         const uri = evil === '/' ? `/${a}${b}` : `${a}${evil}${b}`;
-        if (!(uri.startsWith('/') || uri.includes('..') || uri.includes('\\'))) return;
+        const dotSegment = uri.split('/').some((seg) => seg === '' || /^[.\s]+$/.test(seg));
+        if (!(uri.startsWith('/') || dotSegment || uri.includes('\\'))) return;
         expect(() => planPathFor('/p/plans', uri)).toThrowError(expect.objectContaining({ code: 'POLICY_DENIED' }));
       }),
       { numRuns: RUNS },
