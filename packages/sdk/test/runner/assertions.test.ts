@@ -390,4 +390,48 @@ describe('evidence and usage on assertion steps', () => {
     expect(h.saved?.steps[1]?.check?.verified).toEqual({ afterTrue: true, probeTrue: true, beforeFalse: true, judgePassed: true });
     expect(h.saved?.steps[1]?.check?.classification).toBe('change');
   });
+
+  it('R-RN1: in replay mode the window starts at the replay\'s own pre-action observation', async () => {
+    const h = createHarness({ steps: [when('do first'), thenStep('check one', { nature: 'subjective' })] });
+    h.effect('do first', (w) => w.add({ role: 'status', name: 'after-first' }));
+    const [a, t] = h.target.scenario.steps;
+    h.seed(recordingOf(h.target, [entry(a!), fuzzyEntry(t!, ['subjective'])]));
+    const r = await h.run();
+    expect(r.mode).toBe('replay');
+    const req = h.judge.requests[0]!;
+    expect(req.actionPreceded).toBe(true);
+    expect(req.before.treeText).not.toContain('after-first');
+    expect(req.after.treeText).toContain('after-first');
+  });
+
+  it('R-RN1: after a heal the window still starts before the diverged replay', async () => {
+    const h = createHarness({ steps: [when('do first'), thenStep('check one', { nature: 'subjective' })] });
+    h.effect('do first', (w) => w.add({ role: 'status', name: 'after-first' }));
+    const [a, t] = h.target.scenario.steps;
+    h.seed(recordingOf(h.target, [entry(a!), fuzzyEntry(t!, ['subjective'])]));
+    h.recorder.diverge('do first', 'target-missing', 0);
+    const r = await h.run();
+    expect(r.steps[0]?.status).toBe('healed');
+    const req = h.judge.requests[0]!;
+    expect(req.before.treeText).not.toContain('after-first');
+    expect(req.after.treeText).toContain('after-first');
+  });
+
+  it('R-AS4: the recorded check is evaluated against the settled after observation with the step params', async () => {
+    const h = createHarness({ steps: [when(ACT), thenStep(CHECK, { params: { plan: 'Pro' } })] });
+    h.effectShows(ACT, CHECK);
+    seeded(h);
+    await h.run();
+    expect(h.asserter.evaluations).toHaveLength(1);
+    expect(h.asserter.evaluations[0]?.obs.nodes.map((n) => n.name)).toContain(CHECK);
+    expect(h.asserter.generations).toHaveLength(0);
+  });
+
+  it('R-EV1: the agent transcript artifact is attached to the action step', async () => {
+    const h = createHarness({ steps: [when(ACT)] });
+    const ref = { sha256: 'b'.repeat(64), path: 'artifacts/transcript.txt', kind: 'act-transcript' as const, bytes: 7 };
+    h.actor.handler = async (req, session) => ({ ...(await h.actor.succeed(req, session)), transcript: ref });
+    const r = await h.run();
+    expect(r.steps[0]?.evidence).toContainEqual(ref);
+  });
 });

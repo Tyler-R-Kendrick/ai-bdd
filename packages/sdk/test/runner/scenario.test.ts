@@ -464,4 +464,31 @@ describe('recordings errors and modes', () => {
     expect(r.mode).toBe('replay');
     expect(mkTarget([]).scenario.steps).toEqual([]);
   });
+
+  it('R-SE1: a {param} the step does not define is an error step, not a silent empty string', async () => {
+    const h = createHarness({ steps: [when('fill the form')] });
+    h.actor.handler = async (req, session) => {
+      (session as FakeSession).options.resolveValue({ param: 'missing' });
+      return h.actor.succeed(req, session);
+    };
+    const r = await h.run();
+    expect(r.steps[0]?.status).toBe('error');
+    expect(r.steps[0]?.error?.code).toBe('INTERNAL');
+    expect(r.steps[0]?.error?.message).toContain('missing');
+  });
+
+  it('R-RN3: aborting before a confirm run is an infrastructure error and the recording is discarded', async () => {
+    const h = createHarness({ steps: [when(GO), thenStep(SEES)] });
+    h.effectShows(GO, SEES);
+    const c = new AbortController();
+    h.judge.verdictFor = () => {
+      c.abort(); // the signal fires while the last main step runs
+      return 'pass';
+    };
+    const r = await h.run({ signal: c.signal });
+    expect(r.status).toBe('error');
+    expect(r.error?.code).toBe('ABORTED');
+    expect(r.recording).toBe('discarded');
+    expect(h.store.saves).toHaveLength(0);
+  });
 });
