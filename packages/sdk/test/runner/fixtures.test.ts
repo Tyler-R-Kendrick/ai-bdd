@@ -19,6 +19,7 @@ describe('A. fixture steps', () => {
     const h = createHarness({
       steps: [fixtureStep('The account is on the Pro plan with 2 unpaid invoices', 'seedAccount', { plan: 'pro', unpaid: 2 }), thenStep('Billing visible', { nature: 'subjective' })],
       fixtures: [seed],
+      config: { characterize: { confirmRuns: 0, probeMs: 500, healThreshold: 2 } },
     });
     const r = await h.run();
 
