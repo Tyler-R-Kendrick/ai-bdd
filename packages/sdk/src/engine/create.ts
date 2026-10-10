@@ -4,7 +4,7 @@ import { compile, analyze } from './compile.ts';
 import { Core } from './core.ts';
 import { doctor, prune, review } from './maintenance.ts';
 import { defaultModules, systemClock, type EngineOverrides } from './modules.ts';
-import { run, runTarget } from './run.ts';
+import { guardRecordingsMode, run, runTarget } from './run.ts';
 import { findTarget, selectTargets } from './scenarios.ts';
 
 /** One engine per config object (idempotent) unless overrides are given. */
@@ -47,6 +47,7 @@ export async function createEngine(config: ResolvedConfig, overrides?: EngineOve
     review: (id, action) => review(core, id, action),
     async runScenario(scenarioId, opts) {
       core.assertOpen();
+      guardRecordingsMode(core, opts?.updateRecordings === true);
       const target = findTarget(await core.planStore().loadAll(), scenarioId);
       return runTarget(core, target, opts);
     },

@@ -13,68 +13,71 @@ export interface MdNode {
   };
 }
 
-const MAX_DEPTH = 256;
-
-/** Plain text of inline content: markup removed, link text kept, images become alt text. */
-export function inlineText(node: MdNode, onHtml?: (value: string) => void, depth = 0): string {
-  if (depth > MAX_DEPTH) return '';
-  switch (node.type) {
-    case 'text':
-    case 'inlineCode':
-      return node.value ?? '';
-    case 'break':
-      return ' ';
-    case 'image':
-    case 'imageReference':
-      return node.alt ?? '';
-    case 'html':
-      if (onHtml !== undefined && node.value !== undefined) onHtml(node.value);
-      return '';
-    case 'footnoteReference':
-      return '';
-    default: {
-      if (node.children === undefined) return '';
-      let out = '';
-      for (const child of node.children) out += inlineText(child, onHtml, depth + 1);
-      return out;
+/** Plain text of inline content: markup removed, link text kept, images become alt text. Iterative, so depth is unbounded. */
+export function inlineText(root: MdNode, onHtml?: (value: string) => void): string {
+  let out = '';
+  const stack: MdNode[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop() as MdNode;
+    switch (node.type) {
+      case 'text':
+      case 'inlineCode':
+        out += node.value ?? '';
+        break;
+      case 'break':
+        out += ' ';
+        break;
+      case 'image':
+      case 'imageReference':
+        out += node.alt ?? '';
+        break;
+      case 'html':
+        if (onHtml !== undefined && node.value !== undefined) onHtml(node.value);
+        break;
+      case 'footnoteReference':
+        break;
+      default: {
+        const kids = node.children;
+        if (kids !== undefined) for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i] as MdNode);
+      }
     }
   }
+  return out;
 }
 
 /**
  * Flatten any block subtree into plain text, one piece per leaf block. Used for
  * blockquotes, whose content becomes a single chunk.
  */
-export function flattenBlocks(node: MdNode, onHtmlBlock?: (n: MdNode) => void, depth = 0): string {
+export function flattenBlocks(root: MdNode, onHtmlBlock?: (n: MdNode) => void): string {
   const parts: string[] = [];
-  collect(node, parts, onHtmlBlock, depth);
-  return normalizeText(parts.join(' '));
-}
-
-function collect(node: MdNode, out: string[], onHtmlBlock: ((n: MdNode) => void) | undefined, depth: number): void {
-  if (depth > MAX_DEPTH) return;
-  switch (node.type) {
-    case 'paragraph':
-    case 'heading':
-      out.push(inlineText(node));
-      return;
-    case 'code':
-      out.push(node.value ?? '');
-      return;
-    case 'html':
-      if (onHtmlBlock !== undefined) onHtmlBlock(node);
-      return;
-    case 'thematicBreak':
-    case 'definition':
-    case 'footnoteDefinition':
-    case 'yaml':
-      return;
-    case 'table':
-      for (const row of node.children ?? []) {
-        out.push((row.children ?? []).map((cell) => inlineText(cell)).join(' '));
+  const stack: MdNode[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop() as MdNode;
+    switch (node.type) {
+      case 'paragraph':
+      case 'heading':
+        parts.push(inlineText(node));
+        break;
+      case 'code':
+        parts.push(node.value ?? '');
+        break;
+      case 'html':
+        if (onHtmlBlock !== undefined) onHtmlBlock(node);
+        break;
+      case 'thematicBreak':
+      case 'definition':
+      case 'footnoteDefinition':
+      case 'yaml':
+        break;
+      case 'table':
+        for (const row of node.children ?? []) parts.push((row.children ?? []).map((cell) => inlineText(cell)).join(' '));
+        break;
+      default: {
+        const kids = node.children;
+        if (kids !== undefined) for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i] as MdNode);
       }
-      return;
-    default:
-      for (const child of node.children ?? []) collect(child, out, onHtmlBlock, depth + 1);
+    }
   }
+  return normalizeText(parts.join(' '));
 }

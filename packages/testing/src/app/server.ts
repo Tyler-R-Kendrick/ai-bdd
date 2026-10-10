@@ -127,6 +127,8 @@ export async function startAcmeApp(opts: AcmeAppOptions = {}): Promise<{ url: st
       if (action !== null) {
         const fields: Record<string, string> = {};
         for (const [k, v] of form) if (!k.startsWith('__')) fields[k] = v;
+        // A form post comes from the page it names; align the session with it so the post-redirect GET keeps flash messages.
+        if (pathOf(target) !== state.lastPath) state = dispatch(state, { type: 'visit', route: target }, now).state;
         const out = dispatch(state, { type: 'action', action, fields }, now);
         sessions.set(sid, out.state);
         send(res, 303, { location: out.redirect ?? target }, '', sidCookie);

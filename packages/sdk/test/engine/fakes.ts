@@ -576,11 +576,13 @@ export async function makeFixture(opts: WorldOptions = {}): Promise<Fixture> {
       const runOne = async (t: ScenarioTarget, o: ScenarioRunOptions & { workers?: number }): Promise<ScenarioResult> => {
         world.runnerCalls.push({ scenarioId: t.scenario.id, opts: o });
         const n = world.scenarioModelCalls;
-        for (let i = 0; i < (n.act ?? 0); i++) await deps.actor.act({} as ActRequest, {} as DriverSession);
-        for (let i = 0; i < (n.checkgen ?? 0); i++) {
-          await deps.asserter.generate({} as never);
+        try {
+          for (let i = 0; i < (n.act ?? 0); i++) await deps.actor.act({} as ActRequest, {} as DriverSession);
+          for (let i = 0; i < (n.checkgen ?? 0); i++) await deps.asserter.generate({} as never);
+          for (let i = 0; i < (n.judge ?? 0); i++) await deps.judge.judge({} as JudgeRequest);
+        } catch {
+          // like the real runner, model errors end up in step results rather than escaping
         }
-        for (let i = 0; i < (n.judge ?? 0); i++) await deps.judge.judge({} as JudgeRequest);
         if (o.sessionFactory !== undefined) {
           const session = await o.sessionFactory({
             scenarioId: t.scenario.id,

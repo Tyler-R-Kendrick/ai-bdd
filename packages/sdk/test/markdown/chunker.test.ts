@@ -259,9 +259,9 @@ describe('sections', () => {
   });
 
   it('R-EX4: ignore wins over context', () => {
-    const d = chunkText('# D\n\n<!-- ai-bdd: ignore context -->\ntext\n\nmore\n');
+    const d = chunkText('# D\n\nlead\n\n<!-- ai-bdd: ignore context -->\ntext\n\nmore\n');
     expect(d.contextChunkIds).toEqual([]);
-    expect(d.sections[0]?.chunkIds).toEqual(['docs/test.md#d/h', 'docs/test.md#d/p2']);
+    expect(d.sections[0]?.chunkIds).toEqual(['docs/test.md#d/h', 'docs/test.md#d/p1', 'docs/test.md#d/p3']);
   });
 });
 
@@ -339,7 +339,8 @@ describe('line endings, BOM and positions', () => {
           extensions: [gfm(), frontmatter(['yaml'])],
           mdastExtensions: [gfmFromMarkdown(), frontmatterFromMarkdown(['yaml'])],
         }),
-        (k, v: unknown) => (k === 'offset' ? undefined : v),
+        // offsets legitimately differ with CRLF; node values keep the raw line endings
+        (k, v: unknown) => (k === 'offset' || k === 'value' ? undefined : v),
       );
     const expected = parse(lf);
     expect(parse(lf.replace(/\n/g, '\r\n'))).toBe(expected);
@@ -406,6 +407,6 @@ describe('robustness', () => {
 
   it('R-EX4: deeply nested blocks degrade gracefully', () => {
     const d = chunkText(`${'> '.repeat(1500)}deep quote\n`);
-    expect(d.chunks.length + d.diagnostics.length).toBeGreaterThan(0);
+    expect(d.chunks.map((c) => [c.kind, c.text])).toEqual([['blockquote', 'deep quote']]);
   });
 });

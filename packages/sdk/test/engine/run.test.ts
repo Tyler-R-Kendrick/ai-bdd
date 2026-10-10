@@ -220,16 +220,15 @@ describe('exit codes (R-RN3)', () => {
     expect(report.exitCode).toBe(c.expected);
   });
 
-  it('R-RN3: a model that is unavailable during the run is exit 3 even if scenarios were reported failed', async () => {
+  it('R-RN3: a model that is unavailable during the run is exit 3 even if the scenario is reported failed', async () => {
     const { engine, world } = await setup();
     await engine.compile();
     world.scenarioModelCalls = { act: 1 };
     world.failModel = { purpose: 'act', error: new AiBddError('MODEL_UNAVAILABLE', 'down') };
     world.statuses.set(SCENARIO_BILLING, 'failed');
-    // the fake runner lets the model error escape, which is a thrown error, so swallow it like the real runner would
-    const orig = world.runnerCalls;
-    expect(orig).toEqual([]);
-    await expect(engine.run({ compile: false })).rejects.toMatchObject({ code: 'MODEL_UNAVAILABLE' });
+    const report = await engine.run({ compile: false });
+    expect(report.totals.failed).toBe(1);
+    expect(report.exitCode).toBe(3);
   });
 
   it('R-RN3: failed extraction during the implicit compile makes the run exit 1 even if every scenario passes', async () => {

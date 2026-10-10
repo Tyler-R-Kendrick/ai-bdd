@@ -21,7 +21,7 @@ import { errorMessage, throwIfAborted } from './util.ts';
 
 type RunnerOpts = ScenarioRunOptions;
 
-function guardRecordingsMode(core: Core, updateRecordings: boolean): void {
+export function guardRecordingsMode(core: Core, updateRecordings: boolean): void {
   if (updateRecordings && core.config.recordingsMode === 'read-only') {
     throw new AiBddError(
       'RECORDING_READ_ONLY',
