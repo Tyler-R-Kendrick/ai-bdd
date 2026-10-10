@@ -65,14 +65,39 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Coverage floor: 90% lines on the core SDK modules (spec 16.1).
-      - name: Unit tests with coverage floor
-        run: >
-          pnpm test:unit
-          --coverage.enabled
-          --coverage.provider=v8
-          --coverage.include='packages/sdk/src/{markdown,extract,plan,recording,assert,judge,evidence,runner}/**/*.ts'
-          --coverage.thresholds.lines=90
+      - run: pnpm test:unit
+
+  # Coverage floors per package (vitest.config.ts): lines, branches and functions of every package, unit tests only. Needs the
+  # browser so that the Playwright driver's tests run; the Cua Driver's real-product tests are not part of it (no desktop).
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Ensure Chromium
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      - name: Unit tests with coverage floors
+        run: pnpm coverage
+      - name: Coverage gaps
+        if: always()
+        run: node scripts/coverage-report.mjs --gaps
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 14
 
   acceptance:
     runs-on: ubuntu-latest

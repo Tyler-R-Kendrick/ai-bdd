@@ -3,6 +3,18 @@ import { fileURLToPath } from 'node:url';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+/** Per-package floors (percent). Measured on the unit suite; see scripts/coverage-report.mjs for the current table. */
+const floor = (lines: number, branches: number, functions: number) => ({ lines, statements: lines, branches, functions });
+const COVERAGE_FLOORS = {
+  'packages/sdk/src/**': floor(96, 86, 96),
+  'packages/cli/src/**': floor(94, 79, 96),
+  'packages/driver-cua/src/**': floor(94, 77, 92),
+  'packages/driver-playwright/src/**': floor(86, 69, 72),
+  'packages/models-ai-sdk/src/**': floor(99, 91, 99),
+  'packages/playwright-test/src/**': floor(97, 92, 96),
+  'packages/testing/src/**': floor(97, 88, 98),
+};
+
 export default defineConfig({
   resolve: {
     alias: [
@@ -16,6 +28,17 @@ export default defineConfig({
     ],
   },
   test: {
+    // `pnpm coverage` (unit tests, V8). Thresholds are floors per package: raise them when coverage rises, never lower them.
+    // packages/cli/src/bin.ts is a five-line entry shim that only subprocess tests execute.
+    coverage: {
+      provider: 'v8',
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['**/*.d.ts', 'packages/cli/src/bin.ts'],
+      reporter: ['text-summary', 'json-summary', 'json', 'lcov'],
+      reportsDirectory: 'coverage',
+      reportOnFailure: true,
+      thresholds: COVERAGE_FLOORS,
+    },
     projects: [
       { extends: true, test: { name: 'unit', include: ['packages/*/test/**/*.test.ts'] } },
       { extends: true, test: { name: 'acceptance', include: ['tests/acceptance/**/*.test.ts'], testTimeout: 180_000, hookTimeout: 60_000 } },
