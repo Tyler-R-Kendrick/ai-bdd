@@ -158,6 +158,12 @@ describe('exit-code matrix (R-RN3)', () => {
     expect(exitCodeForError('string thrown')).toBe(3);
   });
 
+  // Found by tests/fuzz/cli-args.test.ts: `code in EXIT_BY_ERROR_CODE` accepted prototype members, so the exit code became a function.
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])('R-RN3: a foreign error named AiBddError with the code %s is infrastructure (exit 3)', (code) => {
+    const forged = Object.assign(new Error('forged'), { name: 'AiBddError', code });
+    expect(exitCodeForError(forged)).toBe(3);
+  });
+
   it('R-RN3: errors from loadConfig are mapped before any engine exists', async () => {
     const loadConfig = vi.fn(async () => {
       throw new AiBddError('CONFIG_INVALID', 'bad key');
@@ -197,6 +203,27 @@ describe('exit-code matrix (R-RN3)', () => {
 });
 
 describe('secrets are never printed (R-SE1)', () => {
+  // Found by tests/fuzz/cua-nodes.test.ts (same scrubbing order bug): "alice" was replaced first and left "123" of "alice123" behind.
+  it('R-SE1: a secret that contains another secret is scrubbed whole, whatever the order they were registered in', async () => {
+    for (const secrets of [{ user: { env: 'USER_NAME' }, pw: { env: 'ADMIN_PASSWORD' } }, { pw: { env: 'ADMIN_PASSWORD' }, user: { env: 'USER_NAME' } }]) {
+      const report = makeReport({
+        exitCode: 1,
+        scenarios: [{
+          scenarioId: 's', featureId: 'f', docUri: 'd', title: 't', driver: 'web', status: 'error', mode: 'replay', review: 'accepted',
+          steps: [], recording: 'none', usage: { modelCalls: 0, inputTokens: 0, outputTokens: 0 }, durationMs: 1,
+          error: { code: 'DRIVER_ERROR', message: 'typed alice4242 into the field', retryable: false },
+        }],
+      });
+      const h = await runCli(['run'], {
+        env: { USER_NAME: 'alice', ADMIN_PASSWORD: 'alice4242' },
+        config: { secrets },
+        engine: { run: vi.fn(async () => report) },
+      });
+      expect(h.stdout).toContain('typed [redacted] into the field');
+      expect(h.stdout).not.toContain('4242');
+    }
+  });
+
   it('R-SE1: secret values known from config.secrets are scrubbed from all output', async () => {
     const report = makeReport({
       exitCode: 1,

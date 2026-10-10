@@ -97,6 +97,20 @@ describe('secrets (R-SE1)', () => {
     expect(JSON.stringify(deps?.config)).not.toContain(SECRET);
   });
 
+  // Found by tests/fuzz/config.test.ts: env lookups and secretValue() read inherited Object.prototype members.
+  it.each(['constructor', 'toString', 'hasOwnProperty'])('R-SE1: secretValue(%j) of a secret that is not configured is undefined, not an inherited function', async (name) => {
+    const { world, engine } = await setup({ user }, { ADMIN_PASSWORD: SECRET });
+    await engine.run();
+    expect(world.runnerDepsSeen[0]?.secretValue(name)).toBeUndefined();
+  });
+
+  it('R-SE1: an env var named like an Object.prototype member is treated as unset at engine creation', async () => {
+    const { engine, world } = await setup({ user: { secrets: { adminPassword: { env: 'constructor' } } } }, {});
+    await engine.run();
+    expect(world.redactorSecrets).toEqual([{}]);
+    expect(world.runnerDepsSeen[0]?.secretValue('adminPassword')).toBeUndefined();
+  });
+
   it('R-SE1: reports are redacted before they are written (secret in a scenario title)', async () => {
     const docs = { 'docs/login.md': `# Login\n## Sign in with ${SECRET}\nUsers sign in with ${SECRET} as the password.` };
     const { engine, config } = await setup({ docs, user }, { ADMIN_PASSWORD: SECRET });

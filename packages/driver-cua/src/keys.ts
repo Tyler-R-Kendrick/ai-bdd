@@ -17,6 +17,11 @@ const MODIFIERS: Record<string, string> = {
   controlormeta: process.platform === 'darwin' ? 'cmd' : 'ctrl',
 };
 
+/** Own-property lookup: a key spec such as `constructor` or `__proto__` must not resolve to an Object.prototype member. */
+function own(table: Record<string, string>, name: string): string | undefined {
+  return Object.hasOwn(table, name) ? table[name] : undefined;
+}
+
 /** `Control+Shift+K` -> `{ key: 'K', modifiers: ['ctrl', 'shift'] }`. Returns `undefined` for an empty or unknown spec. */
 export function parseKey(spec: string): CuaKey | undefined {
   if (spec.length === 0) return undefined;
@@ -25,12 +30,12 @@ export function parseKey(spec: string): CuaKey | undefined {
   const keyPart = parts[parts.length - 1] as string;
   const modifiers: string[] = [];
   for (const m of parts.slice(0, -1)) {
-    const mapped = MODIFIERS[m.toLowerCase()];
+    const mapped = own(MODIFIERS, m.toLowerCase());
     if (mapped === undefined) return undefined;
     if (!modifiers.includes(mapped)) modifiers.push(mapped);
   }
   const lower = keyPart.toLowerCase();
-  const named = NAMED[lower];
+  const named = own(NAMED, lower);
   if (named !== undefined) return { key: named, modifiers };
   if (/^f([1-9]|1[0-2])$/.test(lower)) return { key: lower, modifiers };
   if (keyPart.length === 1) return { key: keyPart, modifiers };
