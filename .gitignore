@@ -11,3 +11,5 @@ packages/testing/.quickstart/
 .claude/worktrees/
 .stryker-tmp/
 reports/
+.stryker-tmp/
+reports/
