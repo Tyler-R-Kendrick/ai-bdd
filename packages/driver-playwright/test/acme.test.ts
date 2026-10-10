@@ -139,6 +139,23 @@ suite(suiteName, () => {
     }, 30_000);
   }
 
+  it('AC3: Playwright observation equals the fake driver observation (role, name, level, states, value, order) on every static Acme screen', async () => {
+    const { fakeDriver } = (await import('@ai-bdd/testing')) as { fakeDriver: () => import('@ai-bdd/sdk/contracts').DriverFactory };
+    const fakeInstance = await fakeDriver().create({ projectRoot: process.cwd(), policy, artifactsDir: process.cwd(), baseURL: app.url });
+    const opts = { scenarioId: 'parity', baseURL: app.url, policy, resolveValue: (v: ValueSource) => ('literal' in v ? v.literal : ADMIN) };
+    const pw = await driver.openSession(opts);
+    const fake = await fakeInstance.openSession(opts);
+    const shape = (o: Observation): string[] => o.nodes.map((n) => normalize(`${'  '.repeat(n.depth)}${n.role}|${n.name}|${n.level ?? ''}|${JSON.stringify(n.states)}|${n.value ?? ''}`));
+    for (const path of ['/login', '/settings/billing', '/todos', '/forms/two', '/notes']) {
+      await go(pw, path);
+      await go(fake, path);
+      expect(shape(await pw.observe()), path).toEqual(shape(await fake.observe()));
+    }
+    await pw.close();
+    await fake.close();
+    await fakeInstance.dispose();
+  });
+
   it('R-SE2: signing in with a secret reaches /settings/billing, taints the session and never exposes the password', async () => {
     const s = await open();
     await go(s, '/login');
