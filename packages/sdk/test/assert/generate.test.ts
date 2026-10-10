@@ -113,11 +113,47 @@ describe('check generation: accepted programs (R-AS1)', () => {
     expect(res.program?.predicates[0]).toMatchObject({ op: 'text', value: { param: 'plan' } });
   });
 
-  it('R-AS1: an invariant program needs no false-on-before (beforeFalse is null)', async () => {
+  it('R-AS1: with no preceding action an invariant needs no false-on-before (beforeFalse is null)', async () => {
     const { asserter } = setup([{ classification: 'invariant', predicates: [{ op: 'exists', query: q({ role: 'heading', name: 'Billing' }) }] }]);
-    const res = await asserter.generate(request());
+    const res = await asserter.generate(request({ actionPreceded: false }));
     expect(res.program?.classification).toBe('invariant');
     expect(res.program?.verified).toEqual({ afterTrue: true, probeTrue: true, beforeFalse: null, judgePassed: false });
+  });
+
+  it('R-AS1: after an action an "invariant" that already holds before is rejected as not discriminative', async () => {
+    const inv: JsonValue = { classification: 'invariant', predicates: [{ op: 'exists', query: q({ role: 'heading', name: 'Billing' }) }] };
+    const { asserter, model } = setup([inv, inv, inv]);
+    const res = await asserter.generate(request());
+    expect(res.program).toBeUndefined();
+    expect(res.fuzzyReasons).toContain('check-not-discriminative');
+    expect(model.requests).toHaveLength(3);
+  });
+
+  it('R-AS1: after an action an "invariant" that is false before is accepted and recorded as a change', async () => {
+    const inv: JsonValue = { ...(goodChange as object), classification: 'invariant' } as JsonValue;
+    const { asserter } = setup([inv]);
+    const res = await asserter.generate(request());
+    expect(res.program?.classification).toBe('change');
+    expect(res.program?.verified.beforeFalse).toBe(true);
+  });
+
+  it('R-AS1: always-true predicates (count >= 0, route prefix "/") are rejected', async () => {
+    for (const p of [
+      { op: 'count', query: q({ role: 'button' }), cmp: 'gte', value: 0 },
+      { op: 'route', match: 'prefix', value: '/' },
+    ]) {
+      const { asserter } = setup([{ classification: 'invariant', predicates: [p] } as JsonValue, { classification: 'invariant', predicates: [p] } as JsonValue, { classification: 'invariant', predicates: [p] } as JsonValue]);
+      const res = await asserter.generate(request({ actionPreceded: false }));
+      expect(res.program, JSON.stringify(p)).toBeUndefined();
+    }
+  });
+
+  it('R-SE1: a program whose literal contains a secret value is rejected', async () => {
+    const leak: JsonValue = { classification: 'change', predicates: [{ op: 'text', query: q({ role: 'status', name: 'Current plan' }), match: 'contains', value: { literal: 'Pro' } }] };
+    const { asserter, model } = setup([leak, leak, leak], { secrets: { plan: 'Pro' } });
+    const res = await asserter.generate(request());
+    expect(res.program).toBeUndefined();
+    expect(model.requests.length).toBeGreaterThan(0);
   });
 
   it('R-AS1: when no action preceded the check an invariant is accepted', async () => {

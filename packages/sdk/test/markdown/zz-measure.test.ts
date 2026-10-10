@@ -27,6 +27,6 @@ const cases: [string,(n:number)=>string][] = [
 ];
 for (const [l,mk] of cases) it(l, () => {
   const r:string[]=[];
-  for (const n of [2500,5000,10000]) { const s='# T\n\n'+mk(n)+'\n'; const t=performance.now(); chunk(s); r.push(`${n}:${Math.round(performance.now()-t)}ms`); }
+  for (const n of [10000,20000,40000]) { const s='# T\n\n'+mk(n)+'\n'; const t=performance.now(); chunk(s); r.push(`${n}:${Math.round(performance.now()-t)}ms`); }
   process.getBuiltinModule('node:fs').appendFileSync('/tmp/claude-0/-home-user-ai-bdd/0a1cf405-8758-5453-981b-eb6b83c053de/scratchpad/m.out', l+' '+r.join(' ')+'\n');
 }, 120000);
