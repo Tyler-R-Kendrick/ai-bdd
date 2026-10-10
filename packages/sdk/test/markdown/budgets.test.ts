@@ -8,11 +8,11 @@ import { MAX_DOC_CHARS, MAX_INDENT_COLUMNS, MAX_RUN_DELIMITERS, neutralizeHostil
 import { applyDirectiveEntry, emptyDirectiveSet } from '../../src/markdown/directives.ts';
 import { discoverDocs } from '../../src/markdown/discover.ts';
 import { atomicWriteFile, stableJson } from '../../src/util/index.ts';
-import { chunkText, makeDoc } from './helpers.ts';
+import { chunkText, cpuMs, makeDoc } from './helpers.ts';
 
 const chunker = createChunker();
 const opts = { sectionDepth: 2, maxSectionChars: 12000 };
-// Absolute time budgets only need to separate linear from quadratic behaviour (seconds), so they are generous: CI runners are slow and noisy.
+// CPU-time budgets only need to separate linear from quadratic behaviour (seconds), so they are generous; CPU time (not wall time) keeps a busy or instrumented machine from failing them.
 const BUDGET_MS = 6000;
 chunker.chunk(makeDoc('# warm up\n\n- a\n  - b\n'), opts);
 
@@ -36,21 +36,18 @@ describe('F-12 input budgets', () => {
 
   it('hostile single-paragraph inputs are parsed quickly', () => {
     for (const make of [(n: number) => '['.repeat(n), (n: number) => '*a'.repeat(n), (n: number) => '[a](b '.repeat(n), (n: number) => ']'.repeat(n), (n: number) => '~~a'.repeat(n)]) {
-      const t = performance.now();
-      chunker.chunk(makeDoc(`# T\n\n${make(30_000)}\n`), opts);
-      expect(performance.now() - t).toBeLessThan(BUDGET_MS);
+      expect(cpuMs(() => chunker.chunk(makeDoc(`# T\n\n${make(30_000)}\n`), opts))).toBeLessThan(BUDGET_MS);
     }
-  });
+  }, 120_000); // five inputs of up to BUDGET_MS CPU time each; the wall-clock limit must not be what fails on a busy machine
 
   it('deep indentation is neutralized, shallow indentation is untouched, whitespace-only lines stay blank', () => {
     const deep = `${' '.repeat(MAX_INDENT_COLUMNS + 30)}- x`;
     const n = neutralizeHostile(`a\n${deep}\n${' '.repeat(500)}\nb\n`);
     expect(n.indented).toEqual([2]);
     expect(n.text.split('\n')[2]).toBe(' '.repeat(500));
-    const t = performance.now();
-    chunker.chunk(makeDoc(`# T\n\n${Array.from({ length: 400 }, (_, i) => `${' '.repeat(i * 2)}- item ${i}`).join('\n')}\n`), opts);
-    expect(performance.now() - t).toBeLessThan(BUDGET_MS);
-  });
+    const text = `# T\n\n${Array.from({ length: 400 }, (_, i) => `${' '.repeat(i * 2)}- item ${i}`).join('\n')}\n`;
+    expect(cpuMs(() => chunker.chunk(makeDoc(text), opts))).toBeLessThan(BUDGET_MS);
+  }, 60_000);
 
   it('a code block containing deep indentation keeps its text exactly', () => {
     const code = `${' '.repeat(MAX_INDENT_COLUMNS + 10)}wide line`;

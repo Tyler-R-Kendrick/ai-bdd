@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -84,6 +85,18 @@ function windowRecords(structured: Record<string, unknown>): { pid: number; wind
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Remove a profile directory. A browser's helper processes (crash handler, GPU process) can outlive its main process and write into
+ * the profile, so a single `rm` can fail with ENOTEMPTY or be undone: remove until the directory has stayed gone for a moment.
+ */
+async function removeProfile(dir: string): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }).catch(() => undefined);
+    await sleep(attempt === 0 ? 50 : 200);
+    if (!existsSync(dir)) return;
+  }
+}
+
 interface Launched { child: ChildProcess; profileDir: string; exit: Promise<number | null> }
 
 class CuaDriver implements Driver {
@@ -143,7 +156,7 @@ class CuaDriver implements Driver {
     let lastSeen = 0;
     for (;;) {
       const res = await client.callTool('list_windows', pid === undefined ? {} : { pid });
-      if (res.failed) throw new AiBddError('DRIVER_ERROR', `list_windows: ${res.text.split('\n')[0] ?? 'failed'}`);
+      if (res.failed) throw new AiBddError('DRIVER_ERROR', `list_windows: ${res.text.split('\n')[0] || 'failed'}`);
       const candidates = windowRecords(res.structured).filter((w) => (pid === undefined || w.pid === pid) && this.matches(w));
       lastSeen = windowRecords(res.structured).length;
       const best = candidates.sort((a, b) => Number(b.onScreen) - Number(a.onScreen) || b.z - a.z)[0];
@@ -219,7 +232,7 @@ class CuaDriver implements Driver {
         await Promise.race([app.exit, sleep(2000)]);
       }
     }
-    await rm(app.profileDir, { recursive: true, force: true }).catch(() => undefined);
+    await removeProfile(app.profileDir);
   }
 
   async openSession(opts: SessionOptions): Promise<DriverSession> {

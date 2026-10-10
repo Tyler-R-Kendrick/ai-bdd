@@ -12,6 +12,7 @@
     "lint": "oxlint packages tests scripts",
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run --passWithNoTests --project unit",
+    "coverage": "vitest run --passWithNoTests --project unit --coverage.enabled && node scripts/coverage-report.mjs",
     "test:acceptance": "vitest run --passWithNoTests --project acceptance",
     "test:adversarial": "vitest run --passWithNoTests --project adversarial",
     "check": "node scripts/check-all.mjs",
