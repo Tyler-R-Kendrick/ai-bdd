@@ -17,7 +17,12 @@ import {
   type DriverAction,
   type DriverCapabilities,
 } from '@ai-bdd/sdk/contracts';
-import { renderTree, sha256Hex, treeHash } from '@ai-bdd/sdk';
+import { createEngine, loadConfig, renderTree, sha256Hex, treeHash } from '@ai-bdd/sdk';
+import type { Clock, DriverFactory, Engine, FixtureDefinition, ResolvedConfig, RunEvent } from '@ai-bdd/sdk/contracts';
+import { fakeDriver } from '@ai-bdd/testing';
+import { virtualClock } from '../../acceptance/helpers/clock.ts';
+import { ACME_DEFAULT_ADMIN_PASSWORD as DEFAULT_PW } from '../../acceptance/helpers/paths.ts';
+import type { Project } from '../../acceptance/helpers/project.ts';
 
 export { createProject, type Project } from '../../acceptance/helpers/project.ts';
 export { openEngine, type EngineHandle } from '../../acceptance/helpers/engine.ts';
@@ -244,12 +249,6 @@ export const json = (v: unknown): JsonValue => JSON.parse(JSON.stringify(v)) as 
 
 // ───────────────────────── engine factory with fully custom models / drivers / fixtures
 
-import { createEngine, loadConfig } from '@ai-bdd/sdk';
-import type { Clock, DriverFactory, Engine, FixtureDefinition, ResolvedConfig, RunEvent } from '@ai-bdd/sdk/contracts';
-import { fakeDriver } from '@ai-bdd/testing';
-import { virtualClock } from '../../acceptance/helpers/clock.ts';
-import { ACME_DEFAULT_ADMIN_PASSWORD as DEFAULT_PW } from '../../acceptance/helpers/paths.ts';
-import type { Project } from '../../acceptance/helpers/project.ts';
 
 export interface MadeEngine {
   engine: Engine;
@@ -291,4 +290,42 @@ export async function makeEngine(project: Project, o: MakeEngineOptions): Promis
     driverId: factory.id,
     close: () => engine.close(),
   };
+}
+
+
+// ───────────────────────── wrapping the stock fake models
+
+/** Replace the answer of one purpose for requests `fn` returns a value for; everything else goes to the stock fake rules. */
+export function overriding(
+  purpose: ModelPurpose,
+  fn: (req: ModelRequest, ctx: { calls: number }) => Partial<ModelResponse> | undefined | Promise<Partial<ModelResponse> | undefined>,
+): (fake: ModelSet) => ModelSet {
+  return (fake) => {
+    const inner = fake[purpose];
+    const state = { calls: 0 };
+    const wrapped: ChatModel = {
+      id: inner.id,
+      async generate(req: ModelRequest): Promise<ModelResponse> {
+        state.calls += 1;
+        const mine = await fn(req, state);
+        if (mine === undefined) return inner.generate(req);
+        return { toolCalls: [], usage: { inputTokens: 1, outputTokens: 1 }, finishReason: 'stop', modelId: inner.id, ...mine };
+      },
+    };
+    return Object.assign({}, fake, { [purpose]: wrapped }) as ModelSet;
+  };
+}
+
+/** Compose several wrappers (applied left to right). */
+export function compose(...fns: ((m: ModelSet) => ModelSet)[]): (m: ModelSet) => ModelSet {
+  return (m) => fns.reduce((acc, f) => f(acc), m);
+}
+
+/** Judge answer with three identical samples. */
+export function judgeSays(verdict: 'holds' | 'fails' | 'cannot_tell', probability: number): Partial<ModelResponse> {
+  return { object: { probability, verdict, explanation: `scripted ${verdict}`, observed: 'scripted' } };
+}
+
+export function toolCall(name: string, args: JsonObject, id = `call_${name}`): Partial<ModelResponse> {
+  return { toolCalls: [{ id, name, args }], finishReason: 'tool-calls' };
 }
