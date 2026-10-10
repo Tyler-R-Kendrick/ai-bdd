@@ -27,6 +27,7 @@ describe('init (G8)', () => {
     const gi = await read('.gitignore');
     expect(gi).toContain('.ai-bdd/runs/');
     expect(gi).toContain('.ai-bdd/cache/');
+    expect(gi).toContain('.ai-bdd/report/');
     expect(await readdir(join(dir, '.ai-bdd', 'plans'))).toEqual([]);
     expect(h.createEngine).not.toHaveBeenCalled();
     expect(h.loadConfig).not.toHaveBeenCalled();
@@ -78,7 +79,7 @@ describe('init (G8)', () => {
     await writeFile(join(dir, '.gitignore'), 'node_modules\n.ai-bdd/runs/');
     await init();
     const once = await read('.gitignore');
-    expect(once).toBe('node_modules\n.ai-bdd/runs/\n.ai-bdd/cache/\n');
+    expect(once).toBe('node_modules\n.ai-bdd/runs/\n.ai-bdd/cache/\n.ai-bdd/report/\n');
     await init();
     expect(await read('.gitignore')).toBe(once);
   });

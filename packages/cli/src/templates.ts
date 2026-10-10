@@ -60,6 +60,6 @@ Signing in with a wrong password shows the error message "Invalid credentials"
 and keeps the user on the sign-in page.
 `;
 
-export const GITIGNORE_ENTRIES = ['.ai-bdd/runs/', '.ai-bdd/cache/'] as const;
+export const GITIGNORE_ENTRIES = ['.ai-bdd/runs/', '.ai-bdd/cache/', '.ai-bdd/report/'] as const;
 
 export const CONFIG_FILE_NAMES = ['ai-bdd.config.ts', 'ai-bdd.config.mjs', 'ai-bdd.config.js', 'ai-bdd.config.json'] as const;

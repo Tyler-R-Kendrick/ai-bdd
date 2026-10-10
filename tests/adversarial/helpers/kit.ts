@@ -271,6 +271,8 @@ export interface MadeEngine {
 export interface MakeEngineOptions {
   models: ModelSet;
   driver?: DriverFactory;
+  /** additional driver factories registered next to `driver` (keyed by their ids) */
+  extraDrivers?: DriverFactory[];
   /** replaces the corpus fixtures (default: the corpus config's acmeFixtures) */
   fixtures?: FixtureDefinition[];
   config?: (c: ResolvedConfig) => ResolvedConfig;
@@ -284,11 +286,14 @@ export async function makeEngine(project: Project, o: MakeEngineOptions): Promis
   const env: Record<string, string | undefined> = { ACME_ADMIN_PASSWORD: DEFAULT_PW, ...(o.env ?? {}) };
   let config = await loadConfig({ cwd: project.dir, env });
   config = { ...config, baseURL: config.baseURL ?? 'http://localhost:4173' };
+  const primary = o.driver ?? fakeDriver({ adminPassword: DEFAULT_PW });
+  const all = [primary, ...(o.extraDrivers ?? [])];
+  config = { ...config, drivers: Object.fromEntries(all.map((d) => [d.id, d])), defaultDriver: config.defaultDriver ?? primary.id };
   if (o.fixtures !== undefined) config = { ...config, fixtures: o.fixtures };
   if (o.config !== undefined) config = o.config(config);
-  const factory = o.driver ?? fakeDriver({ adminPassword: DEFAULT_PW });
+  const factory = primary;
   const clock = o.realTime === true ? undefined : (o.clock ?? virtualClock());
-  const engine = await createEngine(config, { models: o.models, drivers: { [factory.id]: factory }, env, ...(clock === undefined ? {} : { clock }) });
+  const engine = await createEngine(config, { models: o.models, drivers: Object.fromEntries(all.map((d) => [d.id, d])), env, ...(clock === undefined ? {} : { clock }) });
   const events: RunEvent[] = [];
   engine.on((e) => events.push(e));
   return {

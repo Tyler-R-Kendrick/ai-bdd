@@ -227,7 +227,7 @@ async function callActor(sc: StepCtx, hints: RecordedAction[] | undefined): Prom
     priorSteps: st.priorSteps.map((p) => ({ ...p })),
     params: step.params,
     appContext: env.deps.config.context,
-    secretNames: [...env.deps.redactor.secretNames],
+    secretNames: Object.keys(env.deps.config.secrets),
   };
   if (hints !== undefined) req.hints = hints;
   if (env.opts.signal) req.signal = env.opts.signal;

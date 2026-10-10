@@ -46,6 +46,18 @@ describe('M13 secrets through the CLI and the judge screenshot gate', () => {
     expect(readFakeLog(p.logPath).length).toBeGreaterThan(0);
   });
 
+  it('M13 R-SE1: replaying a recorded login without the secret in the environment fails the scenario with SECRET_MISSING and does not heal', async () => {
+    const p = createProject({ docs: ['login'], options: FAST_REAL });
+    project = p;
+    const first = await runCli(p, ['run', 'docs/login.md']);
+    expect(first.code, cliOutput(first)).toBe(0);
+    const again = await runCli(p, ['run', 'docs/login.md'], { env: { ACME_ADMIN_PASSWORD: undefined } });
+    const text = cliOutput(again);
+    expect(again.code, text).not.toBe(0);
+    expect(text).toContain('SECRET_MISSING');
+    expect(text).toContain('0 healed');
+  });
+
   it('M13 R-SE2 R-JU3: when masking is not proven, no model request after the secret fill carries a screenshot', async () => {
     const p = createProject({ docs: ['login'] });
     project = p;

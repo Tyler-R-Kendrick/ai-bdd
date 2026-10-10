@@ -80,7 +80,7 @@ export async function runInit(ctx: Ctx, opts: InitOptions): Promise<ExitCode> {
   lines.push(doc === 'skipped' ? 'skipped  docs/example.md (already exists; use --yes to overwrite)' : `${doc.padEnd(8)} docs/example.md`);
 
   const added = await ensureGitignore(join(root, '.gitignore'));
-  lines.push(added.length > 0 ? `updated  .gitignore (+${added.join(', ')})` : 'ok       .gitignore already ignores .ai-bdd/runs/ and .ai-bdd/cache/');
+  lines.push(added.length > 0 ? `updated  .gitignore (+${added.join(', ')})` : 'ok       .gitignore already ignores .ai-bdd/runs/, .ai-bdd/cache/ and .ai-bdd/report/');
 
   const plansDir = join(root, '.ai-bdd', 'plans');
   const plansExisted = await exists(plansDir);

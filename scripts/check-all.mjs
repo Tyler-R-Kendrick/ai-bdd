@@ -17,6 +17,7 @@ export const STEPS = [
   { name: 'check-stubs', script: 'check-stubs.mjs', args: [], tolerable: true },
   { name: 'check-licenses', script: 'check-licenses.mjs', args: [], tolerable: false },
   { name: 'check-determinism', script: 'check-determinism.mjs', args: [], tolerable: true },
+  { name: 'check-docs', script: 'check-docs.mjs', args: [], tolerable: false },
 ];
 
 /**

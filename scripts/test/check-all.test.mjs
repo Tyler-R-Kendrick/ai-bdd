@@ -27,6 +27,7 @@ test('STEPS covers every check script in order', () => {
     'check-stubs.mjs',
     'check-licenses.mjs',
     'check-determinism.mjs',
+    'check-docs.mjs',
   ]);
   assert.deepEqual(STEPS.filter((s) => s.tolerable).map((s) => s.name).sort(), ['check-determinism', 'check-requirements', 'check-stubs', 'gen-errors-doc --check']);
 });
