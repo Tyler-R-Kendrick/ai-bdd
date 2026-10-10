@@ -41,7 +41,7 @@ cd packages/testing/.quickstart
 export AI_BDD_FAKE=1 AI_BDD_FAKE_RULES="$PWD/fake-model"
 ai-bdd() { node --conditions=source ../../cli/src/bin.ts "$@"; }
 
-# 2. Compile: extract the plans from docs/*.md (17 fake model calls).
+# 2. Compile: extract the plans from docs/*.md (one fake model call per section).
 ai-bdd compile
 
 # 3. Nothing changed, so compiling again makes no model calls and rewrites nothing.
