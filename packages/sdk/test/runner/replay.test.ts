@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { ActResult } from '../../src/contracts/index.ts';
 import { selectorFor } from './doubles/collaborators.ts';
 import { createHarness, entry, fuzzyEntry, recordingOf, thenStep, when, type Harness } from './doubles/harness.ts';
 
@@ -16,10 +15,6 @@ function threeStep(over: Partial<Parameters<typeof createHarness>[0]> = {}): Har
 function seedFull(h: Harness, opts: { healCountB?: number } = {}): void {
   const [a, b, c] = h.target.scenario.steps;
   h.seed(recordingOf(h.target, [entry(a!), entry(b!, { stats: { healCount: opts.healCountB ?? 0 } }), entry(c!)]));
-}
-
-function doneAfter(h: Harness): (req: Parameters<Harness['actor']['handler']>[0], session: Parameters<Harness['actor']['handler']>[1], n: number, world: Parameters<Harness['actor']['handler']>[3]) => Promise<ActResult> {
-  return h.actor.handler;
 }
 
 describe('replay mode (C1, D1)', () => {
@@ -358,6 +353,5 @@ describe('fuzzy action steps (C2) and --no-agent', () => {
     const second = h.actor.calls[1]!.req;
     expect(second.params).toEqual({ plan: 'Pro' });
     expect(second.priorSteps).toEqual([{ kind: 'when', text: A, status: 'passed' }]);
-    expect(doneAfter(h)).toBeTypeOf('function');
   });
 });

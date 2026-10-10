@@ -73,6 +73,7 @@ export class Walker {
   private readonly stack: HeadingEntry[] = [];
   private readonly counters = new Map<string, number>();
   private readonly usedSlugs = new Map<string, Set<string>>();
+  private readonly slugCounts = new Map<string, number>();
   private afterHeading = false;
 
   private readonly docUri: string;
@@ -180,8 +181,15 @@ export class Walker {
       this.usedSlugs.set(parentKey, used);
     }
     const base = slugify(text);
+    const countKey = `${parentKey}\u0000${base}`;
+    let n = this.slugCounts.get(countKey) ?? 0;
     let slug = base;
-    for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
+    if (n > 0) slug = `${base}-${n + 1}`;
+    while (used.has(slug)) {
+      n++;
+      slug = `${base}-${n + 1}`;
+    }
+    this.slugCounts.set(countKey, n + 1);
     used.add(slug);
     this.stack.push({ level, slug, text, scope: emptyDirectiveSet() });
     if (level === 1 && this.title === undefined) this.title = text;

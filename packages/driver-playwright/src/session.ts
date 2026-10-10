@@ -4,7 +4,7 @@ import type {
   Policy, SessionOptions, ValueSource, Verb,
 } from '@ai-bdd/sdk/contracts';
 import { checkNavigation, renderTree, sha256Hex, treeHash, uuidv7 } from '@ai-bdd/sdk';
-import type { BrowserContext, Frame, Locator, Page, Route } from 'playwright-core';
+import type { BrowserContext, Frame, Locator, Page, Request, Route } from 'playwright-core';
 import { parseAriaSnapshot, pruneWrappers } from './aria.ts';
 
 export const DRIVER_ID = 'playwright';
@@ -92,6 +92,7 @@ export class PlaywrightSession implements DriverSession {
   private readonly routeHandler: (route: Route) => Promise<void>;
   private readonly pageHandler: (p: Page) => void;
   private readonly navHandler: (f: Frame) => void;
+  private readonly requestHandler: (r: Request) => void;
 
   constructor(page: Page, opts: SessionOptions, ctx: { policy: Policy; baseURL?: string }, internals: SessionInternals, onClose?: () => void) {
     this.page = page;
@@ -120,7 +121,9 @@ export class PlaywrightSession implements DriverSession {
           const verdict = checkNavigation(req.url(), undefined, this.policy);
           if (!verdict.ok) {
             this.denials.push({ url: req.url(), reason: verdict.reason });
-            await route.abort('blockedbyclient');
+            // Answer with a (cancelled) download instead of aborting: the page keeps its current document, whereas an
+            // aborted navigation would replace it with Chromium's error page.
+            await route.fulfill({ status: 200, headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment' }, body: '' });
             if (framePage !== undefined && framePage !== this.page) await framePage.close().catch(() => undefined);
             return;
           }
@@ -138,11 +141,30 @@ export class PlaywrightSession implements DriverSession {
       if (frame !== this.page.mainFrame()) return;
       void this.guardMainFrame(frame.url());
     };
+    // Playwright does not route redirect hops (it continues them itself), so a redirect to a disallowed host is only
+    // observable here. Cancel the pending navigation at once; the hop's response is never rendered or exposed.
+    this.requestHandler = (req: Request): void => {
+      if (req.redirectedFrom() === null || !req.isNavigationRequest()) return;
+      let frame: Frame;
+      try {
+        frame = req.frame();
+      } catch {
+        return;
+      }
+      if (frame.parentFrame() !== null) return;
+      const verdict = checkNavigation(req.url(), undefined, this.policy);
+      if (verdict.ok) return;
+      this.denials.push({ url: req.url(), reason: `redirect: ${verdict.reason}` });
+      const owner = frame.page();
+      if (owner !== this.page) void owner.close().catch(() => undefined);
+      else void this.page.evaluate('window.stop()').catch(() => undefined);
+    };
   }
 
   async install(): Promise<void> {
     await this.context.route('**/*', this.routeHandler);
     this.context.on('page', this.pageHandler);
+    this.context.on('request', this.requestHandler);
     this.page.on('framenavigated', this.navHandler);
   }
 
@@ -168,9 +190,9 @@ export class PlaywrightSession implements DriverSession {
   }
 
   private async guardMainFrame(url: string): Promise<void> {
-    if (this.closed || url === 'about:blank' || url === '') return;
+    if (this.closed || url === 'about:blank' || url === '' || url.startsWith('chrome-error:')) return;
     if (checkNavigation(url, undefined, this.policy).ok) return;
-    if (!url.startsWith('chrome-error:')) this.denials.push({ url, reason: 'main frame navigated to a disallowed URL' });
+    this.denials.push({ url, reason: 'main frame navigated to a disallowed URL' });
     await this.page.goto('about:blank', { timeout: this.navTimeout }).catch(() => undefined);
   }
 
@@ -342,10 +364,6 @@ export class PlaywrightSession implements DriverSession {
     return this.denials.length > since ? this.denials[this.denials.length - 1] : undefined;
   }
 
-  private async recoverFromErrorPage(): Promise<void> {
-    if (this.page.url().startsWith('chrome-error:')) await this.page.goto('about:blank', { timeout: this.navTimeout }).catch(() => undefined);
-  }
-
   async perform(action: DriverAction): Promise<ActionOutcome> {
     if (this.closed) return failure('DRIVER_UNAVAILABLE', 'session is closed');
     if (this.policy.denyVerbs.includes(action.verb)) return failure('POLICY_DENIED', `verb ${action.verb} is denied by policy`, false);
@@ -374,7 +392,6 @@ export class PlaywrightSession implements DriverSession {
             await this.page.goto(verdict.url, { waitUntil: 'load', timeout: this.navTimeout });
           } catch (err) {
             const denied = this.newDenial(deniedBefore);
-            await this.recoverFromErrorPage();
             if (denied !== undefined) return failure('POLICY_DENIED', `navigation blocked: ${denied.reason} (${denied.url})`, false, { url: denied.url, reason: denied.reason });
             return await this.classify(err);
           }
@@ -436,7 +453,6 @@ export class PlaywrightSession implements DriverSession {
     if (action.verb !== 'wait' && action.verb !== 'navigate') await new Promise<void>((r) => setTimeout(r, 60));
     const denied = this.newDenial(deniedBefore);
     if (denied !== undefined) {
-      await this.recoverFromErrorPage();
       return failure('POLICY_DENIED', `navigation blocked: ${denied.reason} (${denied.url})`, false, { url: denied.url, reason: denied.reason });
     }
     const urlAfter = this.page.url();
@@ -500,6 +516,7 @@ export class PlaywrightSession implements DriverSession {
     this.closed = true;
     this.page.off('framenavigated', this.navHandler);
     this.context.off('page', this.pageHandler);
+    this.context.off('request', this.requestHandler);
     try {
       if (this.internals.ownsContext) await this.context.close();
       else await this.context.unroute('**/*', this.routeHandler);

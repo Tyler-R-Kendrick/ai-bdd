@@ -63,6 +63,7 @@ export class FakeWorld {
   specs: NodeSpec[] = [{ role: 'heading', name: 'Start', level: 1 }];
   busy = false;
   tainted = false;
+  masked = false;
   /** Names of effects applied, in order (acts, replays and heals alike). */
   applied: string[] = [];
   effects = new Map<string, (w: FakeWorld) => void>();
@@ -132,6 +133,7 @@ export class FakeSession implements DriverSession {
         busy: this.world.busy,
         tainted: this.world.tainted,
         pixels: pixels && this.capabilities.pixels,
+        masked: this.world.masked,
       }),
     );
   }
