@@ -12,6 +12,7 @@ import {
   type Policy,
   type RecordedAction,
   type Recorder,
+  type Redactor,
   type ReplayOutcome,
   type ReplayResult,
   type Selector,
@@ -22,6 +23,7 @@ import {
 } from '../contracts/index.ts';
 import { checkNavigation, normalizeText, sha256Hex } from '../util/index.ts';
 import { compareStrings, computeEffect } from './effect.ts';
+import { scrubActProgram } from './secrets.ts';
 import { deriveSelector, findBySelector } from './selector.ts';
 import { verifyEffect } from './verify.ts';
 
@@ -35,6 +37,13 @@ export interface RecorderDeps {
   settler: Settler;
   config: { settle?: Partial<SettleOptions> | undefined };
   capabilities?: DriverCapabilities;
+  /**
+   * When given, recordings are scrubbed of secrets as they are made (R-SE1): a literal equal to a secret value becomes
+   * `{secret: name}`, and effect entries, selector names or routes that hold any secret variant are dropped or redacted.
+   * The runner scrubs again with its own redactor, so this is defense in depth.
+   */
+  redactor?: Redactor;
+  secretValue?: (name: string) => string | undefined;
 }
 export interface ToRecordingOptions { capabilities?: DriverCapabilities }
 /** `Recorder` plus the optional capabilities argument of `toRecording` (still assignable to `Recorder`). */
@@ -176,7 +185,9 @@ export function createRecorder(deps: RecorderDeps): CapabilityAwareRecorder {
       if (empty && effect.routeBefore === effect.routeAfter) reasons.push('no-observable-effect');
       if (agentOnly(actions, roles, opts?.capabilities ?? deps.capabilities)) reasons.push('agent-only-driver');
       const act: ActProgram = { startRoute: before.route, startLandmarks: landmarkHash(before), actions, effect };
-      return { act, fuzzyReasons: reasons };
+      if (deps.redactor === undefined) return { act, fuzzyReasons: reasons };
+      const scrubbed = scrubActProgram(act, { redactor: deps.redactor, secretValue: deps.secretValue });
+      return { act: scrubbed.act, fuzzyReasons: [...new Set([...reasons, ...scrubbed.fuzzyReasons])] };
     },
 
     async replay(act, session, ctx): Promise<ReplayResult> {
