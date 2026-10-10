@@ -141,4 +141,44 @@ describe('A15 R-RN1 unsettled screens are never judged', () => {
     // there is no `stub` driver registered in the config: the run reports the problem instead of judging anything
     expect(report instanceof Error ? 'threw' : (report as { scenarios: { status: string }[] }).scenarios[0]?.status).not.toBe('passed');
   });
+
+  it('A15 R-RN1 R-AS1: an UNSETTLED "before" observation (page still loading when the action starts) must not be the baseline that makes a check look discriminative', async () => {
+    project?.cleanup();
+    project = createProject({ docs: [] });
+    project.writeDoc('dash', '# Dash\n\n## Loading\n\nThe dashboard shows the text Data loaded after the visitor presses Go.\n');
+    const m = modelSet({
+      extract: (req) => {
+        const q = quoteFrom(req, 'The dashboard shows');
+        return q === null
+          ? { object: extraction([]) }
+          : { object: extraction([{ title: 'Dash', sources: [q], scenarios: [{ title: 'Press go', sources: [q], steps: [{ kind: 'when', text: 'the visitor presses Go' }, { kind: 'then', text: 'the status Data loaded is shown' }] }] }]) };
+      },
+      act: (req) => {
+        const nodes = req.context['nodes'] as { ref: string; name: string }[];
+        const go = nodes.find((x) => x.name === 'Go');
+        return Number(req.context['turn']) === 0 && go !== undefined
+          ? { toolCalls: [{ id: 'c', name: 'click', args: { ref: go.ref } }] }
+          : { toolCalls: [{ id: 'd', name: 'complete_step', args: { status: 'done', summary: 'ok' } }] };
+      },
+      judge: () => ({ object: { probability: 0.95, verdict: 'holds', explanation: 'ok', observed: 'Data loaded' } }),
+      // "Data loaded exists" as a CHANGE check: false on BEFORE only because BEFORE was captured mid-load
+      checkgen: () => ({ object: { classification: 'change', predicates: [{ op: 'exists', query: { role: 'status', name: 'Data loaded', nameMatch: null, testId: null, within: null }, negate: null }] } }),
+    });
+    const h = await makeEngine(project, { models: m, config: (c) => ({ ...c, settle: { ...c.settle, quietMs: 200, intervalMs: 50, timeoutMs: 400 } }) });
+    await h.engine.compile();
+    const id = (await h.engine.plans())[0]?.features[0]?.scenarios[0]?.id ?? '';
+    let observes = 0;
+    // the page finishes loading by itself after ~25 observations, whatever the visitor does
+    const page = new StubSession(() => {
+      observes += 1;
+      const loading = observes < 25;
+      return { nodes: [n('heading', 'Dashboard', 0, { level: 1 }), n('button', 'Go'), ...(loading ? [] : [n('status', 'Data loaded')])], busy: loading };
+    });
+    const res = await h.engine.runScenario(id, { sessionFactory: async () => page });
+    await h.close();
+    const thenStep = res.steps.find((s) => s.kind === 'then');
+    // Either the run refuses to characterize from an unsettled baseline, or the assertion is not recorded as a deterministic "change" check.
+    const recordedAsDeterministicChange = res.status === 'passed' && thenStep?.determinism === 'deterministic' && thenStep.path === 'check+judge';
+    expect(recordedAsDeterministicChange, `status ${res.status}, then-step ${thenStep?.path}/${thenStep?.determinism}`).toBe(false);
+  });
 });
