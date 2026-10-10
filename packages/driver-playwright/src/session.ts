@@ -361,7 +361,7 @@ export class PlaywrightSession implements DriverSession {
 
   private scrub(text: string, secretTexts: readonly string[]): string {
     let out = text;
-    for (const s of [...this.secrets, ...secretTexts]) {
+    for (const s of [...new Set([...this.secrets, ...secretTexts])].sort((a, b) => b.length - a.length)) {
       if (s.length >= MIN_SECRET_REPLACE_LENGTH && out.includes(s)) out = out.split(s).join('[secret]');
     }
     return out;
@@ -450,7 +450,7 @@ export class PlaywrightSession implements DriverSession {
   private sanitize(err: unknown): string {
     let msg = err instanceof Error ? err.message : String(err);
     msg = (msg.split('\n')[0] ?? '').replace(ANSI, '');
-    for (const s of this.secrets) if (s.length > 0) msg = msg.split(s).join('***');
+    for (const s of [...this.secrets].sort((a, b) => b.length - a.length)) if (s.length > 0) msg = msg.split(s).join('***');
     return msg.length > 300 ? `${msg.slice(0, 300)}...` : msg;
   }
 

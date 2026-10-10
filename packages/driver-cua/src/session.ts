@@ -96,7 +96,7 @@ export class CuaSession implements DriverSession {
 
   private sanitize(text: string): string {
     let msg = (text.split('\n')[0] ?? '').trim();
-    for (const s of this.secrets) if (s.length > 0) msg = msg.split(s).join('***');
+    for (const s of [...this.secrets].sort((a, b) => b.length - a.length)) if (s.length > 0) msg = msg.split(s).join('***');
     return msg.length > 300 ? `${msg.slice(0, 300)}...` : msg;
   }
 
