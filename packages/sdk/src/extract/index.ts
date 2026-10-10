@@ -35,7 +35,10 @@ type Parsed = { ok: true; value: Extraction } | { ok: false; error: string };
 function rawModelOutput(resp: ModelResponse): { found: true; value: unknown } | { found: false } {
   if (resp.object !== undefined) return { found: true, value: resp.object };
   if (resp.text === undefined) return { found: false };
-  const trimmed = resp.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  let trimmed = resp.text.trim().replace(/^```(?:json)?\s*/i, '');
+  // Linear-time fence stripping (a regex like /\s*```$/ is quadratic on long whitespace runs).
+  trimmed = trimmed.trimEnd();
+  if (trimmed.endsWith('```')) trimmed = trimmed.slice(0, -3);
   try {
     return { found: true, value: JSON.parse(trimmed) as unknown };
   } catch {
@@ -63,7 +66,7 @@ export const createExtractor: CreateExtractor = (deps) => ({
     const usage: Usage = { modelCalls: 0, inputTokens: 0, outputTokens: 0 };
     let modelId = deps.model.id;
 
-    const built = buildPrompt(input);
+    const built = buildPrompt(input, (t) => deps.redactor.redact(t));
     const baseMessages: ModelMessage[] = [{ role: 'user', content: [{ type: 'text', text: built.userText }] }];
 
     const failed = (d: Diagnostic): ExtractionResult => ({

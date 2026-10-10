@@ -43,7 +43,7 @@ export const discoverDocs: DiscoverDocs = async (config: ResolvedConfig): Promis
     if (rel === '' || outside(rel)) {
       throw new AiBddError('POLICY_DENIED', `document is outside the project root: ${toPosix(rel === '' ? abs : rel)}`, { details: { path: toPosix(abs) } });
     }
-    entries.push({ uri: toPosix(rel), abs });
+    entries.push({ uri: toPosix(rel).normalize('NFC'), abs });
   }
   entries.sort((a, b) => (a.uri < b.uri ? -1 : a.uri > b.uri ? 1 : 0));
 

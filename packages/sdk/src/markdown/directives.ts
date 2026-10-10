@@ -166,6 +166,20 @@ function hasControlChar(s: string): boolean {
   return false;
 }
 
+const tagIndex = new WeakMap<string[], Set<string>>();
+
+/** Append `tag` unless present; a Set kept next to the array keeps long tag lists linear. */
+function pushTag(tags: string[], tag: string): void {
+  let seen = tagIndex.get(tags);
+  if (seen === undefined || seen.size !== tags.length) {
+    seen = new Set(tags);
+    tagIndex.set(tags, seen);
+  }
+  if (seen.has(tag)) return;
+  seen.add(tag);
+  tags.push(tag);
+}
+
 function addTag(set: DirectiveSet, raw: string, report: DirectiveReport): void {
   const tag = raw.trim().replace(/^@/, '');
   if (tag === '') return;
@@ -173,7 +187,7 @@ function addTag(set: DirectiveSet, raw: string, report: DirectiveReport): void {
     report('DIRECTIVE_INVALID', `invalid tag ${JSON.stringify(excerpt(raw.trim()))}`, { key: 'tags' });
     return;
   }
-  if (!set.tags.includes(tag)) set.tags.push(tag);
+  pushTag(set.tags, tag);
 }
 
 /**
@@ -263,7 +277,7 @@ export function mergeInto(target: DirectiveSet, over: DirectiveSet): void {
   if (over.fuzzy !== undefined) target.fuzzy = over.fuzzy;
   if (over.driver !== undefined) target.driver = over.driver;
   if (over.start !== undefined) target.start = over.start;
-  for (const t of over.tags) if (!target.tags.includes(t)) target.tags.push(t);
+  for (const t of over.tags) pushTag(target.tags, t);
 }
 
 /** Effective directives of a chunk: outermost scope first. Explicit `false` values are dropped. */

@@ -24,7 +24,7 @@ export function planPathFor(dir: string, docUri: string): string {
     docUri.length === 0 ||
     docUri.includes('\\') ||
     docUri.includes('\0') ||
-    docUri.includes('..') ||
+    docUri.split('/').includes('..') ||
     docUri.startsWith('/') ||
     /^[A-Za-z]:/.test(docUri) ||
     isAbsolute(docUri)
@@ -150,7 +150,7 @@ export const createPlanStore: CreatePlanStore = ({ dir, readOnly }) => {
       const file = planPathFor(dir, plan.docUri);
       const parsed = parseDocPlan(plan);
       if (!parsed.ok) throw new AiBddError('PLAN_CORRUPT', `refusing to write ${parsed.message}`, { details: { docUri: plan.docUri } });
-      await atomicWriteFile(file, stableJson(parsed.plan as unknown as JsonValue));
+      await atomicWriteFile(file, stableJson(parsed.plan as unknown as JsonValue), { root: resolve(dir) });
     },
     async remove(docUri) {
       if (readOnly) denyWrite('remove');

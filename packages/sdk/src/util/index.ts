@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { mkdir, open, rename, rm } from 'node:fs/promises';
-import { dirname } from 'node:path';
-import type { JsonValue, ObservedNode, Policy, Sha256 } from '../contracts/index.ts';
+import { lstat, mkdir, open, realpath, rename, rm } from 'node:fs/promises';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { AiBddError, type JsonValue, ObservedNode, Policy, Sha256 } from '../contracts/index.ts';
 
 export function sha256Hex(data: string | Uint8Array): Sha256 {
   return createHash('sha256').update(data).digest('hex');
@@ -24,12 +24,13 @@ function sortKeysDeep(value: JsonValue): JsonValue {
   if (Array.isArray(value)) return value.map(sortKeysDeep);
   if (value !== null && typeof value === 'object') {
     const obj = value as { [k: string]: JsonValue | undefined };
-    const out: { [k: string]: JsonValue } = {};
+    const entries: [string, JsonValue][] = [];
     for (const k of Object.keys(obj).sort()) {
       const v = obj[k];
-      if (v !== undefined) out[k] = sortKeysDeep(v);
+      if (v !== undefined) entries.push([k, sortKeysDeep(v)]);
     }
-    return out;
+    // fromEntries defines own properties, so an own `__proto__` key survives (plain assignment would swallow it)
+    return Object.fromEntries(entries) as JsonValue;
   }
   return value;
 }
@@ -120,8 +121,65 @@ export function uuidv7(now: number = Date.now()): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-/** Write via temp file + fsync + rename. */
-export async function atomicWriteFile(path: string, data: string | Uint8Array): Promise<void> {
+function isInsideDir(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+/** Real path of the deepest existing ancestor of `p` (or of `p` itself), with the not-yet-existing tail re-appended. */
+async function realpathOfDeepestExisting(p: string): Promise<string> {
+  let cur = resolve(p);
+  const tail: string[] = [];
+  for (;;) {
+    try {
+      await lstat(cur);
+      const real = await realpath(cur);
+      return tail.length === 0 ? real : resolve(real, ...tail.reverse());
+    } catch (err) {
+      const code = typeof err === 'object' && err !== null && 'code' in err ? (err as { code: unknown }).code : undefined;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') throw err;
+      const parent = dirname(cur);
+      if (parent === cur) return resolve(p);
+      tail.push(cur.slice(parent.length).replace(/^[\\/]+/, ''));
+      cur = parent;
+    }
+  }
+}
+
+/** The directory that contains the last `.ai-bdd` segment of `path`, if any (the project root of default layouts). */
+function inferRoot(path: string): string | undefined {
+  const abs = resolve(path);
+  const parts = abs.split(sep);
+  const i = parts.lastIndexOf('.ai-bdd');
+  if (i <= 0) return undefined;
+  return parts.slice(0, i).join(sep) || sep;
+}
+
+/**
+ * Refuses (POLICY_DENIED) when `target`, after resolving symlinks in its deepest existing ancestor, lies outside
+ * `realpath(root)`. Without `root` the directory holding the last `.ai-bdd` path segment is the root; paths with
+ * no such segment and no explicit root are not checked. Call before creating directories below an output root.
+ */
+export async function assertInsideRealRoot(target: string, root?: string): Promise<void> {
+  const base = root ?? inferRoot(target);
+  if (base === undefined) return;
+  let realRoot: string;
+  try {
+    realRoot = await realpath(resolve(base));
+  } catch {
+    realRoot = resolve(base);
+  }
+  const realTarget = await realpathOfDeepestExisting(target);
+  if (!isInsideDir(realRoot, realTarget)) {
+    throw new AiBddError('POLICY_DENIED', `refusing to write outside the project through a symlink: ${toPosix(resolve(target))}`, {
+      details: { path: toPosix(resolve(target)) },
+    });
+  }
+}
+
+/** Write via temp file + fsync + rename. Refuses to write through a symlink that leaves the root (see {@link assertInsideRealRoot}). */
+export async function atomicWriteFile(path: string, data: string | Uint8Array, opts: { root?: string } = {}): Promise<void> {
+  await assertInsideRealRoot(dirname(path), opts.root);
   await mkdir(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.${randomUUID()}.tmp`;
   const fh = await open(tmp, 'w');

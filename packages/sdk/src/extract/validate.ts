@@ -14,7 +14,7 @@ import type {
   StepKind,
 } from '../contracts/index.ts';
 import { canonicalJson, normalizeForQuote, normalizeText, sha256Hex } from '../util/index.ts';
-import { escapeForDocument, type HandleEntry } from './prompt.ts';
+import type { HandleEntry } from './prompt.ts';
 import type { Extraction, ExtractionRef } from './schema.ts';
 
 export const MAX_STEPS_PER_SCENARIO = 25;
@@ -117,6 +117,23 @@ function occursVerbatim(text: string, value: string): boolean {
   return normalizeForQuote(text).includes(normalizeForQuote(value));
 }
 
+/** True when `String(value)` appears in `text` as a whole numeric token (not inside a longer number or word). */
+function numberOccursAsToken(text: string, value: number): boolean {
+  const needle = String(value);
+  let from = 0;
+  for (;;) {
+    const idx = text.indexOf(needle, from);
+    if (idx < 0) return false;
+    const before = idx === 0 ? '' : (text[idx - 1] ?? '');
+    const after = text[idx + needle.length] ?? '';
+    const afterNext = text[idx + needle.length + 1] ?? '';
+    const beforeOk = !/[\p{L}\p{N}_.]/u.test(before) || (before === '.' && !/\p{N}/u.test(text[idx - 2] ?? ''));
+    const afterOk = !/[\p{L}\p{N}_]/u.test(after) && !(after === '.' && /\p{N}/u.test(afterNext)) && !(after === ',' && /\p{N}/u.test(afterNext));
+    if (beforeOk && afterOk) return true;
+    from = idx + 1;
+  }
+}
+
 function cleanTags(tags: readonly string[]): string[] {
   const out: string[] = [];
   for (const raw of tags) {
@@ -210,10 +227,10 @@ export function validateExtraction(extraction: Extraction, ctx: ValidationContex
     if (quote === null) return false;
     const q = normalizeForQuote(quote);
     if (q.length === 0) return false;
+    // Only the raw chunk text counts: a quote that matches just the entity-escaped rendering shown to the model
+    // (`&lt; / document >`) is not a substring of the document and must not be stored as one.
     const raw = normalizeForQuote(entry.text);
-    const escaped = normalizeForQuote(escapeForDocument(entry.text));
-    const found = raw.includes(q) || escaped.includes(q);
-    return found && q.length >= Math.min(ctx.minQuoteChars, raw.length);
+    return raw.includes(q) && q.length >= Math.min(ctx.minQuoteChars, raw.length);
   };
   const groundQuotes = (refs: readonly WRef[], where: JsonObject): WRef[] => {
     const out: WRef[] = [];
@@ -384,6 +401,16 @@ export function validateExtraction(extraction: Extraction, ctx: ValidationContex
         if (spec.enum !== undefined && !spec.enum.includes(v)) return { ok: false, reason: `argument "${pname}" is not one of the allowed values` };
         if (spec.derived !== true && (v.trim() === '' || !occursVerbatim(st.text, v))) {
           return { ok: false, reason: `argument "${pname}" does not occur verbatim in the step text` };
+        }
+      }
+      if (spec.derived !== true) {
+        // Non-derived arguments must be tied to the step text (SPEC Q8): strings verbatim (above), numbers as a whole
+        // token, and booleans cannot be tied to text at all, so they require `derived: true`.
+        if (typeof v === 'number' && !numberOccursAsToken(st.text, v)) {
+          return { ok: false, reason: `argument "${pname}" does not occur in the step text` };
+        }
+        if (typeof v === 'boolean') {
+          return { ok: false, reason: `argument "${pname}" is a boolean that is not marked derived` };
         }
       }
       call[pname] = v as JsonValue;
