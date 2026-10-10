@@ -55,7 +55,7 @@ describe('M15 --frozen', () => {
 
     const usage = await runCli(p, ['run', '--no-such-flag']);
     expect(usage.code, cliOutput(usage)).toBe(2);
-    const noConfig = await runCli(p, ['-c', 'missing.config.mjs', 'status']);
+    const noConfig = await runCli(p, ['-c', 'missing.config.mjs', 'status'], { fake: false });
     expect(noConfig.code, cliOutput(noConfig)).toBe(2);
 
     p.editDoc('release-notes', 'The page lists what changed in each release of Acme.', 'The page lists what changed in every release of Acme.');

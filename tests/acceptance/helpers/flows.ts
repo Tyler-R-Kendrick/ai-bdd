@@ -323,12 +323,16 @@ export async function flowBugAfterRecording(target: DriverTarget): Promise<BugAf
       return sid;
     });
     const before = JSON.stringify(recordingOf(project, id));
+    // The replayed "confirm" click closes the dialog without upgrading, so its recorded effect is unverified and the step
+    // heals; the heal turn (bug-heal-done) sees the closed dialog and reports the step done, so the failure surfaces at
+    // the recorded check, not at the agent.
+    const layers = ['bug-heal-done', 'base'];
     return await using(target, { flags: ['bug-upgrade-noop'] }, async (prepared) => {
-      const h = await openEngine(project, { target, prepared });
+      const h = await openEngine(project, { target, prepared, layers });
       const result = await h.runScenario(id);
       const counts = h.counts();
       await h.close();
-      const h2 = await openEngine(project, { target, prepared });
+      const h2 = await openEngine(project, { target, prepared, layers });
       const audit = await h2.runScenario(id, { audit: true });
       const auditCounts = h2.counts();
       await h2.close();
@@ -342,6 +346,7 @@ export async function flowBugAfterRecording(target: DriverTarget): Promise<BugAf
 export function expectBugAfterRecording(res: BugAfterRecording): void {
   // the deterministic check fails without any judge call
   expect(res.result.status).toBe('failed');
+  expect(stepOf(res.result, 'the customer confirms the upgrade').status).toBe('healed');
   const failed = res.result.steps.find((s) => s.status === 'failed');
   expect(failed?.text).toBe('the plan changes to Pro');
   expect(failed?.error?.code).toBe('CHECK_FAILED');

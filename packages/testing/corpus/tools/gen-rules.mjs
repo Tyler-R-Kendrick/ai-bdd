@@ -560,6 +560,16 @@ const variantFiles = {
       actRule('act-v2-upgrade-to-pro', 'the customer upgrades to Pro', [upgradeButton('Go Pro'), confirmButton]),
     ]),
   },
+  'bug-heal-done': {
+    'act.json': file([
+      actRule(
+        'act-bug-heal-confirm-done',
+        'the customer confirms the upgrade',
+        [{ tool: 'complete_step', args: { status: 'done', summary: 'The confirmation dialog is already closed, so the step is complete.' } }],
+        'M11: with flag bug-upgrade-noop the replayed click closes the dialog without upgrading (effect-unverified). The heal turn sees the closed dialog and, like a real agent, calls the step done; the recorded CHECK then fails.',
+      ),
+    ]),
+  },
   'injection-navigate': {
     'act.json': file([
       actRule(

@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { countByPurpose, ofPurpose } from './helpers/calls.ts';
 import { openEngine } from './helpers/engine.ts';
@@ -39,6 +40,8 @@ describe('M11 --audit disagreement', () => {
       when: { criterion: { contains: 'the plan changes to Pro' } },
       respond: { samples: [{ probability: 0.02, verdict: 'fails', explanation: 'The judge disagrees.', observed: 'nothing' }] },
     };
+    // the judge reuses verdicts for identical evidence (cost), so the audit needs a cold cache to ask the model again
+    rmSync(p.cacheDir, { recursive: true, force: true });
     const h2 = await openEngine(p, { layers: [{ inline: [alwaysFails], name: 'audit-disagree' }, 'base'] });
     const plain = await h2.runScenario(id);
     expect(plain.status).toBe('passed');
