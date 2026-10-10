@@ -27,7 +27,7 @@ const token = fc.oneof(
   { weight: 6, arbitrary: fc.constantFrom(...OPTIONS) },
   { weight: 2, arbitrary: fc.constantFrom(...ACTIONS) },
   { weight: 3, arbitrary: hostileString({ maxLength: 40 }) },
-  { weight: 1, arbitrary: fc.constantFrom('1', '0', '-1', '3', '1.5', '1e3', '99999999999999999999', ' 2 ', 'NaN', '', '../..', '/etc/passwd', 'docs/**/*.md', 'a'.repeat(5000), '\0', '‮', '😀') },
+  { weight: 1, arbitrary: fc.constantFrom('1', '0', '-1', '3', '1.5', '1e3', '99999999999999999999', ' 2 ', 'NaN', '', '../..', '/etc/passwd', 'docs/**/*.md', 'a'.repeat(5000), '\0', '\u202e', '😀') },
   { weight: 1, arbitrary: fc.string({ unit: 'binary', maxLength: 30 }) },
   { weight: 1, arbitrary: fc.uint8Array({ maxLength: 20 }).map((b) => Buffer.from(b).toString('latin1')) },
   { weight: 1, arbitrary: fc.uint8Array({ maxLength: 20 }).map((b) => Buffer.from(b).toString('utf8')) },

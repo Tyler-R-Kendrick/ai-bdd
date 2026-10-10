@@ -6,7 +6,12 @@ import { assertPrototypeClean, hostileKey, hostileString, jsonEqual, jsonValue, 
 // ───────────────────────── arbitrary JavaScript values (not just JSON)
 
 class Point {
-  constructor(public x: number, public y: number) {}
+  x: number;
+  y: number;
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
 }
 
 type Container = unknown[] | Record<string, unknown> | Map<unknown, unknown> | Set<unknown>;

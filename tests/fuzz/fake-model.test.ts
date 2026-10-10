@@ -107,7 +107,7 @@ describe('fuzz: fake model rule matching', () => {
         const first = rules.findIndex((r) => ruleMatches(r, p, ctx));
         const models = createFakeModels({ rules: [{ rules }] });
         const before = JSON.stringify(ctx);
-        let outcome: { id?: string; error?: string };
+        let outcome: { id?: string | undefined; error?: string | undefined };
         try {
           await models[p].generate(request(p, ctx));
           outcome = { id: models.calls[0]?.ruleId };

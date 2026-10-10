@@ -106,8 +106,8 @@ describe('fuzz: scrubbers', () => {
           expect(scrub(out)).toBe(out);
         }
         // the longer directory wins over the shorter one it starts with
-        expect(scrub(`${inner}/zz-tail.ts`)).toBe('{inner}/zz-tail.ts');
-        expect(scrub(`${root}/zz-tail.ts`)).toBe('{root}/zz-tail.ts');
+        expect(scrub(`${inner}/~tail.ts`)).toBe('{inner}/~tail.ts');
+        expect(scrub(`${root}/~tail.ts`)).toBe('{root}/~tail.ts');
       }),
       params(),
     );
