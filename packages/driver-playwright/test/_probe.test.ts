@@ -4,14 +4,14 @@ import { startFixture } from './fixture.ts';
 it('probe', async () => {
   const fx = await startFixture();
   const b = await launchRaw();
-  const ctx = await b.newContext();
+  const ctx = await b.newContext({ acceptDownloads: false });
   const page = await ctx.newPage();
   await ctx.route('**/*', async (route) => {
     const r = route.request();
     if (r.isNavigationRequest()) {
       const resp = await route.fetch({ maxRedirects: 0 });
       const loc = resp.headers()['location'];
-      if (loc && loc.includes('127.0.0.1')) { console.log('deny'); await route.fulfill({ status: 204 }); return; }
+      if (loc && loc.includes('127.0.0.1')) { console.log('deny'); await route.fulfill({ status: 200, headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment' }, body: '' }); return; }
       const h = { ...resp.headers() };
       for (const k of ['connection','keep-alive','transfer-encoding','content-encoding','content-length']) delete h[k];
       await route.fulfill({ status: resp.status(), headers: h, body: await resp.body() });

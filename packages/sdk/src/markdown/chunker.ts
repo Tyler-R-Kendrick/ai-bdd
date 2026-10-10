@@ -24,7 +24,7 @@ import {
   type DirectiveSet,
 } from './directives.ts';
 import { parseFrontmatter } from './frontmatter.ts';
-import { normalizeDocText } from './normalize.ts';
+import { limitNesting, MAX_CONTAINER_DEPTH, normalizeDocText } from './normalize.ts';
 import { buildSections, type Member } from './sections.ts';
 import type { MdNode } from './text.ts';
 import { rangeOf, Walker } from './walker.ts';
@@ -54,7 +54,8 @@ function emptyDoc(doc: SourceDoc, diagnostics: Diagnostic[]): ChunkedDoc {
 
 function chunkDocument(doc: SourceDoc, rawOpts: ChunkOptions): ChunkedDoc {
   const opts = sanitize(rawOpts);
-  const text = normalizeDocText(typeof doc.text === 'string' ? doc.text : '');
+  const limited = limitNesting(normalizeDocText(typeof doc.text === 'string' ? doc.text : ''));
+  const text = limited.text;
   const diagnostics: Diagnostic[] = [];
   const diag = (code: ErrorCode, message: string, range?: SourceRange, details?: JsonValue): void => {
     const d: Diagnostic = { code, severity: 'warning', message, uri: doc.uri };
@@ -62,6 +63,15 @@ function chunkDocument(doc: SourceDoc, rawOpts: ChunkOptions): ChunkedDoc {
     if (details !== undefined) d.details = details;
     diagnostics.push(d);
   };
+
+  for (const line of limited.blanked) {
+    diag('DOC_READ_FAILED', `line nests block quotes or lists more than ${MAX_CONTAINER_DEPTH} levels deep and was skipped`, {
+      startLine: line,
+      startColumn: 1,
+      endLine: line,
+      endColumn: 1,
+    });
+  }
 
   const tree = parseTree(text);
   const children = tree.children ?? [];
