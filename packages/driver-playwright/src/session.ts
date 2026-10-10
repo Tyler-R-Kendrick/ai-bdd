@@ -409,6 +409,9 @@ export class PlaywrightSession implements DriverSession {
     if (this.policy.denyVerbs.includes(action.verb)) return failure('POLICY_DENIED', `verb ${action.verb} is denied by policy`, false);
     if (!ALL_VERBS.includes(action.verb)) return failure('VERB_UNSUPPORTED', `verb ${String((action as { verb: unknown }).verb)} is not supported`, false);
 
+    // Taint before anything can fail: a secret that was resolved (or attempted) must poison pixels for the whole session.
+    if ((action.verb === 'fill' && 'secret' in action.value) || (action.verb === 'select' && 'secret' in action.option)) this.tainted = true;
+
     let locator: Locator | undefined;
     const targetRef = 'target' in action && action.target !== undefined ? action.target.ref : undefined;
     if (targetRef !== undefined) {

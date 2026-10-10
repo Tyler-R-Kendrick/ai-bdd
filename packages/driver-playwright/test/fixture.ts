@@ -115,7 +115,7 @@ document.getElementById('remove').onclick=function(){this.remove();out.textConte
 document.getElementById('agree').onchange=function(){out.textContent='agree:'+this.checked;};
 document.getElementById('color').onchange=function(){out.textContent='color:'+this.value;};
 document.getElementById('hov').onmouseover=function(){out.textContent='hovered';};
-document.addEventListener('keydown',function(e){if(e.target===document.body)out.textContent='key:'+e.key;});
+document.addEventListener('keydown',function(e){if(e.target.id!=='name')out.textContent='key:'+e.key;});
 document.getElementById('name').addEventListener('keydown',function(e){if(e.key==='Enter')out.textContent='enter:'+this.value;});
 window.addEventListener('scroll',function(){out.textContent='scrolled:'+(window.scrollY>0?'down':'top');});
 </script>`));

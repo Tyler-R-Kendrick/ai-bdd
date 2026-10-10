@@ -470,7 +470,7 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
         return { masked: obs.screenshot?.png ?? new Uint8Array(), raw };
       };
       const a = await shotFor('aaaaaaaaaaaaaaa');
-      const b = await shotFor('zzzzzzzzzzzzzzz');
+      const b = await shotFor('zzzzzz');
       const box = await (async () => {
         await page.goto(`${fx.url}/login`);
         return page.getByLabel('Password').boundingBox();
