@@ -14,6 +14,7 @@ import {
   type StepRecording,
   type StepResult,
 } from '../contracts/index.ts';
+import { jsonHasSecret } from '../recording/secrets.ts';
 import { normalizeForQuote, sha256Hex } from '../util/index.ts';
 import { runConfirmRuns } from './confirm.ts';
 import { prepareSession, teardownSession } from './session.ts';
@@ -135,7 +136,9 @@ export async function executeScenario(
     const entry = eventEntry(event);
     if (entry !== undefined) {
       // appended in emission order; a failing evidence store never affects the run
-      recordChain = recordChain.then(() => deps.evidence.record(entry)).catch(() => undefined);
+      // Events carry error text, doc text and URLs; scrub them before they reach the run directory (R-SE1).
+      const safe = redactor.redactJson(entry);
+      recordChain = recordChain.then(() => deps.evidence.record(safe)).catch(() => undefined);
     }
   };
 
@@ -241,7 +244,18 @@ export async function executeScenario(
         promptVersions: { ...PROMPT_VERSIONS },
       };
       let commit = true;
-      if (config.characterize.confirmRuns > 0) {
+      // Fail closed (R-SE1): a recording is committed to the repository, so if any secret variant survived into it
+      // (a node name, a field value, a check literal, a URL), it is discarded rather than written.
+      if (jsonHasSecret(redactor, pending)) {
+        commit = false;
+        emit({
+          type: 'log',
+          level: 'warn',
+          scenarioId: scenario.id,
+          message: 'the recording was discarded because it would have contained a secret value (or an encoding of one); nothing was written',
+        });
+      }
+      if (commit && config.characterize.confirmRuns > 0) {
         const outcome = await runConfirmRuns(env, pending);
         addUsage(usage, outcome.usage);
         confirm = { runs: outcome.runs, reclassified: outcome.reclassified, failed: outcome.failedSteps.length > 0 };

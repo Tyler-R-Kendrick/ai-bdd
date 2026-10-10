@@ -19,6 +19,7 @@ import type {
   StepRecording,
   StepResult,
 } from '../contracts/index.ts';
+import { scrubActProgram } from '../recording/secrets.ts';
 import { normalizeForQuote, sha256Hex } from '../util/index.ts';
 import { toJudgeEvidence, storeObservation } from './observed.ts';
 import { settledObservation, settleState, wantsPixels } from './session.ts';
@@ -250,7 +251,11 @@ function rerecord(
   after: Observation,
   afterProbe: Observation,
 ): ReturnType<Recorder['toRecording']> {
-  return sc.env.deps.recorder.toRecording(performed, before, after, afterProbe, sc.step, { capabilities: sc.st.session.capabilities });
+  const { deps } = sc.env;
+  const made = deps.recorder.toRecording(performed, before, after, afterProbe, sc.step, { capabilities: sc.st.session.capabilities });
+  // R-SE1: whatever the recorder produced, nothing the page reflected or the model typed may carry a secret into the file.
+  const scrubbed = scrubActProgram(made.act, { redactor: deps.redactor, secretValue: deps.secretValue });
+  return { act: scrubbed.act, fuzzyReasons: dedupe<FuzzyReason>([...made.fuzzyReasons, ...scrubbed.fuzzyReasons]) };
 }
 
 function actFailure(res: ActResult, path: StepPath, determinism: StepBody['determinism']): StepBody {
