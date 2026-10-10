@@ -19,7 +19,7 @@ import type {
   StepRecording,
   StepResult,
 } from '../contracts/index.ts';
-import { scrubActProgram } from '../recording/secrets.ts';
+import { scrubActProgram } from './secrets.ts';
 import { normalizeForQuote, sha256Hex } from '../util/index.ts';
 import { toJudgeEvidence, storeObservation } from './observed.ts';
 import { settledObservation, settleState, wantsPixels } from './session.ts';

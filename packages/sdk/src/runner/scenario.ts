@@ -14,7 +14,7 @@ import {
   type StepRecording,
   type StepResult,
 } from '../contracts/index.ts';
-import { jsonHasSecret } from '../recording/secrets.ts';
+import { jsonHasSecret } from './secrets.ts';
 import { normalizeForQuote, sha256Hex } from '../util/index.ts';
 import { runConfirmRuns } from './confirm.ts';
 import { prepareSession, teardownSession } from './session.ts';

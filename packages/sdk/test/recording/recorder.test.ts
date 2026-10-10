@@ -10,6 +10,7 @@ import {
   type RecordedAction,
   type ResolvedConfig,
 } from '../../src/contracts/index.ts';
+import { createRedactor } from '../../src/evidence/index.ts';
 import { createRecorder, landmarkHash } from '../../src/recording/index.ts';
 import { sha256Hex } from '../../src/util/index.ts';
 import { CAPS, FakeSession, POLICY, fromTrees, immediateSettler, node, observation, step, type AppState, type Tree } from './kit.ts';
@@ -103,6 +104,36 @@ describe('toRecording', () => {
       { param: 'tier' },
     ]);
     expect(JSON.stringify(act)).not.toContain('Alice');
+  });
+
+  it('R-SE1: with a redactor, a literal equal to a secret becomes {secret}, and effect entries reflecting the secret are dropped', async () => {
+    const SECRET = 'Zq7-uniq/Secret+Value!99';
+    const redactor = createRedactor({ adminPassword: SECRET });
+    const start: AppState = { route: '/s', nodes: fromTrees([{ role: 'form', name: 'Signup', children: [{ role: 'textbox', name: 'Email' }, { role: 'textbox', name: 'Note' }] }]) };
+    const session = new FakeSession(start);
+    const before = await session.observe();
+    const email = before.nodes.find((n) => n.name === 'Email') as ObservedNode;
+    const note = before.nodes.find((n) => n.name === 'Note') as ObservedNode;
+    const p = (action: DriverAction, target: ObservedNode): PerformedAction => ({ action, target, chosenFrom: before, outcome: { ok: true } });
+    const performed = [
+      p({ verb: 'fill', target: { ref: email.ref }, value: { literal: SECRET } }, email),
+      p({ verb: 'fill', target: { ref: note.ref }, value: { literal: `x ${encodeURIComponent(SECRET)} y` } }, note),
+    ];
+    const after = observation(
+      before.nodes.map((n) => (n.name === 'Email' ? { ...n, value: SECRET } : n)).concat([node('status', `Hello ${SECRET}`)]),
+      '/s',
+    );
+    const recorder = createRecorder({ settler: immediateSettler(), config, redactor, secretValue: (n) => (n === 'adminPassword' ? SECRET : undefined) });
+    const { act, fuzzyReasons } = recorder.toRecording(performed, before, after, after, step());
+    expect(act.actions[0]).toMatchObject({ verb: 'fill', value: { secret: 'adminPassword' } });
+    expect(act.effect.changed).toEqual([]);
+    expect(act.effect.appeared).toEqual([]);
+    expect(fuzzyReasons).toContain('no-observable-effect');
+    // a literal that merely contains an encoded secret cannot be replayed exactly: redacted hint, fuzzy
+    expect(fuzzyReasons).toContain('coordinate-action');
+    const text = JSON.stringify(act);
+    expect(text).not.toContain(SECRET);
+    expect(text).not.toContain(encodeURIComponent(SECRET));
   });
 
   it('R-CH7: skips actions whose outcome was not ok, and keeps navigate/back/wait/press/scroll shapes', async () => {
