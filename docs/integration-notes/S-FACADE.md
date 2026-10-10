@@ -40,4 +40,4 @@ Public behavior is documented in `packages/sdk/README.md` ("API: configuration a
 
 ## VERIFY outcomes
 
-- V1 (native type stripping of `.ts` config): `loadConfig` loads a `.ts` config through `import()` in the unit tests (vitest transform). The Node-native path is exercised by `ai-bdd.config.ts` in real CLI runs; `CONFIG_TS_UNSUPPORTED` mapping is unit-tested via an injected importer. Not independently verified here under bare `node` (no CLI package yet).
+- V1 (native type stripping of `.ts` config): verified on Node 22.22.0 with bare `node`: a script importing `packages/sdk/src/config/index.ts` loaded a `.ts` config containing a type annotation through `loadConfig` (2026-10-10). The `CONFIG_TS_UNSUPPORTED` mapping is unit-tested through an injected importer.

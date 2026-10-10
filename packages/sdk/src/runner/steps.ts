@@ -336,6 +336,7 @@ async function characterizeBranch(sc: StepCtx, startsRun: boolean): Promise<Step
   const { env, st, step, idx, sink } = sc;
   const { deps, opts } = env;
   if (opts.noAgent) return noAgent('agent', 'n/a');
+  sink.dirty = true; // a characterization was attempted: a recording is pending even if the step fails
 
   const before = await settledObservation(env, st, false);
   if (startsRun) st.lastRunBefore = before;
@@ -471,15 +472,14 @@ async function runThen(sc: StepCtx): Promise<StepBody> {
   // D2: fuzzy recording, subjective criterion or `@fuzzy` step; the judge decides every time.
   if (rec !== undefined || subjective || env.fuzzyTagged) {
     const reasons = fuzzyReasonsFor(sc);
+    if (rec === undefined && phase === 'main') sink.dirty = true;
     const v = await callJudge(sc, before, after, actionPreceded);
-    if (rec === undefined && phase === 'main') {
-      sink.entries[idx] = newEntry(step, 'fuzzy', reasons);
-      sink.dirty = true;
-    }
+    if (rec === undefined && phase === 'main') sink.entries[idx] = newEntry(step, 'fuzzy', reasons);
     return judgeBody(v, 'judge', 'fuzzy', reasons);
   }
 
   // D3: no recording: the judge decides first (R-CH1); only on a pass is a check generated.
+  if (phase === 'main') sink.dirty = true;
   const v = await callJudge(sc, before, after, actionPreceded);
   if (v.verdict !== 'pass') return judgeBody(v, 'judge', 'n/a', []);
   await deps.clock.sleep(config.characterize.probeMs, opts.signal);
