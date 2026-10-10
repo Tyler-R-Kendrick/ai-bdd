@@ -329,7 +329,7 @@ describe('show command', () => {
       expect(first.load).toHaveBeenCalledWith('mobile', ID);
 
       const undef = store(listed, recs);
-      await show(undef, { config: { defaultDriver: undefined } });
+      await show(undef, { config: { defaultDriver: undefined } as never });
       expect(undef.load).toHaveBeenCalledWith('mobile', ID);
 
       const plan2 = makePlan();

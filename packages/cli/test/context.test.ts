@@ -160,7 +160,7 @@ describe('openEngine / withEngine', () => {
 
 describe('loadResolvedConfig: config discovery inputs (§5.2)', () => {
   const run = async (configPath: string | undefined, cwd: string, env: Record<string, string | undefined> = {}) => {
-    const loadConfig = vi.fn(async () => makeConfig());
+    const loadConfig = vi.fn(async (_opts: unknown) => makeConfig());
     const ctx = createCtx(capture(env, cwd).io, { loadConfig });
     ctx.configPath = configPath;
     await loadResolvedConfig(ctx);

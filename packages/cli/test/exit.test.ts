@@ -68,8 +68,10 @@ const DOCUMENTED: Record<ErrorCode, ExitCode> = {
 /** An error from a second copy of the contracts module: same shape and name, but not `instanceof` our AiBddError. */
 class ForeignAiBddError extends Error {
   override name = 'AiBddError';
-  constructor(readonly code: unknown, message: string) {
+  readonly code: unknown;
+  constructor(code: unknown, message: string) {
     super(message);
+    this.code = code;
   }
 }
 

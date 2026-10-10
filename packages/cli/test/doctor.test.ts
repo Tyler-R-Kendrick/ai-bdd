@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AiBddError, type DoctorReport } from '@ai-bdd/sdk/contracts';
+import { AiBddError, type Engine } from '@ai-bdd/sdk/contracts';
 import { checkNode } from '../src/commands/doctor.ts';
 import { runCli } from './helpers.ts';
 
+type DoctorReport = Awaited<ReturnType<Engine['doctor']>>;
 const NODE_OK = { nodeVersion: '22.22.0' };
 const report = (checks: DoctorReport['checks']): DoctorReport => ({ ok: checks.every((c) => c.ok), checks });
 const doctorReturning = (checks: DoctorReport['checks']) => ({ doctor: vi.fn(async () => report(checks)) });
