@@ -85,7 +85,7 @@ export class Core {
     this.meter = createUsageMeter(models, config.prices);
     // Secrets are resolved from the environment once, here. Values live only in this closure and the redactor.
     for (const [name, spec] of Object.entries(config.secrets)) {
-      const value = env[spec.env];
+      const value = Object.hasOwn(env, spec.env) ? env[spec.env] : undefined; // not an inherited property such as `constructor`
       if (value === undefined || value === '') continue;
       if (value.length < MIN_SECRET_LENGTH) {
         throw new AiBddError('SECRET_TOO_SHORT', `Secret "${name}" (env ${spec.env}) is shorter than ${MIN_SECRET_LENGTH} characters`, {
@@ -103,7 +103,7 @@ export class Core {
     }
   }
 
-  readonly secretValue = (name: string): string | undefined => this.secretValues[name];
+  readonly secretValue = (name: string): string | undefined => (Object.hasOwn(this.secretValues, name) ? this.secretValues[name] : undefined);
 
   get models(): ModelSet {
     return this.meter.models;

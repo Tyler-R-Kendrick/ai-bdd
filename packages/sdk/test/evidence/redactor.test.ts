@@ -119,6 +119,17 @@ describe('redactor (R-SE1)', () => {
     );
   });
 
+  // Found by tests/fuzz/redaction.test.ts (counterexample: secret "\udfff\u0000\u{10000}"): encodeURIComponent threw URIError.
+  it('R-SE1 a secret holding a lone surrogate is accepted and still redacted in its raw, base64 and JSON-escaped forms', () => {
+    const value = '\udfff\u0000\u{10000}';
+    const r = createRedactor({ odd: value });
+    expect(r.redact(`a ${value} b`)).toBe('a <secret:odd> b');
+    expect(r.redact(Buffer.from(value, 'utf8').toString('base64'))).toBe('<secret:odd>');
+    expect(r.redact(JSON.stringify(value).slice(1, -1))).toBe('<secret:odd>');
+    const high = createRedactor({ odd: 'abc\ud800' });
+    expect(high.redact('x abc\ud800 y')).toBe('x <secret:odd> y');
+  });
+
   it('R-SE1 regex metacharacters in secrets are matched literally', () => {
     const r = createRedactor({ re: '(a+)+$.*' });
     expect(r.redact('x (a+)+$.* y aaa')).toBe('x <secret:re> y aaa');

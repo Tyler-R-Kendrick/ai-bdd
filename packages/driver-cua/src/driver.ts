@@ -348,8 +348,46 @@ function positive(v: unknown, what: string): number {
   return v as number;
 }
 
+function parseLaunch(v: unknown): CuaAppLaunch {
+  if (!isRecord(v)) return bad('"launch" must be an object { command, args?, env?, cwd? }');
+  noExtra(v, ['command', 'args', 'env', 'cwd'], 'launch.');
+  if (typeof v['command'] !== 'string' || v['command'].length === 0) bad('"launch.command" must be a non-empty string');
+  const launch: CuaAppLaunch = { command: v['command'] as string };
+  if (v['args'] !== undefined) launch.args = strings(v['args'], 'launch.args');
+  if (v['env'] !== undefined) launch.env = stringMap(v['env'], 'launch.env');
+  if (v['cwd'] !== undefined) {
+    if (typeof v['cwd'] !== 'string') bad('"launch.cwd" must be a string');
+    launch.cwd = v['cwd'] as string;
+  }
+  return launch;
+}
+
+function parseWindow(v: unknown): CuaWindowMatch {
+  if (!isRecord(v)) return bad('"window" must be an object { title?, app? }');
+  noExtra(v, ['title', 'app'], 'window.');
+  const win: CuaWindowMatch = {};
+  if (v['title'] !== undefined) win.title = regex(v['title'], 'window.title');
+  if (v['app'] !== undefined) win.app = regex(v['app'], 'window.app');
+  if (win.title === undefined && win.app === undefined) bad('"window" needs "title" or "app"');
+  return win;
+}
+
+function parseCuaDriver(v: unknown): NonNullable<CuaOptions['cuaDriver']> {
+  if (!isRecord(v)) return bad('"cuaDriver" must be an object { command?, args?, env? }');
+  noExtra(v, ['command', 'args', 'env'], 'cuaDriver.');
+  const d: NonNullable<CuaOptions['cuaDriver']> = {};
+  if (v['command'] !== undefined) {
+    if (typeof v['command'] !== 'string' || v['command'].length === 0) bad('"cuaDriver.command" must be a non-empty string');
+    d.command = v['command'] as string;
+  }
+  if (v['args'] !== undefined) d.args = strings(v['args'], 'cuaDriver.args');
+  if (v['env'] !== undefined) d.env = stringMap(v['env'], 'cuaDriver.env');
+  return d;
+}
+
 /** Build a factory from JSON-compatible configuration (`{ use: '@ai-bdd/driver-cua', options }`). Unknown keys are rejected. */
 export function createDriverFactory(options: Record<string, unknown> = {}): DriverFactory {
+  if (!isRecord(options)) bad('options must be an object');
   noExtra(options, ['kind', 'launch', 'window', 'scope', 'delivery', 'cuaDriver', 'titleSuffix', 'startTimeoutMs', 'treeTimeoutMs', 'actionTimeoutMs', 'settleMs', 'maxSessions'], '');
   const out: CuaOptions = {};
   for (const [k, v] of Object.entries(options)) {
@@ -366,43 +404,15 @@ export function createDriverFactory(options: Record<string, unknown> = {}): Driv
         if (v !== 'auto' && v !== 'background' && v !== 'foreground') bad('"delivery" must be "auto", "background" or "foreground"');
         out.delivery = v as Delivery;
         break;
-      case 'launch': {
-        if (!isRecord(v)) return bad('"launch" must be an object { command, args?, env?, cwd? }');
-        noExtra(v, ['command', 'args', 'env', 'cwd'], 'launch.');
-        if (typeof v['command'] !== 'string' || v['command'].length === 0) bad('"launch.command" must be a non-empty string');
-        const launch: CuaAppLaunch = { command: v['command'] as string };
-        if (v['args'] !== undefined) launch.args = strings(v['args'], 'launch.args');
-        if (v['env'] !== undefined) launch.env = stringMap(v['env'], 'launch.env');
-        if (v['cwd'] !== undefined) {
-          if (typeof v['cwd'] !== 'string') bad('"launch.cwd" must be a string');
-          launch.cwd = v['cwd'] as string;
-        }
-        out.launch = launch;
+      case 'launch':
+        out.launch = parseLaunch(v);
         break;
-      }
-      case 'window': {
-        if (!isRecord(v)) return bad('"window" must be an object { title?, app? }');
-        noExtra(v, ['title', 'app'], 'window.');
-        const win: CuaWindowMatch = {};
-        if (v['title'] !== undefined) win.title = regex(v['title'], 'window.title');
-        if (v['app'] !== undefined) win.app = regex(v['app'], 'window.app');
-        if (win.title === undefined && win.app === undefined) bad('"window" needs "title" or "app"');
-        out.window = win;
+      case 'window':
+        out.window = parseWindow(v);
         break;
-      }
-      case 'cuaDriver': {
-        if (!isRecord(v)) return bad('"cuaDriver" must be an object { command?, args?, env? }');
-        noExtra(v, ['command', 'args', 'env'], 'cuaDriver.');
-        const d: NonNullable<CuaOptions['cuaDriver']> = {};
-        if (v['command'] !== undefined) {
-          if (typeof v['command'] !== 'string' || v['command'].length === 0) bad('"cuaDriver.command" must be a non-empty string');
-          d.command = v['command'] as string;
-        }
-        if (v['args'] !== undefined) d.args = strings(v['args'], 'cuaDriver.args');
-        if (v['env'] !== undefined) d.env = stringMap(v['env'], 'cuaDriver.env');
-        out.cuaDriver = d;
+      case 'cuaDriver':
+        out.cuaDriver = parseCuaDriver(v);
         break;
-      }
       case 'titleSuffix':
         out.titleSuffix = regex(v, 'titleSuffix');
         break;

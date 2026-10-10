@@ -229,6 +229,22 @@ describe('resolveConfig secrets (R-SE1)', () => {
     expect(code(() => resolve(user, { ADMIN_PASSWORD: value }))).toBe('SECRET_TOO_SHORT');
   });
 
+  // Found by tests/fuzz/config.test.ts (counterexample: secrets {"0": {env: "toString"}}, env {}).
+  it.each(['toString', 'constructor', 'hasOwnProperty', '__proto__', 'valueOf'])(
+    'R-SE1: an env var named like an Object.prototype member (%s) is unset, not an inherited function',
+    (envName) => {
+      const user = { secrets: { token: { env: envName } } };
+      expect(code(() => resolve(user, {}))).toBe('none');
+      expect(resolve(user, {}).secrets).toEqual({ token: { env: envName } });
+      expect(code(() => resolve(user, { [envName]: 'abc' }))).toBe('SECRET_TOO_SHORT');
+    },
+  );
+
+  it('R-SE1: a secret declared under the name __proto__ is rejected instead of being silently dropped (and left unredacted)', () => {
+    const user = JSON.parse('{"secrets":{"__proto__":{"env":"ADMIN_PASSWORD"},"ok":{"env":"API_KEY"}}}') as UserConfig;
+    expect(code(() => resolve(user, { ADMIN_PASSWORD: 'hunter2hunter2' }))).toBe('CONFIG_INVALID');
+  });
+
   it('R-SE1: a 4-character secret is accepted and the error never contains the value', () => {
     expect(() => resolve(user, { ADMIN_PASSWORD: 'abcd' })).not.toThrow();
     try {

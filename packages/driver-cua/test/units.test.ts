@@ -28,6 +28,33 @@ describe('parseKey', () => {
   });
 });
 
+describe('parseKey: names that exist on Object.prototype', () => {
+  // Found by tests/fuzz/cua-keys.test.ts: parseKey('constructor') returned { key: Object } and parseKey('__proto__') { key: {} }.
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf', 'Constructor', 'TOSTRING'])('%s is neither a key nor a modifier', (name) => {
+    expect(parseKey(name)).toBeUndefined();
+    expect(parseKey(`Control+${name}`)).toBeUndefined();
+    expect(parseKey(`${name}+a`)).toBeUndefined();
+  });
+});
+
+describe('buildNodes: overlapping secrets', () => {
+  // Found by tests/fuzz/cua-nodes.test.ts (secrets ["AAAA", "AAAA0"], value "AAAA0" came out as "[secret]0").
+  it.each([[['alice', 'alice123']], [['alice123', 'alice']]])('a secret that contains another one is replaced whole (%j)', (secrets) => {
+    const built = buildNodes([{ element_index: 0, element_token: 't', role: 'entry', label: 'Name alice123', value: 'alice123' }], 1, { scope: 'window', secrets });
+    expect(built.nodes[0]?.value).toBe('[secret]');
+    expect(built.nodes[0]?.name).toBe('Name [secret]');
+  });
+});
+
+describe('cleanLabel: repeated list markers', () => {
+  // Found by tests/fuzz/cua-nodes.test.ts: cleanLabel("••", "listitem") gave "•", and cleaning that again gave "".
+  it('strips every leading marker, so cleaning twice equals cleaning once', () => {
+    expect(cleanLabel('• ◦ One', 'listitem')).toBe('One');
+    expect(cleanLabel('••', 'listitem')).toBe('');
+    expect(cleanLabel('••', 'button')).toBe('••');
+  });
+});
+
 describe('roles and labels', () => {
   it('maps AT-SPI role names to ARIA roles and keeps unknown ones recognizable', () => {
     expect(ariaRole('push button')).toBe('button');

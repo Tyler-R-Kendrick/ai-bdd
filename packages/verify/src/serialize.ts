@@ -18,13 +18,20 @@ function normalizeForJson(value: unknown, seen: WeakSet<object>): unknown {
     seen.add(value);
     try {
       if (value instanceof Map) {
-        return Object.fromEntries([...value.entries()].map(([k, v]) => [String(k), normalizeForJson(v, seen)]).sort(([a], [b]) => String(a).localeCompare(String(b))));
+        const entries = [...value.entries()];
+        // String keys read as an object, in the same (code unit) order as plain objects, so a Map and the equivalent object look alike.
+        if (entries.every(([k]) => typeof k === 'string')) {
+          return Object.fromEntries(entries.map(([k, v]) => [k as string, normalizeForJson(v, seen)] as const).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+        }
+        // Other keys (numbers, objects, ...) would collapse when stringified ("1" and 1, or two objects), so the Map is listed as [key, value] pairs.
+        return entries
+          .map(([k, v]) => [normalizeForJson(k, seen), normalizeForJson(v, seen)] as const)
+          .sort(([a], [b]) => { const x = JSON.stringify(a) ?? ''; const y = JSON.stringify(b) ?? ''; return x < y ? -1 : x > y ? 1 : 0; });
       }
       if (value instanceof Set) return [...value].map((v) => normalizeForJson(v, seen));
       if (Array.isArray(value)) return value.map((v) => normalizeForJson(v, seen));
-      const out: Record<string, unknown> = {};
-      for (const key of Object.keys(value).sort()) out[key] = normalizeForJson((value as Record<string, unknown>)[key], seen);
-      return out;
+      // fromEntries defines own properties, so an own `__proto__` key survives (plain assignment would set the prototype instead)
+      return Object.fromEntries(Object.keys(value).sort().map((key) => [key, normalizeForJson((value as Record<string, unknown>)[key], seen)] as const));
     } finally {
       seen.delete(value);
     }
