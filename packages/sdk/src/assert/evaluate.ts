@@ -125,14 +125,24 @@ class EvalContext {
   }
 }
 
+/**
+ * An observation without a single node (a blank page, a crashed renderer, a driver that lost the page) shows nothing, so it cannot
+ * show that something is absent: absence and zero-count predicates are `unknown` there, which fails the check, instead of passing vacuously.
+ */
+function blank(predicate: Predicate): PredicateResult {
+  return { predicate, satisfied: 'unknown', actual: { matches: 0, blank: true } };
+}
+
 function evalOne(ctx: EvalContext, predicate: Predicate, params: Record<string, string>): PredicateResult {
   switch (predicate.op) {
     case 'exists': {
       const n = ctx.select(predicate.query).length;
+      if (predicate.negate === true && ctx.nodes.length === 0) return blank(predicate);
       return { predicate, satisfied: predicate.negate === true ? n === 0 : n >= 1, actual: { matches: n } };
     }
     case 'count': {
       const n = ctx.select(predicate.query).length;
+      if (n === 0 && ctx.nodes.length === 0 && (predicate.cmp === 'lte' || (predicate.cmp === 'eq' && predicate.value === 0))) return blank(predicate);
       const v = predicate.value;
       let ok: boolean | 'unknown';
       if (typeof v !== 'number') ok = false;

@@ -367,7 +367,9 @@ describe('abort', () => {
       return h.actor.succeed(req, session);
     };
     const r = await h.run({ signal: c.signal });
-    expect(r.steps.map((s) => s.status)).toEqual(['passed', 'skipped', 'skipped']);
+    // after the abort the driver is no longer touched: the step in flight ends with ABORTED, the rest is skipped
+    expect(r.steps.map((s) => s.status)).toEqual(['error', 'skipped', 'skipped']);
+    expect(r.steps[0]?.error?.code).toBe('ABORTED');
     expect(r.status).toBe('error');
     expect(r.error?.code).toBe('ABORTED');
     expect(h.driver.sessions[0]?.closed).toBe(true);

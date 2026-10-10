@@ -17,6 +17,7 @@ import {
 import { stableJson } from '../util/index.ts';
 import type { Core } from './core.ts';
 import { zeroUsage } from './usage.ts';
+import { assertOutputDirs } from './guard.ts';
 import { cmp, errorMessage, mapPool, matchesAnyGlob, throwIfAborted } from './util.ts';
 
 export interface DocAnalysis {
@@ -30,6 +31,7 @@ export interface DocAnalysis {
 /** discover -> chunk -> load plans -> status. Never calls a model and never writes. */
 export async function analyze(core: Core, docFilter?: readonly string[]): Promise<DocAnalysis> {
   const { config, modules } = core;
+  await assertOutputDirs(config, ['plans']);
   const filter = docFilter !== undefined && docFilter.length > 0 ? docFilter : undefined;
   const sources = await modules.discoverDocs(config);
   const selected = filter === undefined ? sources : sources.filter((s) => matchesAnyGlob(filter, s.uri));
@@ -86,6 +88,7 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   const full = opts.full === true;
   const before = core.meter.snapshot();
   throwIfAborted(opts.signal);
+  if (!check && !dryRun) await assertOutputDirs(config, ['plans'], ['plans']); // before any model call is spent
 
   const { chunked, discoveredUris, plans, status } = await analyze(core, opts.docs);
   const planByUri = new Map(plans.map((p) => [p.docUri, p]));

@@ -7,7 +7,7 @@ export { createActor, ACT_PROMPT_VERSION } from './agent/index.ts';
 export { createRecorder, createRecordingStore, deriveSelector, findBySelector, computeEffect } from './recording/index.ts';
 export { createAsserter, evaluatePredicates, lintCheckProgram, CHECKGEN_PROMPT_VERSION } from './assert/index.ts';
 export { createJudge, toJudgeEvidence, JUDGE_PROMPT_VERSION } from './judge/index.ts';
-export { createEvidenceStore, createRedactor, createSettler, verifyRun, systemClock } from './evidence/index.ts';
+export { createEvidenceStore, createRedactor, secretVariants, createSettler, verifyRun, systemClock } from './evidence/index.ts';
 export { createRunner } from './runner/index.ts';
 export { createReporters } from './report/index.ts';
 export { defineConfig, loadConfig, resolveConfig } from './config/index.ts';

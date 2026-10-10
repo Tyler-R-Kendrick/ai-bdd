@@ -1,3 +1,4 @@
+import { raceAbort } from '../util/index.ts';
 import { AiBddError, type ChatModel, type ModelPurpose, type ModelSet, type Usage } from '../contracts/index.ts';
 
 export const PURPOSES: readonly ModelPurpose[] = ['extract', 'act', 'checkgen', 'judge'];
@@ -60,7 +61,8 @@ export function createUsageMeter(
       const u = byPurpose[purpose];
       u.modelCalls += 1;
       try {
-        const res = await inner.generate(req);
+        // A model call that never returns must not outlive an abort (adapters honor `signal`; custom models may not).
+        const res = await raceAbort(inner.generate(req), req.signal, `${purpose} model call`);
         u.inputTokens += res.usage.inputTokens;
         u.outputTokens += res.usage.outputTokens;
         const price = prices[res.modelId] ?? prices[inner.id];

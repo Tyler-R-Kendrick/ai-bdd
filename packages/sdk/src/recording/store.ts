@@ -103,7 +103,7 @@ export const createRecordingStore: CreateRecordingStore = (opts: { dir: string; 
       await assertInsideRealRoot(dirname(path), resolve(dir)); // ... nor receive writes through a symlinked directory
       const existing = await readIfExists(path);
       if (existing === bytes) return 'unchanged';
-      await atomicWriteFile(path, bytes, { root: resolve(dir) });
+      await atomicWriteFile(path, bytes, { root: resolve(dir), sweep: true });
       return existing === null ? 'created' : 'updated';
     },
 
