@@ -12,7 +12,7 @@ import {
   type ScenarioRunOptions,
   type ScenarioTarget,
 } from '../contracts/index.ts';
-import { uuidv7 } from '../util/index.ts';
+import { assertInsideRealRoot, uuidv7 } from '../util/index.ts';
 import { compile } from './compile.ts';
 import type { Core } from './core.ts';
 import { buildUsage, computeCoverage, computeRunExitCode, countTotals } from './report.ts';
@@ -60,6 +60,7 @@ async function writeReports(core: Core, report: RunReport, outDir: string, names
   // Latest report copy: .ai-bdd/report/ next to the runs dir.
   const latest = join(dirname(core.config.runsDir), 'report');
   await rm(latest, { recursive: true, force: true });
+  await assertInsideRealRoot(latest);
   await mkdir(latest, { recursive: true });
   for (const file of written) await copyFile(file, join(latest, basename(file)));
 }

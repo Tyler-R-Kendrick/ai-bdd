@@ -14,7 +14,7 @@ function upgradeHarness(over: Partial<Parameters<typeof createHarness>[0]> = {})
 }
 
 describe('unsettled baseline (F-14, R-AS1, R-RN1)', () => {
-  it('R-AS1: when the screen before the action never settled, no check is generated; the step is judge-only and fuzzy (check-not-discriminative)', async () => {
+  it('R-AS1: when the screen before the action never settled, no check is generated; the step is judge-only and fuzzy (unsettled-baseline)', async () => {
     const h = upgradeHarness();
     // settle calls: 1 = session setup, 2 = "before" of the action; both unsettled. Later calls settle.
     h.settler.settledWhen = (_obs, n) => n > 2;
@@ -22,12 +22,12 @@ describe('unsettled baseline (F-14, R-AS1, R-RN1)', () => {
     expect(r.status).toBe('passed');
     expect(h.asserter.generations).toHaveLength(0);
     expect(r.steps[1]).toMatchObject({ status: 'passed', path: 'judge', determinism: 'fuzzy' });
-    expect(r.steps[1]?.fuzzyReasons).toContain('check-not-discriminative');
+    expect(r.steps[1]?.fuzzyReasons).toContain('unsettled-baseline');
     // the action's effect was measured against a screen that was still loading, so it is not trusted either
     expect(r.steps[0]?.determinism).toBe('fuzzy');
-    expect(r.steps[0]?.fuzzyReasons).toContain('check-not-discriminative');
+    expect(r.steps[0]?.fuzzyReasons).toContain('unsettled-baseline');
     expect(h.saved?.steps[1]?.check).toBeUndefined();
-    expect(h.saved?.steps[1]?.fuzzyReasons).toContain('check-not-discriminative');
+    expect(h.saved?.steps[1]?.fuzzyReasons).toContain('unsettled-baseline');
   });
 
   it('R-AS1: checks.requireDeterministic turns the unsettled baseline into CHECK_GENERATION_FAILED', async () => {
@@ -108,7 +108,7 @@ describe('secrets never reach a committed recording (F-05, F-06, R-SE1)', () => 
     await h.run();
     expect(JSON.stringify(h.saved)).not.toContain(SECRET);
     expect(h.saved?.steps[0]?.determinism).toBe('fuzzy');
-    expect(h.saved?.steps[0]?.fuzzyReasons).toContain('coordinate-action');
+    expect(h.saved?.steps[0]?.fuzzyReasons).toContain('secret-in-recording');
   });
 
   it('F-05: a URL-encoded or base64 variant is caught too', async () => {

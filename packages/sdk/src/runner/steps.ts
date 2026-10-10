@@ -276,7 +276,7 @@ async function runAction(sc: StepCtx): Promise<StepBody> {
 
 /** `Recorder.replay` may report whether its starting screen settled (an extension of `ReplayResult`); absent means settled. */
 function replayBeforeSettled(replay: ReplayResult): boolean {
-  return (replay as ReplayResult & { beforeSettled?: boolean }).beforeSettled !== false;
+  return replay.beforeSettled !== false;
 }
 
 /** C1: deterministic recording. */
@@ -332,7 +332,7 @@ async function replayBranch(sc: StepCtx, rec: StepRecording, program: ActProgram
   const reasons = dedupe<FuzzyReason>([
     ...rec.fuzzyReasons,
     ...rerecorded.fuzzyReasons,
-    ...(!replayBeforeSettled(replay) && config.settle.requireSettled ? (['check-not-discriminative'] as const) : []),
+    ...(!replayBeforeSettled(replay) && config.settle.requireSettled ? (['unsettled-baseline'] as const) : []),
     ...(healCount >= config.characterize.healThreshold ? (['heal-threshold'] as const) : []),
   ]);
   const determinism = reasons.length > 0 ? 'fuzzy' : 'deterministic';
@@ -388,7 +388,7 @@ async function characterizeBranch(sc: StepCtx, startsRun: boolean): Promise<Step
   const unsettledBaseline = !beforeR.settled && deps.config.settle.requireSettled;
   const reasons = dedupe<FuzzyReason>([
     ...rerecorded.fuzzyReasons,
-    ...(unsettledBaseline ? (['check-not-discriminative'] as const) : []),
+    ...(unsettledBaseline ? (['unsettled-baseline'] as const) : []),
     ...(env.fuzzyTagged ? (['directive'] as const) : []),
   ]);
   const determinism = reasons.length > 0 ? 'fuzzy' : 'deterministic';
@@ -531,7 +531,7 @@ async function runThen(sc: StepCtx): Promise<StepBody> {
   let gen: CheckGenResult;
   if (baselineUnsettled) {
     gen = {
-      fuzzyReasons: ['check-not-discriminative'],
+      fuzzyReasons: ['unsettled-baseline'],
       attempts: 0,
       usage: zeroUsage(),
       errors: ['the observation before the action did not settle, so a check cannot be shown to be false before the action'],

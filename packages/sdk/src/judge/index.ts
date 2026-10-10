@@ -18,7 +18,7 @@ import {
   type ToJudgeEvidence,
   type Usage,
 } from '../contracts/index.ts';
-import { atomicWriteFile, canonicalJson, renderTree, sha256Hex } from '../util/index.ts';
+import { assertInsideRealRoot, atomicWriteFile, canonicalJson, renderTree, sha256Hex } from '../util/index.ts';
 
 export const JUDGE_PROMPT_VERSION = 'judge-v1';
 
@@ -260,6 +260,7 @@ export const createJudge: CreateJudge = (deps) => {
         };
         if (agg.reason !== undefined) verdict.reason = agg.reason;
         if (cacheDir !== null) {
+          await assertInsideRealRoot(cacheDir);
           await mkdir(cacheDir, { recursive: true });
           const line: JsonObject = {
             key,

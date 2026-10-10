@@ -112,6 +112,8 @@ A step is **deterministic** only because the engine demonstrated it. Otherwise i
 | `confirm-check-failed` | The check failed in the confirm run. | Same. |
 | `heal-threshold` | The step healed `characterize.healThreshold` (2) times and was demoted. | The UI keeps changing; review the step. |
 | `agent-only-driver` | The driver lacks verbs needed to replay. | Use a fuller driver. |
+| `secret-in-recording` | The step's selector, URL or key contained a secret value, so it was redacted and cannot replay deterministically. | Keep secrets out of page text that the step targets. |
+| `unsettled-baseline` | The screen before the action never settled, so an effect cannot be attributed to the action. | Wait for the page to finish loading (see `settle` in the config) or fix the slow page. |
 
 `ai-bdd show --recordings` lists the determinism and reasons per step. Fuzziness costs model calls on every run, so each reason is something to fix in the doc or the app, not noise.
 

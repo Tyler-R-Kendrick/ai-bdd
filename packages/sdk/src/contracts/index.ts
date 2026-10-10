@@ -254,10 +254,11 @@ export interface EffectSignature {
 export interface ActProgram { startRoute: string; startLandmarks: Sha256; actions: RecordedAction[]; effect: EffectSignature }
 export type FindResult = { status: 'found'; node: ObservedNode } | { status: 'missing' } | { status: 'ambiguous'; count: number };
 export type ReplayOutcome = 'replayed' | 'start-mismatch' | 'target-missing' | 'target-ambiguous' | 'effect-unverified' | 'action-failed' | 'policy-denied';
-export interface ReplayResult { outcome: ReplayOutcome; completedActions: number; before: Observation; after: Observation; detail?: string }
+export interface ReplayResult { outcome: ReplayOutcome; completedActions: number; before: Observation; after: Observation; detail?: string; beforeSettled?: boolean }
 export type FuzzyReason =
   | 'directive' | 'subjective' | 'volatile-content' | 'check-not-discriminative' | 'check-generation-failed'
-  | 'confirm-replay-failed' | 'confirm-check-failed' | 'coordinate-action' | 'no-observable-effect' | 'heal-threshold' | 'agent-only-driver';
+  | 'confirm-replay-failed' | 'confirm-check-failed' | 'coordinate-action' | 'no-observable-effect' | 'heal-threshold' | 'agent-only-driver'
+  | 'secret-in-recording' | 'unsettled-baseline';
 export interface Recorder {
   toRecording(performed: readonly PerformedAction[], before: Observation, after: Observation, afterProbe: Observation | undefined, step: Step, opts?: { capabilities?: DriverCapabilities }): { act: ActProgram; fuzzyReasons: FuzzyReason[] };
   replay(act: ActProgram, session: DriverSession, ctx: { baseURL?: string; policy: Policy; signal?: AbortSignal }): Promise<ReplayResult>;

@@ -8,4 +8,4 @@
 2. `runner/secrets.ts` is a deliberate copy of `recording/secrets.ts` (modules may not import siblings). If a shared home
    is wanted, move it to `util` (owned by fix-agent B) and delete both copies.
 3. `Recorder.replay` now returns an extra `beforeSettled: boolean` (structurally an extension of `ReplayResult`); the runner
-   reads it when present. Adding `beforeSettled?: boolean` to the `ReplayResult` contract would make this official.
+   reads it when present. 

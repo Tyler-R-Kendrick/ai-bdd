@@ -4,10 +4,11 @@ Suite: `tests/adversarial/**` (run with `pnpm exec vitest run --project adversar
 (scripted models, fake driver, stub sessions; real Chromium against a local hostile site for A9, A10, A14).
 A passing test means the defence holds. A failing test is a real defect with the id below. No test was weakened or skipped.
 
-State at the time of writing: 287 pass, 26 fail. The 26 failures map to findings F-01 .. F-14 (table below).
-F-03 (missing secret turned into a passed step) was reported during the run and has since been fixed by X-INTEGRATOR; its tests are green.
+State: 313 of 313 pass. Every finding below (F-01 .. F-18) was reproduced, fixed in source and verified by its named test; none was closed by weakening a test.
+Two tests were adjusted for the intended behaviour: the `.ai-bdd/runs` symlink test (a11) accepts the fail-closed `POLICY_DENIED` rejection, and the plan-store property test now allows `..` inside a name while still rejecting dot-only path segments.
+F-03 (missing secret turned into a passed step) was fixed during the run.
 
-## Open findings
+## Findings (all fixed)
 
 | id | attack | severity | requirement | summary |
 |---|---|---|---|---|
@@ -29,7 +30,9 @@ F-03 (missing secret turned into a passed step) was reported during the run and 
 | F-17 | 12 | low | R-PL4 | `stableJson` silently drops an own `__proto__` key (`canonicalJson` keeps it) |
 | F-18 | 16 | low | R-SDK2 | `scripts/check-boundaries.mjs` is a regex scanner: 10 obfuscations reach SDK internals unreported |
 
-No high severity finding is open.
+No high severity finding was found. All 18 are fixed.
+
+Fixes at a glance: F-01/F-02/F-07/F-13 in `extract/` (and the judge fence stripper); F-04/F-05/F-06/F-14 in `assert/`, `recording/`, `runner/` (a check after an action must be false before it; secrets are scrubbed from recordings and a fail-closed save guard discards any recording that still contains a variant; an unsettled baseline yields no deterministic check); F-08 shared padded-delimiter neutralizer in judge, actor and checkgen prompts; F-09/F-10/F-11/F-12/F-16/F-17 in `util/`, `plan/`, `markdown/`, evidence, report and judge-cache writers (real-path containment, 256 KiB document cap, delimiter and nesting budgets); F-15 capture-phase click and submit guard in the Playwright driver; F-18 AST-based `scripts/check-boundaries.mjs`.
 
 ### F-01 non-derived number / boolean fixture args are off-text (attack 1, medium)
 Test: `a01 ... NON-derived number or boolean fixture argument`.
@@ -158,4 +161,4 @@ Fix: replace the regex scanner by a TypeScript-AST walk (the audit in `a16` is a
 
 ## Sign-off
 
-Not signed off: 18 findings open (0 high, 5 medium: F-01, F-04, F-05, F-06, F-12). Re-run `pnpm exec vitest run --project adversarial` after fixes; each finding is closed when its named test is green.
+Signed off by X-INTEGRATOR: zero open findings, 313 of 313 adversarial tests green. Residual risks are the observations above (O-1 foreign iframes are fetched and visible; O-3 an injected sentence can ground a scenario but stays `unreviewed`), the 256 KiB document cap (hostile 240 KB markdown parses in about 2 s), and the borrowed-page (`sessionFromPage`) popup limitation documented in `packages/driver-playwright/README.md`.

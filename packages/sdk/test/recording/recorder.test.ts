@@ -130,7 +130,7 @@ describe('toRecording', () => {
     expect(act.effect.appeared).toEqual([]);
     expect(fuzzyReasons).toContain('no-observable-effect');
     // a literal that merely contains an encoded secret cannot be replayed exactly: redacted hint, fuzzy
-    expect(fuzzyReasons).toContain('coordinate-action');
+    expect(fuzzyReasons).toContain('secret-in-recording');
     const text = JSON.stringify(act);
     expect(text).not.toContain(SECRET);
     expect(text).not.toContain(encodeURIComponent(SECRET));

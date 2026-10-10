@@ -63,7 +63,7 @@ const checkProgram = z.object({
 
 const fuzzyReason = z.enum([
   'directive', 'subjective', 'volatile-content', 'check-not-discriminative', 'check-generation-failed',
-  'confirm-replay-failed', 'confirm-check-failed', 'coordinate-action', 'no-observable-effect', 'heal-threshold', 'agent-only-driver',
+  'confirm-replay-failed', 'confirm-check-failed', 'coordinate-action', 'no-observable-effect', 'heal-threshold', 'agent-only-driver', 'secret-in-recording', 'unsettled-baseline',
 ]);
 
 const stepRecording = z.object({

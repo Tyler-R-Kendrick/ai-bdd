@@ -121,7 +121,7 @@ function scrubAction(a: RecordedAction, ctx: SecretContext): { action: RecordedA
  * - effect entries (node names, field values) that reflect a secret are dropped; an effect emptied this way yields
  *   `no-observable-effect`;
  * - a selector, URL, key or route that holds a secret can no longer be replayed exactly, so the step turns fuzzy
- *   (`coordinate-action`, the closest existing reason) and keeps only the redacted text as a hint;
+ *   (`secret-in-recording`) and keeps only the redacted text as a hint;
  * - a literal that equals a secret value is recorded as `{secret: name}` instead.
  * Idempotent.
  */
@@ -147,7 +147,7 @@ export function scrubActProgram(act: ActProgram, ctx: SecretContext): { act: Act
     effect.changed.length !== act.effect.changed.length;
   const emptied = effect.appeared.length === 0 && effect.disappeared.length === 0 && effect.changed.length === 0;
   if (dropped && emptied && routeBefore === routeAfter) reasons.push('no-observable-effect');
-  if (unreplayable) reasons.push('coordinate-action');
+  if (unreplayable) reasons.push('secret-in-recording');
   return {
     act: { startRoute, startLandmarks: act.startLandmarks, actions, effect: { ...effect, routeBefore, routeAfter } },
     fuzzyReasons: reasons,
