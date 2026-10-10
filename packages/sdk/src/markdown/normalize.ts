@@ -85,6 +85,8 @@ export function limitNesting(text: string): { text: string; blanked: number[] } 
 export const MAX_DOC_CHARS = 512 * 1024;
 /** Active inline delimiters (`[`, `]`, `*`, `~`) per blank-line separated run. micromark's inline resolver is quadratic in them. */
 export const MAX_RUN_DELIMITERS = 1000;
+/** Longest stretch (characters) a `[` may stay unclosed before it is literal text. */
+export const MAX_OPEN_LABEL_CHARS = 1500;
 /** Active inline delimiters per document. */
 export const MAX_DOC_DELIMITERS = 40_000;
 /** Leading indentation (columns) kept active. micromark is quadratic in container depth, and each 2 columns can open a list level. */
@@ -130,16 +132,19 @@ function placeholderPool(text: string): () => string | undefined {
 }
 
 /**
- * Bounds the work micromark does on hostile input without changing offsets: excess inline delimiters and excess leading
- * indentation are replaced one-for-one by inert placeholder characters, which {@link restorePlaceholders} maps back
- * in the parsed tree. Documents within the budgets are returned untouched. Input must be LF-normalized.
+ * Bounds the work micromark does on hostile input without changing offsets: excess inline delimiters, label openers
+ * that stay unclosed for a long stretch and excess leading indentation are replaced one-for-one by inert placeholder
+ * characters, which {@link restorePlaceholders} maps back in the parsed tree. Documents within the budgets are
+ * returned untouched. Input must be LF-normalized.
  */
 export function neutralizeHostile(text: string): Neutralized {
   const restore = new Map<string, string>();
   const placeholderFor = new Map<string, string>();
   const indented: number[] = [];
+  const swaps: number[] = [];
   let delimiters = 0;
   let exhausted = false;
+  let sorted = true;
   const nextFree = placeholderPool(text);
   const swap = (orig: string): string => {
     let ph = placeholderFor.get(orig);
@@ -154,8 +159,27 @@ export function neutralizeHostile(text: string): Neutralized {
     }
     return ph;
   };
+  const mark = (offset: number, isDelimiter: boolean): void => {
+    if (swaps.length > 0 && (swaps[swaps.length - 1] as number) > offset) sorted = false;
+    swaps.push(offset);
+    if (isDelimiter) delimiters++;
+  };
 
-  let out: string[] | undefined;
+  const expire = (pos: number): void => {
+    // an opener that has stayed unclosed for too long is literal text (gfm autolink detection is quadratic behind it)
+    while (head < openers.length && pos - (openers[head] as number) > MAX_OPEN_LABEL_CHARS) {
+      mark(openers[head] as number, true);
+      head++;
+    }
+    if (head > 4096 && head * 2 > openers.length) {
+      openers = openers.slice(head);
+      head = 0;
+    }
+  };
+
+  // `[` openers still waiting for a `]` in the current run, oldest first (`head` is the first live entry)
+  let openers: number[] = [];
+  let head = 0;
   let run = 0;
   let docActive = 0;
   let lineNo = 1;
@@ -163,7 +187,6 @@ export function neutralizeHostile(text: string): Neutralized {
   while (start <= text.length) {
     let end = text.indexOf('\n', start);
     if (end === -1) end = text.length;
-    let line: string[] | undefined;
 
     // leading indentation
     let i = start;
@@ -177,44 +200,56 @@ export function neutralizeHostile(text: string): Neutralized {
     }
     const blank = i >= end;
     if (!blank && cols > MAX_INDENT_COLUMNS) {
-      // keep the first MAX_INDENT_COLUMNS columns, neutralize the rest of the whitespace run
       let k = start;
       let col = 0;
       while (k < i && col < MAX_INDENT_COLUMNS) {
         col += text.charCodeAt(k) === 9 ? 4 : 1;
         k++;
       }
-      line = text.slice(start, end).split('');
-      for (let j = k; j < i; j++) line[j - start] = swap(text.charAt(j));
+      for (let j = k; j < i; j++) mark(j, false);
       indented.push(lineNo);
     }
 
-    if (blank || startsListItem(text, start, end)) run = 0;
+    if (blank || startsListItem(text, start, end)) {
+      run = 0;
+      openers = [];
+      head = 0;
+    }
 
-    // inline delimiters
     if (!blank) {
       for (let j = i; j < end; j++) {
         const c = text.charCodeAt(j);
         if (c !== 91 && c !== 93 && c !== 42 && c !== 126) continue;
-        if (run < MAX_RUN_DELIMITERS && docActive < MAX_DOC_DELIMITERS) {
-          run++;
-          docActive++;
+        if (run >= MAX_RUN_DELIMITERS || docActive >= MAX_DOC_DELIMITERS) {
+          mark(j, true);
           continue;
         }
-        if (line === undefined) line = text.slice(start, end).split('');
-        line[j - start] = swap(text.charAt(j));
-        delimiters++;
+        run++;
+        docActive++;
+        if (c === 91) {
+          openers.push(j);
+        } else if (c === 93 && head < openers.length) {
+          openers.pop();
+        }
+        expire(j);
       }
-    }
-
-    if (line !== undefined) {
-      if (out === undefined) out = text.split('\n');
-      out[lineNo - 1] = line.join('');
+      expire(end);
     }
     lineNo++;
     start = end + 1;
   }
-  return { text: out === undefined ? text : out.join('\n'), restore, indented, delimiters, exhausted };
+
+  if (swaps.length === 0) return { text, restore, indented, delimiters, exhausted };
+  if (!sorted) swaps.sort((x, y) => x - y);
+  const parts: string[] = [];
+  let at = 0;
+  for (const off of swaps) {
+    if (off < at) continue;
+    parts.push(text.slice(at, off), swap(text.charAt(off)));
+    at = off + 1;
+  }
+  parts.push(text.slice(at));
+  return { text: parts.join(''), restore, indented, delimiters, exhausted };
 }
 
 /** Maps placeholder characters back to the original text in every string field of the parsed tree. Iterative. */

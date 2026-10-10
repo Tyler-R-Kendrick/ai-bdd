@@ -1,11 +1,23 @@
 import { it } from 'vitest';
-import { fromMarkdown } from 'mdast-util-from-markdown';
-import { gfmAutolinkLiteral } from '/home/user/ai-bdd/node_modules/.pnpm/micromark-extension-gfm-autolink-literal@2.1.0/node_modules/micromark-extension-gfm-autolink-literal/index.js';
+import { chunkText } from './helpers.ts';
 it('x', () => {
   const out: string[] = [];
-  for (const pre of ['', '[ ', '( ', '* ', '_ ', '~ ', '< ', '[x] ', '] ', '"', '[[[[ ', 'w ']) for (const word of ['abcd ', 'a@b ', 'www.a ']) {
-    const v = '# T\n\n' + pre + word.repeat(10000);
-    const t = performance.now(); fromMarkdown(v, { extensions: [gfmAutolinkLiteral()] }); out.push(`${JSON.stringify(pre)} ${JSON.stringify(word)} ${v.length} ${Math.round(performance.now() - t)}`);
-  }
-  process.getBuiltinModule('node:fs').writeFileSync('/tmp/claude-0/-home-user-ai-bdd/0a1cf405-8758-5453-981b-eb6b83c053de/scratchpad/z.out', out.join('\n'));
-}, 300000);
+  const cases: Record<string, string> = {
+    mixed: '*a_b[c~d!['.repeat(7000),
+    brword: '[ ' + 'a@b '.repeat(100000),
+    brword2: '[ ' + 'abcd '.repeat(100000),
+    refs: '[a]: x\n'.repeat(20000),
+    lines: 'a\n'.repeat(100000),
+    lines2: 'a\n'.repeat(250000),
+    table: '|a|b|\n|-|-|\n' + '|[x]|*y*|\n'.repeat(20000),
+    tablecell: '|a|b|\n|-|-|\n|[ ' + 'a@b '.repeat(50000) + '|x]|\n',
+    manybr: ('[ ' + 'a@b '.repeat(300) + '\n\n').repeat(300),
+    spaces: 'x ' + ' '.repeat(400000),
+    under: 'a_b_'.repeat(100000),
+    under2: '_a '.repeat(150000),
+    star: '* '.repeat(200000),
+    http: 'http://a '.repeat(50000),
+    emails: 'a@b.c '.repeat(80000),
+  };
+  for (const [k, v] of Object.entries(cases)) { const t = performance.now(); chunkText('# T\n\n' + v + '\n'); out.push(`${k} ${v.length} ${Math.round(performance.now() - t)}`); process.getBuiltinModule('node:fs').writeFileSync('/tmp/claude-0/-home-user-ai-bdd/0a1cf405-8758-5453-981b-eb6b83c053de/scratchpad/z.out', out.join('\n')); }
+}, 600000);
