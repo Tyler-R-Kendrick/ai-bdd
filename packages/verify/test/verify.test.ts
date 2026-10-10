@@ -63,6 +63,17 @@ describe('approval flow', () => {
     expect(fs.readFileSync(files().verified, 'utf8')).toBe('hello\n');
   });
 
+  // Found by tests/fuzz/verify-scrub.test.ts: "\ud83d" is stored as U+FFFD, so the value could never match its own snapshot.
+  it('a value with a lone surrogate matches the snapshot that was accepted for it (the file holds U+FFFD)', () => {
+    const value = 'broken \ud83d surrogate';
+    fail(() => verifyValue(ctx(), value));
+    expect(fs.readFileSync(files().received, 'utf8')).toBe('broken \ufffd surrogate\n');
+    acceptReceived(findReceived(dir));
+    verifyValue(ctx(), value);
+    expect(fs.existsSync(files().received)).toBe(false);
+    expect(fail(() => verifyValue(ctx(), 'broken \ufffd other'))).toBeInstanceOf(VerifyError);
+  });
+
   it('a different value fails with a diff of verified (-) against received (+) and keeps the verified file untouched', () => {
     fs.mkdirSync(path.dirname(files().verified), { recursive: true });
     fs.writeFileSync(files().verified, 'one\ntwo\nthree\n');

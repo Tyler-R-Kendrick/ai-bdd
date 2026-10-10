@@ -9,6 +9,19 @@ describe('unifiedDiff', () => {
     expect(d).toBe(['...', ' line 9', '-line 10', '+line TEN', ' line 11', '...'].join('\n').replace(/^\.\.\.\n/, '').replace(/\n\.\.\.$/, ''));
   });
 
+  // Found by tests/fuzz/verify-diff.test.ts: every changed line looped over `context` lines on each side, so a huge or infinite
+  // context cost O(context) per change (context: Infinity never returned).
+  it('a context wider than the diff shows the whole diff, immediately', () => {
+    const a = ['one', 'two', 'three'].join('\n');
+    const b = ['one', 'TWO', 'three'].join('\n');
+    const started = process.cpuUsage();
+    const d = unifiedDiff(a, b, { context: Number.POSITIVE_INFINITY, maxLines: 100 });
+    const used = process.cpuUsage(started);
+    expect(d).toBe(' one\n-two\n+TWO\n three');
+    expect(unifiedDiff(a, b, { context: 2e9 })).toBe(d);
+    expect((used.user + used.system) / 1000).toBeLessThan(1000);
+  });
+
   it('identical inputs produce no changed lines', () => {
     expect(unifiedDiff('a\nb', 'a\nb')).toBe('');
   });
