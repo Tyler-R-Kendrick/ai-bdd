@@ -49,9 +49,11 @@ export async function runConfirmRuns(env: ScenarioEnv, pending: ScenarioRecordin
           const failed: ConfirmOutcome['failedSteps'][number] = { stepKey: step.key, status: result.status };
           if (result.error !== undefined) failed.code = result.error.code;
           out.failedSteps.push(failed);
-          // A step that ended in `error` was cut short by an exception (a lost session, an unavailable model), so the
-          // confirm run proved nothing about the recording: that is infrastructure, not instability.
-          if (result.status === 'error' && result.error !== undefined) out.infraError = result.error;
+          // A step cut short by an infrastructure failure (a lost session, an unavailable model: the retryable codes, or an
+          // abort) proved nothing about the recording: that is an error, not instability.
+          if (result.status === 'error' && result.error !== undefined && (result.error.retryable || result.error.code === 'ABORTED')) {
+            out.infraError = result.error;
+          }
           break;
         }
       }

@@ -212,7 +212,12 @@ export function expectScenarioSane(r: ScenarioResult, stepCount?: number): void 
   for (const s of r.steps) expectStepSane(s, `${where} / ${s.text}`);
   // the scenario status is the worst step status, or `error` when the scenario itself ended in an error
   const worst = r.steps.reduce((acc, s) => ((RANK[s.status] ?? 0) > (RANK[acc] ?? 0) ? s.status : acc), 'skipped' as string);
-  if (r.error === undefined || r.status !== 'error') expect(r.status, `${where}: status must be the worst step status`).toBe(worst);
+  if (r.error?.code === 'CHARACTERIZATION_UNSTABLE') {
+    // the main run passed, a fresh confirm run did not reproduce it: failed, and nothing was committed
+    expect([r.status, r.recording], `${where}: unstable characterization`).toEqual(['failed', 'discarded']);
+  } else if (r.error === undefined || r.status !== 'error') {
+    expect(r.status, `${where}: status must be the worst step status`).toBe(worst);
+  }
   if (r.status === 'error') expect(r.error ?? r.steps.find((s) => s.status === 'error')?.error, `${where}: an error scenario names its cause`).toBeDefined();
   if (r.error !== undefined) expect(CODES.has(r.error.code), `${where}: unknown error code ${r.error.code}`).toBe(true);
   // a scenario that did not pass never ends up with a recording that claims it did
