@@ -70,13 +70,13 @@ export async function startEdgeServer(): Promise<EdgeServer> {
 <p>Chosen: <span id="chosen">nothing</span></p>
 <script>document.querySelector('select').onchange = function () { document.getElementById('chosen').textContent = this.value; };</script>`);
       case '/blob':
-        return html(`<h1>Blob</h1><button onclick="location.href = URL.createObjectURL(new Blob(['<h1>from blob</h1>'], { type: 'text/html' }))">Go blob</button>`);
+        return html(`<h1>Blob</h1><button onclick="window.location.href = window.URL.createObjectURL(new Blob(['<h1>from blob</h1>'], { type: 'text/html' }))">Go blob</button>`);
       case '/frames':
         return html(`<h1>Frames</h1><iframe title="inner" src="${q('src')}"></iframe>`);
       case '/popup-next':
         return html('<h1>Popup next</h1>', `<script>setTimeout(function () { location.href = ${JSON.stringify(q('to'))}; }, 50);</script>`);
       case '/open':
-        return html(`<h1>Open</h1><button id="open" onclick="window.open(${JSON.stringify(q('to'))})">Open window</button>`);
+        return html(`<h1>Open</h1><button id="open" onclick="window.open(${JSON.stringify(q('to')).replace(/"/g, '&quot;')})">Open window</button>`);
       case '/plain':
         return html('<h1>Plain</h1><button>Press me</button>');
       default:
