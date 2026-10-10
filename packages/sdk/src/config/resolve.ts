@@ -13,6 +13,7 @@ import {
   type SettleOptions,
 } from '../contracts/index.ts';
 import { userConfigSchema } from './schema.ts';
+import type { ParsedUserConfig } from './schema.ts';
 
 export const DEFAULT_ALLOW_HOSTS: readonly string[] = ['localhost', '127.0.0.1', '[::1]'];
 export const MIN_SECRET_LENGTH = 4;
@@ -50,27 +51,70 @@ function unique(list: readonly string[]): string[] {
   return [...new Set(list)];
 }
 
-/**
- * Validate a user config and apply defaults. Pure: no file system access, no module loading.
- * Secret VALUES are read from `env` only to validate their length; they are never stored (R-SE1).
- */
-export const resolveConfig: ResolveConfig = (user, opts) => {
-  // zod's record parsing skips an own "__proto__" key without a word, which would leave a secret declared under that name unredacted.
+/** zod's record parsing skips an own "__proto__" key without a word, which would leave a secret declared under that name unredacted. */
+function rejectProtoSecret(user: unknown): void {
   const declared: unknown = (user as { secrets?: unknown } | null)?.secrets;
   if (typeof declared === 'object' && declared !== null && Object.hasOwn(declared, '__proto__')) {
     throw invalid('Invalid ai-bdd config:\n  - secrets.__proto__: "__proto__" cannot be a secret name', [
       { path: 'secrets.__proto__', message: '"__proto__" cannot be a secret name' },
     ]);
   }
+}
+
+function parseUserConfig(user: unknown): ParsedUserConfig {
+  rejectProtoSecret(user);
   const parsed = userConfigSchema.safeParse(user);
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map((i) => ({
-      path: i.path.map(String).join('.') || '(root)',
-      message: i.code === 'unrecognized_keys' ? `unknown key(s): ${i.keys.join(', ')}` : i.message,
-    }));
-    throw invalid(`Invalid ai-bdd config:\n${issues.map((i) => `  - ${i.path}: ${i.message}`).join('\n')}`, issues);
+  if (parsed.success) return parsed.data;
+  const issues = parsed.error.issues.map((i) => ({
+    path: i.path.map(String).join('.') || '(root)',
+    message: i.code === 'unrecognized_keys' ? `unknown key(s): ${i.keys.join(', ')}` : i.message,
+  }));
+  throw invalid(`Invalid ai-bdd config:\n${issues.map((i) => `  - ${i.path}: ${i.message}`).join('\n')}`, issues);
+}
+
+/** Secrets: names and env var names only. Values are validated for length and then forgotten. */
+function resolveSecrets(declared: Record<string, { env: string }> | undefined, env: Record<string, string | undefined>): Record<string, { env: string }> {
+  const secrets: Record<string, { env: string }> = {};
+  for (const [name, spec] of Object.entries(declared ?? {})) {
+    secrets[name] = { env: spec.env };
+    const value = Object.hasOwn(env, spec.env) ? env[spec.env] : undefined; // not an inherited property such as `constructor`
+    if (value !== undefined && value !== '' && value.length < MIN_SECRET_LENGTH) {
+      throw new AiBddError(
+        'SECRET_TOO_SHORT',
+        `Secret "${name}" (env ${spec.env}) is shorter than ${MIN_SECRET_LENGTH} characters; short secrets cannot be redacted safely`,
+        { details: { name, env: spec.env, minLength: MIN_SECRET_LENGTH } },
+      );
+    }
   }
-  const u = parsed.data;
+  return secrets;
+}
+
+function resolveRecordingsMode(env: Record<string, string | undefined>, ci: boolean): RecordingsMode {
+  const override = env['AI_BDD_RECORDINGS'];
+  if (override === undefined || override === '') return ci ? 'read-only' : 'read-write';
+  if (override !== 'read-write' && override !== 'read-only' && override !== 'off') {
+    throw invalid(`Invalid AI_BDD_RECORDINGS "${override}": expected read-write, read-only or off`, [
+      { path: 'AI_BDD_RECORDINGS', message: 'expected read-write, read-only or off' },
+    ]);
+  }
+  return override;
+}
+
+function resolveAllowHosts(policy: { allowHosts?: readonly string[] | undefined } | undefined, baseURL: string | undefined): string[] {
+  const allowHosts = unique(policy?.allowHosts ?? DEFAULT_ALLOW_HOSTS);
+  if (baseURL !== undefined) {
+    const host = new URL(baseURL).hostname.toLowerCase();
+    if (!allowHosts.some((h) => h.toLowerCase() === host)) allowHosts.push(host);
+  }
+  return allowHosts;
+}
+
+/**
+ * Validate a user config and apply defaults. Pure: no file system access, no module loading.
+ * Secret VALUES are read from `env` only to validate their length; they are never stored (R-SE1).
+ */
+export const resolveConfig: ResolveConfig = (user, opts) => {
+  const u = parseUserConfig(user);
   const projectRoot = resolve(opts.projectRoot);
   const env = opts.env;
   const abs = (p: string): string => (isAbsolute(p) ? resolve(p) : resolve(projectRoot, p));
@@ -89,37 +133,11 @@ export const resolveConfig: ResolveConfig = (user, opts) => {
     );
   }
 
-  // Secrets: names and env var names only. Values are validated for length and then forgotten.
-  const secrets: Record<string, { env: string }> = {};
-  for (const [name, spec] of Object.entries(u.secrets ?? {})) {
-    secrets[name] = { env: spec.env };
-    const value = Object.hasOwn(env, spec.env) ? env[spec.env] : undefined; // not an inherited property such as `constructor`
-    if (value !== undefined && value !== '' && value.length < MIN_SECRET_LENGTH) {
-      throw new AiBddError(
-        'SECRET_TOO_SHORT',
-        `Secret "${name}" (env ${spec.env}) is shorter than ${MIN_SECRET_LENGTH} characters; short secrets cannot be redacted safely`,
-        { details: { name, env: spec.env, minLength: MIN_SECRET_LENGTH } },
-      );
-    }
-  }
+  const secrets = resolveSecrets(u.secrets, env);
 
   const ci = env['CI'] === 'true' || env['CI'] === '1';
-  let recordingsMode: RecordingsMode = ci ? 'read-only' : 'read-write';
-  const override = env['AI_BDD_RECORDINGS'];
-  if (override !== undefined && override !== '') {
-    if (override !== 'read-write' && override !== 'read-only' && override !== 'off') {
-      throw invalid(`Invalid AI_BDD_RECORDINGS "${override}": expected read-write, read-only or off`, [
-        { path: 'AI_BDD_RECORDINGS', message: 'expected read-write, read-only or off' },
-      ]);
-    }
-    recordingsMode = override;
-  }
-
-  const allowHosts = unique(u.policy?.allowHosts ?? DEFAULT_ALLOW_HOSTS);
-  if (u.baseURL !== undefined) {
-    const host = new URL(u.baseURL).hostname.toLowerCase();
-    if (!allowHosts.some((h) => h.toLowerCase() === host)) allowHosts.push(host);
-  }
+  const recordingsMode = resolveRecordingsMode(env, ci);
+  const allowHosts = resolveAllowHosts(u.policy, u.baseURL);
 
   const drivers = { ...(u.drivers ?? {}) };
   const driverNames = Object.keys(drivers);
