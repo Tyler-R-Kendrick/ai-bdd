@@ -60,7 +60,7 @@ function failure(code: AiBddErrorPayload['code'], message: string, retryable?: b
  * why only in the message ("... is stale or no longer running; refresh list_windows."), so the message is part of the contract.
  */
 export function isWindowGone(result: CuaToolResult): boolean {
-  return result.failed && (/window[_ ](?:not[_ ]found|gone)|no_such_window/i.test(result.code ?? '') || /(?:stale or no longer running|no such window|window .* (?:was )?closed)/i.test(result.text));
+  return result.failed && (/window[_ ](?:not[_ ]found|gone)|no_such_window|no_window|target_gone/i.test(result.code ?? '') || /(?:stale or no longer running|no such window|window .* (?:was )?closed)/i.test(result.text));
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -172,7 +172,7 @@ export class CuaSession implements DriverSession {
         timeout + 15_000,
       );
       if (res.failed) {
-        throw new AiBddError(isWindowGone(res) ? 'DRIVER_UNAVAILABLE' : 'DRIVER_ERROR', `get_window_state: ${this.sanitize(res.text) || res.code || 'failed'}`);
+        throw new AiBddError(isWindowGone(res) || /not_found/.test(res.code ?? '') ? 'DRIVER_UNAVAILABLE' : 'DRIVER_ERROR', `get_window_state: ${this.sanitize(res.text) || res.code || 'failed'}`);
       }
       if (res.structured['truncated'] !== true || attempt >= 1 || timeout >= 120_000) break;
       timeout = Math.min(timeout * 2, 120_000);
