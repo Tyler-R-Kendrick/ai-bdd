@@ -40,7 +40,8 @@ No contract changes and no new dependencies requested (`playwright-core` 1.64.0 
   contract return type has no failure shape. It follows redirects manually (max 5), checking each hop against the policy.
 * Observation details relevant to the AC3 parity test (X-CORPUS / P-APP), all visible in `test/golden/acme-*.nodes.json`:
   * the Playwright tree has the same `main` landmark and role/name pairs as the fake driver on every Acme screen
-    (asserted in `acme.test.ts` against the pinned goldens); anonymous `generic` wrappers are pruned;
+    (`acme.test.ts` asserts equality with the fake driver, ignoring only clock text, on /login, /settings/billing, /todos,
+    /forms/two and /notes); anonymous `generic` wrappers are pruned;
   * empty text inputs and password inputs have **no** `value` (matches the Acme model);
   * `focused` appears in `states` for the active element, so `treeHash` changes with focus. The fake driver never sets it;
     compare with `focused` ignored;
