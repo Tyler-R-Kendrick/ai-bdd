@@ -18,13 +18,13 @@ function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Rejects absolute paths, `..`, backslashes, NUL and empty uris (R-PL4). Returns the absolute plan file path. */
+/** Rejects absolute paths, empty or dots-only path segments (`..`, `.`, `....`; a name such as `a..b.md` is fine), backslashes, NUL and empty uris (R-PL4). Returns the absolute plan file path. */
 export function planPathFor(dir: string, docUri: string): string {
   if (
     docUri.length === 0 ||
     docUri.includes('\\') ||
     docUri.includes('\0') ||
-    docUri.split('/').includes('..') ||
+    docUri.split('/').some((seg) => seg === '' || /^\.+$/.test(seg)) ||
     docUri.startsWith('/') ||
     /^[A-Za-z]:/.test(docUri) ||
     isAbsolute(docUri)
