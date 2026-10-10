@@ -18,13 +18,4 @@ export function lineLengths(text: string): number[] {
   return body.split(/\r\n|\r|\n/).map((l) => l.length);
 }
 
-/**
- * CPU time (user + system, milliseconds) a synchronous call consumes. Budget tests use it instead of wall-clock time: on a
- * loaded or instrumented machine the wall clock includes time the process spent waiting for a core, the CPU clock does not.
- */
-export function cpuMs(fn: () => void): number {
-  const before = process.cpuUsage();
-  fn();
-  const used = process.cpuUsage(before);
-  return (used.user + used.system) / 1000;
-}
+export { cpuMs } from '../kit/budget.ts';

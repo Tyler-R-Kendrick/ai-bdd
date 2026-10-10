@@ -1,0 +1,31 @@
+Usage: ai-bdd [options] [command]
+
+Turn plain markdown documents into executable acceptance tests.
+
+Options:
+  -V, --version                 print the version
+  -c, --config <path>           path to the config file (default:
+                                ai-bdd.config.{ts,mjs,js,json})
+  -h, --help                    display help for command
+
+Commands:
+  init [options]                write ai-bdd.config.ts (or .json),
+                                docs/example.md, .gitignore entries and
+                                .ai-bdd/plans/
+  compile [options] [docs...]   extract features and scenarios from stale docs
+                                into reviewable plans
+  status [options]              show plan freshness, coverage and review state
+                                (no model calls)
+  show [options] [id|docUri]    render plan elements as Gherkin-like text with
+                                source quotes
+  review <action> <ids...>      accept, reject, pin or unpin features and
+                                scenarios
+  run [options] [selectors...]  run scenarios; the first run characterizes,
+                                later runs replay recordings
+  verify-run <runDir>           recompute artifact hashes and the manifest
+                                digest of a run directory
+  prune [options]               delete recordings whose scenario no longer
+                                exists in any plan
+  doctor [options]              check Node, config, drivers, model reachability
+                                and plan freshness
+  help [command]                display help for command

@@ -1,0 +1,18 @@
+- generic [active] [ref=e1]:
+  - navigation "Primary" [ref=e2]:
+    - link "Billing" [ref=e3] [cursor=pointer]:
+      - /url: /settings/billing
+    - link "Todos" [ref=e4] [cursor=pointer]:
+      - /url: /todos
+    - link "Checkout" [ref=e5] [cursor=pointer]:
+      - /url: /forms/two
+    - link "Release notes" [ref=e6] [cursor=pointer]:
+      - /url: /notes
+  - main [ref=e7]:
+    - heading "Todos" [level=1] [ref=e8]
+    - textbox "New todo" [ref=e9]
+    - button "Add" [ref=e10]
+    - list "Todo items" [ref=e11]:
+      - listitem [ref=e12]: Buy milk — added 12:00:01
+      - listitem [ref=e13]: "Write: tests — added 12:00:02"
+    - status [ref=e14]: Synced at 12:00:03.123

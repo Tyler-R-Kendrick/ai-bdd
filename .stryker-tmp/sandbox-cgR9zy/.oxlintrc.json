@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/coverage/**", "**/test-results/**", "**/playwright-report/**", ".ai-bdd/**"]
+}

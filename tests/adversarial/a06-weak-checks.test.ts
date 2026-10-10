@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createAsserter, createRedactor, evaluatePredicates, resolveConfig } from '@ai-bdd/sdk';
 import type { CheckGenRequest, JsonObject, ModelRequest, ObservedNode, Predicate } from '@ai-bdd/sdk/contracts';
 import { callsOf, createProject, modelSet, observation, openEngine, overriding, readRecordings, scenarioId, type Project } from './helpers/kit.ts';
+import { bestCpuMs } from '../../packages/sdk/test/kit/budget.ts';
 
 type N = Omit<ObservedNode, 'ref'>;
 const n = (role: string, name: string, depth = 0, extra: Partial<N> = {}): N => ({ role, name, depth, states: {}, ...extra });
@@ -163,13 +164,7 @@ describe('A6 R-AS3 the predicate DSL has no regex and evaluation is linear', () 
     };
     const preds: Predicate[] = Array.from({ length: 8 }, (_, i) => ({ op: 'count', query: { role: 'listitem', name: `item ${i}`, within: { role: 'region', name: `item ${i * 3}` } }, cmp: 'gte', value: 0 }));
     const time = (obsN: ReturnType<typeof observation>): number => {
-      let best = Infinity;
-      for (let k = 0; k < 3; k++) {
-        const t = performance.now();
-        evaluatePredicates(preds, obsN, {});
-        best = Math.min(best, performance.now() - t);
-      }
-      return best;
+      return bestCpuMs(3, () => void evaluatePredicates(preds, obsN, {}));
     };
     const small = time(build(5000));
     const big = time(build(40000));

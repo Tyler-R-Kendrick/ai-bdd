@@ -1,0 +1,177 @@
+{
+  "rules": [
+    {
+      "id": "extract-todos-h1",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/todos.md",
+        "sectionAnchor": "todos"
+      },
+      "respond": {
+        "object": {
+          "features": [],
+          "notTestable": []
+        }
+      }
+    },
+    {
+      "id": "extract-todos-adding",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/todos.md",
+        "sectionAnchor": {
+          "contains": "adding-a-todo"
+        }
+      },
+      "respond": {
+        "object": {
+          "features": [
+            {
+              "title": "Adding todos",
+              "story": null,
+              "description": null,
+              "tags": [],
+              "sources": [
+                {
+                  "handle": "c2",
+                  "relation": "source",
+                  "quote": "Customers add a todo by typing a title into the new todo field and pressing Add"
+                }
+              ],
+              "scenarios": [
+                {
+                  "title": "Added todo appears with its added time",
+                  "tags": [],
+                  "sources": [
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "The new todo appears in the list together with the time it was added"
+                    }
+                  ],
+                  "steps": [
+                    {
+                      "kind": "when",
+                      "text": "the customer adds a todo titled Buy milk",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "typing a title into the new todo field and pressing Add"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": [
+                        {
+                          "name": "title",
+                          "value": "Buy milk"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "then",
+                      "text": "the new todo appears in the list",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "The new todo appears in the list"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    },
+                    {
+                      "kind": "then",
+                      "text": "the new todo shows the time it was added",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "together with the time it was added"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "notTestable": []
+        }
+      }
+    },
+    {
+      "id": "extract-todos-sync",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/todos.md",
+        "sectionAnchor": {
+          "contains": "sync-indicator"
+        }
+      },
+      "respond": {
+        "object": {
+          "features": [
+            {
+              "title": "Sync indicator",
+              "story": null,
+              "description": null,
+              "tags": [],
+              "sources": [
+                {
+                  "handle": "c2",
+                  "relation": "source",
+                  "quote": "A sync indicator on the page shows the last time the list was synced"
+                }
+              ],
+              "scenarios": [
+                {
+                  "title": "Sync indicator shows the last sync time",
+                  "tags": [],
+                  "sources": [
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "A sync indicator on the page shows the last time the list was synced"
+                    }
+                  ],
+                  "steps": [
+                    {
+                      "kind": "then",
+                      "text": "the sync indicator shows the last sync time",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "A sync indicator on the page shows the last time the list was synced"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "notTestable": []
+        }
+      }
+    }
+  ]
+}

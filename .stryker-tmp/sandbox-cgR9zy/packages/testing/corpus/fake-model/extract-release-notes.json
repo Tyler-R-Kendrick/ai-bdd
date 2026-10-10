@@ -1,0 +1,100 @@
+{
+  "rules": [
+    {
+      "id": "extract-release-h1",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/release-notes.md",
+        "sectionAnchor": "release-notes"
+      },
+      "respond": {
+        "object": {
+          "features": [],
+          "notTestable": []
+        }
+      }
+    },
+    {
+      "id": "extract-release-reading",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/release-notes.md",
+        "sectionAnchor": {
+          "contains": "reading-the-release-notes"
+        }
+      },
+      "respond": {
+        "object": {
+          "features": [
+            {
+              "title": "Open the release notes",
+              "story": null,
+              "description": null,
+              "tags": [],
+              "sources": [
+                {
+                  "handle": "c2",
+                  "relation": "source",
+                  "quote": "Customers open the release notes from the primary navigation"
+                }
+              ],
+              "scenarios": [
+                {
+                  "title": "Open the release notes",
+                  "tags": [],
+                  "sources": [
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "Customers open the release notes from the primary navigation"
+                    },
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "The release notes page shows the heading Release notes at the top"
+                    }
+                  ],
+                  "steps": [
+                    {
+                      "kind": "when",
+                      "text": "the customer opens the release notes from the navigation",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "open the release notes from the primary navigation"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    },
+                    {
+                      "kind": "then",
+                      "text": "the heading Release notes is shown",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "The release notes page shows the heading Release notes at the top"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "notTestable": []
+        }
+      }
+    }
+  ]
+}

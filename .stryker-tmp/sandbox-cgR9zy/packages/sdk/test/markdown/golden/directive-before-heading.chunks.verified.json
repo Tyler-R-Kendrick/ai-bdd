@@ -1,0 +1,128 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {},
+      "docUri": "docs/directive-before-heading.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-before-heading.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-before-heading.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {},
+      "docUri": "docs/directive-before-heading.md",
+      "hash": "14377f570d516c6bde6f27b8c5112dc4c92be2eb8d2b6254f5b8669182b1b9ff",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-before-heading.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 16,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/directive-before-heading.md#doc",
+      "text": "Lead paragraph."
+    },
+    {
+      "anchor": "doc/skipped-heading/h",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-before-heading.md",
+      "hash": "c0fac99951b222e12a71db899de6a65c5cadae4fd96e04418efa2cd603dd31d8",
+      "headingPath": [
+        "Doc",
+        "Skipped heading"
+      ],
+      "id": "docs/directive-before-heading.md#doc/skipped-heading/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 19,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/directive-before-heading.md#doc/skipped-heading",
+      "text": "Skipped heading"
+    },
+    {
+      "anchor": "doc/skipped-heading/p1",
+      "directives": {},
+      "docUri": "docs/directive-before-heading.md",
+      "hash": "f3f05ce6b5a843860964263a1def1084db3bfd8e6492f623432bc66d02124f28",
+      "headingPath": [
+        "Doc",
+        "Skipped heading"
+      ],
+      "id": "docs/directive-before-heading.md#doc/skipped-heading/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 15,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/directive-before-heading.md#doc/skipped-heading",
+      "text": "Content stays."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "549d24db10cea61899345bc5dadc1754cc7a3b87b750656c5de1285394f220bd",
+    "title": "Doc",
+    "uri": "docs/directive-before-heading.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-before-heading.md#doc/h",
+        "docs/directive-before-heading.md#doc/p1"
+      ],
+      "docUri": "docs/directive-before-heading.md",
+      "hash": "a3a430692b0f563d8a2dda2bf3329700865ed6551b57318256ce73f4df4eaef3",
+      "id": "docs/directive-before-heading.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 16,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    },
+    {
+      "anchor": "doc/skipped-heading",
+      "chunkIds": [
+        "docs/directive-before-heading.md#doc/skipped-heading/p1"
+      ],
+      "docUri": "docs/directive-before-heading.md",
+      "hash": "ae468b38e89ab76f51e2c99c98b824ceede0c9a38cf76b9c26f6dda60218521d",
+      "id": "docs/directive-before-heading.md#doc/skipped-heading",
+      "level": 2,
+      "range": {
+        "endColumn": 15,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "title": "Skipped heading"
+    }
+  ]
+}

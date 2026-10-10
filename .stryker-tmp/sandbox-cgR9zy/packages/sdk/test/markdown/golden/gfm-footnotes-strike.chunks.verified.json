@@ -1,0 +1,89 @@
+{
+  "chunks": [
+    {
+      "anchor": "gfm/h",
+      "directives": {},
+      "docUri": "docs/gfm-footnotes-strike.md",
+      "hash": "9f2435cf687fbba0c4fc0853be3167377ccaa83b12134205d5f8ced298b9f978",
+      "headingPath": [
+        "GFM"
+      ],
+      "id": "docs/gfm-footnotes-strike.md#gfm/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/gfm-footnotes-strike.md#gfm",
+      "text": "GFM"
+    },
+    {
+      "anchor": "gfm/p1",
+      "directives": {},
+      "docUri": "docs/gfm-footnotes-strike.md",
+      "hash": "04c449bbab066146e7457faeae8d952506c64689cefeea8b58a7dd1909f74086",
+      "headingPath": [
+        "GFM"
+      ],
+      "id": "docs/gfm-footnotes-strike.md#gfm/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 36,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/gfm-footnotes-strike.md#gfm",
+      "text": "struck text and a footnote."
+    },
+    {
+      "anchor": "gfm/p2",
+      "directives": {},
+      "docUri": "docs/gfm-footnotes-strike.md",
+      "hash": "2cb6ec235de914e02a3760e97ad6abcd49bc12b129d1ecc1017ddbf96b5fee34",
+      "headingPath": [
+        "GFM"
+      ],
+      "id": "docs/gfm-footnotes-strike.md#gfm/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 64,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/gfm-footnotes-strike.md#gfm",
+      "text": "Autolink https://example.com/path and email test@example.com."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "eb532c51ce1638655c3949dbcd23ed76882e8974daedd8d21d7b027d6da120c8",
+    "title": "GFM",
+    "uri": "docs/gfm-footnotes-strike.md"
+  },
+  "sections": [
+    {
+      "anchor": "gfm",
+      "chunkIds": [
+        "docs/gfm-footnotes-strike.md#gfm/h",
+        "docs/gfm-footnotes-strike.md#gfm/p1",
+        "docs/gfm-footnotes-strike.md#gfm/p2"
+      ],
+      "docUri": "docs/gfm-footnotes-strike.md",
+      "hash": "0f7e24215b2e70809cec8e48f0557a5bdb84d13de9540ca686356b656d1bc3fc",
+      "id": "docs/gfm-footnotes-strike.md#gfm",
+      "level": 1,
+      "range": {
+        "endColumn": 64,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "GFM"
+    }
+  ]
+}
