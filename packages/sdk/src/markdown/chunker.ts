@@ -90,13 +90,13 @@ function chunkDocument(doc: SourceDoc, rawOpts: ChunkOptions): ChunkedDoc {
   if (neutral.delimiters > 0) {
     diag('DOC_READ_FAILED', `${neutral.delimiters} inline delimiter(s) beyond the per-paragraph budget are treated as literal text`);
   }
-  for (const line of neutral.indented) {
-    diag('DOC_READ_FAILED', 'line indentation exceeds the supported depth; its leading whitespace is treated as text', {
-      startLine: line,
-      startColumn: 1,
-      endLine: line,
-      endColumn: 1,
-    });
+  const firstIndented = neutral.indented[0];
+  if (firstIndented !== undefined) {
+    diag(
+      'DOC_READ_FAILED',
+      `${neutral.indented.length} line(s) are indented beyond the supported depth; their extra leading whitespace is treated as text (first at line ${firstIndented})`,
+      { startLine: firstIndented, startColumn: 1, endLine: firstIndented, endColumn: 1 },
+    );
   }
 
   const tree = parseTree(text);
