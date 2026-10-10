@@ -226,12 +226,12 @@ export function neutralizeHostile(text: string): Neutralized {
         }
         run++;
         docActive++;
+        expire(j);
         if (c === 91) {
           openers.push(j);
         } else if (c === 93 && head < openers.length) {
           openers.pop();
         }
-        expire(j);
       }
       expire(end);
     }
