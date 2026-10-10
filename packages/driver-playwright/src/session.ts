@@ -298,6 +298,14 @@ export class PlaywrightSession implements DriverSession {
     this.assertOpen();
     try {
       const revision = ++this.revision;
+      // Independent round trips run together: the busy flag is sampled as close to the snapshot as possible.
+      const secretTextsPromise = this.page.evaluate(SECRET_TEXTS_EXPRESSION).then(
+        (found) => (Array.isArray(found) ? (found as unknown[]).filter((x): x is string => typeof x === 'string') : []),
+        () => [] as string[],
+      );
+      const busyPromise = this.isBusy();
+      const titlePromise = this.page.title().catch(() => '');
+      busyPromise.catch(() => undefined);
       const text = await this.snapshotText();
       const raw = parseAriaSnapshot(text);
 
@@ -312,13 +320,7 @@ export class PlaywrightSession implements DriverSession {
       const pruned = pruneWrappers(raw);
 
       // Secret hygiene (V4): the snapshot exposes password values, so strip them at the source.
-      let secretTexts: string[] = [];
-      try {
-        const found = (await this.page.evaluate(SECRET_TEXTS_EXPRESSION)) as unknown;
-        if (Array.isArray(found)) secretTexts = found.filter((s): s is string => typeof s === 'string');
-      } catch {
-        secretTexts = [];
-      }
+      const secretTexts = await secretTextsPromise;
       const candidates = pruned.filter((n) => n.value !== undefined && n.value.length > 0);
       const flags = await Promise.all(candidates.map(async (n) => {
         const t = targets.get(n.ref);
@@ -338,7 +340,7 @@ export class PlaywrightSession implements DriverSession {
       });
       this.targets = targets;
 
-      const [busy, title] = await Promise.all([this.isBusy(), this.page.title().catch(() => '')]);
+      const [busy, title] = await Promise.all([busyPromise, titlePromise]);
       const url = this.page.url();
       const obs: Observation = {
         revision, route: routeOf(url), url, nodes, busy, tainted: this.tainted,
