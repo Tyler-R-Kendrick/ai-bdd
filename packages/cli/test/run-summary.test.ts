@@ -64,6 +64,11 @@ describe('run summary: exact output', () => {
     expect(h.code).toBe(3);
   });
 
+  it('tolerates an engine report whose totals omit statuses', async () => {
+    const h = await summary(makeReport({ totals: { passed: 2 } as never, scenarios: [scenario(), scenario({ scenarioId: 'a/two' })] }));
+    expect(h.lines).toContain('Scenarios: 2 total, 2 passed');
+  });
+
   it('uses a distinct label per scenario status', async () => {
     const statuses = ['passed', 'healed', 'failed', 'blocked', 'skipped', 'inconclusive', 'error'] as const;
     const h = await summary(makeReport({ scenarios: statuses.map((status) => scenario({ scenarioId: `s/${status}`, status, steps: [] })) }));

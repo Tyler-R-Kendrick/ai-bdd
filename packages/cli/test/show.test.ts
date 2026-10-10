@@ -370,5 +370,18 @@ describe('show command', () => {
       const h = await runCli(['show', 'docs-billing--upgrading', '--json', '--recordings'], { engine: engine(), deps: { createRecordingStore: s.create as never } });
       expect(Object.keys(JSON.parse(h.stdout).recordings)).toEqual([...ids].sort());
     });
+
+    it('sorts any number of recordings, whatever the plan order', async () => {
+      const p = makePlan();
+      const base = p.features[0]?.scenarios[0];
+      if (!base) throw new Error('fixture has no scenario');
+      const mk = (name: string): Scenario => ({ ...base, id: `docs-billing--upgrading/${name}` });
+      const first = p.features[0];
+      if (first) first.scenarios = ['m', 'z', 'a', 'q', 'b'].map(mk);
+      const sid = (n: string) => `docs-billing--upgrading/${n}`;
+      const s = store(['m', 'z', 'a', 'q', 'b'].map((n) => ({ driverId: 'web', scenarioId: sid(n) })), Object.fromEntries(['m', 'z', 'a', 'q', 'b'].map((n) => [`web/${sid(n)}`, recording(sid(n), 'web')])));
+      const h = await runCli(['show', '--json', '--recordings'], { engine: { plans: vi.fn(async () => [p]) }, deps: { createRecordingStore: s.create as never } });
+      expect(Object.keys(JSON.parse(h.stdout).recordings)).toEqual(['a', 'b', 'm', 'q', 'z'].map(sid));
+    });
   });
 });
