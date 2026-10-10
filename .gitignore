@@ -10,3 +10,5 @@ playwright-report/
 packages/testing/.quickstart/
 .claude/worktrees/
 *.received.*
+.stryker-tmp/
+reports/
