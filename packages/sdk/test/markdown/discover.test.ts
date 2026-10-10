@@ -53,7 +53,7 @@ describe('discoverDocs', () => {
     const docs = await discoverDocs(config());
     expect(docs).toHaveLength(2);
     expect(docs[0]?.sha256).toBe(docs[1]?.sha256);
-    expect(docs[1]?.text).toContain('\r\n');
+    expect(docs.find((d) => d.uri === 'docs/crlf.md')?.text).toContain('\r\n');
   });
 
   it('R-PL4: applies the default excludes (node_modules, .ai-bdd) and custom excludes', async () => {
@@ -109,12 +109,10 @@ describe('discoverDocs', () => {
     expect(docs.map((d) => d.uri)).toEqual(['docs/alias.md', 'docs/real.md']);
   });
 
-  it('R-PL4: an unreadable document (dangling symlink) is DOC_READ_FAILED', async () => {
+  it('R-PL4: dangling symlinks are not documents', async () => {
     await mkdir(join(root, 'docs'), { recursive: true });
     await symlink(join(root, 'docs/missing-target.md'), join(root, 'docs/dangling.md'));
-    const result = await discoverDocs(config()).catch((e: unknown) => e);
-    if (result instanceof AiBddError) expect(result.code).toBe('DOC_READ_FAILED');
-    else expect(result).toEqual([]);
+    expect(await discoverDocs(config())).toEqual([]);
   });
 
   it('R-PL4: discovered docs feed straight into the chunker', async () => {
