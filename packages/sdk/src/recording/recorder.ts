@@ -185,9 +185,13 @@ export function createRecorder(deps: RecorderDeps): CapabilityAwareRecorder {
         if (ctx.signal?.aborted) throw new AiBddError('ABORTED', 'replay aborted');
       };
       aborted();
-      const before = await settle(session, ctx.signal);
-      const finish = (outcome: ReplayOutcome, completedActions: number, after: Observation, detail?: string): ReplayResult =>
-        detail === undefined ? { outcome, completedActions, before, after } : { outcome, completedActions, before, after, detail };
+      const beforeR = await settle(session, ctx.signal);
+      const before = beforeR.observation;
+      // `beforeSettled` extends ReplayResult: the runner must not treat an unsettled start as a baseline for checks (F-14).
+      const finish = (outcome: ReplayOutcome, completedActions: number, after: Observation, detail?: string): ReplayResult & { beforeSettled: boolean } =>
+        detail === undefined
+          ? { outcome, completedActions, before, after, beforeSettled: beforeR.settled }
+          : { outcome, completedActions, before, after, detail, beforeSettled: beforeR.settled };
 
       if (before.route !== act.startRoute) return finish('start-mismatch', 0, before, `route ${before.route} !== ${act.startRoute}`);
       if (landmarkHash(before) !== act.startLandmarks) return finish('start-mismatch', 0, before, 'landmark structure differs from recording');
@@ -218,7 +222,7 @@ export function createRecorder(deps: RecorderDeps): CapabilityAwareRecorder {
         }
         if (!outcome.ok) return finish('action-failed', done, obs, outcome.error?.message ?? 'driver reported failure');
         done++;
-        obs = await settle(session, ctx.signal);
+        obs = (await settle(session, ctx.signal)).observation;
       }
 
       const verdict = verifyEffect(act.effect, before, obs);

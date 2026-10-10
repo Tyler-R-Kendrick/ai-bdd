@@ -187,6 +187,18 @@ describe('extract prompt', () => {
     expect(built.userText).not.toMatch(/ADMIN_PASSWORD/);
   });
 
+  it('R-SE1: secret values in chunk text are redacted from the prompt but kept raw for quote validation', () => {
+    const input = makeInput();
+    const first = input.doc.chunks.find((c) => input.section.chunkIds.includes(c.id));
+    if (first === undefined) throw new Error('no section chunk');
+    first.text = 'Sign in with hunter2-secret-value on the login page.';
+    const built = buildPrompt(input, (t) => t.split('hunter2-secret-value').join('[redacted]'));
+    expect(built.userText).not.toContain('hunter2-secret-value');
+    expect(built.userText).toContain('Sign in with [redacted] on the login page.');
+    const entry = [...built.handles.values()].find((e) => e.chunk.id === first.id);
+    expect(entry?.text).toContain('hunter2-secret-value');
+  });
+
   it('R-EX3: system prompt snapshot', () => {
     expect(EXTRACT_SYSTEM_PROMPT).toMatchSnapshot();
   });
