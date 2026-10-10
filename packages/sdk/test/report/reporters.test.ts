@@ -184,7 +184,7 @@ describe('markdown reporter', () => {
     // Pipes in excerpts are escaped so the table stays intact.
     expect(trace).toContain('Select "Pro" \\| "Team" from the plan picker');
     // A scenario citing two chunks appears in both rows; a row aggregates the worst status of its scenarios.
-    expect(trace).toMatch(/\| `billing\/upgrades` \|[^|]*confirm the upgrade\.[^|]*\| `docs-billing--upgrade-plan\/receipt-is-shown` \| healed \|/);
+    expect(trace).toMatch(/\| `billing\/upgrades` \|.*confirm the upgrade\. \| `docs-billing--upgrade-plan\/receipt-is-shown` \| healed \|/);
     expect(trace).toMatch(/\| `billing\/invoices` \| Invoice: INV-1; Status: paid \| `docs-billing--invoices\/list-invoices` \| failed \|/);
     const excerpts = trace
       .split('\n')
@@ -315,7 +315,7 @@ describe('robustness against unknown references', () => {
   it('tolerates plan chunk refs that point at chunks missing from the plan and plans without matching sections', async () => {
     const plan: DocPlan = { ...billingPlan, sections: [], chunks: [] };
     const md = (await renderOne('markdown', fixtureReport, [plan, authPlan])).text;
-    expect(md).toContain('(chunk not in plan)');
+    expect(md).toContain('(chunk not in plan: ');
     expect(md).toContain('(unsectioned)');
   });
 });

@@ -139,7 +139,7 @@ function buildRows(plan: DocPlan, results: ReadonlyMap<string, ScenarioResult>):
     rows.push({
       sectionId,
       chunkId,
-      excerpt: info !== undefined ? excerptOf(info.excerpt) : '(chunk not in plan)',
+      excerpt: info !== undefined ? excerptOf(info.excerpt) : `(chunk not in plan: ${shortId(chunkId)})`,
       scenarioIds: ids,
       status: rowStatus(ids, results),
       sectionIdx: sectionOrder.get(sectionId) ?? Number.MAX_SAFE_INTEGER,

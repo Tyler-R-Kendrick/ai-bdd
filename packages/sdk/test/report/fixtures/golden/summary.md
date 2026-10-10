@@ -113,7 +113,7 @@ Coverage: 8 of 11 chunks covered, 1 uncovered, 1 not testable.
 | `billing/upgrades` | Downgrading is blocked while invoices are unpaid. | `docs-billing--upgrade-plan/downgrade-needs-invoice` | blocked |
 | `billing/invoices` | Invoices are rendered as professional-looking PDFs. | `docs-billing--invoices/invoice-looks-good` | inconclusive |
 | `billing/invoices` | Invoice: INV-1; Status: paid | `docs-billing--invoices/list-invoices` | failed |
-| `billing/invoices` | (chunk not in plan) | `docs-billing--invoices/invoice-looks-good` | inconclusive |
+| `billing/invoices` | (chunk not in plan: billing/ghost/p9) | `docs-billing--invoices/invoice-looks-good` | inconclusive |
 
 **Uncovered chunks (1)**
 
