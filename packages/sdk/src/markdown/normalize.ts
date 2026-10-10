@@ -83,7 +83,7 @@ export function limitNesting(text: string): { text: string; blanked: number[] } 
 
 /** Largest document (UTF-16 units) the chunker accepts; larger ones are reported as unreadable. */
 export const MAX_DOC_CHARS = 512 * 1024;
-/** Active inline delimiters (`[`, `]`, `*`, `~`) per blank-line separated run. micromark's inline resolver is quadratic in them. */
+/** Active inline delimiters (`[`, `]`, `*`, `_`, `~`) per blank-line separated run. micromark's inline resolver is quadratic in them. */
 export const MAX_RUN_DELIMITERS = 1000;
 /** Longest stretch (characters) a `[` may stay unclosed before it is literal text. */
 export const MAX_OPEN_LABEL_CHARS = 1500;
@@ -219,7 +219,7 @@ export function neutralizeHostile(text: string): Neutralized {
     if (!blank) {
       for (let j = i; j < end; j++) {
         const c = text.charCodeAt(j);
-        if (c !== 91 && c !== 93 && c !== 42 && c !== 126) continue;
+        if (c !== 91 && c !== 93 && c !== 42 && c !== 126 && c !== 95) continue;
         if (run >= MAX_RUN_DELIMITERS || docActive >= MAX_DOC_DELIMITERS) {
           mark(j, true);
           continue;

@@ -11,7 +11,7 @@ import {
   type Redactor,
   type Sha256,
 } from '../contracts/index.ts';
-import { atomicWriteFile, canonicalJson, sha256Hex, stableJson } from '../util/index.ts';
+import { assertInsideRealRoot, atomicWriteFile, canonicalJson, sha256Hex, stableJson } from '../util/index.ts';
 
 export const MANIFEST_FILE = 'manifest.json';
 export const EVENTS_FILE = 'events.jsonl';
@@ -55,6 +55,7 @@ function isJson(text: string): boolean {
 export const createEvidenceStore: CreateEvidenceStore = async ({ runsDir, runId, redactor }: { runsDir: string; runId: string; redactor: Redactor }): Promise<EvidenceStore> => {
   assertSafeRunId(runId);
   const dir = resolve(runsDir, runId);
+  await assertInsideRealRoot(dir); // a symlinked runs directory must not redirect evidence outside the project (F-09)
   await mkdir(join(dir, ARTIFACTS_DIR), { recursive: true });
 
   const refs = new Map<string, ArtifactRef>();
