@@ -5,7 +5,7 @@ import type {
 import { AiBddError } from '../contracts/index.ts';
 import { stableJson } from '../util/index.ts';
 import { allSatisfied, evaluatePredicates } from './evaluate.ts';
-import { lintDetailed } from './lint.ts';
+import { lintDetailed, literalsOf } from './lint.ts';
 import {
   CHECKGEN_PROMPT_VERSION, checkgenSystemPrompt, checkgenUserMessage, promptTree, renderVolatileKeys,
 } from './prompt.ts';
@@ -145,12 +145,15 @@ async function generate(
         if (!parsed.ok) {
           attemptErrors = parsed.errors;
         } else {
+          // R-AS1: after an action only a program that is false on BEFORE can guard the action, whatever the model
+          // calls it; verify() enforces that, so such a program is by construction a `change` program.
+          const classification = req.actionPreceded ? 'change' : parsed.classification;
           const candidate: CheckProgram = {
-            classification: parsed.classification, predicates: parsed.predicates,
+            classification, predicates: parsed.predicates,
             generatedBy: { modelId, promptVersion: CHECKGEN_PROMPT_VERSION },
-            verified: { afterTrue: true, probeTrue: true, beforeFalse: parsed.classification === 'change' ? true : null, judgePassed: false },
+            verified: { afterTrue: true, probeTrue: true, beforeFalse: classification === 'change' ? true : null, judgePassed: false },
           };
-          const outcome = verify(candidate, req, volatile, maxPredicates);
+          const outcome = verify(candidate, req, volatile, maxPredicates, redactor);
           if (outcome.errors.length === 0) program = candidate;
           else { attemptErrors = outcome.errors; attemptKind = outcome.kind; }
         }
@@ -186,7 +189,7 @@ async function generate(
 
 /** Lint plus discriminative evaluation of a candidate (SPEC §10.4 steps 2-3). */
 function verify(
-  program: CheckProgram, req: CheckGenRequest, volatile: { keys: NodeKey[]; testIds: string[] }, maxPredicates: number,
+  program: CheckProgram, req: CheckGenRequest, volatile: { keys: NodeKey[]; testIds: string[] }, maxPredicates: number, redactor: Redactor,
 ): { errors: string[]; kind: AttemptKind } {
   const issues = lintDetailed(program, {
     stepText: req.criterion, params: req.params, volatileNodeKeys: volatile.keys, actionPreceded: req.actionPreceded, maxPredicates,
@@ -197,6 +200,12 @@ function verify(
       issues.push({ message: `predicates[${i}]: testId "${tid}" belongs to a node whose content changed between observations`, volatile: true });
     }
   }
+  // Secret values are never persisted, not even inside a check program (R-SE1).
+  program.predicates.forEach((p, i) => {
+    if (literalsOf(p).some((l) => redactor.redact(l.text) !== l.text)) {
+      issues.push({ message: `predicates[${i}]: a literal contains a secret value (or an encoding of one); never assert on secrets`, volatile: false });
+    }
+  });
   if (issues.length > 0) {
     return { errors: issues.map((i) => i.message), kind: issues.every((i) => i.volatile) ? 'volatile' : 'other' };
   }
@@ -211,15 +220,22 @@ function verify(
       kind: 'volatile',
     };
   }
-  if (program.classification === 'change') {
+  // R-AS1: the model chooses the classification, so it cannot be trusted to waive discrimination. Whenever an action
+  // preceded the assertion, the program must be false on BEFORE, or it would still pass if the action did nothing.
+  if (req.actionPreceded || program.classification === 'change') {
     const onBefore = evaluatePredicates(program.predicates, req.before, req.params);
     if (allSatisfied(onBefore)) {
       return {
-        errors: ['CHECK_NOT_DISCRIMINATIVE: a "change" program is already true on the BEFORE observation; it must be false before the action'],
+        errors: [
+          'CHECK_NOT_DISCRIMINATIVE: the program is already true on the BEFORE observation' +
+            (program.classification === 'change' ? '' : ' (an "invariant" label does not waive this when an action preceded the check)') +
+            '; it must be false before the action so that it fails if the action did nothing',
+        ],
         kind: 'discriminative',
       };
     }
   }
+
   return { errors: [], kind: 'other' };
 }
 

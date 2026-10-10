@@ -20,7 +20,7 @@ function nonEmpty(v: unknown): v is string {
 }
 
 /** Literal strings in a predicate that are compared against page content. */
-function literalsOf(p: Predicate): { where: string; text: string }[] {
+export function literalsOf(p: Predicate): { where: string; text: string }[] {
   const out: { where: string; text: string }[] = [];
   if (p.op === 'route') {
     if (typeof p.value === 'string') out.push({ where: 'route value', text: p.value });
@@ -87,7 +87,8 @@ export function lintDetailed(program: CheckProgram, ctx: LintContext): LintIssue
         add(`${label}: a contains match on an empty literal is vacuous`);
       }
     }
-    if (p.op === 'route' && p.match === 'prefix' && p.value === '') add(`${label}: an empty route prefix is vacuous`);
+    if (p.op === 'route' && p.match === 'prefix' && (p.value === '' || p.value === '/')) add(`${label}: a route prefix of "${p.value}" matches every route, so it is vacuous`);
+    if (p.op === 'count' && p.cmp === 'gte' && p.value === 0) add(`${label}: count >= 0 is always true, so it is vacuous`);
 
     for (const lit of literalsOf(p)) {
       for (const m of findVolatile(lit.text)) {

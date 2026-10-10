@@ -10,31 +10,124 @@
 // Test files (packages/*/test, tests/, *.test.ts) may import more, but never from 'dist'.
 import fs from 'node:fs';
 import path from 'node:path';
-import { finish, isMain, lineOf, listPackages, parseArgs, readJson, scanSource, toPosix, walk } from './lib.mjs';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+import { finish, isMain, listPackages, parseArgs, readJson, toPosix, walk } from './lib.mjs';
 
 const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
 const OPEN_SDK_MODULES = new Set(['contracts', 'util']);
 const DIST = /(^|\/)dist(\/|$)/;
 
-/** Extracts import specifiers from TS/JS source. */
-export function extractImports(source) {
-  const { text, templates } = scanSource(source);
-  const found = [];
-  // Code inside a template literal (for example the `ai-bdd init` scaffold) is data, not an import.
-  const inTemplate = (index) => templates.some(([a, b]) => index >= a && index < b);
-  const add = (m, specIndex, kind, typeOnly) => {
-    if (!inTemplate(m.index)) found.push({ spec: m[specIndex], kind, typeOnly, index: m.index });
+// Files that legitimately load a module chosen at run time. Each one imports the USER's packages (config files, driver
+// and model packages named in the project's config), never an SDK internal. Literal specifiers in them are still checked.
+const DYNAMIC_ALLOWED = new Map([['packages/sdk/src/config/load.ts', "loads the user's config, driver and model packages by resolved file URL"]]);
+
+function scriptKindOf(fileName) {
+  if (/\.tsx$/.test(fileName)) return ts.ScriptKind.TSX;
+  if (/\.jsx$/.test(fileName)) return ts.ScriptKind.JSX;
+  if (/\.[cm]?js$/.test(fileName)) return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
+}
+
+const unwrap = (n) => {
+  let cur = n;
+  while (cur && (ts.isParenthesizedExpression(cur) || ts.isAsExpression(cur) || ts.isNonNullExpression(cur) || ts.isSatisfiesExpression(cur) || ts.isTypeAssertionExpression(cur))) cur = cur.expression;
+  return cur;
+};
+
+/** `const name = <foldable string>` declarations of a file; a name declared more than once is ambiguous and dropped. */
+function collectConstants(sf) {
+  const decls = new Map();
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+      const isConst = (ts.getCombinedNodeFlags(node) & ts.NodeFlags.Const) !== 0;
+      const list = decls.get(node.name.text) ?? [];
+      list.push(isConst && node.initializer ? node.initializer : null);
+      decls.set(node.name.text, list);
+    } else if ((ts.isParameter(node) || ts.isBindingElement(node)) && ts.isIdentifier(node.name)) {
+      const list = decls.get(node.name.text) ?? [];
+      list.push(null);
+      decls.set(node.name.text, list);
+    }
+    ts.forEachChild(node, visit);
   };
-  let m;
-  const staticRe = /(?<![\w$.])import\s+(type\s+)?(?:[\w$*{}\s,]+?\s+from\s+)?(['"])([^'"\n]+)\2/g;
-  while ((m = staticRe.exec(text))) add(m, 3, 'static', Boolean(m[1]));
-  const reexportRe = /(?<![\w$.])export\s+(type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s+from\s+(['"])([^'"\n]+)\2/g;
-  while ((m = reexportRe.exec(text))) add(m, 3, 'static', Boolean(m[1]));
-  const dynamicRe = /(?<![\w$.])import\s*\(\s*(['"`])([^'"`\n]+)\1\s*\)/g;
-  while ((m = dynamicRe.exec(text))) add(m, 2, 'dynamic', false);
-  const requireRe = /(?<![\w$.])require\s*\(\s*(['"])([^'"\n]+)\1\s*\)/g;
-  while ((m = requireRe.exec(text))) add(m, 2, 'require', false);
-  return found.map((f) => ({ ...f, line: lineOf(text, f.index) }));
+  visit(sf);
+  return decls;
+}
+
+/** Folds an expression to the string it always evaluates to (literals, `+`, templates, vetted consts), else null. */
+function makeFolder(sf) {
+  const decls = collectConstants(sf);
+  const fold = (node, depth = 0) => {
+    if (!node || depth > 12) return null;
+    const n = unwrap(node);
+    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) return n.text;
+    if (ts.isTemplateExpression(n)) {
+      let out = n.head.text;
+      for (const span of n.templateSpans) {
+        const v = fold(span.expression, depth + 1);
+        if (v === null) return null;
+        out += v + span.literal.text;
+      }
+      return out;
+    }
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      const a = fold(n.left, depth + 1);
+      const b = a === null ? null : fold(n.right, depth + 1);
+      return a === null || b === null ? null : a + b;
+    }
+    if (ts.isIdentifier(n)) {
+      const list = decls.get(n.text);
+      return list && list.length === 1 && list[0] ? fold(list[0], depth + 1) : null;
+    }
+    return null;
+  };
+  return fold;
+}
+
+/**
+ * Extracts every module reference of a TS/JS source on the TypeScript AST: import / export declarations, `import x =
+ * require()`, `import()` expressions and types, `require()`, `createRequire()` and `import.meta.resolve()`. `spec` is the
+ * statically known specifier (literals, concatenations, templates and vetted consts are folded; escapes are decoded) or
+ * null when it cannot be determined.
+ */
+export function extractImports(source, fileName = 'source.ts') {
+  const sf = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, scriptKindOf(fileName));
+  const fold = makeFolder(sf);
+  const found = [];
+  const add = (node, exprNode, kind, typeOnly) => {
+    found.push({
+      spec: exprNode ? fold(exprNode) : null,
+      expr: exprNode ? exprNode.getText(sf) : '',
+      kind,
+      typeOnly,
+      line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+    });
+  };
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node)) {
+      add(node, node.moduleSpecifier, 'static', node.importClause?.isTypeOnly === true);
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      add(node, node.moduleSpecifier, 'static', node.isTypeOnly);
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
+      add(node, node.moduleReference.expression, 'require', node.isTypeOnly);
+    } else if (ts.isImportTypeNode(node)) {
+      const arg = ts.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument;
+      add(node, arg, 'static', true);
+    } else if (ts.isCallExpression(node)) {
+      const callee = unwrap(node.expression);
+      const arg = node.arguments[0];
+      if (callee.kind === ts.SyntaxKind.ImportKeyword) add(node, arg, 'dynamic', false);
+      else if (ts.isIdentifier(callee) && callee.text === 'require') add(node, arg, 'require', false);
+      else if (ts.isIdentifier(callee) && callee.text === 'createRequire') add(node, undefined, 'createRequire', false);
+      else if (ts.isCallExpression(callee) && ts.isIdentifier(unwrap(callee.expression)) && unwrap(callee.expression).text === 'createRequire') add(node, arg, 'require', false);
+      else if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'resolve' && ts.isMetaProperty(callee.expression) && callee.expression.keywordToken === ts.SyntaxKind.ImportKeyword) add(node, arg, 'resolve', false);
+      else if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'require' && ts.isIdentifier(callee.expression) && callee.expression.text === 'module') add(node, arg, 'require', false);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return found.sort((a, b) => a.line - b.line);
 }
 
 function splitWorkspaceSpec(spec) {
@@ -74,11 +167,17 @@ export function checkBoundaries(root) {
   const scanFile = (abs, pkg) => {
     const rel = toPosix(path.relative(root, abs));
     const test = isTestFile(rel);
-    const imports = extractImports(fs.readFileSync(abs, 'utf8'));
+    const imports = extractImports(fs.readFileSync(abs, 'utf8'), abs);
     scanned++;
     for (const imp of imports) {
-      const where = `${rel}:${imp.line} import '${imp.spec}'`;
       const spec = imp.spec;
+      const where = spec === null ? `${rel}:${imp.line} ${imp.kind} ${imp.expr}` : `${rel}:${imp.line} import '${spec}'`;
+      if (spec === null) {
+        // The specifier is computed: it cannot be vetted. Test files may do so; sources must use a static string.
+        if (test || !pkg || DYNAMIC_ALLOWED.has(rel)) continue;
+        problems.push(imp.kind === 'createRequire' ? `${where}: createRequire() can reach any module; load it with a static import()` : `${where}: the specifier is not a static string and cannot be checked (R-SDK2)`);
+        continue;
+      }
       if (DIST.test(spec)) {
         problems.push(`${where}: imports from dist/ are forbidden`);
         continue;
@@ -104,8 +203,21 @@ export function checkBoundaries(root) {
         }
         continue;
       }
-      if (!spec.startsWith('.')) continue; // node builtins and third-party packages
-      const resolved = path.resolve(path.dirname(abs), spec);
+      let resolved;
+      if (spec.startsWith('file:')) {
+        try {
+          resolved = fileURLToPath(spec);
+        } catch {
+          problems.push(`${where}: malformed file: URL`);
+          continue;
+        }
+      } else if (path.isAbsolute(spec)) {
+        resolved = spec;
+      } else if (spec.startsWith('.')) {
+        resolved = path.resolve(path.dirname(abs), spec);
+      } else {
+        continue; // node builtins and third-party packages
+      }
       if (path.relative(pkgRoot, resolved).startsWith('..')) {
         problems.push(`${where}: relative import leaves packages/${pkg}`);
         continue;
