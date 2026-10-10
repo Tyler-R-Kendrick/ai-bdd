@@ -164,6 +164,6 @@ export async function compileProject(project: Project, opts: OpenEngineOptions =
 }
 
 /** Compact, driver-independent summary used to assert identical statuses on fake and Playwright. */
-export function statusSummary(r: ScenarioResult): { status: string; steps: string[] } {
-  return { status: r.status, steps: r.steps.map((s) => `${s.kind}:${s.text}=${s.status}`) };
+export function statusSummary(r: ScenarioResult): { title: string; status: string; steps: string[] } {
+  return { title: r.title, status: r.status, steps: r.steps.map((s) => `${s.kind}:${s.text}=${s.status}${s.error === undefined ? '' : `:${s.error.code}`}`) };
 }
