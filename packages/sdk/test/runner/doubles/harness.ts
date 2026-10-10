@@ -49,7 +49,7 @@ export function mkStep(kind: StepKind, text: string, extra: Partial<Step> = {}):
 }
 export const given = (text: string, extra?: Partial<Step>): Step => mkStep('given', text, extra);
 export const when = (text: string, extra?: Partial<Step>): Step => mkStep('when', text, extra);
-export const then = (text: string, extra?: Partial<Step>): Step => mkStep('then', text, extra);
+export const thenStep = (text: string, extra?: Partial<Step>): Step => mkStep('then', text, extra);
 export const fixtureStep = (text: string, name: string, args: Record<string, string | number> = {}): Step =>
   given(text, { fixture: { name, args } });
 

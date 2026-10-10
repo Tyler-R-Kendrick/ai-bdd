@@ -8,23 +8,30 @@ it('probe', async () => {
   const page = await ctx.newPage();
   await ctx.route('**/*', async (route) => {
     const r = route.request();
-    console.log('ROUTE', r.url(), r.isNavigationRequest(), r.redirectedFrom()?.url());
     if (r.isNavigationRequest()) {
       const resp = await route.fetch({ maxRedirects: 0 });
-      console.log('  fetched', resp.status(), resp.headers()['location']);
       const loc = resp.headers()['location'];
-      if (loc && loc.includes('127.0.0.1')) { await route.abort('blockedbyclient'); return; }
-      console.log('  headers', JSON.stringify(resp.headers())); const h = { ...resp.headers() }; for (const k of ['connection','keep-alive','transfer-encoding','content-encoding','content-length']) delete h[k]; await route.fulfill({ status: resp.status(), headers: h, body: await resp.body() });
+      if (loc && loc.includes('127.0.0.1')) { console.log('deny'); await route.fulfill({ status: 204 }); return; }
+      const h = { ...resp.headers() };
+      for (const k of ['connection','keep-alive','transfer-encoding','content-encoding','content-length']) delete h[k];
+      await route.fulfill({ status: resp.status(), headers: h, body: await resp.body() });
       return;
     }
     await route.continue();
   });
-  ctx.on('request', (r) => console.log('REQ', r.url()));
-  await page.goto(`${fx.url}/redirect-same`).catch((e) => console.log('ERR', e.message.split('\n')[0]));
-  console.log('same-redirect landed', page.url());
-  console.log('hits', fx.offHostHits, page.url());
-  await page.goto(`${fx.url}/set-cookie?v=1`);
-  await page.goto(`${fx.url}/whoami`);
-  console.log(await page.title(), await page.locator('h1').textContent());
+  await page.goto(`${fx.url}/links`);
+  console.log('A', page.url());
+  const r = await page.goto(`${fx.url}/redirect-off`).catch((e) => console.log('ERR', e.message.split('\n')[0]));
+  console.log('B', page.url(), r);
+  await new Promise(r => setTimeout(r, 500));
+  console.log('C', page.url(), await page.title());
+  await page.getByRole('link', {name: 'Redirecting link'}).click();
+  await new Promise(r => setTimeout(r, 500));
+  console.log('D', page.url());
+  await page.goto(`${fx.url}/todos`);
+  console.log('E', page.url(), fx.offHostHits);
+  const p2 = await ctx.newPage();
+  const r2 = await p2.goto(`${fx.url}/redirect-off`).catch((e) => console.log('ERR2', e.message.split('\n')[0]));
+  console.log('F', p2.url());
   await b.close(); await fx.close();
 });

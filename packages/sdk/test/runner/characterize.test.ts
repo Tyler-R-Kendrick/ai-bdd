@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createHarness, entry, fuzzyEntry, given, recordingOf, then, when, type Harness } from './doubles/harness.ts';
+import { createHarness, entry, fuzzyEntry, given, recordingOf, thenStep, when, type Harness } from './doubles/harness.ts';
 
 const ACT = 'the user clicks Upgrade to Pro';
 const CHECK = 'Plan: Pro';
 
 function upgradeHarness(over: Partial<Parameters<typeof createHarness>[0]> = {}): Harness {
-  const h = createHarness({ steps: [when(ACT), then(CHECK)], ...over });
+  const h = createHarness({ steps: [when(ACT), thenStep(CHECK)], ...over });
   h.effectShows(ACT, CHECK);
   return h;
 }
@@ -217,7 +217,7 @@ describe('characterization run (C3, D3, commit rule)', () => {
   });
 
   it('R-CH3: a subjective then step is fuzzy with reason subjective and judged every run', async () => {
-    const h = createHarness({ steps: [when(ACT), then('The message feels friendly', { nature: 'subjective' })] });
+    const h = createHarness({ steps: [when(ACT), thenStep('The message feels friendly', { nature: 'subjective' })] });
     h.effect(ACT, () => undefined);
     const first = await h.run();
     expect(first.steps[1]).toMatchObject({ path: 'judge', determinism: 'fuzzy', fuzzyReasons: ['subjective'] });
@@ -296,7 +296,7 @@ describe('characterization run (C3, D3, commit rule)', () => {
   });
 
   it('R-CH3: fuzzyEntry helper reasons round trip (sanity for later suites)', () => {
-    const s = then('x');
+    const s = thenStep('x');
     expect(fuzzyEntry(s, ['subjective'])).toMatchObject({ determinism: 'fuzzy', fuzzyReasons: ['subjective'] });
     expect(given('y')).toBeDefined();
   });
