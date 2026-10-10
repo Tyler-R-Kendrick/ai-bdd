@@ -326,12 +326,6 @@ export class PlaywrightSession implements DriverSession {
       }));
       const secretRefs = new Set<string>();
       candidates.forEach((n, i) => { if (flags[i] === true) secretRefs.add(n.ref); });
-      // An empty password field also gets `value` removed so password nodes are uniform.
-      const passwordLike = await Promise.all(pruned
-        .filter((n) => n.role === 'textbox' && n.value === '' && ARIA_REF.test(n.ref))
-        .map(async (n) => ((await this.isSecretElement(targets.get(n.ref) as Target)) ? n.ref : undefined)));
-      for (const r of passwordLike) if (r !== undefined) secretRefs.add(r);
-
       const prefix = (ref: string): string => `r${revision}:${ref}`;
       const nodes: ObservedNode[] = pruned.map((n) => {
         const out: ObservedNode = { ...n, ref: prefix(n.ref) };

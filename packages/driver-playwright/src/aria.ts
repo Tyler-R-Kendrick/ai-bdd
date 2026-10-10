@@ -18,7 +18,6 @@ import type { NodeStates, ObservedNode } from '@ai-bdd/sdk/contracts';
  */
 
 const VALUE_ROLES = new Set(['textbox', 'searchbox', 'spinbutton', 'slider', 'combobox']);
-const TEXT_INPUT_ROLES = new Set(['textbox', 'searchbox', 'spinbutton']);
 /** Roles whose accessible name comes from their content; Playwright elides the name when it equals the child text. */
 const NAME_FROM_CONTENT = new Set(['button', 'link', 'heading', 'tab', 'menuitem', 'menuitemcheckbox', 'menuitemradio', 'treeitem', 'option', 'checkbox', 'radio', 'switch']);
 const INLINE_ROLES = new Set(['text', 'generic', 'emphasis', 'strong', 'code', 'deletion', 'insertion', 'subscript', 'superscript', 'mark', 'time']);
@@ -216,8 +215,6 @@ export function parseAriaSnapshot(text: string): ObservedNode[] {
           node.text = inline;
           if (node.name.length === 0) node.name = inline;
         }
-      } else if (TEXT_INPUT_ROLES.has(role)) {
-        node.value = '';
       }
     }
     if (parent !== undefined) node.parentRef = parent.ref;

@@ -93,7 +93,7 @@ describe('parseAriaSnapshot grammar (V3/V4)', () => {
     ]);
     expect(nodes[1]?.ref).toBe('n2');
     expect(nodes[3]?.parentRef).toBe('e3');
-    expect(nodes[5]?.value).toBe('');
+    expect(nodes[5]?.value).toBeUndefined();
     expect(nodes[6]?.value).toBe('Blue');
     expect(nodes[7]?.ref).toBe('n8');
   });
