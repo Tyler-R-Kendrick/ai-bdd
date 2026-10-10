@@ -170,12 +170,15 @@ export class ScriptedActor implements Actor {
 
   constructor(world: () => FakeWorld) {
     this.world = world;
-    this.handler = async (req, session, _n, w) => {
-      w.apply(req.step.text);
-      const obs = await session.observe();
-      const performed: PerformedAction = { action: { verb: 'click', target: { ref: 'e0' } }, chosenFrom: obs, outcome: { ok: true } };
-      return { status: 'done', actions: [performed], finalObservation: obs, summary: 'done', usage: { modelCalls: 1, inputTokens: 10, outputTokens: 5 } };
-    };
+    this.handler = (req, session, _n, w) => this.succeed(req, session, w);
+  }
+
+  /** The default behaviour: apply the step's effect to the page and report `done`. */
+  async succeed(req: ActRequest, session: DriverSession, world?: FakeWorld): Promise<ActResult> {
+    (world ?? (session as FakeSession).world).apply(req.step.text);
+    const obs = await session.observe();
+    const performed: PerformedAction = { action: { verb: 'click', target: { ref: 'e0' } }, chosenFrom: obs, outcome: { ok: true } };
+    return { status: 'done', actions: [performed], finalObservation: obs, summary: 'done', usage: { modelCalls: 1, inputTokens: 10, outputTokens: 5 } };
   }
 
   async act(req: ActRequest, session: DriverSession): Promise<ActResult> {

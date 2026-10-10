@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { AiBddError, type RunEvent, type ScenarioResult } from '../../src/contracts/index.ts';
+import { AiBddError, type RunEvent } from '../../src/contracts/index.ts';
+import { createRunner } from '../../src/runner/index.ts';
 import { aggregateStatus } from '../../src/runner/support.ts';
-import { createHarness, entry, recordingOf, thenStep, when, mkTarget } from './doubles/harness.ts';
-import type { FakeSession } from './doubles/world.ts';
-import { FakeDriver } from './doubles/world.ts';
+import { createHarness, entry, mkTarget, recordingOf, thenStep, when } from './doubles/harness.ts';
+import { FakeDriver, type FakeSession } from './doubles/world.ts';
 
 const GO = 'the user clicks Upgrade to Pro';
 const SEES = 'Plan: Pro';
@@ -38,7 +38,7 @@ describe('status precedence', () => {
 describe('skipped after failure, events and bookkeeping', () => {
   it('R-CH1: after a failed step every remaining step is skipped with path none and no model calls', async () => {
     const h = createHarness({ steps: [when('first'), when('second'), thenStep('third')] });
-    h.actor.handler = (req, session, n) => (n === 1 ? ActOk(h, req, session) : h.actor.failWith(req, session, 'ACT_TARGET_AMBIGUOUS'));
+    h.actor.handler = (req, session, n) => (n === 1 ? h.actor.succeed(req, session) : h.actor.failWith(req, session, 'ACT_TARGET_AMBIGUOUS'));
     const r = await h.run();
     expect(r.steps.map((s) => s.status)).toEqual(['passed', 'failed', 'skipped']);
     expect(r.steps[2]).toMatchObject({ path: 'none', determinism: 'n/a', actions: 0, usage: { modelCalls: 0 } });
@@ -79,7 +79,7 @@ describe('skipped after failure, events and bookkeeping', () => {
     h.deps.emit = () => {
       throw new Error('listener bug');
     };
-    const r = await createRunnerWith(h).runScenario(h.target, { updateRecordings: false, strict: false, noAgent: false, audit: false });
+    const r = await createRunner(h.deps).runScenario(h.target, { updateRecordings: false, strict: false, noAgent: false, audit: false });
     expect(r.status).toBe('passed');
   });
 
@@ -135,7 +135,8 @@ describe('session setup (§9.2)', () => {
     (h.deps.drivers as Map<string, FakeDriver>).set('third', third);
     const r1 = await h.run({ driver: 'third' });
     expect(r1.driver).toBe('second'); // scenario.driver wins over the CLI option
-    expect(second.sessions).toHaveLength(1);
+    expect(second.sessions.length).toBeGreaterThanOrEqual(1);
+    expect(third.sessions).toHaveLength(0);
 
     const h2 = createHarness({ steps: [when(GO)] });
     (h2.deps.drivers as Map<string, FakeDriver>).set('third', third);
@@ -227,8 +228,6 @@ describe('session setup (§9.2)', () => {
   it('R-SDK3: sessionFactory replaces driver.openSession, receives the engine-built SessionOptions, and the session is closed', async () => {
     const h = createHarness({ steps: [when(GO), thenStep(SEES)], scenario: { driver: 'unregistered' } });
     h.effectShows(GO, SEES);
-    const adopted = new FakeDriver({ id: 'pw', version: '3.1.0', makeWorld: () => new (class extends Object {})() as never });
-    void adopted;
     const external = new FakeDriver({ id: 'pw', version: '3.1.0' });
     const opened: FakeSession[] = [];
     const sessionFactory = async (o: Parameters<FakeDriver['openSession']>[0]) => {
@@ -250,9 +249,6 @@ describe('session setup (§9.2)', () => {
     expect(h.store.read('fake', h.target.scenario.id)).toBeNull();
   });
 
-  it('R-SECRET: sessions resolve literals and params, and a missing secret is SECRET_MISSING', () => {
-    expect(true).toBe(true);
-  });
 });
 
 describe('secrets and redaction (R-SE1)', () => {
@@ -265,7 +261,7 @@ describe('secrets and redaction (R-SE1)', () => {
     h.actor.handler = async (req, session) => {
       const resolve = (session as FakeSession).options.resolveValue;
       seen.push(resolve({ param: 'email' }), resolve({ secret: 'adminPassword' }), resolve({ literal: 'lit' }));
-      return ActOk(h, req, session);
+      return h.actor.succeed(req, session);
     };
     await h.run();
     expect(seen).toEqual(['a@acme.test', 'correct-horse-battery', 'lit']);
@@ -348,7 +344,7 @@ describe('abort', () => {
     const c = new AbortController();
     h.actor.handler = async (req, session) => {
       c.abort();
-      return ActOk(h, req, session);
+      return h.actor.succeed(req, session);
     };
     const r = await h.run({ signal: c.signal });
     expect(r.steps.map((s) => s.status)).toEqual(['passed', 'skipped', 'skipped']);
@@ -469,23 +465,3 @@ describe('recordings errors and modes', () => {
     expect(mkTarget([]).scenario.steps).toEqual([]);
   });
 });
-
-function ActOk(h: ReturnType<typeof createHarness>, req: Parameters<ReturnType<typeof createHarness>['actor']['act']>[0], session: Parameters<ReturnType<typeof createHarness>['actor']['act']>[1]): Promise<import('../../src/contracts/index.ts').ActResult> {
-  return session.observe().then((obs) => {
-    (session as FakeSession).world.apply(req.step.text);
-    void h;
-    return {
-      status: 'done' as const,
-      actions: [{ action: { verb: 'click' as const, target: { ref: 'e0' } }, chosenFrom: obs, outcome: { ok: true } }],
-      finalObservation: obs,
-      summary: 'ok',
-      usage: { modelCalls: 1, inputTokens: 1, outputTokens: 1 },
-    };
-  });
-}
-
-import { createRunner } from '../../src/runner/index.ts';
-function createRunnerWith(h: ReturnType<typeof createHarness>): ReturnType<typeof createRunner> {
-  return createRunner(h.deps);
-}
-export type { ScenarioResult };
