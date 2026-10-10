@@ -108,6 +108,12 @@ export function promptChunks(req: ModelRequest): { context: PromptChunk[]; secti
   return { context: grab(ctxStart, secStart), section: grab(secStart, fixStart) };
 }
 
+/** A verbatim quote (first `len` chars of the chunk containing `needle`) with its handle, or null when this section has no such chunk. */
+export function quoteFrom(req: ModelRequest, needle: string, len = 40): { handle: string; quote: string } | null {
+  const c = promptChunks(req).section.find((x) => x.text.includes(needle));
+  return c === undefined ? null : { handle: c.handle, quote: c.text.slice(0, len) };
+}
+
 // ───────────────────────── extraction output builders
 
 export interface XStep {
@@ -235,3 +241,54 @@ export function safeRm(path: string): void {
 }
 
 export const json = (v: unknown): JsonValue => JSON.parse(JSON.stringify(v)) as JsonValue;
+
+// ───────────────────────── engine factory with fully custom models / drivers / fixtures
+
+import { createEngine, loadConfig } from '@ai-bdd/sdk';
+import type { Clock, DriverFactory, Engine, FixtureDefinition, ResolvedConfig, RunEvent } from '@ai-bdd/sdk/contracts';
+import { fakeDriver } from '@ai-bdd/testing';
+import { virtualClock } from '../../acceptance/helpers/clock.ts';
+import { ACME_DEFAULT_ADMIN_PASSWORD as DEFAULT_PW } from '../../acceptance/helpers/paths.ts';
+import type { Project } from '../../acceptance/helpers/project.ts';
+
+export interface MadeEngine {
+  engine: Engine;
+  config: ResolvedConfig;
+  events: RunEvent[];
+  clock: Clock;
+  driverId: string;
+  close(): Promise<void>;
+}
+
+export interface MakeEngineOptions {
+  models: ModelSet;
+  driver?: DriverFactory;
+  /** replaces the corpus fixtures (default: the corpus config's acmeFixtures) */
+  fixtures?: FixtureDefinition[];
+  config?: (c: ResolvedConfig) => ResolvedConfig;
+  env?: Record<string, string | undefined>;
+  clock?: Clock;
+  /** use the real system clock (real browsers) */
+  realTime?: boolean;
+}
+
+export async function makeEngine(project: Project, o: MakeEngineOptions): Promise<MadeEngine> {
+  const env: Record<string, string | undefined> = { ACME_ADMIN_PASSWORD: DEFAULT_PW, ...(o.env ?? {}) };
+  let config = await loadConfig({ cwd: project.dir, env });
+  config = { ...config, baseURL: config.baseURL ?? 'http://localhost:4173' };
+  if (o.fixtures !== undefined) config = { ...config, fixtures: o.fixtures };
+  if (o.config !== undefined) config = o.config(config);
+  const factory = o.driver ?? fakeDriver({ adminPassword: DEFAULT_PW });
+  const clock = o.realTime === true ? undefined : (o.clock ?? virtualClock());
+  const engine = await createEngine(config, { models: o.models, drivers: { [factory.id]: factory }, env, ...(clock === undefined ? {} : { clock }) });
+  const events: RunEvent[] = [];
+  engine.on((e) => events.push(e));
+  return {
+    engine,
+    config,
+    events,
+    clock: clock ?? { now: () => Date.now(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)) },
+    driverId: factory.id,
+    close: () => engine.close(),
+  };
+}

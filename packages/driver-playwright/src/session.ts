@@ -94,6 +94,8 @@ export class PlaywrightSession implements DriverSession {
   private readonly navHandler: (f: Frame) => void;
   private readonly requestHandler: (r: Request) => void;
   private readonly cdpSessions: CDPSession[] = [];
+  private readonly pageCdp = new WeakMap<Page, CDPSession>();
+  private readonly closing = new WeakSet<Page>();
   private sweeper: ReturnType<typeof setInterval> | undefined;
 
   constructor(page: Page, opts: SessionOptions, ctx: { policy: Policy; baseURL?: string }, internals: SessionInternals, onClose?: () => void) {
@@ -126,7 +128,7 @@ export class PlaywrightSession implements DriverSession {
             // Answer with a (cancelled) download instead of aborting: the page keeps its current document, whereas an
             // aborted navigation would replace it with Chromium's error page.
             await route.fulfill(BLOCKED_RESPONSE);
-            if (framePage !== undefined && framePage !== this.page) await framePage.close().catch(() => undefined);
+            if (framePage !== undefined && framePage !== this.page) await this.forceClose(framePage);
             return;
           }
         }
@@ -188,13 +190,14 @@ export class PlaywrightSession implements DriverSession {
             responseHeaders: [{ name: 'content-type', value: 'application/octet-stream' }, { name: 'content-disposition', value: 'attachment' }],
             body: '',
           });
-          if (page !== this.page) void page.close().catch(() => undefined);
+          if (page !== this.page) void this.forceClose(page);
           return;
         }
         send('Fetch.continueRequest', { requestId: ev.requestId });
       });
       await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', resourceType: 'Document', requestStage: 'Request' }] });
       this.cdpSessions.push(cdp);
+      this.pageCdp.set(page, cdp);
     } catch {
       // not Chromium, or the page is already gone
     }
@@ -213,7 +216,7 @@ export class PlaywrightSession implements DriverSession {
         const u = p.url();
         if (u === '' || u === 'about:blank' || checkNavigation(u, undefined, this.policy).ok) continue;
         this.denials.push({ url: u, reason: 'popup on a disallowed URL' });
-        void p.close().catch(() => undefined);
+        void this.forceClose(p);
       }
     }, 200);
     this.sweeper.unref();
@@ -228,20 +231,20 @@ export class PlaywrightSession implements DriverSession {
     };
     if (!allowed()) {
       this.denials.push({ url: popup.url(), reason: 'popup to a disallowed URL' });
-      await popup.close().catch(() => undefined);
+      await this.forceClose(popup);
       return;
     }
     // A blocked navigation inside a popup is answered with a cancelled download: the popup has nothing left to show.
     const deniedAtOpen = this.denials.length;
     const close = (reason: string): void => {
       this.denials.push({ url: popup.url(), reason });
-      void popup.close().catch(() => undefined);
+      void this.forceClose(popup);
     };
-    popup.on('download', () => void popup.close().catch(() => undefined));
+    popup.on('download', () => void this.forceClose(popup));
     const check = (): void => {
       if (popup.isClosed()) return;
       if (!allowed()) close('popup navigated to a disallowed URL');
-      else if (this.denials.length > deniedAtOpen && (popup.url() === 'about:blank' || popup.url() === '')) void popup.close().catch(() => undefined);
+      else if (this.denials.length > deniedAtOpen && (popup.url() === 'about:blank' || popup.url() === '')) void this.forceClose(popup);
     };
     popup.on('framenavigated', (f) => {
       if (f === popup.mainFrame()) check();
@@ -253,6 +256,26 @@ export class PlaywrightSession implements DriverSession {
     timer.unref();
     setTimeout(() => clearInterval(timer), 5000).unref();
     popup.on('close', () => clearInterval(timer));
+  }
+
+  /**
+   * Closes a page we do not own. `page.close()` can hang on a popup that is mid-navigation, so it is raced against a
+   * short timer and then backed by the page's own CDP `Page.close`. Repeated calls for one page collapse into one.
+   */
+  private async forceClose(page: Page): Promise<void> {
+    if (page.isClosed() || this.closing.has(page)) return;
+    this.closing.add(page);
+    try {
+      const closed = await Promise.race([
+        page.close().then(() => true, () => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500).unref()),
+      ]);
+      if (!closed && !page.isClosed()) {
+        await (this.pageCdp.get(page)?.send('Page.close') ?? Promise.resolve()).catch(() => undefined);
+      }
+    } finally {
+      this.closing.delete(page);
+    }
   }
 
   private async guardMainFrame(url: string): Promise<void> {
