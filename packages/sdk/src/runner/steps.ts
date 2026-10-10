@@ -357,7 +357,7 @@ async function fuzzyActionBranch(sc: StepCtx, rec: StepRecording, startsRun: boo
 
 /** C3: no recording; characterize with before / after / probe. */
 async function characterizeBranch(sc: StepCtx, startsRun: boolean): Promise<StepBody> {
-  const { env, st, idx, sink } = sc;
+  const { env, st, step, idx, sink } = sc;
   const { deps, opts } = env;
   if (opts.noAgent) return noAgent('agent', 'n/a');
   sink.dirty = true; // a characterization was attempted: a recording is pending even if the step fails
