@@ -227,7 +227,7 @@ describe('observationParts', () => {
     ...over,
   });
   const png = new Uint8Array([1, 2, 3]);
-  const shot = (masked: boolean): Observation['screenshot'] => ({ png, sha256: 's'.repeat(64), masked });
+  const shot = (masked: boolean): NonNullable<Observation['screenshot']> => ({ png, sha256: 's'.repeat(64), masked });
   const opts = (over: Partial<Parameters<typeof observationParts>[1]> = {}): Parameters<typeof observationParts>[1] => ({
     redactor: noSecrets,
     settled: true,

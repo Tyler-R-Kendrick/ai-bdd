@@ -97,7 +97,7 @@ describe.each([
         { verb: 'click', target: sel({ testId: 'save', ancestors: [{ role: 'form', name: 'Profile' }], index: 1, of: 3 }) },
         { verb: 'fill', target: sel({ role: 'textbox', name: 'Name' }), value: { literal: 'Ada' } },
         { verb: 'back' },
-        { verb: 'wait' },
+        { verb: 'wait', ms: 10 },
       ]);
       const out = scrubActProgram(clean, ctx);
       expect(out.fuzzyReasons).toEqual([]);
@@ -227,7 +227,7 @@ describe.each([
 
       it('back and wait pass through untouched (same object)', () => {
         const back: RecordedAction = { verb: 'back' };
-        const wait: RecordedAction = { verb: 'wait' };
+        const wait: RecordedAction = { verb: 'wait', ms: 10 };
         const out = scrubActProgram(program([back, wait]), ctx);
         expect(out.act.actions[0]).toBe(back);
         expect(out.act.actions[1]).toBe(wait);
