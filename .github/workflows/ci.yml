@@ -88,6 +88,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # M26 installs a vendor driver package under node_modules, which Node imports natively and so resolves @ai-bdd/testing through its built dist.
+      - run: pnpm build
       # Deterministic test doubles from @ai-bdd/testing, plugged in through generated config files; the Playwright parity tests run in the playwright job.
       - run: pnpm test:acceptance --exclude '**/playwright.*.test.ts'
 
