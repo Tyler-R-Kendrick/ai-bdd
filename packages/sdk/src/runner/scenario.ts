@@ -245,8 +245,10 @@ export async function executeScenario(
       };
       let commit = true;
       // Fail closed (R-SE1): a recording is committed to the repository, so if any secret variant survived into it
-      // (a node name, a field value, a check literal, a URL), it is discarded rather than written.
-      if (jsonHasSecret(redactor, pending)) {
+      // (a node name, a field value, a check literal, a URL), it is discarded rather than written. Checked before the
+      // confirm runs (they would be wasted) and again right before saving (they may rewrite entries).
+      const refuseLeak = (): boolean => {
+        if (!jsonHasSecret(redactor, pending)) return false;
         commit = false;
         emit({
           type: 'log',
@@ -254,7 +256,9 @@ export async function executeScenario(
           scenarioId: scenario.id,
           message: 'the recording was discarded because it would have contained a secret value (or an encoding of one); nothing was written',
         });
-      }
+        return true;
+      };
+      refuseLeak();
       if (commit && config.characterize.confirmRuns > 0) {
         const outcome = await runConfirmRuns(env, pending);
         addUsage(usage, outcome.usage);
@@ -274,6 +278,7 @@ export async function executeScenario(
           });
         }
       }
+      if (commit) refuseLeak();
       if (!commit) {
         recordingOutcome = 'discarded';
       } else {
