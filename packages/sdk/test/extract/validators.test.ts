@@ -628,7 +628,7 @@ const rejectedCases: Case[] = [
     opts: { input: { rejected: [{ fingerprint: fingerprintOf('Upgrade to Pro', defaultSteps), title: 'Upgrade to Pro' }] } },
     check: (r) => {
       expect(firstFeature(r).scenarios.map((s) => s.title)).toEqual(['Other']);
-      expect(r.diagnostics.find((d) => d.details !== undefined && typeof d.details === 'object' && 'fingerprint' in d.details)?.severity).toBe('info');
+      expect(r.diagnostics.find((d) => d.details !== undefined && d.details !== null && typeof d.details === 'object' && 'fingerprint' in d.details)?.severity).toBe('info');
     },
   },
   {

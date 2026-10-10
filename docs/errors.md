@@ -8,25 +8,25 @@ Every `ERROR_CODES` entry of `@ai-bdd/sdk/contracts`. A code is `reserved` when 
 |---|---|---|---|---|
 | `USAGE` | no | general | Usage. | referenced |
 | `CONFIG_INVALID` | no | config | Config invalid. | referenced |
-| `CONFIG_NOT_FOUND` | no | config | Config not found. | reserved |
-| `CONFIG_TS_UNSUPPORTED` | no | config | Config ts unsupported. | reserved |
+| `CONFIG_NOT_FOUND` | no | config | Config not found. | referenced |
+| `CONFIG_TS_UNSUPPORTED` | no | config | Config ts unsupported. | referenced |
 | `SECRET_MISSING` | no | secret | Secret missing. | referenced |
 | `SECRET_TOO_SHORT` | no | secret | Secret too short. | referenced |
-| `DOC_READ_FAILED` | no | doc | Doc read failed. | reserved |
-| `DOC_CHUNK_TOO_LARGE` | no | doc | Doc chunk too large. | reserved |
-| `DIRECTIVE_INVALID` | no | directive | Directive invalid. | reserved |
-| `DIRECTIVE_UNKNOWN_KEY` | no | directive | Directive unknown key. | reserved |
+| `DOC_READ_FAILED` | no | doc | Doc read failed. | referenced |
+| `DOC_CHUNK_TOO_LARGE` | no | doc | Doc chunk too large. | referenced |
+| `DIRECTIVE_INVALID` | no | directive | Directive invalid. | referenced |
+| `DIRECTIVE_UNKNOWN_KEY` | no | directive | Directive unknown key. | referenced |
 | `EXTRACT_MODEL_OUTPUT_INVALID` | no | extract | Extract model output invalid. | referenced |
 | `EXTRACT_UNGROUNDED` | no | extract | Extract ungrounded. | referenced |
 | `EXTRACT_QUOTE_NOT_FOUND` | no | extract | Extract quote not found. | referenced |
 | `EXTRACT_FIXTURE_INVALID` | no | extract | Extract fixture invalid. | referenced |
 | `EXTRACT_SECTION_FAILED` | no | extract | Extract section failed. | referenced |
-| `PLAN_STALE` | no | plan | Plan stale. | reserved |
+| `PLAN_STALE` | no | plan | Plan stale. | referenced |
 | `PLAN_CORRUPT` | no | plan | Plan corrupt. | referenced |
 | `PLAN_SCHEMA_UNSUPPORTED` | no | plan | Plan schema unsupported. | referenced |
-| `PLAN_PINNED_STALE` | no | plan | Plan pinned stale. | reserved |
+| `PLAN_PINNED_STALE` | no | plan | Plan pinned stale. | referenced |
 | `PLAN_CONTEXT_CHANGED` | no | plan | Plan context changed. | referenced |
-| `SCENARIO_NOT_FOUND` | no | scenario | Scenario not found. | reserved |
+| `SCENARIO_NOT_FOUND` | no | scenario | Scenario not found. | referenced |
 | `FIXTURE_REQUIRED` | no | fixture | Fixture required. | referenced |
 | `FIXTURE_FAILED` | no | fixture | Fixture failed. | reserved |
 | `ACT_BUDGET_EXHAUSTED` | no | act | Act budget exhausted. | referenced |
@@ -42,12 +42,12 @@ Every `ERROR_CODES` entry of `@ai-bdd/sdk/contracts`. A code is `reserved` when 
 | `CHECK_JUDGE_DISAGREEMENT` | no | check | Check judge disagreement. | reserved |
 | `JUDGE_FAILED` | no | judge | Judge failed. | reserved |
 | `JUDGE_INCONCLUSIVE` | no | judge | Judge inconclusive. | referenced |
-| `JUDGE_SAME_AS_ACTOR` | no | judge | Judge same as actor. | reserved |
+| `JUDGE_SAME_AS_ACTOR` | no | judge | Judge same as actor. | referenced |
 | `SCREEN_NOT_SETTLED` | no | screen | Screen not settled. | reserved |
 | `DRIVER_UNAVAILABLE` | yes | driver | Driver unavailable. | referenced |
 | `DRIVER_ERROR` | yes | driver | Driver error. | referenced |
 | `STALE_REF` | no | stale | Stale ref. | referenced |
-| `TARGET_NOT_FOUND` | no | target | Target not found. | reserved |
+| `TARGET_NOT_FOUND` | no | target | Target not found. | referenced |
 | `POLICY_DENIED` | no | policy | Policy denied. | referenced |
 | `PIXEL_TAINTED` | no | pixel | Pixel tainted. | reserved |
 | `SESSION_LIMIT` | no | session | Session limit. | reserved |
@@ -57,7 +57,7 @@ Every `ERROR_CODES` entry of `@ai-bdd/sdk/contracts`. A code is `reserved` when 
 | `MODEL_NO_RULE` | no | model | Model no rule. | referenced |
 | `RECORDING_CORRUPT` | no | recording | Recording corrupt. | referenced |
 | `RECORDING_READ_ONLY` | no | recording | Recording read only. | referenced |
-| `EVIDENCE_CORRUPT` | no | evidence | Evidence corrupt. | reserved |
+| `EVIDENCE_CORRUPT` | no | evidence | Evidence corrupt. | referenced |
 | `NOT_IMPLEMENTED` | no | not | Not implemented. | reserved |
 | `INTERNAL` | no | general | Internal. | referenced |
 | `ABORTED` | no | general | Aborted. | referenced |

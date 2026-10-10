@@ -282,7 +282,8 @@ describe('R-PL1: ids and review survive recompiles', () => {
     const doc = billingDoc();
     const plan = firstCompile(doc);
     // The new draft has the title of the existing first feature but lives in the other section's extraction.
-    const d = downgradeDraft(doc, 'Upgrade to Pro');
+    const r = ref(doc, BILLING_PARAS.downgrade);
+    const d = feature('Upgrade to Pro', [r], [scenario('Zebra crossing', [step('when', 'zebras cross the road', [r]), step('then', 'traffic stops completely', [r])], [r])]);
     const out = planner.merge(doc, plan, mapOf(result(firstSectionId(doc, 1), [d])), META).plan;
     const ids = out.features.map((f) => f.id);
     expect(new Set(ids).size).toBe(ids.length);

@@ -73,7 +73,6 @@ export function makeCompileResult(over: Partial<CompileResult> = {}): CompileRes
   return { docs: [], usage: ZERO_USAGE, exitCode: 0, ...over };
 }
 
-export type Spy<T> = ReturnType<typeof vi.fn<(...a: never[]) => T>>;
 
 /** In-memory fake engine; every method is a vi.fn with a benign default. */
 export function makeEngine(config: ResolvedConfig, over: Partial<Engine> = {}): Engine {

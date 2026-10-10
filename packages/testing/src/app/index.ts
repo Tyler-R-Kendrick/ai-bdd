@@ -9,14 +9,11 @@ export {
   acmeModel,
   formatClock,
   formatClockMs,
-  initialState,
   isLoading,
   pathOf,
   resolveRoute,
   slowDurationMs,
   syncText,
-  view,
-  dispatch,
 } from './model.ts';
 export type { AcmeEvent, AcmeFlag, AcmeInitOptions, AcmeModel, AcmePlan, AcmeState, UINode, UIStates } from './model.ts';
 export { escapeHtml, renderNodes, renderPage } from './html.ts';
