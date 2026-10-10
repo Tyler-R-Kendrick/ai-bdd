@@ -31,7 +31,9 @@ function healedNote(sc: ScenarioResult): string {
 function renderTestcase(sc: ScenarioResult): string {
   const healed = healedSteps(sc).length > 0 || sc.status === 'healed';
   const out: string[] = [];
-  out.push(`    <testcase name="${xmlAttr(sc.title)}" classname="${xmlAttr(sc.featureId)}" time="${seconds(sc.durationMs)}">`);
+  const open = `    <testcase name="${xmlAttr(sc.title)}" classname="${xmlAttr(sc.featureId)}" time="${seconds(sc.durationMs)}"`;
+  if (!healed && !isFailing(sc.status) && sc.status !== 'skipped') return `${open}/>`;
+  out.push(`${open}>`);
   if (healed) {
     out.push('      <properties>');
     out.push('        <property name="ai-bdd.healed" value="true"/>');

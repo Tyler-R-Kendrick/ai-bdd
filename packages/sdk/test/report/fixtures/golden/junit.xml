@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="ai-bdd" tests="8" failures="3" errors="1" skipped="1" time="20.955">
   <testsuite name="docs-billing--upgrade-plan" tests="3" failures="1" errors="0" skipped="0" time="6.055" timestamp="2026-10-09T10:00:00.000Z">
-    <testcase name="Upgrade to Pro" classname="docs-billing--upgrade-plan" time="1.250">
-    </testcase>
+    <testcase name="Upgrade to Pro" classname="docs-billing--upgrade-plan" time="1.250"/>
     <testcase name="Upgrade to &quot;Pro&quot; &amp; see &lt;receipt&gt;" classname="docs-billing--upgrade-plan" time="4.800">
       <properties>
         <property name="ai-bdd.healed" value="true"/>
@@ -41,8 +40,7 @@ Steps:
     </testcase>
   </testsuite>
   <testsuite name="docs-auth--login" tests="3" failures="0" errors="1" skipped="1" time="2.500" timestamp="2026-10-09T10:00:00.000Z">
-    <testcase name="Log in with a password" classname="docs-auth--login" time="1.250">
-    </testcase>
+    <testcase name="Log in with a password" classname="docs-auth--login" time="1.250"/>
     <testcase name="Session expires" classname="docs-auth--login" time="1.250">
       <error message="browser crashed" type="DRIVER_UNAVAILABLE">Scenario: Session expires
 Status: error
