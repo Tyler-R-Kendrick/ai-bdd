@@ -289,13 +289,18 @@ export interface MakeEngineOptions {
   realTime?: boolean;
 }
 
+let testConfigSeq = 0;
+
 export async function makeEngine(project: Project, o: MakeEngineOptions): Promise<MadeEngine> {
   const env: Record<string, string | undefined> = { ACME_ADMIN_PASSWORD: DEFAULT_PW, ...(o.env ?? {}) };
-  let config = await loadConfig({ cwd: project.dir, env });
+  // the generated test config (fake models + fake driver through the ordinary config keys) instead of the project's real config,
+  // which would plug in Playwright and AI SDK models; drivers and models are replaced below anyway. One file name per engine.
+  const configPath = project.writeTestConfig({ fileName: `ai-bdd.config.test-adv-${(testConfigSeq += 1)}.mjs` });
+  let config = await loadConfig({ cwd: project.dir, configPath, env });
   config = { ...config, baseURL: config.baseURL ?? 'http://localhost:4173' };
   const primary = o.driver ?? fakeDriver({ adminPassword: DEFAULT_PW });
   const all = [primary, ...(o.extraDrivers ?? [])];
-  config = { ...config, drivers: Object.fromEntries(all.map((d) => [d.id, d])), defaultDriver: config.defaultDriver ?? primary.id };
+  config = { ...config, drivers: Object.fromEntries(all.map((d) => [d.id, d])), defaultDriver: primary.id };
   if (o.fixtures !== undefined) config = { ...config, fixtures: o.fixtures };
   if (o.config !== undefined) config = o.config(config);
   const factory = primary;
