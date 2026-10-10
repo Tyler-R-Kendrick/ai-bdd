@@ -25,11 +25,14 @@ export type ScriptEntry = SampleSpec | string | ((req: ModelRequest) => ModelRes
 /** Scripted judge model: sample index (request.seed) selects the entry, so parallel order does not matter. */
 export class ScriptedJudgeModel implements ChatModel {
   readonly requests: ModelRequest[] = [];
-  constructor(
-    readonly id: string,
-    private readonly script: readonly ScriptEntry[],
-    private readonly tokens = { inputTokens: 100, outputTokens: 10 },
-  ) {}
+  readonly id: string;
+  private readonly script: readonly ScriptEntry[];
+  private readonly tokens: { inputTokens: number; outputTokens: number };
+  constructor(id: string, script: readonly ScriptEntry[], tokens = { inputTokens: 100, outputTokens: 10 }) {
+    this.id = id;
+    this.script = script;
+    this.tokens = tokens;
+  }
 
   generate(req: ModelRequest): Promise<ModelResponse> {
     this.requests.push(req);
@@ -53,7 +56,10 @@ export function makeConfig(judge: Partial<ResolvedConfig['judge']> = {}): Resolv
 
 export class SecretRedactor implements Redactor {
   readonly secretNames: string[] = ['pw'];
-  constructor(private readonly secret = 'hunter2-secret') {}
+  private readonly secret: string;
+  constructor(secret = 'hunter2-secret') {
+    this.secret = secret;
+  }
   redact(text: string): string {
     return text.split(this.secret).join('<secret:pw>');
   }

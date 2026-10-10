@@ -131,7 +131,7 @@ describe('judge reuse and judgments log', () => {
     expect(rows[0]?.promptVersion).toBe('judge-v1');
     expect(rows[0]?.key).toBe(rows[1]?.key);
     expect(rows[0]?.key).not.toBe(rows[2]?.key);
-    expect((rows[0]?.samples as unknown[]).length).toBe(3);
+    expect(rows[0]?.samples).toHaveLength(3);
     expect(rows[0]?.usage).toEqual({ modelCalls: 3, inputTokens: 30, outputTokens: 6 });
   });
 
