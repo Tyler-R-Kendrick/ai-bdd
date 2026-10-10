@@ -116,7 +116,7 @@ export function toAxNodes(html: string): AxNode[] {
         depth,
       };
       if (el.tag.length === 2 && el.tag.startsWith('h')) node.level = Number(el.tag.slice(1));
-      if (el.attrs['value'] !== undefined && el.attrs['value'] !== '') node.value = el.attrs['value'];
+      if (r.role === 'textbox' && el.attrs['value'] !== undefined && el.attrs['value'] !== '') node.value = el.attrs['value'];
       if (el.tag === 'a') node.url = el.attrs['href'] ?? '';
       if ('disabled' in el.attrs) node.states.disabled = true;
       if (el.attrs['aria-expanded'] !== undefined) node.states.expanded = el.attrs['aria-expanded'] === 'true';

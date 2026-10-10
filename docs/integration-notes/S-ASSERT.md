@@ -2,7 +2,7 @@
 
 ## assert
 
-Public API (`packages/sdk/src/assert/index.ts`): `createAsserter`, `evaluatePredicates`, `lintCheckProgram`, `CHECKGEN_PROMPT_VERSION`. Internal helpers (not re-exported from the sdk root): `volatile.ts` (`findVolatile`, `hasVolatile`), `generate.ts` (`computeVolatileNodes`), `schema.ts`, `prompt.ts`.
+Public API (`packages/sdk/src/assert/index.ts`): `createAsserter`, `evaluatePredicates`, `lintCheckProgram`, `CHECKGEN_PROMPT_VERSION`. Also exported for sibling modules (e.g. recording, which keeps a local copy today): `findVolatile`, `hasVolatile`. Internal: `generate.ts` (`computeVolatileNodes`), `schema.ts`, `prompt.ts`.
 
 ### Behavior
 

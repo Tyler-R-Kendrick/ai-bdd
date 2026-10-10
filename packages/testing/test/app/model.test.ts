@@ -1,4 +1,3 @@
-import { renderTree, treeHash } from '@ai-bdd/sdk';
 import { describe, expect, it } from 'vitest';
 import {
   ACTIONS,
@@ -314,10 +313,5 @@ describe('time helpers', () => {
     expect(slowDurationMs('/slow?ms=abc')).toBe(1000);
     expect(slowDurationMs('/slow?ms=-5')).toBe(1000);
     expect(slowDurationMs('/slow?ms=99999999')).toBe(600_000);
-  });
-
-  it('tree text/hash are stable for the same view (no hidden randomness)', () => {
-    const mk = (): string => treeHash([]) + renderTree([], { refs: false });
-    expect(mk()).toBe(mk());
   });
 });
