@@ -103,6 +103,8 @@ export class PlaywrightSession implements DriverSession {
   private readonly pageCdp = new WeakMap<Page, CDPSession>();
   private readonly closing = new WeakSet<Page>();
   private sweeper: ReturnType<typeof setInterval> | undefined;
+  /** When a top-level request of a frame that is not the session's page was last denied (a popup's first request). */
+  private popupDenialAt = -Infinity;
 
   constructor(page: Page, opts: SessionOptions, ctx: { policy: Policy; baseURL?: string }, internals: SessionInternals, onClose?: () => void) {
     this.page = page;
@@ -131,6 +133,7 @@ export class PlaywrightSession implements DriverSession {
           const verdict = checkNavigation(req.url(), undefined, this.policy);
           if (!verdict.ok) {
             this.denials.push({ url: req.url(), reason: verdict.reason });
+            if (framePage !== this.page) this.popupDenialAt = performance.now();
             // Answer with a (cancelled) download instead of aborting: the page keeps its current document, whereas an
             // aborted navigation would replace it with Chromium's error page.
             await route.fulfill(BLOCKED_RESPONSE);
@@ -263,7 +266,11 @@ export class PlaywrightSession implements DriverSession {
       return;
     }
     // A blocked navigation inside a popup is answered with a cancelled download: the popup has nothing left to show.
+    // The popup's first request can be denied before its `page` event reaches us (the frame has no page yet, so the route
+    // handler cannot close it): a blank popup opened within a couple of seconds of such a denial has nothing left to show.
+    const openedAt = performance.now();
     const deniedAtOpen = this.denials.length;
+    const deniedAround = (): boolean => this.denials.length > deniedAtOpen || this.popupDenialAt >= openedAt - 2000;
     const close = (reason: string): void => {
       this.denials.push({ url: popup.url(), reason });
       void this.forceClose(popup);
@@ -272,7 +279,7 @@ export class PlaywrightSession implements DriverSession {
     const check = (): void => {
       if (popup.isClosed()) return;
       if (!allowed()) close('popup navigated to a disallowed URL');
-      else if (this.denials.length > deniedAtOpen && (popup.url() === 'about:blank' || popup.url() === '')) void this.forceClose(popup);
+      else if (deniedAround() && (popup.url() === 'about:blank' || popup.url() === '')) void this.forceClose(popup);
     };
     popup.on('framenavigated', (f) => {
       if (f === popup.mainFrame()) check();
