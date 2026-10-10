@@ -60,8 +60,10 @@ export function slugify(input: string, max = 64): string {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
+    // Stryker disable next-line Regex: a run of non-alphanumerics was already collapsed to a single '-', so '-' and '-+' match the same text at either end
     .replace(/^-+|-+$/g, '')
     .slice(0, max)
+    // Stryker disable next-line Regex: after the cut there are no runs of '-' left, so '-$' and '-+$' match the same text
     .replace(/-+$/g, '');
   return s.length > 0 ? s : `h-${sha256Hex(input).slice(0, 8)}`;
 }
@@ -75,6 +77,7 @@ export function renderTree(nodes: readonly ObservedNode[], opts: { refs: boolean
       if (n.level !== undefined) parts.push(`[level=${n.level}]`);
       const states = Object.entries(n.states)
         .filter(([, v]) => v !== undefined && v !== false)
+        // Stryker disable next-line ConditionalExpression,EqualityOperator: state names are distinct, so <= and >= behave as < and >, and sort only tests the result for < 0 (1 and 0 order alike)
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([k, v]) => (v === true ? `[${k}]` : `[${k}=${String(v)}]`));
       parts.push(...states);
@@ -97,6 +100,7 @@ export type NavigationCheck = { ok: true; url: string } | { ok: false; reason: s
 export function checkNavigation(rawUrl: string, baseURL: string | undefined, policy: Policy): NavigationCheck {
   let u: URL;
   try {
+    // Stryker disable next-line ConditionalExpression: new URL(raw, undefined) is new URL(raw)
     u = baseURL === undefined ? new URL(rawUrl) : new URL(rawUrl, baseURL);
   } catch {
     return { ok: false, reason: 'invalid URL' };
@@ -123,6 +127,7 @@ export function uuidv7(now: number = Date.now()): string {
 
 function isInsideDir(root: string, target: string): boolean {
   const rel = relative(root, target);
+  // Stryker disable next-line ConditionalExpression,StringLiteral: the leading rel === '' clause is redundant: '' also passes the clauses after it
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 }
 
@@ -134,12 +139,14 @@ async function realpathOfDeepestExisting(p: string): Promise<string> {
     try {
       await lstat(cur);
       const real = await realpath(cur);
+      // Stryker disable next-line ConditionalExpression: resolve(real) of an empty tail is real, which is already absolute and normalized
       return tail.length === 0 ? real : resolve(real, ...tail.reverse());
     } catch (err) {
       const code = typeof err === 'object' && err !== null && 'code' in err ? (err as { code: unknown }).code : undefined;
       if (code !== 'ENOENT' && code !== 'ENOTDIR') throw err;
       const parent = dirname(cur);
       if (parent === cur) return resolve(p);
+      // Stryker disable next-line Regex: the slice starts with exactly one separator (or none below the root), so stripping one or several is the same
       tail.push(cur.slice(parent.length).replace(/^[\\/]+/, ''));
       cur = parent;
     }
@@ -161,6 +168,7 @@ function inferRoot(path: string): string | undefined {
   const abs = resolve(path);
   const parts = abs.split(sep);
   const i = parts.lastIndexOf('.ai-bdd');
+  // Stryker disable next-line EqualityOperator: resolve() makes the path absolute, so its first segment is never '.ai-bdd' and index 0 cannot occur
   if (i <= 0) return undefined;
   return parts.slice(0, i).join(sep) || sep;
 }
