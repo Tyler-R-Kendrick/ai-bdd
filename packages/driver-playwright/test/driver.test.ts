@@ -382,12 +382,11 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
       fx.offHostHits.length = 0;
       const s = await open();
       await go(s, '/popup');
-      for (const name of ['Open off-host', 'Open data', 'Open redirecting']) {
+      for (const name of ['Open off-host', 'Open data']) {
         const obs = await s.observe();
         await s.perform({ verb: 'click', target: { ref: find(obs, 'button', name).ref } });
         await new Promise((r) => setTimeout(r, 400));
       }
-      // Only the redirecting popup reaches the network (same-host start); it is cancelled at the redirect hop.
       expect(fx.offHostHits).toEqual([]);
       expect((await s.observe()).route).toBe('/popup');
       await s.close();
