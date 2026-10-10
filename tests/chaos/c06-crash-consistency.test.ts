@@ -10,6 +10,7 @@ import { findTempLeftovers, seededRandom, snapshotTree } from '@ai-bdd/testing';
 import { CLI_BIN } from '../acceptance/helpers/paths.ts';
 import {
   FAST,
+  baseEnv,
   cliOutput,
   compilePlain,
   configArg,
@@ -47,7 +48,7 @@ function killOnTemp(project: Project, config: string, args: string[], match: Reg
     const started = Date.now();
     const child = spawn(process.execPath, ['--conditions=source', CLI_BIN, '-c', config, ...args], {
       cwd: project.dir,
-      env: { ...process.env, NODE_NO_WARNINGS: '1', ACME_ADMIN_PASSWORD: 'correct-horse-battery', CHAOS_SLOW_RENAME: match.source, CHAOS_SLOW_RENAME_MS: '20000' },
+      env: { ...baseEnv(), NODE_NO_WARNINGS: '1', ACME_ADMIN_PASSWORD: 'correct-horse-battery', CHAOS_SLOW_RENAME: match.source, CHAOS_SLOW_RENAME_MS: '20000' },
       stdio: 'ignore',
     });
     let hit: string | undefined;
@@ -70,7 +71,7 @@ function killAfter(project: Project, config: string, args: string[], ms: number)
     const started = Date.now();
     const child = spawn(process.execPath, ['--conditions=source', CLI_BIN, '-c', config, ...args], {
       cwd: project.dir,
-      env: { ...process.env, NODE_NO_WARNINGS: '1', ACME_ADMIN_PASSWORD: 'correct-horse-battery' },
+      env: { ...baseEnv(), NODE_NO_WARNINGS: '1', ACME_ADMIN_PASSWORD: 'correct-horse-battery' },
       stdio: 'ignore',
     });
     const timer = setTimeout(() => child.kill('SIGKILL'), ms);

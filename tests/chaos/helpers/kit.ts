@@ -27,7 +27,7 @@ import { walkFiles } from '../../acceptance/helpers/scan.ts';
 
 export { createProject, type Project, type ConfigOverrides } from '../../acceptance/helpers/project.ts';
 export { openEngine, withEngine, type EngineHandle } from '../../acceptance/helpers/engine.ts';
-export { runCli, cliOutput, type CliResult } from '../../acceptance/helpers/cli.ts';
+export { runCli, cliOutput, baseEnv, type CliResult } from '../../acceptance/helpers/cli.ts';
 export { walkFiles, findSecret, secretForms } from '../../acceptance/helpers/scan.ts';
 export { latestRunDir, runDirs, readRunReport, readEvents } from '../../acceptance/helpers/runs.ts';
 export { readPlans, readRecordings, planFiles, T, findScenario, allScenarios } from '../../acceptance/helpers/plans.ts';

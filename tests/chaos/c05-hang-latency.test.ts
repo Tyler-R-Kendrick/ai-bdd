@@ -10,6 +10,7 @@ import { virtualClock } from '../acceptance/helpers/clock.ts';
 import { CLI_BIN } from '../acceptance/helpers/paths.ts';
 import {
   FAST,
+  baseEnv,
   T,
   chaosEngine,
   compilePlain,
@@ -231,7 +232,7 @@ describe('chaos 5: Ctrl-C through the real CLI', () => {
       const config = writeChaosConfig(project, { driverPlan: { seed: 'sigint', rules: [{ at: 'perform', nth: 2, fault: { kind: 'hang' } }] } });
       const child = spawn(process.execPath, ['--conditions=source', CLI_BIN, '-c', config, 'run', '--no-compile'], {
         cwd: project.dir,
-        env: { ...process.env, NODE_NO_WARNINGS: '1', ACME_ADMIN_PASSWORD: 'correct-horse-battery', CHAOS_MARKER: marker },
+        env: { ...baseEnv(), NODE_NO_WARNINGS: '1', ACME_ADMIN_PASSWORD: 'correct-horse-battery', CHAOS_MARKER: marker },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       let stdout = '';

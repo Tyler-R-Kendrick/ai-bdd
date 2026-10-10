@@ -22,7 +22,8 @@ export interface CliOptions {
   timeoutMs?: number;
 }
 
-function baseEnv(): Record<string, string> {
+/** The outer environment without CI, AI_BDD_* and the Acme variables: what a spawned CLI starts from. */
+export function baseEnv(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
     if (v === undefined) continue;
