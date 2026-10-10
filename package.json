@@ -20,6 +20,7 @@
     "test:adversarial": "vitest run --passWithNoTests --project adversarial",
     "test:fuzz": "vitest run --passWithNoTests --project fuzz",
     "test:chaos": "vitest run --passWithNoTests --project chaos",
+    "mutation": "node scripts/mutation.mjs",
     "check": "node scripts/check-all.mjs",
     "test:live": "vitest run -c tests/live/vitest.live.config.ts"
   },
@@ -32,6 +33,9 @@
     "@ai-bdd/sdk": "workspace:*",
     "@ai-bdd/testing": "workspace:*",
     "@ai-bdd/verify": "workspace:*",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/typescript-checker": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@types/node": "^22.18.0",
     "@vitest/coverage-v8": "^5.0.3",
     "fast-check": "^4.10.2",

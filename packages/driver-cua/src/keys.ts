@@ -24,6 +24,7 @@ function own(table: Record<string, string>, name: string): string | undefined {
 
 /** `Control+Shift+K` -> `{ key: 'K', modifiers: ['ctrl', 'shift'] }`. Returns `undefined` for an empty or unknown spec. */
 export function parseKey(spec: string): CuaKey | undefined {
+  // Stryker disable next-line ConditionalExpression: equivalent mutant, an empty spec yields an empty key part that matches no rule below
   if (spec.length === 0) return undefined;
   // "+" itself is a key: "Control++" means Control and "+".
   const parts = spec === '+' ? ['+'] : spec.endsWith('++') ? [...spec.slice(0, -2).split('+'), '+'] : spec.split('+');

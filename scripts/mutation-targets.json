@@ -1,0 +1,116 @@
+{
+  "cua": {
+    "mutate": [
+      "packages/driver-cua/src/keys.ts",
+      "packages/driver-cua/src/nodes.ts"
+    ],
+    "tests": [
+      "packages/driver-cua/test/nodes-keys.test.ts",
+      "packages/driver-cua/test/units.test.ts",
+      "packages/driver-cua/test/mapping.test.ts",
+      "packages/driver-cua/test/session-edges.test.ts",
+      "tests/fuzz/cua-keys.test.ts",
+      "tests/fuzz/cua-nodes.test.ts",
+      "packages/driver-cua/test/nodes-tables.test.ts"
+    ],
+    "break": 60
+  },
+  "verify": {
+    "mutate": [
+      "packages/verify/src/scrub.ts",
+      "packages/verify/src/diff.ts",
+      "packages/verify/src/serialize.ts",
+      "packages/verify/src/files.ts",
+      "packages/verify/src/verify.ts"
+    ],
+    "tests": [
+      "packages/verify/test/*.test.ts",
+      "tests/fuzz/verify-diff.test.ts",
+      "tests/fuzz/verify-scrub.test.ts",
+      "tests/fuzz/verify-serialize.test.ts"
+    ],
+    "break": 0
+  },
+  "sdk-util": {
+    "mutate": [
+      "packages/sdk/src/util/index.ts"
+    ],
+    "tests": [
+      "packages/sdk/test/util/*.test.ts",
+      "tests/fuzz/util-json.test.ts",
+      "tests/fuzz/util-text.test.ts",
+      "tests/fuzz/util-navigation.test.ts",
+      "tests/fuzz/redaction.test.ts"
+    ],
+    "break": 0
+  },
+  "sdk-assert": {
+    "mutate": [
+      "packages/sdk/src/assert/evaluate.ts",
+      "packages/sdk/src/assert/volatile.ts",
+      "packages/sdk/src/assert/lint.ts",
+      "packages/sdk/src/assert/generate.ts"
+    ],
+    "tests": [
+      "packages/sdk/test/assert/blank-page.test.ts",
+      "packages/sdk/test/assert/evaluate.test.ts",
+      "packages/sdk/test/assert/generate.test.ts",
+      "packages/sdk/test/assert/lint.test.ts",
+      "packages/sdk/test/assert/volatile.test.ts",
+      "tests/fuzz/assert-evaluate.test.ts",
+      "tests/fuzz/assert-volatile.test.ts"
+    ],
+    "break": 0
+  },
+  "sdk-plan": {
+    "mutate": [
+      "packages/sdk/src/plan/planner.ts",
+      "packages/sdk/src/plan/match.ts",
+      "packages/sdk/src/plan/refs.ts",
+      "packages/sdk/src/plan/schema.ts",
+      "packages/sdk/src/plan/store.ts"
+    ],
+    "tests": [
+      "packages/sdk/test/plan/*.test.ts",
+      "tests/fuzz/plan-merge.test.ts",
+      "tests/fuzz/plan-schema.test.ts"
+    ],
+    "break": 0
+  },
+  "sdk-recording": {
+    "mutate": [
+      "packages/sdk/src/recording/effect.ts",
+      "packages/sdk/src/recording/selector.ts",
+      "packages/sdk/src/recording/secrets.ts",
+      "packages/sdk/src/recording/volatile.ts",
+      "packages/sdk/src/recording/verify.ts"
+    ],
+    "tests": [
+      "packages/sdk/test/recording/*.test.ts",
+      "tests/fuzz/secrets-scrub.test.ts"
+    ],
+    "break": 0
+  },
+  "sdk-markdown": {
+    "mutate": [
+      "packages/sdk/src/markdown/chunker.ts",
+      "packages/sdk/src/markdown/directives.ts",
+      "packages/sdk/src/markdown/frontmatter.ts",
+      "packages/sdk/src/markdown/normalize.ts",
+      "packages/sdk/src/markdown/sections.ts",
+      "packages/sdk/src/markdown/text.ts",
+      "packages/sdk/src/markdown/walker.ts"
+    ],
+    "tests": [
+      "packages/sdk/test/markdown/chunker.test.ts",
+      "packages/sdk/test/markdown/directives.test.ts",
+      "packages/sdk/test/markdown/frontmatter.test.ts",
+      "packages/sdk/test/markdown/golden.test.ts",
+      "packages/sdk/test/markdown/properties.test.ts",
+      "packages/sdk/test/markdown/text.test.ts",
+      "tests/fuzz/markdown-chunker.test.ts",
+      "tests/fuzz/markdown-normalize.test.ts"
+    ],
+    "break": 0
+  }
+}
