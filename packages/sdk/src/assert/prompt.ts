@@ -67,7 +67,7 @@ export interface CheckgenUserInput {
   criterion: string;
   params: Record<string, string>;
   actionPreceded: boolean;
-  volatileKeys: readonly NodeKey[];
+  volatileText: string;
   beforeTree: string;
   afterTree: string;
 }
@@ -84,7 +84,7 @@ export function checkgenUserMessage(i: CheckgenUserInput): string {
       ? 'action_preceded: true (a user action happened between BEFORE and AFTER)'
       : 'action_preceded: false (no action preceded this check; BEFORE equals the initial page; classification MUST be "invariant")',
     '<volatile_nodes>',
-    i.volatileKeys.length === 0 ? '(none)' : '',
+    i.volatileText,
     '</volatile_nodes>',
     '<untrusted_observation id="before">',
     i.beforeTree,
