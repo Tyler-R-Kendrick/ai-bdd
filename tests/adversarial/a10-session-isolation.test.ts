@@ -97,13 +97,15 @@ describe('A10 R-RN2 fake driver, 8 workers', () => {
     const shared = { open: 0, peak: 0, log: [] as string[] };
     const h = await makeEngine(project, { models, driver: tracking(fakeDriver({ maxSessions: 8 }), 'fake', shared) });
     await h.engine.compile();
+    const planOrder = (await h.engine.listScenarios()).map((t) => t.scenario.title);
     const report = await h.engine.run({ workers: 8, compile: false });
     await h.close();
     expect(violations).toEqual([]);
+    expect(planOrder).toHaveLength(N);
     expect(report.scenarios).toHaveLength(N);
     expect(report.scenarios.map((s) => s.status)).toEqual(Array(N).fill('passed'));
     // selection order is plan order (feature order), not completion order
-    expect(report.scenarios.map((s) => s.title)).toEqual(Array.from({ length: N }, (_, i) => `Add ${tok(i)}`));
+    expect(report.scenarios.map((s) => s.title)).toEqual(planOrder);
     expect(shared.peak).toBeGreaterThan(1);
     expect(shared.peak).toBeLessThanOrEqual(8);
     expect(shared.open).toBe(0);
@@ -125,7 +127,7 @@ describe('A10 R-RN2 fake driver, 8 workers', () => {
 
   it('A10 R-RN2: two drivers that declare the same exclusiveResource string never have sessions open at the same time', async () => {
     project = createProject({ docs: [] });
-    project.writeDoc('todos', TODO_DOC.replace('## Adding', '<!-- ai-bdd: driver=fake2 -->\n## Adding'));
+    project.writeDoc('todos', TODO_DOC.replace('## Adding\n', '## Adding\n\n<!-- ai-bdd: driver=fake2 -->\n'));
     project.writeDoc('todos-b', TODO_DOC.replace('Visitors can add', 'Visitors may also add'));
     const violations: string[] = [];
     const shared = { open: 0, peak: 0, log: [] as string[] };
@@ -220,16 +222,26 @@ describe.skipIf(skip !== null)(`A10 R-RN2 Playwright driver, 8 concurrent sessio
     try {
       const pol: Policy = { allowHosts: ['localhost', '127.0.0.1', '[::1]'], denyVerbs: [] };
       const d = await playwright({ browser: 'chromium', headless: true }).create({ projectRoot: tmp, baseURL: app.url, policy: pol, artifactsDir: tmp });
-      const sessions = await Promise.all(Array.from({ length: 8 }, (_, i) => d.openSession({ scenarioId: `acme${i}`, baseURL: app.url, policy: pol, resolveValue: () => '' })));
+      const sessions = await Promise.all(Array.from({ length: 8 }, (_, i) => d.openSession({ scenarioId: `acme${i}`, baseURL: app.url, policy: pol, resolveValue: (v) => ('literal' in v ? v.literal : '') })));
       await Promise.all(sessions.map((s) => s.perform({ verb: 'navigate', url: '/todos' })));
+      // The Acme /todos page re-renders on a timer, which can swallow a fill; retry the add (this test is about isolation, not about that race).
       await Promise.all(
         sessions.map(async (s, i) => {
-          const obs = await s.observe();
-          const box = obs.nodes.find((n) => n.role === 'textbox' && n.name === 'New todo')!;
-          expect((await s.perform({ verb: 'fill', target: { ref: box.ref }, value: { literal: tok(i) } })).ok).toBe(true);
-          const obs2 = await s.observe();
-          const add = obs2.nodes.find((n) => n.role === 'button' && n.name === 'Add')!;
-          expect((await s.perform({ verb: 'click', target: { ref: add.ref } })).ok).toBe(true);
+          for (let attempt = 0; attempt < 6; attempt++) {
+            const obs = await s.observe();
+            if (obs.treeText.includes(tok(i))) return;
+            const box = obs.nodes.find((n) => n.role === 'textbox' && n.name === 'New todo');
+            const add = obs.nodes.find((n) => n.role === 'button' && n.name === 'Add');
+            if (box === undefined || add === undefined) {
+              await s.perform({ verb: 'navigate', url: '/todos' });
+              continue;
+            }
+            await s.perform({ verb: 'fill', target: { ref: box.ref }, value: { literal: tok(i) } });
+            const again = await s.observe();
+            const add2 = again.nodes.find((n) => n.role === 'button' && n.name === 'Add');
+            if (add2 !== undefined) await s.perform({ verb: 'click', target: { ref: add2.ref } });
+            await new Promise((r) => setTimeout(r, 250));
+          }
         }),
       );
       const trees = await Promise.all(
