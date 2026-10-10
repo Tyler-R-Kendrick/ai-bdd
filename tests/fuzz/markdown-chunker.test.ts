@@ -115,7 +115,7 @@ describe('fuzz: markdown chunker', () => {
   it('output does not depend on line-ending style or a leading BOM (LF, CRLF and CR all give the LF result)', () => {
     fc.assert(
       fc.property(markdownDoc(), eolArb, fc.boolean(), (lf, eol, bom) => {
-        const variant = (bom ? '﻿' : '') + withLineEnding(lf, eol);
+        const variant = (bom ? '\ufeff' : '') + withLineEnding(lf, eol);
         expect(json(chunk(variant))).toBe(json(chunk(lf)));
       }),
       params(),

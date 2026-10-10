@@ -199,7 +199,7 @@ describe('fuzz: loadConfig', () => {
     { weight: 3, arbitrary: jsonValue({ maxDepth: 4, maxKeys: 6 }).map((v) => JSON.stringify(v)) },
     { weight: 4, arbitrary: nearMiss.map((v) => JSON.stringify(v)) },
     { weight: 2, arbitrary: hostileString() },
-    { weight: 1, arbitrary: fc.constantFrom('', ' ', 'null', '[]', '{}', '{"drivers":{"x":{"use":"./nope.mjs"}}}', '{"models":{"use":"nope"}}', '{"drivers":{"__proto__":{"use":"x"}}}', '﻿{}') },
+    { weight: 1, arbitrary: fc.constantFrom('', ' ', 'null', '[]', '{}', '{"drivers":{"x":{"use":"./nope.mjs"}}}', '{"models":{"use":"nope"}}', '{"drivers":{"__proto__":{"use":"x"}}}', '\ufeff{}') },
   );
 
   it('a config file with arbitrary content loads or fails with AiBddError(CONFIG_INVALID); a `use` entry never escapes as another error', async () => {

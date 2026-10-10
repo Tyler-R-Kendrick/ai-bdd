@@ -14,7 +14,7 @@ const PLATFORM_ROLES = [
 ];
 const role = fc.oneof({ weight: 5, arbitrary: fc.constantFrom(...PLATFORM_ROLES) }, { weight: 1, arbitrary: hostileString({ maxLength: 16 }) });
 const label = fc.oneof(
-  { weight: 3, arbitrary: fc.constantFrom('Sign in', 'Name', '• Item', '￼', 'a￼b', '  spaced   out  ', 'Password', '') },
+  { weight: 3, arbitrary: fc.constantFrom('Sign in', 'Name', '• Item', '\ufffc', 'a\ufffcb', '  spaced   out  ', 'Password', '') },
   { weight: 2, arbitrary: hostileString({ maxLength: 40 }) },
 );
 
@@ -109,7 +109,7 @@ describe('fuzz: buildNodes', () => {
           position.set(n.ref, i);
           expect(n.role).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
           expect(n.name).toBe(n.name.trim());
-          expect(n.name).not.toMatch(/\s\s|￼/);
+          expect(n.name).not.toMatch(/\s\s|\ufffc/);
           if (n.parentRef === undefined) expect(n.depth).toBe(0);
           else {
             const p = position.get(n.parentRef);
@@ -253,7 +253,7 @@ describe('fuzz: ariaRole / cleanLabel', () => {
     fc.assert(
       fc.property(fc.oneof(label, hostileString({ maxLength: 60 })), role.map((r) => ariaRole(r)), (raw, r) => {
         const c = cleanLabel(raw, r);
-        expect(c).not.toMatch(/\s\s|^\s|\s$|￼/);
+        expect(c).not.toMatch(/\s\s|^\s|\s$|\ufffc/);
         expect(c).not.toMatch(/[^\S ]/);
         expect(cleanLabel(raw, r)).toBe(c);
         expect(c.length).toBeLessThanOrEqual(raw.length);
@@ -265,7 +265,7 @@ describe('fuzz: ariaRole / cleanLabel', () => {
 
   it('cleanLabel is idempotent (list markers included)', () => {
     fc.assert(
-      fc.property(fc.oneof(label, hostileString({ maxLength: 40 }), fc.array(fc.constantFrom('•', '◦', ' ', '￼', 'x', '\n'), { maxLength: 8 }).map((p) => p.join(''))), fc.constantFrom('listitem', 'button', 'generic'), (raw, r) => {
+      fc.property(fc.oneof(label, hostileString({ maxLength: 40 }), fc.array(fc.constantFrom('•', '◦', ' ', '\ufffc', 'x', '\n'), { maxLength: 8 }).map((p) => p.join(''))), fc.constantFrom('listitem', 'button', 'generic'), (raw, r) => {
         const once = cleanLabel(raw, r);
         expect(cleanLabel(once, r), `${JSON.stringify(raw)} -> ${JSON.stringify(once)}`).toBe(once);
       }),

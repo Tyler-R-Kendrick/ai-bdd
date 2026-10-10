@@ -33,7 +33,7 @@ const key = (m: VolatileMatch): string => `${m.index}:${m.kind}:${m.text}`;
 const keys = (ms: readonly VolatileMatch[]): string[] => ms.map(key).sort();
 
 // Alphabet chosen so that the interesting boundaries (digits next to letters, colons, dashes, slashes, dots, spaces) are dense.
-const ATOMS = ['0', '1', '2', '5', '9', '12', '30', '2026', '10', '09', '12345', '1234', 'a', 'f', 'F', 'g', 'x', '_', 'ab', 'deadbeef', '3fa85f64', ':', '-', '/', '.', ' ', '  ', '\t', '\n', ' ', ' ', ',', 'ago', 'AGO', 'just', 'Now', 'now', 'minute', 'minutes', 'hour', 'second', 'days', 'day', '550e8400', 'e29b', '41d4', 'a716', '446655440000', 'é', '١٢٣', '😀'];
+const ATOMS = ['0', '1', '2', '5', '9', '12', '30', '2026', '10', '09', '12345', '1234', 'a', 'f', 'F', 'g', 'x', '_', 'ab', 'deadbeef', '3fa85f64', ':', '-', '/', '.', ' ', '  ', '\t', '\n', '\u00a0', '\u2003', ',', 'ago', 'AGO', 'just', 'Now', 'now', 'minute', 'minutes', 'hour', 'second', 'days', 'day', '550e8400', 'e29b', '41d4', 'a716', '446655440000', 'é', '١٢٣', '😀'];
 const denseText = fc.array(fc.constantFrom(...ATOMS), { maxLength: 24 }).map((p) => p.join(''));
 
 const TEMPLATES: { kind: VolatileKind; text: fc.Arbitrary<string> }[] = [
@@ -43,7 +43,7 @@ const TEMPLATES: { kind: VolatileKind; text: fc.Arbitrary<string> }[] = [
   { kind: 'uuid', text: fc.uuid().map((u) => u) },
   { kind: 'long-number', text: fc.integer({ min: 10000, max: 999999999 }).map(String) },
   { kind: 'hex-id', text: fc.stringMatching(/^[0-9a-f]{7}[0-9a-f]{1,10}$/).filter((s) => /\d/.test(s) && /[a-f]/.test(s)) },
-  { kind: 'relative-time', text: fc.tuple(fc.nat(500), fc.constantFrom('second', 'seconds', 'minute', 'minutes', 'hour', 'hours', 'day', 'days'), fc.constantFrom(' ', '  ', '\t', ' ')).map(([n, u, sp]) => `${n}${sp}${u}${sp}ago`) },
+  { kind: 'relative-time', text: fc.tuple(fc.nat(500), fc.constantFrom('second', 'seconds', 'minute', 'minutes', 'hour', 'hours', 'day', 'days'), fc.constantFrom(' ', '  ', '\t', '\u00a0')).map(([n, u, sp]) => `${n}${sp}${u}${sp}ago`) },
   { kind: 'relative-time', text: fc.constantFrom('just now', 'Just Now', 'just  now', 'JUST\tNOW') },
 ];
 
@@ -89,7 +89,7 @@ describe('fuzz: findVolatile', () => {
 
   it('finds every volatile token that is planted between separators, whatever surrounds it', () => {
     fc.assert(
-      fc.property(fc.constantFrom(...TEMPLATES), fc.nat(), fc.constantFrom(' ', ' | ', '\n', ', ', '(', ') ', '"', ' - ', ' '), denseText, denseText, (tpl, pick, sep, before, after) => {
+      fc.property(fc.constantFrom(...TEMPLATES), fc.nat(), fc.constantFrom(' ', ' | ', '\n', ', ', '(', ') ', '"', ' - ', '\u00a0'), denseText, denseText, (tpl, pick, sep, before, after) => {
         const token = fc.sample(tpl.text, { seed: pick, numRuns: 1 })[0] as string;
         // the surrounding material is itself separated, so that tokens do not merge into neighbours
         const text = `${before.replace(/[\w]$/, '')}${sep}${token}${sep}${after.replace(/^[\w]/, '')}`;

@@ -14,7 +14,7 @@ import { assertPrototypeClean, cpuMs, hostileString, jsonEqual, jsonValue, param
  */
 
 const PLACEHOLDER_CHARS = new Set([...'<>:secret']);
-const SAFE_ALPHABET = [...'ABDFGHIJKLMNOPQSUVWXYZ0123456789 &=/+?#%"\\\'@$*-_.,;!()[]{}|~^é中ñ😀 \t‮​́'];
+const SAFE_ALPHABET = [...'ABDFGHIJKLMNOPQSUVWXYZ0123456789 &=/+?#%"\\\'@$*-_.,;!()[]{}|~^é中ñ😀 \t\u202e\u200b\u0301'];
 const secretValue = fc.string({ minLength: 4, maxLength: 24, unit: fc.constantFrom(...SAFE_ALPHABET) });
 const noise = fc.oneof(
   fc.string({ maxLength: 30, unit: fc.constantFrom(...SAFE_ALPHABET, 'a', 'b', 'x', ' ', '\n') }),

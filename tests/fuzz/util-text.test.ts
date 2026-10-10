@@ -34,7 +34,7 @@ describe('fuzz: normalizeText / normalizeForQuote', () => {
     fc.assert(
       fc.property(
         fc.array(fc.stringMatching(/^[A-Za-z0-9]{1,6}$/), { minLength: 1, maxLength: 6 }),
-        fc.constantFrom(' ', '  ', '\t', '\n', ' ', ' ', ' \r\n '),
+        fc.constantFrom(' ', '  ', '\t', '\n', '\u00a0', '\u2003', ' \r\n '),
         fc.boolean(),
         (words, sep, upper) => {
           const a = words.join(' ');
@@ -54,13 +54,13 @@ describe('fuzz: normalizeText / normalizeForQuote', () => {
           .oneof(
             fc.stringMatching(/^[A-Za-z0-9]{1,8}$/),
             hostileString({ maxLength: 12 }).map((w) => w.replace(/\s+/g, '')),
-            fc.constantFrom('“quoted”', 'It’s', 'a—b', 'wait…', 'ΑΣ', 'ΣΑΣ', 'İstanbul', 'ǅ', 'é', 'ﬁ'),
+            fc.constantFrom('“quoted”', 'It’s', 'a—b', 'wait…', 'ΑΣ', 'ΣΑΣ', 'İstanbul', 'ǅ', 'e\u0301', 'ﬁ'),
           )
           .filter((w) => w.length > 0),
         { minLength: 1, maxLength: 10 },
       );
     fc.assert(
-      fc.property(words, fc.nat(), fc.nat(), fc.constantFrom(' ', '\n', '\t  ', ' '), (ws, a, b, sep) => {
+      fc.property(words, fc.nat(), fc.nat(), fc.constantFrom(' ', '\n', '\t  ', '\u00a0'), (ws, a, b, sep) => {
         const i = a % ws.length;
         const j = i + (b % (ws.length - i));
         const source = `  ${ws.join(sep)}  `;

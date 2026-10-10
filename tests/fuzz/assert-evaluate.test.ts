@@ -33,7 +33,7 @@ const treeArb: fc.Arbitrary<TreeSpec> = fc
       }),
       { maxLength: 30 },
     ),
-    fc.constantFrom('/', '/home', '/a/b?x=1', '', '‮/x'),
+    fc.constantFrom('/', '/home', '/a/b?x=1', '', '\u202e/x'),
   )
   .map(([specs, route]) => {
     const nodes: ObservedNode[] = [];
@@ -226,7 +226,7 @@ describe('fuzz: evaluatePredicates', () => {
 
   it('text predicates: a node always "equals" its own text, case and whitespace insensitively, and contains any word of it', () => {
     fc.assert(
-      fc.property(treeArb.filter((t) => t.nodes.length > 0), fc.nat(), fc.constantFrom('', ' ', '  '), fc.boolean(), (t, pick, pad, upper) => {
+      fc.property(treeArb.filter((t) => t.nodes.length > 0), fc.nat(), fc.constantFrom('', ' ', '\u00a0 '), fc.boolean(), (t, pick, pad, upper) => {
         const node = t.nodes[pick % t.nodes.length] as ObservedNode;
         // address the node by something unique: its ref is not queryable, so give it a unique testId
         const unique: TreeSpec = { ...t, nodes: t.nodes.map((n) => ({ ...n, testId: n.ref === node.ref ? 'only-me' : 'not-me' })) };
