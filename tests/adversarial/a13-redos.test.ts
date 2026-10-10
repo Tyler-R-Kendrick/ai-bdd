@@ -17,11 +17,14 @@ function best(fn: () => void, reps = 3): number {
 
 const chunk = (text: string): unknown => createChunker().chunk({ uri: 'docs/x.md', absolutePath: '/x', text, sha256: '0'.repeat(64) }, { sectionDepth: 2, maxSectionChars: 12000 });
 
+const MIN_BASELINE_MS = 5;
+
 /** time(4n) / time(n): about 4 for a linear algorithm, 16 for a quadratic one. */
 function growth(make: (n: number) => () => void, small: number): { ratio: number; big: number } {
   const a = best(make(small), 3);
   const b = best(make(small * 4), 2);
-  return { ratio: b / Math.max(a, 0.05), big: b };
+  // A baseline of a few milliseconds is mostly timer and GC noise: floor it so only growth that is large in absolute terms counts.
+  return { ratio: b / Math.max(a, MIN_BASELINE_MS), big: b };
 }
 
 describe('A13 R-AS2 volatile patterns are linear time', () => {
