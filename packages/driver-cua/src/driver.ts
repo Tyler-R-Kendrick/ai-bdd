@@ -219,7 +219,8 @@ class CuaDriver implements Driver {
         await Promise.race([app.exit, sleep(2000)]);
       }
     }
-    await rm(app.profileDir, { recursive: true, force: true }).catch(() => undefined);
+    // The browser's helper processes can still be writing into the profile just after the main process exits (ENOTEMPTY): retry.
+    await rm(app.profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }).catch(() => undefined);
   }
 
   async openSession(opts: SessionOptions): Promise<DriverSession> {
