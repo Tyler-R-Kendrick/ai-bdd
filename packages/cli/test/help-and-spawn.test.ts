@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verify } from '@ai-bdd/verify';
 import { describe, expect, it } from 'vitest';
 import { parseReporters, parseWorkers, splitList } from '../src/parse.ts';
 import { runCli } from './helpers.ts';
@@ -11,14 +12,9 @@ import { runCli } from './helpers.ts';
 const here = dirname(fileURLToPath(import.meta.url));
 const bin = join(here, '..', 'src', 'bin.ts');
 
-/** Compares against test/fixtures/<name>.txt; `UPDATE_SNAPSHOTS=1` rewrites the fixture. */
+/** `test/fixtures/<name>.verified.txt`; approve changed help text with `pnpm verify:accept`. */
 async function expectFixture(name: string, actual: string): Promise<void> {
-  const file = join(here, 'fixtures', `${name}.txt`);
-  if (process.env['UPDATE_SNAPSHOTS'] === '1' || !existsSync(file)) {
-    if (process.env['CI'] && !process.env['UPDATE_SNAPSHOTS']) throw new Error(`missing fixture ${file}`);
-    await writeFile(file, actual);
-  }
-  expect(actual).toBe(await readFile(file, 'utf8'));
+  await verify(actual, { directory: join(here, 'fixtures'), fileName: name, extension: 'txt', scrubDefaults: false });
 }
 
 describe('--help snapshots (G8)', () => {
