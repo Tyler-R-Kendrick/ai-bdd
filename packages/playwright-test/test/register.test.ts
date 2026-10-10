@@ -48,6 +48,7 @@ beforeEach(() => {
   loadCfg.mockReset().mockResolvedValue(fakeConfig());
   makeEngine.mockReset().mockResolvedValue(engine);
   toSession.mockReset();
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 });
 
 afterEach(async () => {

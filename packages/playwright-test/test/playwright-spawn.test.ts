@@ -122,6 +122,7 @@ describe('@playwright/test runs ai-bdd scenarios (M22, AC9)', () => {
     rmSync(join(project, '.ai-bdd'), { recursive: true, force: true });
 
     const { loadConfig, createEngine } = sibling.sdk;
+    const savedEnv = new Map<string, string | undefined>();
     const acme = await sibling.testing.startAcmeApp({});
     try {
       const configPath = join(project, 'ai-bdd.config.pwtest.mjs');
@@ -142,6 +143,7 @@ describe('@playwright/test runs ai-bdd scenarios (M22, AC9)', () => {
         ].join('\n'),
       );
       const env = { AI_BDD_ACME_URL: acme.url, ACME_ADMIN_PASSWORD: 'correct-horse-battery', AI_BDD_RECORDINGS: 'read-write' };
+      for (const key of [...Object.keys(env), 'CI']) savedEnv.set(key, process.env[key]);
       Object.assign(process.env, env);
       delete process.env.CI;
 
@@ -189,6 +191,10 @@ describe('@playwright/test runs ai-bdd scenarios (M22, AC9)', () => {
       expect(Object.fromEntries(seen)).toEqual(Object.fromEntries(expected));
       expect(code === 0 || [...seen.values()].some((s) => s !== 'passed' && s !== 'healed')).toBe(true);
     } finally {
+      for (const [key, value] of savedEnv) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
       await acme.close();
     }
   }, 300_000);
