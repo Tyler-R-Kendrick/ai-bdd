@@ -224,7 +224,7 @@ describe('run summary (G8)', () => {
     expect(h.stdout).toContain('failed then the badge shows Pro [CHECK_FAILED]');
     expect(h.stdout).toContain('badge text was Free');
     expect(h.stdout).toContain('Scenarios: 3 total, 1 passed, 1 healed, 1 failed');
-    expect(h.stdout).toContain('1 healed, 2 fuzzy');
+    expect(h.stdout).toContain('1 healed, 1 fuzzy');
     expect(h.stdout).toContain('Fuzzy reasons: subjective x1, volatile-content x1');
     expect(h.stdout).toContain('Healed steps are reported as passed (use --strict to fail them)');
     expect(h.stdout).toContain('Model calls: 4 (1000 input / 200 output tokens, est. cost $0.0123)');

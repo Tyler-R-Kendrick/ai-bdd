@@ -116,8 +116,6 @@ export async function setupFake(ctx: Ctx): Promise<FakeSetup> {
 export interface EngineOptions {
   /** `--driver` value; when set, `AI_BDD_FAKE` does not change `defaultDriver`. */
   driver?: string | undefined;
-  /** When the project has no config file, fall back to this instead of failing (verify-run). */
-  allowNoConfig?: boolean;
 }
 
 export interface EngineHandle { engine: Engine; config: ResolvedConfig }
@@ -143,7 +141,7 @@ export async function loadResolvedConfig(ctx: Ctx, allowDefaults: boolean): Prom
 
 export async function openEngine(ctx: Ctx, opts: EngineOptions = {}): Promise<EngineHandle> {
   const fake = isEnvOn(ctx.io.env['AI_BDD_FAKE']);
-  let config = await loadResolvedConfig(ctx, fake || opts.allowNoConfig === true);
+  let config = await loadResolvedConfig(ctx, fake);
   const createEngine = await resolveCreateEngine(ctx.deps);
 
   let engine: Engine;

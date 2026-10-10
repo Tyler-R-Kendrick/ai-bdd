@@ -1,5 +1,6 @@
 import {
   AiBddError,
+  type DriverSession,
   type Observation,
   type SessionOptions,
   type SettleResult,
@@ -14,7 +15,11 @@ export function wantsPixels(env: ScenarioEnv, st: SessionState): boolean {
   return env.deps.config.judge.vision && st.session.capabilities.pixels;
 }
 
-export async function settleState(env: ScenarioEnv, st: SessionState, pixels: boolean): Promise<SettleResult> {
+export async function settleState(
+  env: ScenarioEnv,
+  st: { session: DriverSession; ring: ObservationRing },
+  pixels: boolean,
+): Promise<SettleResult> {
   const extra: { pixels?: boolean; signal?: AbortSignal } = {};
   if (pixels) extra.pixels = true;
   if (env.opts.signal) extra.signal = env.opts.signal;
@@ -70,21 +75,12 @@ export async function prepareSession(env: ScenarioEnv): Promise<SessionState> {
   };
   if (config.baseURL !== undefined) sessionOpts.baseURL = config.baseURL;
 
-  let session;
+  let session: DriverSession;
   if (opts.sessionFactory) session = await opts.sessionFactory(sessionOpts);
   else if (env.driver) session = await env.driver.openSession(sessionOpts);
   else throw new AiBddError('CONFIG_INVALID', 'no driver available to open a session');
 
-  const st: SessionState = {
-    session,
-    holder,
-    ring: new ObservationRing(),
-    firstObs: undefined as unknown as Observation,
-    lastRunBefore: undefined,
-    inRun: false,
-    cleanups: [],
-    priorSteps: [],
-  };
+  const ring = new ObservationRing();
   try {
     const startUrl = target.scenario.startUrl ?? config.baseURL;
     if (startUrl !== undefined && session.capabilities.verbs.includes('navigate')) {
@@ -99,8 +95,8 @@ export async function prepareSession(env: ScenarioEnv): Promise<SessionState> {
         });
       }
     }
-    st.firstObs = (await settleState(env, st, false)).observation;
-    return st;
+    const firstObs = (await settleState(env, { session, ring }, false)).observation;
+    return { session, holder, ring, firstObs, lastRunBefore: undefined, inRun: false, cleanups: [], priorSteps: [] };
   } catch (err) {
     await closeQuietly(session);
     throw err;

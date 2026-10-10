@@ -17,7 +17,7 @@ const prog = (predicates: Predicate[], classification: CheckProgram['classificat
 const ex = (query: Extract<Predicate, { op: 'exists' }>['query']): Predicate => ({ op: 'exists', query });
 const heading: Predicate = ex({ role: 'heading', name: 'Plan' });
 
-interface Case { name: string; program: CheckProgram; ctx?: Partial<Ctx>; expect: (string | RegExp)[] | 'clean' }
+interface Case { name: string; program: CheckProgram; ctx?: Partial<Ctx>; expect: string[] | 'clean' }
 
 const key = (role: string, name: string): NodeKey => ({ role, name });
 
@@ -98,7 +98,7 @@ describe('lintCheckProgram table (R-AS2)', () => {
       expect(out).toEqual([]);
     } else {
       expect(out.length).toBeGreaterThan(0);
-      for (const w of want) expect(out.join('\n')).toMatch(typeof w === 'string' ? new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) : w);
+      for (const w of want) expect(out.join('\n')).toContain(w);
     }
   });
 });

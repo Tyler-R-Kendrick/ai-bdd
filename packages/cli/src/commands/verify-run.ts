@@ -7,7 +7,7 @@ export async function runVerifyRun(ctx: Ctx, runDirArg: string): Promise<ExitCod
   const runDir = isAbsolute(runDirArg) ? runDirArg : resolve(ctx.io.cwd, runDirArg);
   let result: { ok: boolean; problems: string[] };
   try {
-    result = await withEngine(ctx, { allowNoConfig: true }, ({ engine }) => engine.verifyRun(runDir));
+    result = await withEngine(ctx, {}, ({ engine }) => engine.verifyRun(runDir));
   } catch (e) {
     // Without a loadable config the run can still be verified through the standalone SDK function.
     if (hasErrorCode(e, 'CONFIG_NOT_FOUND')) {

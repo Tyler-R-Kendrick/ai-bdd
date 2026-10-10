@@ -1,6 +1,19 @@
-import { notImplemented, type DriverFactory, type DriverSession, type ObservedNode, type Policy, type SessionOptions } from '@ai-bdd/sdk/contracts';
-export interface PlaywrightOptions { browser?: 'chromium' | 'firefox' | 'webkit'; headless?: boolean; launchOptions?: Record<string, unknown>; viewport?: { width: number; height: number }; recordVideo?: boolean }
-export function playwright(_opts?: PlaywrightOptions): DriverFactory { return notImplemented('driver-playwright.playwright'); }
-export function createDriverFactory(_options: Record<string, unknown>): DriverFactory { return notImplemented('driver-playwright.createDriverFactory'); }
-export function sessionFromPage(_page: unknown, _sessionOpts: SessionOptions, _ctx: { policy: Policy; baseURL?: string }): Promise<DriverSession> { return notImplemented('driver-playwright.sessionFromPage'); }
-export function parseAriaSnapshot(_text: string): ObservedNode[] { return notImplemented('driver-playwright.parseAriaSnapshot'); }
+import type { DriverSession, Policy, SessionOptions } from '@ai-bdd/sdk/contracts';
+import type { Page } from 'playwright-core';
+import { PlaywrightSession } from './session.ts';
+
+export { playwright, createDriverFactory, discoverChromium } from './driver.ts';
+export type { PlaywrightOptions } from './driver.ts';
+export { parseAriaSnapshot, pruneWrappers } from './aria.ts';
+export { CAPABILITIES, DRIVER_ID, DRIVER_VERSION, MAX_WAIT_MS, SECRET_SELECTOR } from './session.ts';
+
+/**
+ * Wrap an existing Playwright `page` (for example the `page` fixture of `@playwright/test`) as a driver session.
+ * The page's context gets the navigation-policy route for the lifetime of the session. `close()` removes it and
+ * never closes the page or its context.
+ */
+export async function sessionFromPage(page: Page, sessionOpts: SessionOptions, ctx: { policy: Policy; baseURL?: string }): Promise<DriverSession> {
+  const session = new PlaywrightSession(page, sessionOpts, ctx, { ownsContext: false });
+  await session.install();
+  return session;
+}

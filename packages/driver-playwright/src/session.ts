@@ -41,7 +41,7 @@ type Target =
 
 interface Denial { url: string; reason: string }
 
-const ANSI = /\u001b\[[0-9;]*m/g;
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
 function errorPayload(code: AiBddErrorPayload['code'], message: string, retryable?: boolean, details?: JsonValue): AiBddErrorPayload {
   return new AiBddError(code, message, {
