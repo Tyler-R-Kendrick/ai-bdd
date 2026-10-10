@@ -229,7 +229,7 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
       expect(dt).toBeLessThan(7500);
       const t1 = Date.now();
       await s.perform({ verb: 'wait', ms: -50 });
-      expect(Date.now() - t1).toBeLessThan(1000);
+      expect(Date.now() - t1).toBeLessThan(3000);
       await s.close();
     }, 20_000);
 

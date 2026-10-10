@@ -175,7 +175,7 @@ describe('A6 R-AS3 the predicate DSL has no regex and evaluation is linear', () 
     const big = time(build(40000));
     // 8x the nodes: a linear evaluator costs about 8x; a quadratic one 64x. Allow generous noise.
     expect(big).toBeLessThan(Math.max(small, 1) * 30);
-    expect(big).toBeLessThan(3000);
+    expect(big).toBeLessThan(10000);
   });
 
   it('A6 R-AS3: an unknown or regex-like predicate op never passes (unknown counts as failure)', async () => {

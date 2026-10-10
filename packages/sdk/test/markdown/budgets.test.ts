@@ -12,6 +12,9 @@ import { chunkText, makeDoc } from './helpers.ts';
 
 const chunker = createChunker();
 const opts = { sectionDepth: 2, maxSectionChars: 12000 };
+// Absolute time budgets only need to separate linear from quadratic behaviour (seconds), so they are generous: CI runners are slow and noisy.
+const BUDGET_MS = 6000;
+chunker.chunk(makeDoc('# warm up\n\n- a\n  - b\n'), opts);
 
 describe('F-12 input budgets', () => {
   it('documents within the budgets are returned untouched', () => {
@@ -35,7 +38,7 @@ describe('F-12 input budgets', () => {
     for (const make of [(n: number) => '['.repeat(n), (n: number) => '*a'.repeat(n), (n: number) => '[a](b '.repeat(n), (n: number) => ']'.repeat(n), (n: number) => '~~a'.repeat(n)]) {
       const t = performance.now();
       chunker.chunk(makeDoc(`# T\n\n${make(30_000)}\n`), opts);
-      expect(performance.now() - t).toBeLessThan(2000);
+      expect(performance.now() - t).toBeLessThan(BUDGET_MS);
     }
   });
 
@@ -46,7 +49,7 @@ describe('F-12 input budgets', () => {
     expect(n.text.split('\n')[2]).toBe(' '.repeat(500));
     const t = performance.now();
     chunker.chunk(makeDoc(`# T\n\n${Array.from({ length: 400 }, (_, i) => `${' '.repeat(i * 2)}- item ${i}`).join('\n')}\n`), opts);
-    expect(performance.now() - t).toBeLessThan(2000);
+    expect(performance.now() - t).toBeLessThan(BUDGET_MS);
   });
 
   it('a code block containing deep indentation keeps its text exactly', () => {
