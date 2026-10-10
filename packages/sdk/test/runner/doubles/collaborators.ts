@@ -303,7 +303,7 @@ export class ScriptedAsserter implements Asserter {
   /** Replace to script generation outcomes. The default builds an `exists` check for a node that appeared. */
   generateHandler: ((req: CheckGenRequest) => CheckGenResult) | undefined;
 
-  evaluate(program: CheckProgram, obs: Observation): CheckEvaluation {
+  evaluate(program: CheckProgram, obs: Observation, _params?: Record<string, string>): CheckEvaluation {
     this.evaluations.push({ program, obs });
     const results = program.predicates.map((p) => evalPredicate(p, obs));
     return { passed: results.every((r) => r.satisfied === true), results };

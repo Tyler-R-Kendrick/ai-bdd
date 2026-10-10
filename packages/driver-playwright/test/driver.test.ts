@@ -371,10 +371,26 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
         await new Promise((r) => setTimeout(r, 600));
         expect(ctx.pages().length, name).toBe(1);
       }
-      expect(fx.offHostHits).toEqual([]);
+      // Without the init script (borrowed context) Playwright cannot intercept a popup's first request; the popup is
+      // closed as soon as it appears and is never exposed to the agent.
       expect(page.url()).toBe(`${fx.url}/popup`);
       await s.close();
       await ctx.close();
+    });
+
+    it('R-AG3: in driver-owned sessions window.open to a denied URL is refused before any request is sent', async () => {
+      fx.offHostHits.length = 0;
+      const s = await open();
+      await go(s, '/popup');
+      for (const name of ['Open off-host', 'Open data', 'Open redirecting']) {
+        const obs = await s.observe();
+        await s.perform({ verb: 'click', target: { ref: find(obs, 'button', name).ref } });
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      // Only the redirecting popup reaches the network (same-host start); it is cancelled at the redirect hop.
+      expect(fx.offHostHits).toEqual([]);
+      expect((await s.observe()).route).toBe('/popup');
+      await s.close();
     });
 
     it('R-AG3: a same-host popup (target=_blank) is allowed to open', async () => {

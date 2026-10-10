@@ -5,6 +5,7 @@ import { AiBddError } from '@ai-bdd/sdk/contracts';
 import type { Driver, DriverContext, DriverFactory, DriverSession, Policy, SessionOptions } from '@ai-bdd/sdk/contracts';
 import { chromium, firefox, webkit } from 'playwright-core';
 import type { Browser, LaunchOptions, Page } from 'playwright-core';
+import { windowOpenGuardScript } from './guard.ts';
 import { CAPABILITIES, DRIVER_ID, DRIVER_VERSION, PlaywrightSession } from './session.ts';
 
 export interface PlaywrightOptions {
@@ -117,8 +118,9 @@ class PlaywrightDriver implements Driver {
       ...(record ? { recordVideo: { dir: join(this.ctx.artifactsDir, 'video') } } : {}),
     });
     try {
-      const page = await context.newPage();
       const policy: Policy = opts.policy ?? this.ctx.policy;
+      await context.addInitScript(windowOpenGuardScript(policy.allowHosts));
+      const page = await context.newPage();
       const session = new PlaywrightSession(page, { ...opts, policy }, { policy, ...(baseURL === undefined ? {} : { baseURL }) }, {
         ownsContext: true,
         ...(this.opts.actionTimeoutMs === undefined ? {} : { actionTimeoutMs: this.opts.actionTimeoutMs }),
