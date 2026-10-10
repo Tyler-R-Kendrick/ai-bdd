@@ -91,7 +91,7 @@ jobs:
       # M26 installs a vendor driver package under node_modules, which Node imports natively and so resolves @ai-bdd/testing through its built dist.
       - run: pnpm build
       # Deterministic test doubles from @ai-bdd/testing, plugged in through generated config files; the Playwright parity tests run in the playwright job.
-      - run: pnpm test:acceptance --exclude '**/playwright.*.test.ts'
+      - run: pnpm test:acceptance --exclude '**/playwright.*.test.ts' --exclude '**/cua.*.test.ts'
 
   adversarial:
     runs-on: ubuntu-latest
@@ -135,6 +135,50 @@ jobs:
         run: pnpm test:unit packages/driver-playwright
       - name: Playwright parity (real Chromium, deterministic test-double models)
         run: pnpm test:acceptance playwright
+
+  # The real Cua Driver (cua.ai) operating a real Chromium window on a virtual Linux desktop (Xvfb, openbox, AT-SPI).
+  cua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Downloads Chromium only when it is not already present.
+      - name: Ensure Chromium
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      - name: Install a desktop session
+        run: sudo apt-get update && sudo apt-get install -y xvfb openbox at-spi2-core dbus-x11
+      - name: Install Cua Driver (pinned release)
+        run: |
+          curl -fsSL https://cua.ai/driver/install.sh -o "$RUNNER_TEMP/install-cua-driver.sh"
+          CUA_DRIVER_RS_VERSION=0.34.0 bash "$RUNNER_TEMP/install-cua-driver.sh" --bin-dir "$HOME/.local/bin" --no-modify-path
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/cua-driver" telemetry disable
+          "$HOME/.local/bin/cua-driver" --version
+      # The tests import @ai-bdd/driver-cua and @ai-bdd/testing from their built output when a project loads them by name.
+      - run: pnpm build
+      - name: Cua Driver on a virtual desktop
+        env:
+          AI_BDD_REQUIRE_CUA: '1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x800x24" bash -ec '
+            eval "$(dbus-launch --sh-syntax)"
+            export GTK_MODULES=gail:atk-bridge ACCESSIBILITY_ENABLED=1
+            /usr/libexec/at-spi-bus-launcher --launch-immediately &
+            openbox &
+            sleep 3
+            pnpm exec vitest run --project unit packages/driver-cua
+            pnpm exec vitest run --project acceptance tests/acceptance/cua.m05-m07.test.ts
+          '
 
   determinism:
     strategy:

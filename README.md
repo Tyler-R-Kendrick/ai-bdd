@@ -109,7 +109,7 @@ kill %1; cd ../../.. && rm -rf packages/testing/.quickstart
 
 Try the rest of the corpus: `ai-bdd run docs-todos-- docs-checkout--` shows `fuzzy` steps (volatile timestamps, a subjective criterion) and `ACT_TARGET_AMBIGUOUS` (the doc says "submits the form" and the page has two Submit buttons).
 
-To drive the same app with a different engine (for example [Cua Driver](https://cua.ai/docs/cua-driver) or a browser-use runtime), change only the `web` entry of `drivers`: see [Plugging in a driver](docs/drivers.md#plugging-in-a-driver). Because these steps need a key and a browser, they are not executed by the docs checker; the repository's own tests use deterministic test doubles instead ([FAQ](docs/faq.md#are-there-fake-models-or-a-fake-mode)).
+To drive the same app with a different engine (for example [Cua Driver](https://cua.ai/docs/cua-driver) through `@ai-bdd/driver-cua`, or a browser-use runtime), change only the `web` entry of `drivers`: see [Plugging in a driver](docs/drivers.md#plugging-in-a-driver). Because these steps need a key and a browser, they are not executed by the docs checker; the repository's own tests use deterministic test doubles instead ([FAQ](docs/faq.md#are-there-fake-models-or-a-fake-mode)).
 
 ## Real setup
 
@@ -201,7 +201,7 @@ Exit codes: `0` passed, `1` failed or inconclusive or blocked, `2` usage or conf
 - [Concepts](docs/concepts.md): compile, plan, run, characterize, fuzzy.
 - [Authoring docs](docs/authoring-docs.md): directives and writing testable prose.
 - [Review guide](docs/review-guide.md): reviewing plan diffs and recordings.
-- [Drivers](docs/drivers.md): the Playwright driver, plugging in other drivers (Cua Driver, browser-use) and writing your own.
+- [Drivers](docs/drivers.md): the Playwright driver, the Cua Driver package, plugging in other drivers (browser-use) and writing your own.
 - [SDK](docs/sdk.md): the integration contract and a Playwright Test example.
 - [CLI reference](docs/cli.md).
 - [Security](docs/security.md): threat model, policy, secrets, evidence integrity limits.
@@ -212,7 +212,7 @@ Exit codes: `0` passed, `1` failed or inconclusive or blocked, `2` usage or conf
 
 - The judge is an LLM. A wrong verdict on the first run can become a recording; review recordings, and use `--audit` to compare judge and checks later ([docs/faq.md](docs/faq.md)).
 - Settle detection sees ARIA busy signals, not CSS-only animations.
-- Web apps only out of the box (Playwright). Other engines (Cua Driver, browser-use, native) plug in through the `Driver` interface ([docs/drivers.md](docs/drivers.md#plugging-in-a-driver)).
+- Web apps out of the box (Playwright), native apps and browsers through `@ai-bdd/driver-cua` (Cua Driver; tested on Linux/X11 with Chromium only). Other engines (browser-use, mobile) plug in through the `Driver` interface ([docs/drivers.md](docs/drivers.md#plugging-in-a-driver)).
 
 ## License
 

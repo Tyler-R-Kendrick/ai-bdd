@@ -9,6 +9,7 @@ export default defineConfig({
       { find: /^@ai-bdd\/sdk\/contracts$/, replacement: r('./packages/sdk/src/contracts/index.ts') },
       { find: /^@ai-bdd\/sdk$/, replacement: r('./packages/sdk/src/index.ts') },
       { find: /^@ai-bdd\/testing$/, replacement: r('./packages/testing/src/index.ts') },
+      { find: /^@ai-bdd\/driver-cua$/, replacement: r('./packages/driver-cua/src/index.ts') },
       { find: /^@ai-bdd\/driver-playwright$/, replacement: r('./packages/driver-playwright/src/index.ts') },
       { find: /^@ai-bdd\/models-ai-sdk$/, replacement: r('./packages/models-ai-sdk/src/index.ts') },
       { find: /^@ai-bdd\/playwright-test$/, replacement: r('./packages/playwright-test/src/index.ts') },

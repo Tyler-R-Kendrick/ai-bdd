@@ -56,7 +56,7 @@ export default {
   drivers: {
     web: { use: '@ai-bdd/driver-playwright', options: { browser: 'chromium', headless: true } },
     // any package exporting createDriverFactory(options) works the same way:
-    desktop: { use: './drivers/cua.mjs', options: {} },               // your own package wrapping Cua Driver (https://cua.ai)
+    desktop: { use: '@ai-bdd/driver-cua', options: { kind: 'app', window: { title: '^Calculator$' } } }, // Cua Driver (https://cua.ai)
     agent: { use: 'my-browser-use-driver', options: { /* ... */ } }, // browser-use style driver
   },
   defaultDriver: 'web',                                             // `ai-bdd run --driver desktop` overrides it

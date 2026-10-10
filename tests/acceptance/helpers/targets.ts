@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import type { DriverFactory } from '@ai-bdd/sdk/contracts';
 import { fakeDriver, startAcmeApp } from '@ai-bdd/testing';
 import { ACME_DEFAULT_ADMIN_PASSWORD, PW_BROWSERS_PATH } from './paths.ts';
+import { chromiumArgs, realEnvironment, unavailableReason } from '../../../packages/driver-cua/test/environment.ts';
 import { FAST_REAL, type ConfigOverrides } from './project.ts';
 
 export interface PrepareOptions {
@@ -28,7 +29,7 @@ export interface PreparedTarget {
 
 /** A driver under test: the fake driver, or real Chromium against startAcmeApp. Both must give identical statuses. */
 export interface DriverTarget {
-  readonly name: 'fake' | 'playwright';
+  readonly name: 'fake' | 'playwright' | 'cua';
   prepare(opts?: PrepareOptions): Promise<PreparedTarget>;
 }
 
@@ -72,6 +73,29 @@ export const playwrightTarget: DriverTarget = {
   },
 };
 
+/** The Cua Driver (cua.ai) operating a real Chromium window on a real desktop, against the Acme server. */
+export const cuaTarget: DriverTarget = {
+  name: 'cua',
+  async prepare(opts = {}) {
+    const { cua } = await import('@ai-bdd/driver-cua');
+    const env = realEnvironment();
+    if (env === undefined) throw new Error('the Cua Driver environment is not available');
+    const app = await startAcmeApp({
+      flags: opts.flags ?? [],
+      adminPassword: opts.adminPassword ?? ACME_DEFAULT_ADMIN_PASSWORD,
+    });
+    const factory = cua({ kind: 'browser', launch: { command: env.chromium, args: chromiumArgs() }, startTimeoutMs: 30_000 });
+    return {
+      driverId: factory.id,
+      factory,
+      baseURL: app.url,
+      defaults: FAST_REAL,
+      realTime: true,
+      dispose: () => app.close(),
+    };
+  },
+};
+
 /** Why the Playwright parity tests cannot run here, or null when they can. `AI_BDD_REQUIRE_PW=1` turns a skip into a failure. */
 export function playwrightUnavailableReason(): string | null {
   if (process.env['AI_BDD_REQUIRE_PW'] === '1') return null;
@@ -82,4 +106,11 @@ export function playwrightUnavailableReason(): string | null {
     return 'no Chromium found (set PLAYWRIGHT_BROWSERS_PATH or AI_BDD_CHROMIUM_PATH)';
   }
   return null;
+}
+
+/** Why the Cua Driver tests cannot run here, or null when they can. `AI_BDD_REQUIRE_CUA=1` turns a skip into a failure. */
+export function cuaUnavailableReason(): string | null {
+  if (process.env['AI_BDD_REQUIRE_CUA'] === '1') return null;
+  const reason = unavailableReason();
+  return reason === undefined ? null : `needs a Linux desktop session, the cua-driver executable and Chromium: ${reason}`;
 }

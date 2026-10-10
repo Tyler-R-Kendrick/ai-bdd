@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@ai-bdd/cli": "workspace:*",
+    "@ai-bdd/driver-cua": "workspace:*",
     "@ai-bdd/driver-playwright": "workspace:*",
     "@ai-bdd/models-ai-sdk": "workspace:*",
     "@ai-bdd/playwright-test": "workspace:*",

@@ -4,9 +4,9 @@ A **driver** gives ai-bdd a way to see and operate one application. It is the on
 
 | Driver | Package | Use |
 |---|---|---|
-| `playwright` | `@ai-bdd/driver-playwright` | Real browsers (Chromium default). The driver for web apps, and the only one that ships. |
-| Cua Driver | not shipped; you wrap [Cua Driver](https://cua.ai/docs/cua-driver) (`cua-driver`) in a `createDriverFactory` package | Native desktop apps and browsers on macOS, Windows and Linux, operated in the background. See [(b) Cua Driver](#b-cua-driver-cuaai). |
-| Yours | any package that exports `createDriverFactory(options)` | A browser-use agent runtime, a native or mobile bridge, another screen-driving engine. See [Plugging in a driver](#plugging-in-a-driver). |
+| `playwright` | `@ai-bdd/driver-playwright` | Real browsers (Chromium default). The fastest driver for web apps. |
+| `cua` | `@ai-bdd/driver-cua` | [Cua Driver](https://cua.ai/docs/cua-driver): native apps and browsers on macOS, Windows and Linux, operated through the `cua-driver` MCP server. Exercised on Linux (X11) with Chromium. See [(b) Cua Driver](#b-cua-driver-cuaai). |
+| Yours | any package that exports `createDriverFactory(options)` | A browser-use agent runtime, a mobile bridge, another screen-driving engine. See [Plugging in a driver](#plugging-in-a-driver). |
 
 Drivers are always real: they operate a real application. (`@ai-bdd/testing` has an in-memory double of the demo app for ai-bdd's own tests; it is not a product mode, see [sdk.md](sdk.md#test-doubles).)
 
@@ -64,7 +64,7 @@ A driver is a config entry. ai-bdd does not care what is behind it, only that it
 - **`{ use: '<package or ./file>', options }`**: ai-bdd imports the package (resolved from the project root) and calls its `createDriverFactory(options)`. It works in `.json`, `.mjs` and `.js` configs, so the choice of engine can be a one-line JSON change.
 - **A factory object**: import the factory yourself and put it under `drivers`. This is the only form a typed `.ts` config accepts (`defineConfig` types `drivers` as `DriverFactory` values).
 
-The examples below use the built-in Playwright driver, [Cua Driver](https://cua.ai/) through a driver package you write, and one **hypothetical** package, `my-browser-use-driver`, a placeholder for whatever browser-use runtime package you publish. ai-bdd ships only the Playwright driver; neither Cua Driver nor `my-browser-use-driver` has an ai-bdd package yet. Everything else in the config (docs, models, secrets, policy, `baseURL`) stays the same when you swap the driver.
+The examples below use the Playwright driver, the Cua Driver package, and one **hypothetical** package, `my-browser-use-driver`, a placeholder for whatever browser-use runtime package you publish; it does not exist on npm. Everything else in the config (docs, models, secrets, policy, `baseURL`) stays the same when you swap the driver.
 
 ### (a) The built-in Playwright driver
 
@@ -91,15 +91,20 @@ export default defineConfig({
 
 ### (b) Cua Driver (cua.ai)
 
-[Cua Driver](https://cua.ai/docs/cua-driver) is a specific product from [Cua](https://cua.ai/): an open-source (MIT) driver that lets an agent operate native apps and browsers on macOS, Windows and Linux in the background, without taking the system cursor or focus where the platform allows. It is reached through the `cua-driver` CLI (`cua-driver call <tool>`) or as an MCP server over stdio (`cua-driver mcp`); install it from the [Cua Driver quickstart](https://cua.ai/docs/cua-driver/quickstart). Its tools include `get_window_state`, `click`, `type_text`, `press_key` and `invoke_menu`; run `cua-driver list-tools` and `cua-driver describe <tool>` for the exact names and input schemas, and see the [CLI reference](https://cua.ai/docs/cua-driver/reference/cli) and [Connecting an agent](https://cua.ai/docs/cua-driver/guides/connect-your-agent).
-
-ai-bdd does not ship a Cua Driver package. To use it you write a small driver package (your own repository, or a `./drivers/cua.mjs` file in the project) whose `createDriverFactory(options)` returns a `DriverFactory` that translates ai-bdd's `observe()` and `perform(action)` into Cua Driver tool calls. The mapping is the one in [Screenshot-and-coordinate drivers](#screenshot-and-coordinate-drivers-honest-limits): turn the window state Cua Driver reports into `ObservedNode`s with a role and an accessible name, and turn `click`, `fill` and `press` on those refs into Cua Driver calls. Check what `get_window_state` returns on your platform before relying on it; ai-bdd steps whose targets have no role or name stay `fuzzy`.
+[Cua Driver](https://cua.ai/docs/cua-driver) is a specific product from [Cua](https://cua.ai/): an open-source (MIT) driver that lets an agent operate native apps and browsers on macOS, Windows and Linux, in the background where the platform allows it. `@ai-bdd/driver-cua` starts `cua-driver mcp`, reads each window through its accessibility tree (`get_window_state`) and acts with its input tools (`click`, `type_text`, `press_key`, `scroll`). Install Cua Driver first ([quickstart](https://cua.ai/docs/cua-driver/quickstart)), then `pnpm add -D @ai-bdd/driver-cua`. The package is tested against Cua Driver 0.34 on Linux (X11, AT-SPI) driving Chromium; its macOS and Windows paths use the same tools but have not been run.
 
 ```js
-// ai-bdd.config.mjs: the package form (the package is the one you wrote around Cua Driver)
+// ai-bdd.config.mjs: the package form
 export default {
+  baseURL: 'http://localhost:3000',
   drivers: {
-    desktop: { use: './drivers/cua.mjs', options: { app: 'Acme', command: 'cua-driver' } },
+    desktop: {
+      use: '@ai-bdd/driver-cua',
+      options: {
+        kind: 'browser',
+        launch: { command: '/usr/bin/chromium', args: ['--user-data-dir={profile}', '--force-renderer-accessibility', '--no-first-run', '{url}'] },
+      },
+    },
   },
   defaultDriver: 'desktop',
   // models, secrets ... unchanged
@@ -107,16 +112,27 @@ export default {
 ```
 
 ```js
-// ai-bdd.config.mjs: the factory form (a JS config can await the factory)
-import { createDriverFactory } from './drivers/cua.mjs';
+// ai-bdd.config.mjs: the factory form
+import { cua } from '@ai-bdd/driver-cua';
 
 export default {
-  drivers: { desktop: await createDriverFactory({ app: 'Acme', command: 'cua-driver' }) },
+  baseURL: 'http://localhost:3000',
+  drivers: { desktop: cua({ kind: 'browser', launch: { command: '/usr/bin/chromium', args: ['--user-data-dir={profile}', '--force-renderer-accessibility', '{url}'] } }) },
   defaultDriver: 'desktop',
 };
 ```
 
-`app` and `command` are options of the package you write, not of Cua Driver or ai-bdd. Run `ai-bdd doctor` first (it calls the driver's `selfCheck`, which should verify that `cua-driver` is installed and has its OS permissions), then `ai-bdd run --driver desktop` or set `defaultDriver`. Recordings are filed under the driver's id (`.ai-bdd/recordings/<driverId>/`), so characterizing on `desktop` does not touch the recordings made on `playwright`. Desktop windows are one shared resource, so declare `exclusiveResource` and `maxSessions: 1` and scenarios run one at a time. Confine navigation yourself: Cua Driver operates real apps and does not know `policy.allowHosts`.
+Each session starts its own copy of the application (`{profile}` is a fresh temporary directory, `{url}` the `baseURL`) and quits it when the session closes; use `window: { title: '^Calculator$' }` instead of `launch` to drive an application that is already running. Run `ai-bdd doctor` first: it calls the driver's `selfCheck`, which runs Cua Driver's `health_report` and names every failed check (no display, no accessibility bus, no permissions). All options are in the [package README](../packages/driver-cua/README.md).
+
+What to expect:
+
+- **Capabilities.** Verbs `click fill press check scroll wait`, plus `navigate back` for `kind: 'browser'` (through the address bar). `hover`, `select` and `request` are not offered, so steps that need them fall back to the agent. `maxSessions` is 1 with `exclusiveResource: 'cua-desktop'`: pointer and keyboard input are global to the desktop.
+- **Observations** are the accessibility tree with ARIA-style roles, names and states, so recordings replay by role and name like they do with Playwright. They take about a second per walk. The text of live regions (`status`, `log`, `timer`) is left out of the settle hash so that a ticking clock does not keep the screen from settling; checks and the judge still read it.
+- **No URL.** The page URL is not observable through the accessibility tree: `route` is the window title (browser name removed) and route assertions are unavailable.
+- **Focus.** Chromium and Electron refuse background input to an unfocused renderer, so the default `delivery: 'auto'` takes the foreground after the first refusal. Do not use the desktop while a run is in progress. A window manager must be running.
+- **Policy and secrets.** `policy.allowHosts` is enforced on the `navigate` verb only; confine the browser at the platform level for more. Secrets are typed as real key events, the session is tainted, and screenshots are never marked masked. Keep Cua Driver's trajectory recording and Computer History off for runs that type secrets.
+
+The CI job `cua` runs the real-product tests on a virtual desktop: the driver suite, and the characterization and replay flows with identical statuses to the fake driver.
 
 ### (c) A browser-use driver package
 
@@ -142,7 +158,7 @@ export default {
 };
 ```
 
-You can keep several drivers in one config (`drivers: { web: ..., desktop: ... }`) and pick per scenario with the `driver` directive in the doc or per run with `--driver <name>`; `-c <file>` selects a different config file altogether (`ai-bdd -c ai-bdd.cua.config.mjs run`).
+You can keep several drivers in one config (`drivers: { web: ..., desktop: ... }`) and pick per scenario with the `driver` directive in the doc or per run with `--driver <name>`; `-c <file>` selects a different config file altogether (`ai-bdd -c ai-bdd.desktop.config.mjs run`).
 
 ### What a driver package must export
 

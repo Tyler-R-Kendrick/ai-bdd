@@ -22,7 +22,7 @@ export interface TestConfigOptions {
  * Writes a config file for tests that registers the deterministic fake models and the fake driver through the
  * ordinary pluggable `drivers` / `models` config keys, extending the project's real config. Nothing here is read
  * from the environment and the CLI has no fake mode: a test selects this file with `ai-bdd -c <file>` or
- * `loadConfig({ configPath })`, exactly like a user selects a config that plugs in another driver, such as one built on Cua Driver.
+ * `loadConfig({ configPath })`, exactly like a user selects a config that plugs in another driver, such as `@ai-bdd/driver-cua`.
  * Returns the absolute path of the file.
  */
 export function writeTestConfig(opts: TestConfigOptions): string {
