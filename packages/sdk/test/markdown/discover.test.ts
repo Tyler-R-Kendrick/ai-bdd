@@ -115,6 +115,15 @@ describe('discoverDocs', () => {
     expect(await discoverDocs(config())).toEqual([]);
   });
 
+  it('R-PL4: a project root that does not exist fails with DOC_READ_FAILED naming the root', async () => {
+    const missing = join(root, 'does-not-exist');
+    const err = await discoverDocs({ ...config(), projectRoot: missing } as ResolvedConfig).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AiBddError);
+    expect((err as AiBddError).code).toBe('DOC_READ_FAILED');
+    expect((err as AiBddError).message).toBe(`project root is not readable: ${missing}`);
+    expect((err as AiBddError).cause).toBeInstanceOf(Error);
+  });
+
   it('R-PL4: discovered docs feed straight into the chunker', async () => {
     await put('docs/x.md', '# X\r\n\r\nhello\r\n');
     const [doc] = await discoverDocs(config());
