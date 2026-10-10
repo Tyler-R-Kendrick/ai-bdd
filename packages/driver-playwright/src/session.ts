@@ -70,6 +70,11 @@ function bounded(p: Promise<unknown>, ms = 2000): Promise<unknown> {
   return Promise.race([p, new Promise<void>((resolve) => setTimeout(resolve, ms).unref())]);
 }
 
+/** The value of `p`, or undefined when it takes longer than `ms` (default 2 s). */
+function within<T>(p: Promise<T>, ms = 2000): Promise<T | undefined> {
+  return Promise.race([p, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms).unref())]);
+}
+
 function isClosedError(msg: string): boolean {
   return /Target (page, context or browser|closed)|has been closed|Browser has been closed|browser.*disconnected/i.test(msg);
 }
@@ -102,6 +107,8 @@ export class PlaywrightSession implements DriverSession {
   private readonly cdpSessions: CDPSession[] = [];
   private readonly pageCdp = new WeakMap<Page, CDPSession>();
   private readonly closing = new WeakSet<Page>();
+  /** Pages we decided to close. The sweeper keeps closing them until they are gone: `page.close()` can hang on a popup that is mid-navigation. */
+  private readonly condemned = new Set<Page>();
   private sweeper: ReturnType<typeof setInterval> | undefined;
   /** When a top-level request of a frame that is not the session's page was last denied (a popup's first request). */
   private popupDenialAt = -Infinity;
@@ -170,7 +177,7 @@ export class PlaywrightSession implements DriverSession {
       if (verdict.ok) return;
       this.denials.push({ url: req.url(), reason: `redirect: ${verdict.reason}` });
       const owner = frame.page();
-      if (owner !== this.page) void owner.close().catch(() => undefined);
+      if (owner !== this.page) void this.forceClose(owner);
       else void this.page.evaluate('window.stop()').catch(() => undefined);
     };
   }
@@ -242,6 +249,10 @@ export class PlaywrightSession implements DriverSession {
     this.page.on('framenavigated', this.navHandler);
     // Backstop for popups whose events raced their first commit: no page other than ours may sit on a denied URL.
     this.sweeper = setInterval(() => {
+      for (const p of this.condemned) {
+        if (p.isClosed()) this.condemned.delete(p);
+        else void this.forceClose(p);
+      }
       for (const p of this.context.pages()) {
         if (p === this.page || p.isClosed()) continue;
         const u = p.url();
@@ -298,7 +309,12 @@ export class PlaywrightSession implements DriverSession {
    * short timer and then backed by the page's own CDP `Page.close`. Repeated calls for one page collapse into one.
    */
   private async forceClose(page: Page): Promise<void> {
-    if (page.isClosed() || this.closing.has(page)) return;
+    if (page.isClosed()) {
+      this.condemned.delete(page);
+      return;
+    }
+    this.condemned.add(page);
+    if (this.closing.has(page)) return;
     this.closing.add(page);
     try {
       const closed = await Promise.race([
@@ -306,7 +322,9 @@ export class PlaywrightSession implements DriverSession {
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500).unref()),
       ]);
       if (!closed && !page.isClosed()) {
-        await (this.pageCdp.get(page)?.send('Page.close') ?? Promise.resolve()).catch(() => undefined);
+        // Chromium only: ask the page's own target to close, with a session of its own when the guard has none for it.
+        const cdp = this.pageCdp.get(page) ?? (await within(this.context.newCDPSession(page).catch(() => undefined)));
+        await bounded((cdp?.send('Page.close') ?? Promise.resolve()).catch(() => undefined));
       }
     } finally {
       this.closing.delete(page);
