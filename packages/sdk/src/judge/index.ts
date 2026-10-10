@@ -99,7 +99,8 @@ export function aggregateJudgeSamples(
 }
 
 function neutralize(text: string): string {
-  return text.replace(/<(\/?)untrusted_observation/gi, '&lt;$1untrusted_observation');
+  // Escape the `<` of any open/close forgery, including whitespace-padded or re-cased ones (`< /Untrusted_Observation >`).
+  return text.replace(/<(?=\s*\/?\s*untrusted_observation)/gi, '&lt;');
 }
 
 function observationParts(id: 'before' | 'after', ev: JudgeEvidence): ContentPart[] {
@@ -150,7 +151,9 @@ function buildModelRequest(req: JudgeRequest, sample: number, signal?: AbortSign
 function parseSample(res: ModelResponse, sample: number): JudgeSample {
   let raw: unknown = res.object;
   if (raw === undefined && res.text !== undefined) {
-    const stripped = res.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    // Linear fence stripping: no `\s*` regex anchored at the end (quadratic on long whitespace runs).
+    let stripped = res.text.trim().replace(/^```(?:json)?\s*/i, '');
+    if (stripped.endsWith('```')) stripped = stripped.slice(0, -3).trimEnd();
     try {
       raw = JSON.parse(stripped);
     } catch {

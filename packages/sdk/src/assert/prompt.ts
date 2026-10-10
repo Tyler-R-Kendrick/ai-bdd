@@ -42,7 +42,8 @@ export function checkgenSystemPrompt(maxPredicates: number): string {
 }
 
 function neutralizeDelimiters(s: string): string {
-  return s.replace(/<(\/?)untrusted_observation/gi, '<$1 untrusted_observation');
+  // Also catches whitespace-padded or re-cased forgeries (`< /untrusted_observation >`): the `<` is escaped as an entity.
+  return s.replace(/<(?=\s*\/?\s*untrusted_observation)/gi, '&lt;');
 }
 
 export function truncateTree(s: string, max = CHECKGEN_TREE_MAX_CHARS): string {

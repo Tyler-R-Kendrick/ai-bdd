@@ -99,7 +99,8 @@ export function buildHeader(h: HeaderInput, redactor: Redactor): string {
 
 /** Prevents page text from closing or re-opening the untrusted block. */
 export function neutralizeDelimiters(text: string): string {
-  return text.replace(/<(\/?)(untrusted_observation)/gi, '<\\$1$2');
+  // Also catches whitespace-padded or re-cased forgeries (`< /untrusted_observation >`): the `<` is escaped with a backslash.
+  return text.replace(/<(?=\s*\/?\s*untrusted_observation)/gi, '<\\');
 }
 
 export function truncateTree(text: string, max: number = MAX_TREE_CHARS): string {
