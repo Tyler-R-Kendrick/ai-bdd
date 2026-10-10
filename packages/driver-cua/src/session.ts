@@ -55,6 +55,14 @@ function failure(code: AiBddErrorPayload['code'], message: string, retryable?: b
   return { ok: false, error: errorPayload(code, message, retryable, details) };
 }
 
+/**
+ * The driver answers a call that names a window which no longer exists with the generic code `tool_invocation_failed` and says
+ * why only in the message ("... is stale or no longer running; refresh list_windows."), so the message is part of the contract.
+ */
+export function isWindowGone(result: CuaToolResult): boolean {
+  return result.failed && (/window[_ ](?:not[_ ]found|gone)|no_such_window/i.test(result.code ?? '') || /(?:stale or no longer running|no such window|window .* (?:was )?closed)/i.test(result.text));
+}
+
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 export class CuaSession implements DriverSession {
@@ -126,8 +134,9 @@ export class CuaSession implements DriverSession {
   private toFailure(result: CuaToolResult, what: string): ActionOutcome {
     const detail = this.sanitize(result.text);
     const code = result.code ?? '';
+    if (isWindowGone(result)) return failure('DRIVER_UNAVAILABLE', `${what}: ${detail || 'the window is gone'}`);
     if (/stale/.test(code)) return failure('STALE_REF', `${what}: ${detail || 'the element handle is stale'}`, false);
-    if (/not_found|no_such|missing_element|window_gone|no_window/.test(code)) return failure('TARGET_NOT_FOUND', `${what}: ${detail || code}`, false);
+    if (/not_found|no_such|missing_element/.test(code)) return failure('TARGET_NOT_FOUND', `${what}: ${detail || code}`, false);
     return failure('DRIVER_ERROR', `${what}: ${detail || code || 'cua-driver reported an error'}`);
   }
 
@@ -163,8 +172,7 @@ export class CuaSession implements DriverSession {
         timeout + 15_000,
       );
       if (res.failed) {
-        const code = res.code ?? '';
-        throw new AiBddError(/window|not_found|gone/.test(code) ? 'DRIVER_UNAVAILABLE' : 'DRIVER_ERROR', `get_window_state: ${this.sanitize(res.text) || code || 'failed'}`);
+        throw new AiBddError(isWindowGone(res) ? 'DRIVER_UNAVAILABLE' : 'DRIVER_ERROR', `get_window_state: ${this.sanitize(res.text) || res.code || 'failed'}`);
       }
       if (res.structured['truncated'] !== true || attempt >= 1 || timeout >= 120_000) break;
       timeout = Math.min(timeout * 2, 120_000);
