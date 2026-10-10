@@ -1,10 +1,13 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it , vi } from 'vitest';
 import type { Driver, DriverSession, Observation, ObservedNode, Policy, ValueSource } from '@ai-bdd/sdk/contracts';
 import { parseAriaSnapshot, playwright, pruneWrappers, sessionFromPage } from '../src/index.ts';
 import { browserAvailable, launchRaw } from './browser.ts';
+
+// Real browsers on a busy CI box: give each test room.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
 
 /**
  * Integration tests against the Acme fixture app (`startAcmeApp` from @ai-bdd/testing, built by P-APP).

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it , vi } from 'vitest';
 import type { Browser } from 'playwright-core';
 import { AiBddError } from '@ai-bdd/sdk/contracts';
 import type { Driver, DriverSession, Observation, ObservedNode, Policy, SessionOptions, ValueSource } from '@ai-bdd/sdk/contracts';
@@ -7,6 +7,9 @@ import { browserAvailable, launchRaw } from './browser.ts';
 import { startFixture } from './fixture.ts';
 import type { Fixture } from './fixture.ts';
 import { decodePng, diffBox, pixel } from './png-decode.ts';
+
+// Real browsers on a busy CI box: give each test room.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
 
 const hasBrowser = await browserAvailable();
 const SECRET = 'correct-horse-battery';

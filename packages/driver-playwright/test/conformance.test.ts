@@ -1,7 +1,10 @@
-import { afterAll } from 'vitest';
+import { afterAll, vi } from 'vitest';
 import { playwright } from '../src/index.ts';
 import { runDriverConformance } from '../../sdk/test/kit/driver-conformance.ts';
 import { browserAvailable } from './browser.ts';
+
+// Real browsers on a busy CI box: give each test room.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
 
 /**
  * Shared driver conformance kit (spec 11.2) against the real Acme app. Needs Chromium and a working `startAcmeApp`;

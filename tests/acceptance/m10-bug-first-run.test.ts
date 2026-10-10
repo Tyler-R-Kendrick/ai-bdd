@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, it } from 'vitest';
 import { expectBugFirstRun, flowBugFirstRun, type BugFirstRun } from './helpers/flows.ts';
 import { fakeTarget } from './helpers/targets.ts';
 

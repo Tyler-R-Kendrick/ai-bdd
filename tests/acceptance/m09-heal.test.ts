@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, it } from 'vitest';
 import { expectHeal, flowHeal, type HealRuns } from './helpers/flows.ts';
 import { fakeTarget } from './helpers/targets.ts';
 
