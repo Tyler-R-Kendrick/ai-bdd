@@ -12,7 +12,7 @@ import { errorMessage } from './util.ts';
 
 export async function review(core: Core, id: string, action: 'accept' | 'reject' | 'pin' | 'unpin'): Promise<void> {
   core.assertOpen();
-  await assertOutputDirs(core.config, ['plans']);
+  await assertOutputDirs(core.config, ['plans'], ['plans']);
   const store = core.planStore();
   const plans = await store.loadAll();
   const plan = plans.find((p) => p.features.some((f) => f.id === id || f.scenarios.some((s) => s.id === id)));
@@ -23,7 +23,7 @@ export async function review(core: Core, id: string, action: 'accept' | 'reject'
 /** Remove recordings whose scenario is in no plan. Refuses to delete when recordings are read-only. */
 export async function prune(core: Core, opts: { dryRun?: boolean } = {}): Promise<{ removed: string[] }> {
   core.assertOpen();
-  await assertOutputDirs(core.config, ['plans', 'recordings']);
+  await assertOutputDirs(core.config, ['plans', 'recordings'], opts.dryRun === true ? [] : ['recordings']);
   const known = new Set(allTargets(await core.planStore().loadAll()).map((t) => t.scenario.id));
   const store = core.recordings();
   const orphans = (await store.list()).filter((r) => !known.has(r.scenarioId));

@@ -88,6 +88,7 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   const full = opts.full === true;
   const before = core.meter.snapshot();
   throwIfAborted(opts.signal);
+  if (!check && !dryRun) await assertOutputDirs(config, ['plans'], ['plans']); // before any model call is spent
 
   const { chunked, discoveredUris, plans, status } = await analyze(core, opts.docs);
   const planByUri = new Map(plans.map((p) => [p.docUri, p]));

@@ -40,7 +40,7 @@ export async function runTarget(core: Core, target: ScenarioTarget, opts: Partia
   core.assertOpen();
   const full: RunnerOpts = { updateRecordings: false, strict: false, noAgent: false, audit: false, ...opts };
   guardRecordingsMode(core, full.updateRecordings);
-  await assertOutputDirs(core.config, ['recordings', 'runs', 'cache']);
+  await assertOutputDirs(core.config, ['recordings', 'runs', 'cache'], ['recordings', 'runs', 'cache']);
   core.warnOnce();
   // An adopted session (sessionFactory) never needs a configured driver.
   if (full.sessionFactory === undefined) await core.ensureDrivers(neededDrivers(core, [target], full.driver));
@@ -87,7 +87,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
   const workers = opts.workers ?? config.concurrency.scenarios;
   guardRecordingsMode(core, updateRecordings);
   throwIfAborted(opts.signal);
-  await assertOutputDirs(config, ['plans', 'recordings', 'runs', 'cache']);
+  await assertOutputDirs(config, ['plans', 'recordings', 'runs', 'cache'], ['recordings', 'runs', 'cache', ...(shouldCompile ? (['plans'] as const) : [])]);
 
   const before = core.meter.snapshot();
   const startedAt = new Date(core.clock.now()).toISOString();

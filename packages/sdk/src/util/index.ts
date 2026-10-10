@@ -222,14 +222,15 @@ export async function atomicWriteFile(path: string, data: string | Uint8Array, o
   const tmp = `${path}.${process.pid}.${randomUUID()}.tmp`;
   const fh = await open(tmp, 'w');
   try {
-    await fh.writeFile(data);
-    await fh.sync();
-  } finally {
-    await fh.close();
-  }
-  try {
+    try {
+      await fh.writeFile(data);
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
     await rename(tmp, path);
   } catch (err) {
+    // a failed write (disk full, I/O error) must not leave a partial temp file behind to eat the little space that is left
     await rm(tmp, { force: true });
     throw err;
   }

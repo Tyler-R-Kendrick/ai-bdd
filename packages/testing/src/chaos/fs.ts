@@ -69,7 +69,7 @@ export function lockDirectory(dir: string): PermissionLock {
   }
 }
 
-export type MountResult = { ok: true; dir: string; unmount(): void } | { ok: false; reason: string };
+export type MountResult = { ok: true; dir: string; unmount(): void; /** Remount the file system read-only: every write fails with EROFS, even for root. */ remountReadOnly(): void } | { ok: false; reason: string };
 
 /**
  * Mount a tiny tmpfs at `dir` (created if needed) to get a REAL "No space left on device". Needs root (or CAP_SYS_ADMIN) and
@@ -88,6 +88,9 @@ export function mountTinyTmpfs(dir: string, sizeKiB = 16): MountResult {
   return {
     ok: true,
     dir,
+    remountReadOnly() {
+      execFileSync('mount', ['-o', 'remount,ro', dir], { stdio: 'pipe' });
+    },
     unmount() {
       try {
         execFileSync('umount', [dir], { stdio: 'pipe' });

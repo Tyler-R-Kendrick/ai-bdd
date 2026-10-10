@@ -1,4 +1,5 @@
-import { stat } from 'node:fs/promises';
+import { access, constants, stat } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { AiBddError, type ResolvedConfig } from '../contracts/index.ts';
 import { assertInsideRealRoot, toPosix } from '../util/index.ts';
 import { errorMessage } from './util.ts';
@@ -25,7 +26,22 @@ function why(err: unknown): string {
   return errorMessage(err);
 }
 
-async function check(which: OutputDir, dir: string): Promise<void> {
+/** The directory itself, or the nearest existing ancestor (where it would be created). */
+async function nearestExisting(dir: string): Promise<string> {
+  let cur = dir;
+  for (;;) {
+    try {
+      await stat(cur);
+      return cur;
+    } catch {
+      const parent = dirname(cur);
+      if (parent === cur) return cur;
+      cur = parent;
+    }
+  }
+}
+
+async function check(which: OutputDir, dir: string, write: boolean): Promise<void> {
   const where = `${which} directory ${toPosix(dir)}`;
   const unusable = (err: unknown): AiBddError =>
     new AiBddError('CONFIG_INVALID', `the ${where} cannot be used: ${why(err)}`, { details: { dir: toPosix(dir), kind: which }, cause: err });
@@ -38,11 +54,29 @@ async function check(which: OutputDir, dir: string): Promise<void> {
   try {
     info = await stat(dir);
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return; // created on first write
-    throw unusable(err);
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw unusable(err);
+    // created on first write: the nearest existing ancestor must then be writable
+    if (write) {
+      const ancestor = await nearestExisting(dir);
+      try {
+        await access(ancestor, constants.W_OK);
+      } catch (accessErr) {
+        const reason = (accessErr as NodeJS.ErrnoException).code === 'EROFS' ? 'it would be created on a read-only file system' : 'it cannot be created (the parent is not writable)';
+        throw new AiBddError('CONFIG_INVALID', `the ${where} cannot be used: ${reason}`, { details: { dir: toPosix(dir), kind: which }, cause: accessErr });
+      }
+    }
+    return;
   }
   if (!info.isDirectory()) {
     throw new AiBddError('CONFIG_INVALID', `the ${where} exists but is not a directory`, { details: { dir: toPosix(dir), kind: which } });
+  }
+  if (write) {
+    try {
+      await access(dir, constants.W_OK);
+    } catch (err) {
+      const reason = (err as NodeJS.ErrnoException).code === 'EROFS' ? 'it is on a read-only file system' : 'it is not writable';
+      throw new AiBddError('CONFIG_INVALID', `the ${where} cannot be used: ${reason}`, { details: { dir: toPosix(dir), kind: which }, cause: err });
+    }
   }
 }
 
@@ -50,10 +84,13 @@ async function check(which: OutputDir, dir: string): Promise<void> {
  * Fails fast, before any model call or write, when an output directory is unusable: a file or a symlink loop where a directory
  * belongs (`CONFIG_INVALID`), or a symlink that leads out of the project (`POLICY_DENIED`). Both are exit 2 with a message that
  * names the directory, instead of an `ENOTDIR` internal error or a scenario that fails after all its model calls were spent.
+ * Directories in `writes` must also be writable (a read-only file system, missing permission), also checked up front.
  */
-export async function assertOutputDirs(config: ResolvedConfig, which: readonly OutputDir[]): Promise<void> {
+export async function assertOutputDirs(config: ResolvedConfig, which: readonly OutputDir[], writes: readonly OutputDir[] = []): Promise<void> {
   for (const w of which) {
     if (w === 'recordings' && config.recordingsMode === 'off') continue;
-    await check(w, dirOf(config, w));
+    // recordings are only written in read-write mode (CI keeps them read-only on purpose)
+    const write = writes.includes(w) && !(w === 'recordings' && config.recordingsMode !== 'read-write');
+    await check(w, dirOf(config, w), write);
   }
 }

@@ -3,17 +3,20 @@
 // project may be written or deleted; and once the hostility is removed the very same command works again.
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, type TestContext } from 'vitest';
 import {
   diffSnapshots,
+  findTempLeftovers,
+  lockDirectory,
   makeOutsideDir,
+  mountTinyTmpfs,
   removePath,
   replaceWithFile,
   snapshotTree,
   symlinkEscape,
   symlinkLoop,
 } from '@ai-bdd/testing';
-import { FAST, T, chaosEngine, cliOutput, compilePlain, createProject, runCli, type Project } from './helpers/kit.ts';
+import { FAST, T, chaosEngine, cliOutput, compilePlain, createProject, expectStoreFilesValid, planFiles, runCli, type Project } from './helpers/kit.ts';
 import { readFakeLog } from '../acceptance/helpers/calls.ts';
 
 const OPTIONS = FAST;
@@ -160,5 +163,126 @@ describe('chaos 8: the directory is swapped while a scenario is running', () => 
         expect(ce.driver?.stats.openSessions()).toEqual([]);
       },
     );
+  });
+});
+
+/** A real, tiny file system mounted over `dir`, or a visible skip (with the reason) when this machine cannot mount one. */
+function tinyDiskOrSkip(ctx: TestContext, dir: string, kib = 16): Extract<ReturnType<typeof mountTinyTmpfs>, { ok: true }> {
+  const mount = mountTinyTmpfs(dir, kib);
+  if (!mount.ok) return ctx.skip(`cannot emulate a full/read-only disk here: ${mount.reason}`) as never;
+  return mount;
+}
+
+describe('chaos 8: the disk fills up, or is read-only, or refuses writes', () => {
+  it.concurrent('plans on a full disk (16 KiB tmpfs): the failure is reported, no partial temp file eats the remaining space, no plan is torn, and a rerun on a healthy disk converges', async (ctx) => {
+    await withSetup(['billing', 'login'], false, async (project) => {
+      const reference = createProject({ docs: ['billing', 'login'], options: OPTIONS });
+      try {
+        await compilePlain(reference);
+        const mount = tinyDiskOrSkip(ctx, project.plansDir);
+        try {
+          const r = await runCli(project, ['compile'], { overrides: OPTIONS, timeoutMs: 90_000 });
+          expect(r.code, cliOutput(r)).toBe(3);
+          expect(r.stderr, cliOutput(r)).toMatch(/no space left on device/i);
+          expect(r.stderr).not.toMatch(/Unhandled|TypeError/);
+          expect(findTempLeftovers(project.plansDir), 'a failed write removed its own temp file').toEqual([]);
+          for (const file of Object.keys(planFiles(project))) JSON.parse(readFileSync(join(project.plansDir, file), 'utf8'));
+        } finally {
+          mount.unmount();
+        }
+        const again = await runCli(project, ['compile'], { overrides: OPTIONS, timeoutMs: 90_000 });
+        expect(again.code, cliOutput(again)).toBe(0);
+        expect(planFiles(project)).toEqual(planFiles(reference));
+      } finally {
+        reference.cleanup();
+      }
+    });
+  });
+
+  it.concurrent('recordings on a full disk: each scenario that cannot save ends in error (exit 3), the ones that fit are complete files, nothing partial remains', async (ctx) => {
+    await withSetup(['billing'], true, async (project) => {
+      const mount = tinyDiskOrSkip(ctx, project.recordingsDir, 12);
+      try {
+        const r = await runCli(project, ['run', '--no-compile'], { overrides: OPTIONS, timeoutMs: 120_000 });
+        expect(r.code, cliOutput(r)).toBe(3);
+        expect(r.stdout).toMatch(/^ERROR /m);
+        expect(r.stdout + r.stderr).toMatch(/no space left on device/i);
+        expect(r.stderr).not.toMatch(/Unhandled|TypeError|internal error/);
+        expect(findTempLeftovers(project.recordingsDir)).toEqual([]);
+        await expectStoreFilesValid(project);
+      } finally {
+        mount.unmount();
+      }
+      const again = await runCli(project, ['run', '--no-compile'], { overrides: OPTIONS, timeoutMs: 120_000 });
+      expect(again.code, cliOutput(again)).toBe(0);
+    });
+  });
+
+  it.concurrent('run evidence on a full disk: the CLI ends with a documented code and a message, leaves no partial temp files and no unhandled error', async (ctx) => {
+    await withSetup(['login'], true, async (project) => {
+      const mount = tinyDiskOrSkip(ctx, project.runsDir, 8);
+      try {
+        const r = await runCli(project, ['run', '--no-compile'], { overrides: OPTIONS, timeoutMs: 120_000 });
+        expect([0, 1, 2, 3], cliOutput(r)).toContain(r.code);
+        expect(r.stderr).not.toMatch(/Unhandled|TypeError/);
+        expect(findTempLeftovers(project.runsDir), 'no partial temp file in the full run directory').toEqual([]);
+      } finally {
+        mount.unmount();
+      }
+    });
+  });
+
+  it.concurrent('a read-only plans directory is refused up front: exit 2, "read-only file system", before any model call', async (ctx) => {
+    await withSetup(['login'], false, async (project) => {
+      const mount = tinyDiskOrSkip(ctx, project.plansDir);
+      try {
+        mount.remountReadOnly();
+        const r = await runCli(project, ['compile'], { overrides: OPTIONS });
+        expect(r.code, cliOutput(r)).toBe(2);
+        expect(r.stderr).toMatch(/CONFIG_INVALID.*plans directory.*read-only file system/);
+        expect(readFakeLog(project.logPath), 'no model call was spent').toEqual([]);
+        // reading is still fine
+        expect((await runCli(project, ['compile', '--check'], { overrides: OPTIONS })).code).toBe(4);
+      } finally {
+        mount.unmount();
+      }
+    });
+  });
+
+  it.concurrent('a read-only recordings directory stops a characterization before it spends model calls; with read-only recordings mode (CI) the same disk is fine', async (ctx) => {
+    await withSetup(['login'], true, async (project) => {
+      const mount = tinyDiskOrSkip(ctx, project.recordingsDir);
+      try {
+        mount.remountReadOnly();
+        const callsBefore = readFakeLog(project.logPath).length;
+        const r = await runCli(project, ['run', '--no-compile'], { overrides: OPTIONS });
+        expect(r.code, cliOutput(r)).toBe(2);
+        expect(r.stderr).toMatch(/CONFIG_INVALID.*recordings directory.*read-only file system/);
+        expect(readFakeLog(project.logPath).length).toBe(callsBefore);
+
+        const ci = await runCli(project, ['run', '--no-compile'], { overrides: OPTIONS, env: { AI_BDD_RECORDINGS: 'read-only' } });
+        expect(ci.code, cliOutput(ci)).toBe(0);
+        expect(ci.stdout).toContain('Recordings (read-only): 1 discarded');
+      } finally {
+        mount.unmount();
+      }
+    });
+  });
+
+  it.concurrent('a directory the user may not write to (permission bits; they do not bind root, so this is skipped as root, with the reason)', async (ctx) => {
+    await withSetup(['login'], false, async (project) => {
+      mkdirSync(project.plansDir, { recursive: true });
+      const lock = lockDirectory(project.plansDir);
+      try {
+        if (!lock.effective) return ctx.skip(`permission bits are not enforced here: ${lock.reason}`);
+        const r = await runCli(project, ['compile'], { overrides: OPTIONS });
+        expect(r.code, cliOutput(r)).toBe(2);
+        expect(r.stderr).toMatch(/CONFIG_INVALID.*plans directory.*not writable/);
+        expect(readdirSync(project.plansDir)).toEqual([]);
+      } finally {
+        lock.restore();
+      }
+      expect((await runCli(project, ['compile'], { overrides: OPTIONS })).code).toBe(0);
+    });
   });
 });

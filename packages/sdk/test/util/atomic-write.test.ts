@@ -48,6 +48,14 @@ describe('atomicWriteFile', () => {
     expect(readdirSync(join(dir, 'a'))).toEqual(['b.json']);
   });
 
+  it('a write that fails halfway (here: data the file cannot take) leaves no temp file behind and the previous content intact', async () => {
+    const target = join(dir, 'keep.json');
+    writeFileSync(target, 'old');
+    await expect(atomicWriteFile(target, 123 as unknown as string)).rejects.toThrow();
+    expect(readdirSync(dir)).toEqual(['keep.json']);
+    expect(readFileSync(target, 'utf8')).toBe('old');
+  });
+
   it('with sweep, debris left by an interrupted write of ANY file in the directory is removed; without it, debris stays', async () => {
     const dead = deadPid();
     mkdirSync(join(dir, 'recs'));

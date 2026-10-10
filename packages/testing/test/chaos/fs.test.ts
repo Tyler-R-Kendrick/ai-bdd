@@ -112,6 +112,23 @@ describe('disk-full emulation', () => {
     expect(existsSync(join(dir, 'small.txt'))).toBe(false);
   });
 
+  it('remountReadOnly turns the same mount into a read-only file system (EROFS, even for root)', () => {
+    const dir = join(root, 'ro');
+    const mount = mountTinyTmpfs(dir, 16);
+    if (!mount.ok) {
+      expect(mount.reason.length).toBeGreaterThan(5);
+      return;
+    }
+    try {
+      writeFileSync(join(dir, 'before.txt'), 'writable at first');
+      mount.remountReadOnly();
+      expect(() => writeFileSync(join(dir, 'after.txt'), 'x')).toThrow(/EROFS/);
+      expect(readFileSync(join(dir, 'before.txt'), 'utf8')).toBe('writable at first');
+    } finally {
+      mount.unmount();
+    }
+  });
+
   it('mountTinyTmpfs refuses with a reason when not root', () => {
     if (process.getuid?.() === 0 && process.platform === 'linux') return;
     const r = mountTinyTmpfs(join(root, 'nope'));

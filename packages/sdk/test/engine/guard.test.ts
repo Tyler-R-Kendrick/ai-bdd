@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -92,5 +92,43 @@ describe('assertOutputDirs', () => {
 
   it('a directory outside any .ai-bdd path is not subject to the project-root rule (a configured absolute path is the user\'s choice)', async () => {
     await expect(assertOutputDirs(config({ planDir: join(outside, 'plans') }), ['plans'])).resolves.toBeUndefined();
+  });
+
+  // chmod does not bind root, so these two cannot run in a root sandbox (they are skipped there, visibly); the chaos suite
+  // covers the same code with a read-only file system, which binds root too.
+  const asRoot = process.getuid?.() === 0;
+
+  it.skipIf(asRoot)('a directory the user cannot write to is CONFIG_INVALID when it will be written, and fine when it is only read', async () => {
+    mkdirSync(join(root, '.ai-bdd', 'plans'));
+    chmodSync(join(root, '.ai-bdd', 'plans'), 0o555);
+    try {
+      await expect(assertOutputDirs(config(), ['plans'])).resolves.toBeUndefined();
+      const err = await failure(assertOutputDirs(config(), ['plans'], ['plans']));
+      expect(err.code).toBe('CONFIG_INVALID');
+      expect(err.message).toContain('plans directory');
+      expect(err.message).toContain('not writable');
+    } finally {
+      chmodSync(join(root, '.ai-bdd', 'plans'), 0o755);
+    }
+  });
+
+  it.skipIf(asRoot)('a directory that does not exist yet needs a writable parent', async () => {
+    chmodSync(join(root, '.ai-bdd'), 0o555);
+    try {
+      const err = await failure(assertOutputDirs(config(), ['runs'], ['runs']));
+      expect(err.code).toBe('CONFIG_INVALID');
+      expect(err.message).toContain('cannot be created');
+      await expect(assertOutputDirs(config(), ['runs'])).resolves.toBeUndefined();
+    } finally {
+      chmodSync(join(root, '.ai-bdd'), 0o755);
+    }
+  });
+
+  it('recordings are only required to be writable in read-write mode', async () => {
+    mkdirSync(join(root, '.ai-bdd', 'recordings'));
+    // not a writability failure, whatever the mode: the check is skipped for read-only and off, and passes for read-write here
+    for (const mode of ['read-only', 'off', 'read-write'] as const) {
+      await expect(assertOutputDirs(config({ recordingsMode: mode }), ['recordings'], ['recordings'])).resolves.toBeUndefined();
+    }
   });
 });
