@@ -7,7 +7,7 @@ describe('fake-model response kinds', () => {
     rules: [
       {
         rules: [
-          { id: 'obj', purpose: 'extract', respond: { object: { features: [], notTestable: [] } } },
+          { id: 'obj', purpose: 'extract', when: { kind: { notContains: 'retry' } }, respond: { object: { features: [], notTestable: [] } } },
           { id: 'txt', purpose: 'checkgen', respond: { text: 'plain text' } },
           {
             id: 'judge',
@@ -32,7 +32,7 @@ describe('fake-model response kinds', () => {
   });
 
   it('object responses return the object, no tool calls, finishReason stop, id fake:<purpose>', async () => {
-    const r = await m.extract.generate(req('extract', {}));
+    const r = await m.extract.generate(req('extract', { kind: 'plain' }));
     expect(r).toMatchObject({ object: { features: [], notTestable: [] }, toolCalls: [], finishReason: 'stop', modelId: 'fake:extract' });
     expect(r.text).toBeUndefined();
     expect(m.extract.id).toBe('fake:extract');
@@ -73,9 +73,9 @@ describe('fake-model response kinds', () => {
   });
 
   it('returned objects are copies: mutating a response never changes later responses', async () => {
-    const a = await m.extract.generate(req('extract', {}));
+    const a = await m.extract.generate(req('extract', { kind: 'plain' }));
     (a.object as { features: unknown[] }).features.push('x');
-    const b = await m.extract.generate(req('extract', {}));
+    const b = await m.extract.generate(req('extract', { kind: 'plain' }));
     expect(b.object).toEqual({ features: [], notTestable: [] });
   });
 });
