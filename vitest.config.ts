@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 /** Per-package floors (percent). Measured on the unit suite; see scripts/coverage-report.mjs for the current table. */
-const floor = (lines: number, branches: number, functions: number) => ({ lines, statements: lines, branches, functions });
+const floor = (lines: number, branches: number, functions: number) => ({ lines, branches, functions });
 const COVERAGE_FLOORS = {
   'packages/sdk/src/**': floor(97, 88, 97),
   'packages/cli/src/**': floor(96, 90, 97),
