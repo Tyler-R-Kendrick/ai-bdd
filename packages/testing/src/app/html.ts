@@ -86,7 +86,7 @@ export function renderNodes(nodes: readonly UINode[], route: string): string {
 }
 
 function jsString(value: string): string {
-  return JSON.stringify(value).replace(/</g, '\\u003c').replace(/ /g, '\\u2028').replace(/ /g, '\\u2029');
+  return JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
 
 const SYNC_SCRIPT = `(function(){
