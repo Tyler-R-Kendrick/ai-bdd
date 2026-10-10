@@ -10,4 +10,8 @@ process.on('SIGINT', () => {
   controller.abort();
 });
 
-process.exitCode = await main(process.argv.slice(2), {}, { signal: controller.signal });
+const code = await main(process.argv.slice(2), {}, { signal: controller.signal });
+process.exitCode = code;
+// A driver that leaked a handle (a stuck connection, a child process it never reaped) must not keep a finished CLI alive forever:
+// the timer is unref'd, so a clean process still exits at once, and only a lingering one is ended after the grace period.
+setTimeout(() => process.exit(code), 5_000).unref();

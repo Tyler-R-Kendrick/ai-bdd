@@ -159,6 +159,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:fuzz
 
+  chaos:
+    # Fault injection: driver crashes and garbled observations, model failures, hung calls, killed writers, concurrent runs,
+    # hostile directories and secrets in error paths. Seeds are printed on failure; rerun with CHAOS_SEED=<seed>.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:chaos
+      # The tests that need a real full or read-only file system mount a tiny tmpfs, which takes root; unprivileged they skip with that reason.
+      - name: "chaos (privileged, real disk-full and read-only file systems)"
+        run: sudo -E env "PATH=$PATH" pnpm exec vitest run --project chaos tests/chaos/c08-hostile-fs.test.ts
+
   playwright:
     runs-on: ubuntu-latest
     strategy:

@@ -25,11 +25,13 @@ doctor [--offline]
 |---|---|
 | 0 | Everything passed. `healed` counts as passed unless `--strict`. |
 | 1 | A scenario `failed`, was `inconclusive` or `blocked`; `compile` had extraction errors; `verify-run` found problems; a `doctor` check failed. |
-| 2 | Usage, config or doc-read error. Also `RECORDING_READ_ONLY`, `SCENARIO_NOT_FOUND` and corrupt plans. |
+| 2 | Usage, config or doc-read error. Also `RECORDING_READ_ONLY`, `SCENARIO_NOT_FOUND`, corrupt plans, and an output directory that is a file, a symlink loop, or a symlink out of the project. |
 | 3 | Infrastructure: driver or model unavailable, a scenario ended `error`, or an unexpected internal error. Takes precedence over 1. |
 | 4 | Frozen violation: a stale, new or orphaned plan under `--frozen` or `compile --check`. Checked before anything runs. |
 
 Set `AI_BDD_DEBUG=1` to print stack traces for unexpected errors.
+
+Ctrl-C asks the run to finish up: the call in flight is abandoned (even a driver or model call that never returns), the scenario ends `error` with `ABORTED` (exit 3), sessions are closed and the reports are written. A second Ctrl-C quits at once (exit 130). After the run the process is ended after five seconds if a driver left something open.
 
 ## `init`
 

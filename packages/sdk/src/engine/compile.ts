@@ -9,6 +9,7 @@ import {
   type EvidenceStore,
   type ExitCode,
   type ExtractionResult,
+  type Extractor,
   type FixtureDescriptor,
   type JsonValue,
   type PlanStatus,
@@ -17,6 +18,7 @@ import {
 import { stableJson } from '../util/index.ts';
 import type { Core } from './core.ts';
 import { zeroUsage } from './usage.ts';
+import { assertOutputDirs } from './guard.ts';
 import { cmp, errorMessage, mapPool, matchesAnyGlob, throwIfAborted } from './util.ts';
 
 export interface DocAnalysis {
@@ -30,6 +32,7 @@ export interface DocAnalysis {
 /** discover -> chunk -> load plans -> status. Never calls a model and never writes. */
 export async function analyze(core: Core, docFilter?: readonly string[]): Promise<DocAnalysis> {
   const { config, modules } = core;
+  await assertOutputDirs(config, ['plans']);
   const filter = docFilter !== undefined && docFilter.length > 0 ? docFilter : undefined;
   const sources = await modules.discoverDocs(config);
   const selected = filter === undefined ? sources : sources.filter((s) => matchesAnyGlob(filter, s.uri));
@@ -74,6 +77,50 @@ function failedResult(core: Core, section: Section, err: unknown): ExtractionRes
 
 const isReadError = (d: Diagnostic): boolean => d.code === 'DOC_READ_FAILED' && d.severity === 'error';
 
+/** Which model and prompt produced the plan: this run's extraction if any section was extracted, else what the previous plan recorded. */
+function extractorMeta(core: Core, previous: DocPlan | null, extracted: ReadonlyMap<string, ExtractionResult>): { extractor: { modelId: string; promptVersion: string } } {
+  const first = [...extracted.values()].find((r) => r.modelId !== '');
+  if (first) return { extractor: { modelId: first.modelId, promptVersion: first.promptVersion } };
+  return { extractor: previous?.extractor ?? { modelId: core.models.extract.id, promptVersion: core.modules.extractPromptVersion } };
+}
+
+/** Sort a document's extracted sections into the entry's extracted and failed lists and collect their diagnostics. */
+function recordSections(entry: CompileResult['docs'][number], doc: ChunkedDoc, extracted: ReadonlyMap<string, ExtractionResult>): void {
+  for (const section of doc.sections) {
+    const r = extracted.get(section.id);
+    if (r === undefined) continue;
+    (r.failed ? entry.failedSections : entry.extractedSections).push(section.id);
+    entry.diagnostics.push(...r.diagnostics);
+  }
+}
+
+/** Extract one dirty section. A model failure (anything but an abort) becomes a failed result, so one bad section never loses the others. */
+async function extractTask(
+  core: Core,
+  extractor: Extractor,
+  task: Task,
+  shared: { fixtures: ReturnType<typeof fixtureDescriptors>; secretNames: string[]; signal: AbortSignal | undefined },
+): Promise<{ task: Task; result: ExtractionResult }> {
+  throwIfAborted(shared.signal);
+  let result: ExtractionResult;
+  try {
+    result = await extractor.extractSection({
+      doc: task.doc,
+      section: task.section,
+      fixtures: shared.fixtures,
+      secretNames: shared.secretNames,
+      previousTitles: task.previous?.features.filter((f) => f.sectionId === task.section.id).map((f) => f.title) ?? [],
+      rejected: task.previous?.rejected ?? [],
+      ...(shared.signal === undefined ? {} : { signal: shared.signal }),
+    });
+  } catch (err) {
+    if (err instanceof AiBddError && err.code === 'ABORTED') throw err;
+    result = failedResult(core, task.section, err);
+  }
+  core.emit({ type: 'compile-section', docUri: task.doc.doc.uri, sectionId: task.section.id, status: result.failed ? 'failed' : 'extracted' });
+  return { task, result };
+}
+
 /**
  * Compile (§7, §8): discover -> chunk -> dirty sections -> extract (concurrently) -> merge -> save.
  * `check` writes nothing and never calls a model; `dryRun` extracts but writes nothing.
@@ -86,6 +133,7 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   const full = opts.full === true;
   const before = core.meter.snapshot();
   throwIfAborted(opts.signal);
+  if (!check && !dryRun) await assertOutputDirs(config, ['plans'], ['plans']); // before any model call is spent
 
   const { chunked, discoveredUris, plans, status } = await analyze(core, opts.docs);
   const planByUri = new Map(plans.map((p) => [p.docUri, p]));
@@ -132,26 +180,7 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   const fixtures = fixtureDescriptors(core);
   const secretNames = Object.keys(config.secrets).sort(cmp);
   const results = new Map<string, Map<string, ExtractionResult>>();
-  const extractedDocs = await mapPool(tasks, config.extract.concurrency, async (task) => {
-    throwIfAborted(opts.signal);
-    let result: ExtractionResult;
-    try {
-      result = await extractor.extractSection({
-        doc: task.doc,
-        section: task.section,
-        fixtures,
-        secretNames,
-        previousTitles: task.previous?.features.filter((f) => f.sectionId === task.section.id).map((f) => f.title) ?? [],
-        rejected: task.previous?.rejected ?? [],
-        ...(opts.signal === undefined ? {} : { signal: opts.signal }),
-      });
-    } catch (err) {
-      if (err instanceof AiBddError && err.code === 'ABORTED') throw err;
-      result = failedResult(core, task.section, err);
-    }
-    core.emit({ type: 'compile-section', docUri: task.doc.doc.uri, sectionId: task.section.id, status: result.failed ? 'failed' : 'extracted' });
-    return { task, result };
-  });
+  const extractedDocs = await mapPool(tasks, config.extract.concurrency, (task) => extractTask(core, extractor, task, { fixtures, secretNames, signal: opts.signal }));
   for (const { task, result } of extractedDocs) {
     let perDoc = results.get(task.doc.doc.uri);
     if (perDoc === undefined) results.set(task.doc.doc.uri, (perDoc = new Map()));
@@ -165,20 +194,9 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
     const uri = doc.doc.uri;
     const previous = planByUri.get(uri) ?? null;
     const extracted = results.get(uri) ?? new Map<string, ExtractionResult>();
-    const first = [...extracted.values()].find((r) => r.modelId !== '');
-    const meta = {
-      extractor: first
-        ? { modelId: first.modelId, promptVersion: first.promptVersion }
-        : (previous?.extractor ?? { modelId: core.models.extract.id, promptVersion: modules.extractPromptVersion }),
-    };
-    const merged = core.planner().merge(doc, previous, extracted, meta);
+    const merged = core.planner().merge(doc, previous, extracted, extractorMeta(core, previous, extracted));
     const entry = entryFor(uri, statusByUri.get(uri)?.state ?? (previous === null ? 'new' : 'fresh'));
-    for (const section of doc.sections) {
-      const r = extracted.get(section.id);
-      if (r === undefined) continue;
-      (r.failed ? entry.failedSections : entry.extractedSections).push(section.id);
-      entry.diagnostics.push(...r.diagnostics);
-    }
+    recordSections(entry, doc, extracted);
     entry.diagnostics.push(...merged.diagnostics);
     entry.added = merged.added;
     entry.updated = merged.updated;
