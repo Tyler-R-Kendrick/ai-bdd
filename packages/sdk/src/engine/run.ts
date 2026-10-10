@@ -3,13 +3,16 @@ import { basename, dirname, join } from 'node:path';
 import {
   AiBddError,
   type Diagnostic,
+  type DocPlan,
   type JsonValue,
+  type ReporterName,
   type RunOptions,
   type RunReport,
   type ScenarioResult,
   type ScenarioRunOptions,
   type ScenarioTarget,
 } from '../contracts/index.ts';
+import { uuidv7 } from '../util/index.ts';
 import { compile } from './compile.ts';
 import type { Core } from './core.ts';
 import { buildUsage, computeCoverage, computeRunExitCode, countTotals } from './report.ts';
@@ -32,7 +35,7 @@ function neededDrivers(core: Core, targets: readonly ScenarioTarget[], cliDriver
   return targets.map((t) => t.scenario.driver ?? cliDriver ?? core.config.defaultDriver);
 }
 
-export async function runScenarioById(core: Core, target: ScenarioTarget, opts: Partial<ScenarioRunOptions> = {}): Promise<ScenarioResult> {
+export async function runTarget(core: Core, target: ScenarioTarget, opts: Partial<ScenarioRunOptions> = {}): Promise<ScenarioResult> {
   core.assertOpen();
   const full: RunnerOpts = { updateRecordings: false, strict: false, noAgent: false, audit: false, ...opts };
   guardRecordingsMode(core, full.updateRecordings);
@@ -43,7 +46,7 @@ export async function runScenarioById(core: Core, target: ScenarioTarget, opts: 
   return runner.runScenario(target, full);
 }
 
-async function writeReports(core: Core, report: RunReport, outDir: string, names: RunOptions['reporters'], plans: ReturnType<typeof computeCoverage> extends never ? never : Parameters<ReturnType<Core['modules']['createReporters']>[number]['render']>[1]['plans']): Promise<void> {
+async function writeReports(core: Core, report: RunReport, outDir: string, names: ReporterName[] | undefined, plans: readonly DocPlan[]): Promise<void> {
   const reporters = core.modules.createReporters(names ?? core.config.reporters);
   const written: string[] = [];
   for (const reporter of reporters) {
@@ -105,7 +108,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
       for (const d of check.docs.filter((x) => x.state !== 'fresh')) {
         warnings.push({ code: 'PLAN_STALE', severity: 'error', message: `Plan for ${d.docUri} is ${d.state}; run "ai-bdd compile" (frozen mode)`, uri: d.docUri });
       }
-      return emptyReport('frozen', 4);
+      return emptyReport(uuidv7(core.clock.now()), 4);
     }
     if (check.exitCode === 2) {
       warnings.push(...check.docs.flatMap((d) => d.diagnostics.filter((x) => x.severity === 'error')));

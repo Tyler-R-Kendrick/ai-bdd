@@ -103,7 +103,7 @@ class EvalContext {
   }
 
   /** Indices of nodes matching the query. */
-  match(query: NodeQuery): number[] {
+  select(query: NodeQuery): number[] {
     const role = isStr(query.role) ? query.role : undefined;
     const testId = isStr(query.testId) ? query.testId : undefined;
     const name = isStr(query.name) ? fold(query.name) : undefined;
@@ -128,11 +128,11 @@ class EvalContext {
 function evalOne(ctx: EvalContext, predicate: Predicate, params: Record<string, string>): PredicateResult {
   switch (predicate.op) {
     case 'exists': {
-      const n = ctx.match(predicate.query).length;
+      const n = ctx.select(predicate.query).length;
       return { predicate, satisfied: predicate.negate === true ? n === 0 : n >= 1, actual: { matches: n } };
     }
     case 'count': {
-      const n = ctx.match(predicate.query).length;
+      const n = ctx.select(predicate.query).length;
       const v = predicate.value;
       let ok: boolean | 'unknown';
       if (typeof v !== 'number') ok = false;
@@ -143,7 +143,7 @@ function evalOne(ctx: EvalContext, predicate: Predicate, params: Record<string, 
       return { predicate, satisfied: ok, actual: { matches: n } };
     }
     case 'text': {
-      const idx = ctx.match(predicate.query);
+      const idx = ctx.select(predicate.query);
       if (idx.length !== 1) return { predicate, satisfied: false, actual: { matches: idx.length } };
       const node = ctx.nodes[idx[0] as number] as ObservedNode;
       const tv = predicate.value as { literal?: string; param?: string };
@@ -170,7 +170,7 @@ function evalOne(ctx: EvalContext, predicate: Predicate, params: Record<string, 
       return { predicate, satisfied: predicate.match === 'equals' || predicate.match === 'contains' ? hit : 'unknown', actual };
     }
     case 'state': {
-      const idx = ctx.match(predicate.query);
+      const idx = ctx.select(predicate.query);
       if (idx.length !== 1) return { predicate, satisfied: false, actual: { matches: idx.length } };
       const node = ctx.nodes[idx[0] as number] as ObservedNode;
       const key = predicate.state as string;

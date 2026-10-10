@@ -141,21 +141,21 @@ describe('extract prompt', () => {
   });
 
   it('R-EX2: context text is truncated to 4000 characters in total', () => {
-    const input = makeInput({ contextText: 'x'.repeat(6000) });
+    const input = makeInput({ contextText: '\u00a7'.repeat(6000) });
     const built = buildPrompt(input);
     const entry = built.handles.get('c1');
     expect(entry?.text).toHaveLength(CONTEXT_CHAR_LIMIT);
-    expect(built.userText.match(/x/g)?.length).toBe(CONTEXT_CHAR_LIMIT);
+    expect(built.userText.match(/\u00a7/g)?.length).toBe(CONTEXT_CHAR_LIMIT);
   });
 
   it('R-EX2: the 4000 character context budget is shared across context chunks', () => {
-    const second = chunk('_preamble/p2', 'paragraph', 'y'.repeat(3000), 2, 'docs/billing.md#_preamble');
-    const third = chunk('_preamble/p3', 'paragraph', 'z'.repeat(100), 3, 'docs/billing.md#_preamble');
-    const { doc, section } = makeDoc({ contextText: 'x'.repeat(3000), extraContext: [second, third] });
+    const second = chunk('_preamble/p2', 'paragraph', '\u00a4'.repeat(3000), 2, 'docs/billing.md#_preamble');
+    const third = chunk('_preamble/p3', 'paragraph', '\u00b6'.repeat(100), 3, 'docs/billing.md#_preamble');
+    const { doc, section } = makeDoc({ contextText: '\u00a7'.repeat(3000), extraContext: [second, third] });
     const built = buildPrompt({ doc, section, fixtures: [], secretNames: [], previousTitles: [], rejected: [] });
-    expect(built.userText.match(/x/g)?.length).toBe(3000);
-    expect(built.userText.match(/y/g)?.length).toBe(1000);
-    expect(built.userText).not.toContain('zzz');
+    expect(built.userText.match(/\u00a7/g)?.length).toBe(3000);
+    expect(built.userText.match(/\u00a4/g)?.length).toBe(1000);
+    expect(built.userText).not.toContain('\u00b6');
   });
 
   it('R-EX2: continuation lines of multi-line chunks are indented so they cannot forge handles', () => {

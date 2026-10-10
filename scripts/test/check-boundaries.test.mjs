@@ -113,3 +113,8 @@ test('test files may import internals', () => {
   });
   assert.deepEqual(p, []);
 });
+
+test('import-looking text inside a template literal is not an import', () => {
+  const found = extractImports("export const T = `import { x } from '@ai-bdd/driver-playwright';\nexport default {};`;\nimport real from 'real';\nconst d = import(`dyn`);");
+  assert.deepEqual(found.map((f) => f.spec), ['real', 'dyn']);
+});

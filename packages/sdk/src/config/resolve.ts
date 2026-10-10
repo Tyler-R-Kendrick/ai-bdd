@@ -35,8 +35,8 @@ const DEFAULTS = {
 } as const;
 
 /** Drop keys whose value is `undefined` so spreads never override defaults with `undefined`. */
-function defined<T extends object>(o: T | undefined): Partial<T> {
-  const out: Partial<T> = {};
+function defined<T extends object>(o: T | undefined): { [K in keyof T]?: Exclude<T[K], undefined> } {
+  const out: { [K in keyof T]?: Exclude<T[K], undefined> } = {};
   if (o === undefined) return out;
   for (const [k, v] of Object.entries(o)) if (v !== undefined) (out as Record<string, unknown>)[k] = v;
   return out;

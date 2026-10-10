@@ -86,9 +86,11 @@ export function readJson(file) {
 /**
  * Replaces comments with spaces (newlines kept) so that offsets and line numbers survive.
  * String and template literals are skipped so that `'**\/*.md'` is not mistaken for a comment.
+ * Returns the cleaned text and the `[start, end)` offsets of template literal bodies.
  */
-export function stripComments(src) {
+export function scanSource(src) {
   let out = '';
+  const templates = [];
   let i = 0;
   const n = src.length;
   while (i < n) {
@@ -118,6 +120,7 @@ export function stripComments(src) {
     } else if (c === '`') {
       out += c;
       i++;
+      const start = i;
       while (i < n && src[i] !== '`') {
         if (src[i] === '\\' && i + 1 < n) {
           out += src[i] + src[i + 1];
@@ -126,13 +129,18 @@ export function stripComments(src) {
           out += src[i++];
         }
       }
+      templates.push([start, i]);
       if (i < n) out += src[i++];
     } else {
       out += c;
       i++;
     }
   }
-  return out;
+  return { text: out, templates };
+}
+
+export function stripComments(src) {
+  return scanSource(src).text;
 }
 
 export function lineOf(text, index) {

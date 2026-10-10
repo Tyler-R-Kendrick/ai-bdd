@@ -75,10 +75,13 @@ export class Walker {
   private readonly usedSlugs = new Map<string, Set<string>>();
   private afterHeading = false;
 
-  constructor(
-    private readonly docUri: string,
-    private readonly base: DirectiveSet,
-  ) {}
+  private readonly docUri: string;
+  private readonly base: DirectiveSet;
+
+  constructor(docUri: string, base: DirectiveSet) {
+    this.docUri = docUri;
+    this.base = base;
+  }
 
   diag(code: ErrorCode, message: string, range?: SourceRange, details?: JsonValue): void {
     const d: Diagnostic = { code, severity: 'warning', message, uri: this.docUri };

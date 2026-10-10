@@ -10,7 +10,7 @@
 // Test files (packages/*/test, tests/, *.test.ts) may import more, but never from 'dist'.
 import fs from 'node:fs';
 import path from 'node:path';
-import { finish, isMain, lineOf, listPackages, parseArgs, readJson, stripComments, toPosix, walk } from './lib.mjs';
+import { finish, isMain, lineOf, listPackages, parseArgs, readJson, scanSource, toPosix, walk } from './lib.mjs';
 
 const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
 const OPEN_SDK_MODULES = new Set(['contracts', 'util']);
@@ -18,9 +18,13 @@ const DIST = /(^|\/)dist(\/|$)/;
 
 /** Extracts import specifiers from TS/JS source. */
 export function extractImports(source) {
-  const text = stripComments(source);
+  const { text, templates } = scanSource(source);
   const found = [];
-  const add = (m, specIndex, kind, typeOnly) => found.push({ spec: m[specIndex], kind, typeOnly, index: m.index });
+  // Code inside a template literal (for example the `ai-bdd init` scaffold) is data, not an import.
+  const inTemplate = (index) => templates.some(([a, b]) => index >= a && index < b);
+  const add = (m, specIndex, kind, typeOnly) => {
+    if (!inTemplate(m.index)) found.push({ spec: m[specIndex], kind, typeOnly, index: m.index });
+  };
   let m;
   const staticRe = /(?<![\w$.])import\s+(type\s+)?(?:[\w$*{}\s,]+?\s+from\s+)?(['"])([^'"\n]+)\2/g;
   while ((m = staticRe.exec(text))) add(m, 3, 'static', Boolean(m[1]));

@@ -175,7 +175,8 @@ export function stubModel(script: Script, opts: { id?: string; usage?: { inputTo
     id: opts.id ?? 'stub-model',
     requests,
     async generate(req: ModelRequest): Promise<ModelResponse> {
-      requests.push(structuredClone(req));
+      const { signal, ...rest } = req;
+      requests.push(signal === undefined ? structuredClone(rest) : { ...structuredClone(rest), signal });
       const entry = script[Math.min(requests.length - 1, script.length - 1)];
       if (entry instanceof Error) throw entry;
       const value = typeof entry === 'function' ? entry(req) : entry;
