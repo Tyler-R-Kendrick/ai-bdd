@@ -1,7 +1,10 @@
 /** Minimal cookie-jar HTTP client for tests (fetch with manual redirects). */
 export class Client {
   private cookie = '';
-  constructor(private readonly base: string) {}
+  private readonly base: string;
+  constructor(base: string) {
+    this.base = base;
+  }
 
   async req(method: string, path: string, init: { headers?: Record<string, string>; body?: string; follow?: boolean } = {}): Promise<{ status: number; text: string; headers: Headers; url: string }> {
     let url = new URL(path, this.base).toString();

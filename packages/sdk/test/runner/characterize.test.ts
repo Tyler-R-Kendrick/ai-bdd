@@ -43,7 +43,6 @@ describe('characterization run (C3, D3, commit rule)', () => {
     expect(rec?.probe?.nodes.map((n) => n.name)).toContain(CHECK);
     // action step: 500ms probe wait; then step: another 500ms probe wait before generating
     expect(h.clock.sleeps).toEqual([500, 500]);
-    expect(r(h)).toBeUndefined();
   });
 
   it('R-CH1: a failing first run records nothing (judge fails, nothing generated, recording discarded)', async () => {
@@ -301,7 +300,3 @@ describe('characterization run (C3, D3, commit rule)', () => {
     expect(given('y')).toBeDefined();
   });
 });
-
-function r(_h: Harness): undefined {
-  return undefined;
-}
