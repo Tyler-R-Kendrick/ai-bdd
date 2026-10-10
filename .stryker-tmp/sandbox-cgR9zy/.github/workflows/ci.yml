@@ -1,0 +1,319 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Manual runs. The only job that is specific to them is `live` (real models, real browser, costs tokens); the
+  # other jobs also run on a manual dispatch, which is harmless.
+  workflow_dispatch:
+  # Optional: a nightly live run. Uncomment to enable (the live job still skips itself without the secret).
+  # schedule:
+  #   - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit
+      # Snapshots that differ leave *.received.* files (approval testing, @ai-bdd/verify): keep them for review.
+      - name: Upload received snapshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-snapshots-${{ matrix.node }}
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+
+  # Coverage floors per package (vitest.config.ts): lines, branches and functions of every package, unit tests only. Needs the
+  # browser so that the Playwright driver's tests run; the Cua Driver's real-product tests are not part of it (no desktop).
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Ensure Chromium
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      - name: Unit tests with coverage floors
+        run: pnpm coverage
+      - name: Coverage gaps
+        if: always()
+        run: node scripts/coverage-report.mjs --gaps
+      # CRAP = complexity^2 * (1 - coverage)^3 + complexity per function; new offenders and regressions fail (scripts/crap-baseline.json).
+      - name: CRAP gate
+        run: node scripts/crap.mjs --check
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 14
+
+  acceptance:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # M26 installs a vendor driver package under node_modules, which Node imports natively and so resolves @ai-bdd/testing through its built dist.
+      - run: pnpm build
+      # Deterministic test doubles from @ai-bdd/testing, plugged in through generated config files; the Playwright parity tests run in the playwright job.
+      - run: pnpm test:acceptance --exclude '**/playwright.*.test.ts' --exclude '**/cua.*.test.ts'
+
+  adversarial:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:adversarial
+
+  playwright:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Downloads Chromium only when it is not already present.
+      - name: Ensure Chromium
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      - name: Driver conformance (real Chromium)
+        run: pnpm test:unit packages/driver-playwright
+      - name: Playwright parity (real Chromium, deterministic test-double models)
+        run: pnpm test:acceptance playwright
+
+  # The real Cua Driver (cua.ai) operating a real Chromium window on a virtual Linux desktop (Xvfb, openbox, AT-SPI).
+  cua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Downloads Chromium only when it is not already present.
+      - name: Ensure Chromium
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      - name: Install a desktop session
+        run: sudo apt-get update && sudo apt-get install -y xvfb openbox at-spi2-core dbus-x11
+      - name: Install Cua Driver (pinned release)
+        run: |
+          curl -fsSL https://cua.ai/driver/install.sh -o "$RUNNER_TEMP/install-cua-driver.sh"
+          CUA_DRIVER_RS_VERSION=0.34.0 bash "$RUNNER_TEMP/install-cua-driver.sh" --bin-dir "$HOME/.local/bin" --no-modify-path
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/cua-driver" telemetry disable
+          "$HOME/.local/bin/cua-driver" --version
+      # The tests import @ai-bdd/driver-cua and @ai-bdd/testing from their built output when a project loads them by name.
+      - run: pnpm build
+      - name: Cua Driver on a virtual desktop
+        env:
+          AI_BDD_REQUIRE_CUA: '1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x800x24" bash -ec '
+            eval "$(dbus-launch --sh-syntax)"
+            export GTK_MODULES=gail:atk-bridge ACCESSIBILITY_ENABLED=1
+            /usr/libexec/at-spi-bus-launcher --launch-immediately &
+            openbox &
+            sleep 3
+            pnpm exec vitest run --project unit packages/driver-cua
+            pnpm exec vitest run --project acceptance tests/acceptance/cua.m05-m07.test.ts
+          '
+
+  determinism:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [22.x, 24.x]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compile the corpus twice and compare plans
+        run: node scripts/check-determinism.mjs "$RUNNER_TEMP/plan-digest.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan-digest-${{ matrix.os }}-${{ matrix.node }}
+          path: ${{ runner.temp }}/plan-digest.txt
+
+  determinism-across-os:
+    needs: determinism
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: plan-digest-*
+          path: digests
+      - name: Plan bytes are identical across operating systems and Node versions
+        run: |
+          cat digests/*/plan-digest.txt
+          test "$(cat digests/*/plan-digest.txt | sort -u | wc -l)" -eq 1
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Script tests
+        run: node --test scripts/test
+      - name: Requirements, boundaries, stubs, licenses, errors doc, determinism
+        run: pnpm check
+      - name: Docs examples (typecheck ts blocks, run sh blocks against test doubles, links)
+        if: hashFiles('scripts/check-docs.mjs') != ''
+        run: node scripts/check-docs.mjs
+
+  # Opt-in end-to-end run with REAL models, the real CLI and the real Playwright driver (tests/live). It costs tokens, so
+  # it never runs on pull requests or pushes: only on a manual dispatch (or the optional schedule above), and it skips
+  # itself when the AI_GATEWAY_API_KEY secret is not set.
+  live:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+      AI_BDD_LIVE: '1'
+    steps:
+      - name: Check for the model key
+        id: key
+        run: |
+          if [ -n "$AI_GATEWAY_API_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=live::AI_GATEWAY_API_KEY is not set; skipping the live run"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.enabled == 'true'
+      - uses: pnpm/action-setup@v4
+        if: steps.key.outputs.enabled == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.enabled == 'true'
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: steps.key.outputs.enabled == 'true'
+      - name: Cache Playwright browsers
+        if: steps.key.outputs.enabled == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Downloads Chromium only when it is not already present.
+      - name: Ensure Chromium
+        if: steps.key.outputs.enabled == 'true'
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      # The live tests run the CLI from packages/cli/dist.
+      - name: Build
+        if: steps.key.outputs.enabled == 'true'
+        run: pnpm build
+      - name: Live tests (real models, real browser)
+        if: steps.key.outputs.enabled == 'true'
+        run: pnpm exec vitest run -c tests/live/vitest.live.config.ts

@@ -1,0 +1,82 @@
+{
+  "click": {
+    "arguments": [
+      "delivery_mode",
+      "element_token",
+      "pid",
+      "window_id"
+    ],
+    "values": {
+      "delivery_mode": [
+        "background",
+        "foreground"
+      ]
+    }
+  },
+  "get_window_state": {
+    "arguments": [
+      "include_screenshot",
+      "pid",
+      "timeout_ms",
+      "window_id"
+    ],
+    "values": {}
+  },
+  "health_report": {
+    "arguments": [],
+    "values": {}
+  },
+  "list_windows": {
+    "arguments": [],
+    "values": {}
+  },
+  "press_key": {
+    "arguments": [
+      "delivery_mode",
+      "key",
+      "modifiers",
+      "pid",
+      "window_id"
+    ],
+    "values": {
+      "delivery_mode": [
+        "foreground"
+      ],
+      "modifiers": [
+        "alt",
+        "ctrl",
+        "shift"
+      ]
+    }
+  },
+  "scroll": {
+    "arguments": [
+      "amount",
+      "delivery_mode",
+      "direction",
+      "pid",
+      "window_id"
+    ],
+    "values": {
+      "delivery_mode": [
+        "foreground"
+      ],
+      "direction": [
+        "down"
+      ]
+    }
+  },
+  "type_text": {
+    "arguments": [
+      "delivery_mode",
+      "pid",
+      "text",
+      "window_id"
+    ],
+    "values": {
+      "delivery_mode": [
+        "foreground"
+      ]
+    }
+  }
+}

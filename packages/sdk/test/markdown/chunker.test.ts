@@ -9,6 +9,7 @@ import { createChunker } from '../../src/markdown/index.ts';
 import { CONTEXT_CHAR_BUDGET } from '../../src/markdown/chunker.ts';
 import { sha256Hex, stableJson } from '../../src/util/index.ts';
 import { chunkText, makeDoc } from './helpers.ts';
+import { cpuMs } from '../kit/budget.ts';
 
 const SAMPLE = `---
 title: Sample
@@ -395,10 +396,12 @@ describe('robustness', () => {
       '\r\r\r\n\n',
     ];
     for (const input of inputs) {
-      const t0 = performance.now();
-      const d = chunkText(input);
+      let d!: ReturnType<typeof chunkText>;
+      const ms = cpuMs(() => {
+        d = chunkText(input);
+      });
       expect(Array.isArray(d.chunks)).toBe(true);
-      expect(performance.now() - t0, `slow input ${JSON.stringify(input.slice(0, 20))}`).toBeLessThan(5000);
+      expect(ms, `slow input ${JSON.stringify(input.slice(0, 20))}`).toBeLessThan(5000);
     }
   });
 

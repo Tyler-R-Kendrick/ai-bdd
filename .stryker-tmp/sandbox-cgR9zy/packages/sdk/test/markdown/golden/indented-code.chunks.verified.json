@@ -1,0 +1,109 @@
+{
+  "chunks": [
+    {
+      "anchor": "indented/h",
+      "directives": {},
+      "docUri": "docs/indented-code.md",
+      "hash": "77395506b3277f205e825db9816bf63d2c55b2d3a8b9ee65c18a4dd5909ddb4f",
+      "headingPath": [
+        "Indented"
+      ],
+      "id": "docs/indented-code.md#indented/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 11,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/indented-code.md#indented",
+      "text": "Indented"
+    },
+    {
+      "anchor": "indented/p1",
+      "directives": {},
+      "docUri": "docs/indented-code.md",
+      "hash": "cab33d264f8ba50f165a594d6ac6281e36d0f4f1aff7e840eafea483a02c8038",
+      "headingPath": [
+        "Indented"
+      ],
+      "id": "docs/indented-code.md#indented/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 18,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/indented-code.md#indented",
+      "text": "Paragraph before."
+    },
+    {
+      "anchor": "indented/code1",
+      "directives": {},
+      "docUri": "docs/indented-code.md",
+      "hash": "bc96cae21d59b1c4f9a4209a1ab687ea811da02f36307aa3fe4f73084c21d785",
+      "headingPath": [
+        "Indented"
+      ],
+      "id": "docs/indented-code.md#indented/code1",
+      "kind": "code",
+      "range": {
+        "endColumn": 27,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/indented-code.md#indented",
+      "text": "indented code line one indented code line two"
+    },
+    {
+      "anchor": "indented/p2",
+      "directives": {},
+      "docUri": "docs/indented-code.md",
+      "hash": "6630f9f8ad0c6a3dbbfcb57db3455886e4d6ba5aa6398a4e1bf4bbecc149aae0",
+      "headingPath": [
+        "Indented"
+      ],
+      "id": "docs/indented-code.md#indented/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 17,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/indented-code.md#indented",
+      "text": "Paragraph after."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "ec039e26ddeb6a7eec9d99382a129243dc53ae81a28c9d64866d8a29b7516953",
+    "title": "Indented",
+    "uri": "docs/indented-code.md"
+  },
+  "sections": [
+    {
+      "anchor": "indented",
+      "chunkIds": [
+        "docs/indented-code.md#indented/h",
+        "docs/indented-code.md#indented/p1",
+        "docs/indented-code.md#indented/code1",
+        "docs/indented-code.md#indented/p2"
+      ],
+      "docUri": "docs/indented-code.md",
+      "hash": "73ca31b3a7ec1d3401218b103ac613425ffc6fdf45f2048612f824e9bff08158",
+      "id": "docs/indented-code.md#indented",
+      "level": 1,
+      "range": {
+        "endColumn": 17,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Indented"
+    }
+  ]
+}

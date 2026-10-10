@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "id": "bad-check-plan-pro-nondiscriminative",
+      "description": "Deliberately bad: a change check that is already true on the before observation (R-AS1).",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the plan changes to Pro"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "heading",
+                "name": "Billing"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

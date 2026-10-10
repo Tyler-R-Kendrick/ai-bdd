@@ -1,0 +1,32 @@
+{
+  "name": "@ai-bdd/playwright-test",
+  "version": "0.1.0",
+  "description": "@playwright/test integration for ai-bdd",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@ai-bdd/sdk": "workspace:*",
+    "@ai-bdd/driver-playwright": "workspace:*"
+  },
+  "peerDependencies": {
+    "@playwright/test": "1.64.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0"
+  }
+}
