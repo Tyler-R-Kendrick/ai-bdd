@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { AiBddError } from '@ai-bdd/sdk/contracts';
 import {
@@ -211,5 +213,39 @@ describe('createRecorder and hang', () => {
   it('hang() never settles', async () => {
     const outcome = await Promise.race([hang().then(() => 'settled'), new Promise<string>((r) => setTimeout(() => r('pending'), 30))]);
     expect(outcome).toBe('pending');
+  });
+});
+
+describe('hang(keepAlive)', () => {
+  const planUrl = new URL('../../src/chaos/plan.ts', import.meta.url).href;
+  const run = (keepAlive: boolean): Promise<{ code: number | null; killed: boolean; stderr: string }> =>
+    new Promise((resolve) => {
+      const child = spawn(process.execPath, ['--conditions=source', '--input-type=module', '-e', `import { hang } from ${JSON.stringify(planUrl)}; await hang(${keepAlive});`], {
+        cwd: fileURLToPath(new URL('../../../..', import.meta.url)),
+        env: { ...process.env, NODE_NO_WARNINGS: '1' },
+        stdio: ['ignore', 'ignore', 'pipe'],
+      });
+      let stderr = '';
+      child.stderr.on('data', (d: Buffer) => (stderr += d.toString('utf8')));
+      let killed = false;
+      const timer = setTimeout(() => {
+        killed = true;
+        child.kill('SIGKILL');
+      }, 1500);
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        resolve({ code, killed, stderr });
+      });
+    });
+
+  it('a plain hang holds no handle: the process ends by itself (Node\'s "unsettled top-level await" exit 13)', async () => {
+    const r = await run(false);
+    expect(r.killed).toBe(false);
+    expect(r.code).toBe(13);
+  });
+
+  it('with keepAlive the process stays alive, like a stuck connection would keep it', async () => {
+    const r = await run(true);
+    expect(r.killed, r.stderr).toBe(true);
   });
 });

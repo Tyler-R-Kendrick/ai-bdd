@@ -244,6 +244,11 @@ export interface ChaosOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Called synchronously for every injected fault. */
   onEvent?: (event: ChaosEvent) => void;
+  /**
+   * A `hang` fault normally holds no handle, so a hung call cannot keep the process alive. With `keepAlive` it holds the event loop
+   * open like a real stuck connection would; use it in spawned processes, where "the process never ends" is the thing under test.
+   */
+  keepAlive?: boolean;
 }
 
 /** Shared bookkeeping of an injector: the event log, the virtual delay and the default sleep. */
@@ -272,7 +277,9 @@ export function createRecorder(options: ChaosOptions): {
   };
 }
 
-/** A promise that never settles and holds no timer, so a hung call cannot keep the process alive. */
-export function hang<T = never>(): Promise<T> {
-  return new Promise<T>(() => {});
+/** A promise that never settles. It holds no timer unless `keepAlive` (see {@link ChaosOptions.keepAlive}). */
+export function hang<T = never>(keepAlive = false): Promise<T> {
+  return new Promise<T>(() => {
+    if (keepAlive) setInterval(() => {}, 2 ** 30);
+  });
 }

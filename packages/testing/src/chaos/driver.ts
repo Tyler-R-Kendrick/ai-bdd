@@ -185,7 +185,7 @@ export function chaosDriver(factory: DriverFactory, plan: DriverFaultPlan, optio
     }
     if (fault.kind === 'hang') {
       note(hook, f, sessionId);
-      await hang();
+      await hang(options.keepAlive);
     }
   }
 

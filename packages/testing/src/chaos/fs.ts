@@ -136,7 +136,7 @@ export async function raceStart<T>(tasks: readonly (() => Promise<T>)[]): Promis
 /** Entry of a {@link snapshotTree}: `file:<sha256>`, `dir`, or `link:<target>`. Symlinks are never followed. */
 export type TreeEntry = string;
 
-/** Hash every entry under `root` without following symlinks. Missing root gives an empty snapshot. */
+/** Hash every entry under `root` without following symlinks. Missing root gives an empty snapshot; entries that vanish mid-walk are skipped. */
 export function snapshotTree(root: string): Map<string, TreeEntry> {
   const out = new Map<string, TreeEntry>();
   const walk = (dir: string): void => {
@@ -149,12 +149,17 @@ export function snapshotTree(root: string): Map<string, TreeEntry> {
     for (const name of names.sort()) {
       const full = join(dir, name);
       const rel = relative(root, full);
-      const st = lstatSync(full);
-      if (st.isSymbolicLink()) out.set(rel, `link:${readlinkSync(full)}`);
-      else if (st.isDirectory()) {
-        out.set(rel, 'dir');
-        walk(full);
-      } else out.set(rel, `file:${sha(readFileSync(full))}`);
+      try {
+        const st = lstatSync(full);
+        if (st.isSymbolicLink()) out.set(rel, `link:${readlinkSync(full)}`);
+        else if (st.isDirectory()) {
+          out.set(rel, 'dir');
+          walk(full);
+        } else out.set(rel, `file:${sha(readFileSync(full))}`);
+      } catch (err) {
+        // an entry that vanished while we walked (a live tree being written to by another process) is simply not there
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      }
     }
   };
   walk(root);

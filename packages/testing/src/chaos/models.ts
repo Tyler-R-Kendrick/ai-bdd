@@ -144,8 +144,8 @@ function mutate(fault: ModelFault, res: ModelResponse, rng: SeededRandom): Model
   }
 }
 
-function hangUntilAborted(signal: AbortSignal | undefined, ignoreSignal: boolean | undefined): Promise<never> {
-  if (signal === undefined || ignoreSignal === true) return hang();
+function hangUntilAborted(signal: AbortSignal | undefined, ignoreSignal: boolean | undefined, keepAlive: boolean | undefined): Promise<never> {
+  if (signal === undefined || ignoreSignal === true) return hang(keepAlive);
   return new Promise<never>((_, reject) => {
     const fail = (): void => reject(new AiBddError('ABORTED', 'chaos: hung model call aborted'));
     if (signal.aborted) fail();
@@ -223,7 +223,7 @@ export function chaosModels(models: ModelSet, plan: ModelFaultPlan, options: Cha
           }
           case 'hang':
             note(terminal);
-            return hangUntilAborted(req.signal, fault.ignoreSignal);
+            return hangUntilAborted(req.signal, fault.ignoreSignal, options.keepAlive);
           default:
             break;
         }
