@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { findVolatile, hasVolatile, type VolatileKind } from '../../src/assert/volatile.ts';
+import { cpuMs } from '../kit/budget.ts';
 
 const RUNS = Number(process.env['FC_RUNS'] ?? 200);
 
@@ -151,9 +152,7 @@ describe('volatile patterns ReDoS fuzz (R-AS2, R-AS3)', () => {
     findVolatile(input.slice(0, 2000)); // warm up
     const times: number[] = [];
     for (let i = 0; i < 3; i += 1) {
-      const t0 = performance.now();
-      findVolatile(input);
-      times.push(performance.now() - t0);
+      times.push(cpuMs(() => findVolatile(input)));
     }
     expect(Math.min(...times)).toBeLessThan(500); // catastrophic or quadratic backtracking on 100k chars takes seconds; CI runners are slow and noisy
   });
@@ -161,9 +160,7 @@ describe('volatile patterns ReDoS fuzz (R-AS2, R-AS3)', () => {
   it('R-AS2: matching time scales linearly (4x input stays within 12x time)', () => {
     const run = (n: number): number => {
       const input = '1:30 2026-10-09 3fa85f64 '.repeat(n);
-      const t0 = performance.now();
-      findVolatile(input);
-      return performance.now() - t0;
+      return cpuMs(() => findVolatile(input));
     };
     run(2000);
     const small = Math.max(Math.min(run(4000), run(4000), run(4000)), 0.05);

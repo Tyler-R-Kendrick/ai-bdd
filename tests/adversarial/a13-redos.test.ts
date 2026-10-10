@@ -6,18 +6,13 @@ import type { ChatModel, ModelRequest, ModelResponse } from '@ai-bdd/sdk/contrac
 import { findVolatile } from '../../packages/sdk/src/assert/volatile.ts';
 import { isVolatileText } from '../../packages/sdk/src/recording/volatile.ts';
 import { applyDirectiveEntry, emptyDirectiveSet, parseDirectiveText, tokenizeDirective } from '../../packages/sdk/src/markdown/directives.ts';
+import { bestCpuMs, cpuMsAsync } from '../../packages/sdk/test/kit/budget.ts';
 
 const config = resolveConfig({}, { projectRoot: '/tmp/x', env: {} });
 
-/** Best of `reps` wall-clock milliseconds. */
+/** Best of `reps` CPU-time milliseconds (wall time would count waiting for a core). */
 function best(fn: () => void, reps = 3): number {
-  let b = Infinity;
-  for (let i = 0; i < reps; i++) {
-    const t = performance.now();
-    fn();
-    b = Math.min(b, performance.now() - t);
-  }
-  return b;
+  return bestCpuMs(reps, fn);
 }
 
 const chunk = (text: string): unknown => createChunker().chunk({ uri: 'docs/x.md', absolutePath: '/x', text, sha256: '0'.repeat(64) }, { sectionDepth: 2, maxSectionChars: 12000 });
@@ -154,9 +149,10 @@ describe('A13 R-EX1 regular expressions that meet model output', () => {
     const doc = createChunker().chunk({ uri: 'docs/x.md', absolutePath: '/x', text: '# T\n\n## S\n\nSome text of the section here.\n', sha256: '0'.repeat(64) }, { sectionDepth: 2, maxSectionChars: 12000 });
     const section = doc.sections[doc.sections.length - 1];
     if (section === undefined) throw new Error('no section');
-    const t = performance.now();
-    const res = await extractor.extractSection({ doc, section, fixtures: [], secretNames: [], previousTitles: [], rejected: [] });
-    const ms = performance.now() - t;
+    let res!: Awaited<ReturnType<typeof extractor.extractSection>>;
+    const ms = await cpuMsAsync(async () => {
+      res = await extractor.extractSection({ doc, section, fixtures: [], secretNames: [], previousTitles: [], rejected: [] });
+    });
     expect(res.failed).toBe(true);
     expect(ms, `extraction parse took ${Math.round(ms)} ms`).toBeLessThan(5000);
   }, 60_000);
@@ -164,9 +160,9 @@ describe('A13 R-EX1 regular expressions that meet model output', () => {
   it('A13: a judge sample with 60k characters of whitespace in its text does not stall the judge (fence-stripping regexes are linear)', async () => {
     const judge = createJudge({ model: okModel(`{"probability": 0.9, "verdict": "holds", "explanation": "${' '.repeat(60_000)}x", "observed": "o"}`), config, cacheDir: null });
     const ev = { treeText: '- heading "x"' };
-    const t = performance.now();
-    await judge.judge({ criterion: 'c', params: {}, before: ev, after: ev, actionPreceded: false, appContext: '' }).catch(() => undefined);
-    const ms = performance.now() - t;
+    const ms = await cpuMsAsync(async () => {
+      await judge.judge({ criterion: 'c', params: {}, before: ev, after: ev, actionPreceded: false, appContext: '' }).catch(() => undefined);
+    });
     expect(ms, `judge parse took ${Math.round(ms)} ms`).toBeLessThan(1000);
   }, 60_000);
 });
