@@ -196,7 +196,7 @@ describe('resolveConfig validation table', () => {
     ['probeMs 0 and confirmRuns 0', { characterize: { probeMs: 0, confirmRuns: 0 } }],
     ['sectionDepth 6', { extract: { sectionDepth: 6 } }],
     ['empty docs list', { docs: [] }],
-    ['explicit undefined values', { baseURL: undefined, judge: { samples: undefined } }],
+    ['explicit undefined values', { baseURL: undefined, judge: { samples: undefined } } as unknown as UserConfig],
     ['custom reporters', { reporters: ['json'] }],
     ['prices', { prices: { 'm-1': { inputPerMTok: 3, outputPerMTok: 15 } } }],
   ];
