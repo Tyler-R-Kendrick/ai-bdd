@@ -61,6 +61,26 @@ describe('skipped after failure, events and bookkeeping', () => {
     expect(stepEnd.result).toBe(r.steps[0]);
   });
 
+  it('R-EV1: every run event is appended to the evidence log in emission order (the runner owns events.jsonl)', async () => {
+    const h = createHarness({ steps: [when(GO), thenStep(SEES)], secrets: { adminPassword: 'correct-horse-battery' } });
+    h.effectShows(GO, SEES);
+    const r = await h.run();
+    const kinds = h.evidence.records.map((e) => e.type);
+    expect(kinds.filter((k) => k !== 'log')).toEqual(['scenario-start', 'step-start', 'step-end', 'step-start', 'step-end', 'scenario-end']);
+    const end = h.evidence.records.at(-1)!;
+    expect(end).toMatchObject({ type: 'scenario-end', scenarioId: r.scenarioId, status: 'passed', recording: 'created' });
+    const stepEnd = h.evidence.records.find((e) => e.type === 'step-end')!;
+    expect(stepEnd).toMatchObject({ stepKey: r.steps[0]!.stepKey, status: 'passed', path: 'agent' });
+    expect(JSON.stringify(h.evidence.records)).not.toContain('correct-horse-battery');
+  });
+
+  it('R-EV1: a failing evidence log never breaks the run', async () => {
+    const h = createHarness({ steps: [when(GO)] });
+    h.evidence.record = () => Promise.reject(new Error('disk full'));
+    const r = await h.run();
+    expect(r.status).toBe('passed');
+  });
+
   it('R-CH1: skipped steps also get step events, and confirm-run steps get none', async () => {
     const h = createHarness({ steps: [when('first'), when('second')] });
     h.actor.handler = (req, session) => h.actor.failWith(req, session, 'ACT_BUDGET_EXHAUSTED');

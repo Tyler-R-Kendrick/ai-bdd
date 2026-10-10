@@ -264,32 +264,55 @@ export function expectHeal(res: HealRuns): void {
 
 // ───────────────────────── M10 / M11: a buggy app
 
-export interface BugRuns {
-  m10: ScenarioResult;
-  m10Recordings: string[];
-  m10Judge: number;
-  m11: ScenarioResult;
-  m11Counts: ReturnType<typeof countByPurpose>;
-  m11Audit: ScenarioResult;
-  m11AuditCounts: ReturnType<typeof countByPurpose>;
+export interface BugFirstRun {
+  result: ScenarioResult;
+  recordings: string[];
+  judgeCalls: number;
+}
+
+/** M10: the very first run already hits the bug. */
+export async function flowBugFirstRun(target: DriverTarget): Promise<BugFirstRun> {
+  const project = createProject({ docs: ['billing'] });
+  try {
+    return await using(target, { flags: ['bug-upgrade-noop'] }, async (prepared) => {
+      const h = await openEngine(project, { target, prepared });
+      await h.compile();
+      const mark = h.calls.length;
+      const result = await h.runScenario(T.upgrade);
+      const judgeCalls = ofPurpose(h.callsSince(mark), 'judge').length;
+      await h.close();
+      return { result, recordings: recordingFiles(project), judgeCalls };
+    });
+  } finally {
+    project.cleanup();
+  }
+}
+
+export function expectBugFirstRun(res: BugFirstRun): void {
+  // the judge (the document is the oracle) fails the first run; nothing is recorded (R-CH1)
+  expect(res.result.status).toBe('failed');
+  expect(res.result.recording).toBe('discarded');
+  expect(res.recordings).toEqual([]);
+  expect(res.judgeCalls).toBeGreaterThan(0);
+  const planStep = stepOf(res.result, 'the plan changes to Pro');
+  expect(planStep.status).toBe('failed');
+  expect(planStep.error?.code).toBe('JUDGE_FAILED');
+  expect(planStep.judge?.verdict).toBe('fail');
+  expect(res.result.steps.slice(res.result.steps.indexOf(planStep) + 1).every((s) => s.status === 'skipped')).toBe(true);
+}
+
+export interface BugAfterRecording {
+  result: ScenarioResult;
+  counts: ReturnType<typeof countByPurpose>;
+  audit: ScenarioResult;
+  auditCounts: ReturnType<typeof countByPurpose>;
   recordingKept: boolean;
 }
 
-export async function flowBug(target: DriverTarget): Promise<BugRuns> {
-  const bugProject = createProject({ docs: ['billing'] });
+/** M11: record on the healthy app, then regress the app. */
+export async function flowBugAfterRecording(target: DriverTarget): Promise<BugAfterRecording> {
   const project = createProject({ docs: ['billing'] });
   try {
-    // M10: the very first run hits the bug
-    const m10 = await using(target, { flags: ['bug-upgrade-noop'] }, async (prepared) => {
-      const h = await openEngine(bugProject, { target, prepared });
-      await h.compile();
-      const mark = h.calls.length;
-      const r = await h.runScenario(T.upgrade);
-      const judge = ofPurpose(h.callsSince(mark), 'judge').length;
-      await h.close();
-      return { r, judge };
-    });
-    // M11: record a healthy run, then regress
     const id = await using(target, {}, async (prepared) => {
       const h = await openEngine(project, { target, prepared });
       await h.compile();
@@ -299,49 +322,27 @@ export async function flowBug(target: DriverTarget): Promise<BugRuns> {
       await h.close();
       return sid;
     });
-    const before = recordingOf(project, id);
-    const bug = await using(target, { flags: ['bug-upgrade-noop'] }, async (prepared) => {
+    const before = JSON.stringify(recordingOf(project, id));
+    return await using(target, { flags: ['bug-upgrade-noop'] }, async (prepared) => {
       const h = await openEngine(project, { target, prepared });
-      const r = await h.runScenario(id);
+      const result = await h.runScenario(id);
       const counts = h.counts();
       await h.close();
       const h2 = await openEngine(project, { target, prepared });
       const audit = await h2.runScenario(id, { audit: true });
       const auditCounts = h2.counts();
       await h2.close();
-      return { r, counts, audit, auditCounts };
+      return { result, counts, audit, auditCounts, recordingKept: JSON.stringify(recordingOf(project, id)) === before };
     });
-    return {
-      m10: m10.r,
-      m10Recordings: recordingFiles(bugProject),
-      m10Judge: m10.judge,
-      m11: bug.r,
-      m11Counts: bug.counts,
-      m11Audit: bug.audit,
-      m11AuditCounts: bug.auditCounts,
-      recordingKept: JSON.stringify(recordingOf(project, id)) === JSON.stringify(before),
-    };
   } finally {
-    bugProject.cleanup();
     project.cleanup();
   }
 }
 
-export function expectBug(res: BugRuns): void {
-  // M10: judge fails on the first run, nothing is recorded (R-CH1)
-  expect(res.m10.status).toBe('failed');
-  expect(res.m10.recording).toBe('discarded');
-  expect(res.m10Recordings).toEqual([]);
-  expect(res.m10Judge).toBeGreaterThan(0);
-  const planStep = stepOf(res.m10, 'the plan changes to Pro');
-  expect(planStep.status).toBe('failed');
-  expect(planStep.error?.code).toBe('JUDGE_FAILED');
-  expect(planStep.judge?.verdict).toBe('fail');
-  expect(res.m10.steps.slice(res.m10.steps.indexOf(planStep) + 1).every((s) => s.status === 'skipped')).toBe(true);
-
-  // M11: the deterministic check fails without any judge call
-  expect(res.m11.status).toBe('failed');
-  const failed = res.m11.steps.find((s) => s.status === 'failed');
+export function expectBugAfterRecording(res: BugAfterRecording): void {
+  // the deterministic check fails without any judge call
+  expect(res.result.status).toBe('failed');
+  const failed = res.result.steps.find((s) => s.status === 'failed');
   expect(failed?.text).toBe('the plan changes to Pro');
   expect(failed?.error?.code).toBe('CHECK_FAILED');
   expect(failed?.path).toBe('check');
@@ -349,14 +350,15 @@ export function expectBug(res: BugRuns): void {
   const unsatisfied = failed?.check?.results.filter((r) => r.satisfied !== true) ?? [];
   expect(unsatisfied.length).toBeGreaterThan(0);
   for (const r of unsatisfied) expect(r.actual).toBeDefined();
-  expect(res.m11Counts.judge).toBe(0);
-  expect(res.m11Counts.checkgen).toBe(0);
+  expect(res.counts.judge).toBe(0);
+  expect(res.counts.checkgen).toBe(0);
+  // a failing run never touches the committed recording
   expect(res.recordingKept).toBe(true);
 
-  // --audit: the judge also runs next to the checks (it agrees that the page is wrong)
-  expect(res.m11Audit.status).toBe('failed');
-  expect(res.m11Audit.steps.find((s) => s.status === 'failed')?.error?.code).toBe('CHECK_FAILED');
-  expect(res.m11AuditCounts.judge).toBeGreaterThan(0);
+  // --audit: the judge also runs next to the checks (and agrees that the page is wrong)
+  expect(res.audit.status).toBe('failed');
+  expect(res.audit.steps.find((s) => s.status === 'failed')?.error?.code).toBe('CHECK_FAILED');
+  expect(res.auditCounts.judge).toBeGreaterThan(0);
 }
 
 // ───────────────────────── M12: ambiguity

@@ -268,7 +268,9 @@ describe('judge input (R-JU1, R-JU3)', () => {
       initialPage: Array.from({ length: 30 }, (_, i) => ({ role: 'paragraph', name: `row number ${i}` })),
     });
     await h.run();
-    expect(h.judge.requests[0]!.after.treeText.length).toBe(40);
+    const text = h.judge.requests[0]!.after.treeText;
+    expect(text.length).toBe(40);
+    expect(text.endsWith('...[truncated]')).toBe(true);
   });
 
   it('R-JU3: an untainted screenshot reaches the judge when vision is on, and pixels are requested from the settler', async () => {

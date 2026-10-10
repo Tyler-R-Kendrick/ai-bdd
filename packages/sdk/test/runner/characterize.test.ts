@@ -299,4 +299,10 @@ describe('characterization run (C3, D3, commit rule)', () => {
     expect(fuzzyEntry(s, ['subjective'])).toMatchObject({ determinism: 'fuzzy', fuzzyReasons: ['subjective'] });
     expect(given('y')).toBeDefined();
   });
+
+  it('R-CH3: the session capabilities reach the recorder so agent-only-driver can be derived', async () => {
+    const h = upgradeHarness({ driver: { verbs: ['navigate', 'click'] } });
+    await h.run();
+    expect(h.recorder.recordings[0]?.capabilities?.verbs).toEqual(['navigate', 'click']);
+  });
 });

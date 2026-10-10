@@ -11,6 +11,7 @@ import type {
   CheckGenResult,
   CheckProgram,
   Clock,
+  DriverCapabilities,
   DriverSession,
   EvidenceStore,
   FuzzyReason,
@@ -227,7 +228,7 @@ interface Divergence {
 }
 
 export class ScriptedRecorder implements Recorder {
-  recordings: { performed: readonly PerformedAction[]; before: Observation; after: Observation; probe: Observation | undefined; step: Step }[] = [];
+  recordings: { performed: readonly PerformedAction[]; before: Observation; after: Observation; probe: Observation | undefined; step: Step; capabilities: DriverCapabilities | undefined }[] = [];
   replays: { act: ActProgram }[] = [];
   /** Fuzzy reasons toRecording reports, by step text. */
   reasons = new Map<string, FuzzyReason[]>();
@@ -243,8 +244,8 @@ export class ScriptedRecorder implements Recorder {
     this.diverged.delete(effectName);
   }
 
-  toRecording(performed: readonly PerformedAction[], before: Observation, after: Observation, afterProbe: Observation | undefined, step: Step): { act: ActProgram; fuzzyReasons: FuzzyReason[] } {
-    this.recordings.push({ performed, before, after, probe: afterProbe, step });
+  toRecording(performed: readonly PerformedAction[], before: Observation, after: Observation, afterProbe: Observation | undefined, step: Step, opts?: { capabilities?: DriverCapabilities }): { act: ActProgram; fuzzyReasons: FuzzyReason[] } {
+    this.recordings.push({ performed, before, after, probe: afterProbe, step, capabilities: opts?.capabilities });
     return { act: actProgramFor(step.text, before.route), fuzzyReasons: [...(this.reasons.get(step.text) ?? [])] };
   }
 
