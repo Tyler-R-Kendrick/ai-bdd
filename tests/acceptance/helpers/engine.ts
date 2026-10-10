@@ -34,7 +34,7 @@ export interface OpenEngineOptions {
   env?: Record<string, string | undefined>;
   clock?: Clock;
   wrapFactory?: (factory: DriverFactory) => DriverFactory;
-  /** append every model call to project.logPath (AI_BDD_FAKE_LOG equivalent) */
+  /** append every model call to project.logPath (the `logPath` option of the fake models) */
   log?: boolean;
   /** replace the fake models (e.g. wrapped fakes) */
   models?: (fake: ModelSet) => ModelSet;
@@ -77,7 +77,13 @@ function applyOverrides(config: ResolvedConfig, o: ConfigOverrides, baseURL: str
   return next;
 }
 
-/** Wire loadConfig + createEngine with the Acme fake models and the target's driver. */
+let testConfigSeq = 0;
+
+/**
+ * Wire loadConfig + createEngine with the Acme fake models and the target's driver. The config is the project's generated test
+ * config (`writeTestConfig`, the same file the CLI harness passes as `-c`); the harness hands createEngine its own model set and
+ * driver factory explicitly so tests can observe, wrap and replace them.
+ */
 export async function openEngine(project: Project, opts: OpenEngineOptions = {}): Promise<EngineHandle> {
   const target = opts.target ?? fakeTarget;
   const ownsPrepared = opts.prepared === undefined;
@@ -85,7 +91,9 @@ export async function openEngine(project: Project, opts: OpenEngineOptions = {})
   if (opts.layers !== undefined) project.setRules(opts.layers);
 
   const env: Record<string, string | undefined> = { ACME_ADMIN_PASSWORD: opts.prepare?.adminPassword ?? ACME_DEFAULT_ADMIN_PASSWORD, ...opts.env };
-  const loaded = await loadConfig({ cwd: project.dir, env });
+  // one file name per engine: an ES module is imported once per file name in this process, and the flags/rules differ per call
+  const configPath = project.writeTestConfig({ flags: opts.prepare?.flags ?? [], fileName: `ai-bdd.config.test-${(testConfigSeq += 1)}.mjs` });
+  const loaded = await loadConfig({ cwd: project.dir, configPath, env });
   const overrides: ConfigOverrides = { ...prepared.defaults, ...project.options, ...opts.overrides };
   for (const key of ['extract', 'characterize', 'judge', 'agent', 'checks', 'settle', 'policy'] as const) {
     const merged = { ...prepared.defaults[key], ...project.options[key], ...opts.overrides?.[key] };

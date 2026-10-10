@@ -85,9 +85,16 @@ describe('argument parsing helpers (G8)', () => {
   });
 });
 
+/** The outer environment without CI and without any AI_BDD_* variable. */
+function cleanEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && k !== 'CI' && !k.startsWith('AI_BDD_')) env[k] = v;
+  return env;
+}
+
 describe('spawned bin (V1)', () => {
   const node = (args: string[], cwd: string, env: Record<string, string> = {}) =>
-    spawnSync(process.execPath, ['--conditions=source', bin, ...args], { cwd, encoding: 'utf8', env: { ...process.env, CI: '', AI_BDD_FAKE: '', ...env }, timeout: 60_000 });
+    spawnSync(process.execPath, ['--conditions=source', bin, ...args], { cwd, encoding: 'utf8', env: { ...cleanEnv(), ...env }, timeout: 60_000 });
 
   it('V1: `node --conditions=source packages/cli/src/bin.ts --help` prints usage and exits 0', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'ai-bdd-spawn-'));

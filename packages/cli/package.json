@@ -28,17 +28,13 @@
   },
   "peerDependencies": {
     "@ai-bdd/driver-playwright": "workspace:*",
-    "@ai-bdd/models-ai-sdk": "workspace:*",
-    "@ai-bdd/testing": "workspace:*"
+    "@ai-bdd/models-ai-sdk": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@ai-bdd/driver-playwright": {
       "optional": true
     },
     "@ai-bdd/models-ai-sdk": {
-      "optional": true
-    },
-    "@ai-bdd/testing": {
       "optional": true
     }
   }

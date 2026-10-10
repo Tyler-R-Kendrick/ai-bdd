@@ -1,5 +1,6 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { writeTestConfig } from '@ai-bdd/testing';
 import { CORPUS_DIR, RULES_BASE_DIR, VARIANTS_DIR, WORK_ROOT } from './paths.ts';
 
 /** Keys of `.corpus-options.json`; the corpus config spreads them into the user config (CLI path) and the SDK harness applies them to the resolved config. */
@@ -59,7 +60,7 @@ export class Project {
   get rulesDir(): string {
     return this.path('.rules');
   }
-  /** JSONL fake-call log (AI_BDD_FAKE_LOG); also usable as `logPath` of createFakeModels. */
+  /** JSONL fake-call log: the `logPath` the generated test config hands to `createFakeModels`. */
   get logPath(): string {
     return this.path('fake-calls.jsonl');
   }
@@ -103,6 +104,23 @@ export class Project {
       }
     });
     return this.rulesDir;
+  }
+
+  /**
+   * Write a generated test config into the project (`writeTestConfig` from `@ai-bdd/testing`): it extends the project's real
+   * config and registers the fake models (this project's rule directory and call log) and the fake driver through the ordinary
+   * `models` / `drivers` keys. Returns its absolute path, to be passed as `ai-bdd -c <file>` or `loadConfig({ configPath })`.
+   * Every call may use another `fileName` (an ES module is imported once per file name in a process).
+   */
+  writeTestConfig(opts: { flags?: readonly string[]; overrides?: Record<string, unknown>; fileName?: string } = {}): string {
+    return writeTestConfig({
+      projectDir: this.dir,
+      rulesDir: this.rulesDir,
+      logPath: this.logPath,
+      flags: opts.flags ?? [],
+      ...(opts.overrides === undefined ? {} : { overrides: opts.overrides }),
+      ...(opts.fileName === undefined ? {} : { fileName: opts.fileName }),
+    });
   }
 
   cleanup(): void {

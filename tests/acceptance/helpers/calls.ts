@@ -38,7 +38,7 @@ export function withContext(calls: readonly CallRecord[], key: string, value: st
   return calls.filter((c) => String(c.request?.context?.[key] ?? '') === value);
 }
 
-/** Read the AI_BDD_FAKE_LOG JSONL written by spawned CLI processes. */
+/** Read the JSONL call log the fake models append to (`logPath` option) in spawned CLI processes. */
 export function readFakeLog(path: string): CallRecord[] {
   if (!existsSync(path)) return [];
   return readFileSync(path, 'utf8')

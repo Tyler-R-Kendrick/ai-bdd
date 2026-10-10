@@ -9,8 +9,9 @@ export async function runVerifyRun(ctx: Ctx, runDirArg: string): Promise<ExitCod
   try {
     result = await withEngine(ctx, {}, ({ engine }) => engine.verifyRun(runDir));
   } catch (e) {
-    // Without a loadable config the run can still be verified through the standalone SDK function.
-    if (hasErrorCode(e, 'CONFIG_NOT_FOUND')) {
+    // Without a default config the run can still be verified through the standalone SDK function; an explicit
+    // `--config` that does not exist stays a usage error (exit 2).
+    if (hasErrorCode(e, 'CONFIG_NOT_FOUND') && ctx.configPath === undefined) {
       result = await (await resolveVerifyRun(ctx.deps))(runDir);
     } else if (hasErrorCode(e, 'EVIDENCE_CORRUPT')) {
       result = { ok: false, problems: [asAiBddError(e)?.message ?? 'evidence is corrupt'] };

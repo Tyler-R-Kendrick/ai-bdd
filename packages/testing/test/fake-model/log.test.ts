@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -12,7 +12,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env['AI_BDD_FAKE_LOG'];
 });
 
 const rules = [
@@ -75,18 +74,12 @@ describe('fake-model call log', () => {
     expect(readFileSync(logPath, 'utf8').trim().split('\n')).toHaveLength(2);
   });
 
-  it('AI_BDD_FAKE_LOG env var is used when logPath is not given; logPath wins when both are set', async () => {
-    process.env['AI_BDD_FAKE_LOG'] = join(dir, 'env.jsonl');
-    await createFakeModels({ rules }).extract.generate(req('extract', {}));
-    expect(readFileSync(join(dir, 'env.jsonl'), 'utf8').trim().split('\n')).toHaveLength(1);
-    await createFakeModels({ rules, logPath: join(dir, 'opt.jsonl') }).extract.generate(req('extract', {}));
-    expect(readFileSync(join(dir, 'opt.jsonl'), 'utf8').trim().split('\n')).toHaveLength(1);
-    expect(readFileSync(join(dir, 'env.jsonl'), 'utf8').trim().split('\n')).toHaveLength(1);
-  });
-
-  it('no log file is written without logPath/env', async () => {
+  it('no log file is written without logPath, and no environment variable turns logging on', async () => {
+    const before = { ...process.env };
     await createFakeModels({ rules }).extract.generate(req('extract', {}));
     expect(existsSync(join(dir, 'log.jsonl'))).toBe(false);
+    expect(readdirSync(dir)).toEqual([]);
+    expect(Object.keys(process.env).sort()).toEqual(Object.keys(before).sort());
   });
 
   it('R-JU1: the call log makes the canary assertion possible (no judge request contains a string, act may)', async () => {

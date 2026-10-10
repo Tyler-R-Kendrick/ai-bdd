@@ -140,7 +140,7 @@ await loadConfig({ cwd, configPath?, env? })             // find and resolve ai-
 resolveConfig(userConfig, { projectRoot, configPath?, env })   // pure; validates and applies defaults
 ```
 
-`loadConfig` tries `ai-bdd.config.ts`, then `.mjs`, `.js`, `.json`. A `.ts` file is imported with Node's native type stripping; if the runtime cannot, you get `CONFIG_TS_UNSUPPORTED` (use `.mjs` or `.json`). In JSON, `drivers.<name>` and `models` may be `{ "use": "<package or ./file>", "options": {...} }`; the package must export `createDriverFactory(options)` or `createModelSet(options)`. Unknown keys and bad values throw `CONFIG_INVALID` naming every offending path.
+`loadConfig` tries `ai-bdd.config.ts`, then `.mjs`, `.js`, `.json`. A `.ts` file is imported with Node's native type stripping; if the runtime cannot, you get `CONFIG_TS_UNSUPPORTED` (use `.mjs` or `.json`). `drivers.<name>` and `models` may be `{ use: '<package or ./file>', options: {...} }` in a `.json`, `.mjs` or `.js` config; the package must export `createDriverFactory(options)` or `createModelSet(options)` ([Models](#models), [drivers.md](drivers.md#plugging-in-a-driver)). In a typed `.ts` config, pass the object a factory function returns instead (`playwright(...)`, `aiSdkModels(...)`, your own `ModelSet`). Unknown keys and bad values throw `CONFIG_INVALID` naming every offending path.
 
 | Key | Default | Notes |
 |---|---|---|
@@ -178,7 +178,7 @@ resolveConfig(userConfig, { projectRoot, configPath?, env })   // pure; validate
 | `verifyRun(dir)`, `prune({ dryRun })`, `doctor({ offline })` | Integrity check, delete orphaned recordings, diagnostics. |
 | `on(listener)` / `close()` | Events / finalize and dispose. |
 
-`createEngine(config, overrides?)` accepts `overrides` `{ models, drivers, clock, env }`; this is how tests inject fakes (`createFakeModels`, `fakeDriver` from `@ai-bdd/testing`).
+`createEngine(config, overrides?)` accepts `overrides` `{ models, drivers, clock, env }` for embedding and tests (an already-built `ModelSet`, a driver factory, a fixed clock). The deterministic doubles in `@ai-bdd/testing` (`createFakeModels`, `fakeDriver`) are for ai-bdd's own tests and for offline tests of an integration; they are not a CLI mode. See [Test doubles](#test-doubles).
 
 ### Results
 
@@ -198,4 +198,73 @@ The engine wires these public factories; you can use them alone: `createChunker(
 
 ## Models
 
-A model adapter implements `ChatModel { id, generate(request) → response }` for each purpose, with tool calls and structured output. `@ai-bdd/models-ai-sdk` adapts the Vercel AI SDK (`aiSdkModels({ extract, act, checkgen, judge }, { maxRetries })`, or `createModelSet(options)` for JSON config). `request.context` is structured metadata for logs and fakes and is never sent to a provider. Errors: provider failures are `MODEL_UNAVAILABLE` (retryable), unparsable or schema-invalid output is `MODEL_OUTPUT_INVALID`.
+A model adapter implements `ChatModel { id, generate(request) → response }` and a `ModelSet` is one per purpose: `{ extract, act, checkgen, judge }`. Requests carry tool calls and structured output. `request.context` is structured metadata for logs and test doubles and is never sent to a provider. Errors: provider failures are `MODEL_UNAVAILABLE` (retryable), unparsable or schema-invalid output is `MODEL_OUTPUT_INVALID`.
+
+Models are real models: ai-bdd needs an `act` model that can drive a driver through tool calls and a `judge` that reads evidence, and there is no built-in stand-in. You plug them in through `models`, the same way as drivers.
+
+**The AI SDK adapter.** `@ai-bdd/models-ai-sdk` adapts the Vercel AI SDK. In a JS or JSON config, name the package and give model ids (strings go to the AI SDK unchanged, so `provider/model` ids use the AI Gateway and need `AI_GATEWAY_API_KEY`; provider packages read their own key variable):
+
+```js
+// ai-bdd.config.mjs
+export default {
+  models: {
+    use: '@ai-bdd/models-ai-sdk',
+    options: { extract: 'anthropic/claude-sonnet-5.5', act: 'anthropic/claude-sonnet-5.5', checkgen: 'anthropic/claude-sonnet-5.5', judge: 'anthropic/claude-opus-5.5', maxRetries: 2 },
+  },
+};
+```
+
+In TypeScript, call the factory and pass AI SDK model objects when you want a specific provider package:
+
+```ts
+import { defineConfig } from '@ai-bdd/sdk';
+import { aiSdkModels } from '@ai-bdd/models-ai-sdk';
+import { anthropic } from '@ai-sdk/anthropic';
+
+export default defineConfig({
+  models: aiSdkModels(
+    {
+      extract: anthropic('claude-sonnet-5-5'),
+      act: anthropic('claude-sonnet-5-5'),
+      checkgen: anthropic('claude-sonnet-5-5'),
+      judge: anthropic('claude-opus-5-5'),
+    },
+    { maxRetries: 2 },
+  ),
+});
+```
+
+**Your own `ModelSet`.** For a provider the AI SDK cannot reach, implement `ChatModel` four times (they may share one class) and hand the set to the config. This block typechecks against the contracts; the `generate` body is where your provider call goes:
+
+```ts check
+import { defineConfig } from '@ai-bdd/sdk';
+import type { ChatModel, ModelRequest, ModelResponse, ModelSet } from '@ai-bdd/sdk/contracts';
+
+class MyChatModel implements ChatModel {
+  readonly id: string;
+  constructor(id: string) {
+    this.id = id;
+  }
+  async generate(req: ModelRequest): Promise<ModelResponse> {
+    // Call your provider with req (system prompt, messages, tools, response schema, purpose) and map its answer to a ModelResponse.
+    throw new Error(`not implemented for ${req.purpose}`);
+  }
+}
+
+const models: ModelSet = {
+  extract: new MyChatModel('my-extract'),
+  act: new MyChatModel('my-act'),
+  checkgen: new MyChatModel('my-checkgen'),
+  judge: new MyChatModel('my-judge'),
+};
+
+export default defineConfig({ models });
+```
+
+To make the same set loadable from `{ use: '<your-package>', options }`, export `createModelSet(options): ModelSet | Promise<ModelSet>` from the package (`options` is whatever the config gave; validate it and throw `CONFIG_INVALID` on bad input).
+
+`ai-bdd doctor` checks that the model set loads and, without `--offline`, probes each purpose with a minimal request.
+
+## Test doubles
+
+`@ai-bdd/testing` also ships deterministic doubles: `createFakeModels({ rulesDir })` (a rule-based `ModelSet`), `fakeDriver({ flags })` (an in-memory driver for the Acme demo app) and `writeTestConfig(...)`, which writes a config file that plugs both in through the ordinary `drivers` and `models` keys on top of a project's real config. They exist for ai-bdd's own test suite and for authors of integrations who want offline, deterministic tests of their own glue code. A test selects the generated file with `ai-bdd -c <file>` or `loadConfig({ configPath })`, exactly as a user selects a config that plugs in a computer-use or browser-use driver. The CLI has no fake mode and reads no environment variable for it; nothing in the product path depends on `@ai-bdd/testing`.

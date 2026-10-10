@@ -15,7 +15,7 @@ import { describeError, exitCodeForError } from './exit.ts';
 import { parseReporters, parseWorkers, splitList } from './parse.ts';
 import type { CliDeps, CliIo } from './types.ts';
 
-export type { CliDeps, CliIo, TestingModule } from './types.ts';
+export type { CliDeps, CliIo } from './types.ts';
 
 function collect(value: string, previous: string[] | undefined): string[] {
   return [...(previous ?? []), value];

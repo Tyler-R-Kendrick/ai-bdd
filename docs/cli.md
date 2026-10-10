@@ -17,7 +17,7 @@ prune [--dry-run]
 doctor [--offline]
 ```
 
-`-c, --config <path>` loads that config instead of searching for `ai-bdd.config.{ts,mjs,js,json}` in the current directory. The project root is always the current directory.
+`-c, --config <path>` loads that config instead of searching for `ai-bdd.config.{ts,mjs,js,json}` in the current directory. The project root is always the current directory. Use it for several setups side by side (for example `ai-bdd -c ai-bdd.cua.config.mjs run` to drive the same docs through a computer-use driver, see [drivers.md](drivers.md#plugging-in-a-driver)) and for test configs that plug in deterministic doubles ([sdk.md](sdk.md#test-doubles)). A path that does not exist is `CONFIG_NOT_FOUND` (exit 2). Place it before the command; the examples in this file that run in CI go through a wrapper that supplies a test config, which is the checker's own harness and not something you need.
 
 ## Exit codes
 
@@ -148,7 +148,7 @@ Deletes recordings whose scenario exists in no plan (for example after a rejecte
 ai-bdd doctor --offline
 ```
 
-Checks Node version, config loading, each driver's `selfCheck`, model reachability and plan freshness, and prints `[ok]` or `[FAIL]` per check. Exit 1 if any fails. It reports missing drivers instead of crashing. Without `--offline` it also probes each model with a minimal request, which can cost a few tokens.
+Checks Node version, config loading, the drivers (at least one configured, a usable `defaultDriver`, and each driver's `selfCheck`: can its browser or device be reached?), the models (configured at all, and without `--offline` every distinct model id probed with a minimal request, which can cost a few tokens) and plan freshness, and prints `[ok]` or `[FAIL]` per check. Exit 1 if any fails. A failing driver or an unreachable model is reported as a failed check instead of crashing, so run it first after changing `drivers` or `models`. A `use` package that cannot be loaded fails earlier, while the config loads (`CONFIG_INVALID`, exit 2).
 
 ## Environment variables
 
@@ -160,19 +160,10 @@ Checks Node version, config loading, each driver's `selfCheck`, model reachabili
 | `AI_BDD_CHROMIUM_PATH` | Chromium executable for the Playwright driver. |
 | `PLAYWRIGHT_BROWSERS_PATH` | Where the Playwright driver looks for browsers. |
 | Names listed under `secrets` in config | The secret values (at least 4 characters). Every printed line is scrubbed of them. |
-| `AI_BDD_FAKE=1` | Test mode, below. |
+| `AI_BDD_MODEL`, `AI_BDD_JUDGE_MODEL` | Read by the demo project's `ai-bdd.config.mjs` (`packages/testing/corpus`), not by the CLI. Your own config decides which variables it reads. |
+| Provider keys (`AI_GATEWAY_API_KEY`, `ANTHROPIC_API_KEY`, ...) | Read by your model adapter (the AI SDK), not by the CLI. |
 
-### `AI_BDD_FAKE=1`
-
-Replaces `config.models` with the deterministic rule-based fake model (`createFakeModels({ rulesDir: $AI_BDD_FAKE_RULES })`), registers the `fake` driver (`fakeDriver({ flags: $AI_BDD_FAKE_FLAGS split on "," })`), makes it the default driver unless `--driver` is given, and prints `ai-bdd: FAKE models/driver active` to stderr. It loads `@ai-bdd/testing`; if that is not installed, the CLI exits 2. Without a config file the SDK defaults are used.
-
-| Variable | Meaning |
-|---|---|
-| `AI_BDD_FAKE_RULES` | Directory of fake-model rule files (`*.json`). A missing rule is a loud `MODEL_NO_RULE`. |
-| `AI_BDD_FAKE_FLAGS` | Acme app flags for the fake driver: `v2` (renames the upgrade button to "Go Pro"), `bug-upgrade-noop` (Confirm closes the dialog but changes nothing). |
-| `AI_BDD_FAKE_LOG` | Append every fake model request and response to this JSONL file. |
-
-This mode exists for tests and the README quickstart. The bundled corpus (`packages/testing/corpus`) shows rule files, docs with directives, and a config.
+The CLI has no test or demo mode: it always uses the drivers and models your config plugs in. To run it without a model or a browser (ai-bdd's own tests do), write a config file that plugs in deterministic doubles and select it with `-c`; see [sdk.md](sdk.md#test-doubles).
 
 ## Frozen and CI runs
 

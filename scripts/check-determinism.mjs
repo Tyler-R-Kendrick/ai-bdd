@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-// Compiles the testing corpus with the fake model twice and byte-compares the resulting plans:
+// Compiles the testing corpus with the deterministic test-double models twice and byte-compares the resulting plans:
+//   0. each corpus copy gets a generated test config (`writeTestConfig` from `@ai-bdd/testing`: the fake models and fake
+//      driver plugged in through the ordinary `drivers` / `models` keys, extending the corpus's real config) and the CLI
+//      is started with `-c <that file>`. The CLI itself has no fake mode and reads no fake-related environment variables;
+//      this script's harness is the same mechanism the repository's tests use;
 //   1. compile into a fresh copy of the corpus, snapshot `.ai-bdd/plans`;
 //   2. compile again in the same copy (incremental), the snapshot must not change;
 //   3. compile into a second fresh copy, the snapshot must equal the first.
@@ -9,6 +13,7 @@ import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { isMain, parseArgs, toPosix, walk } from './lib.mjs';
 
 const PLANS = path.join('.ai-bdd', 'plans');
@@ -38,12 +43,32 @@ export function digestOf(snap) {
   return h.digest('hex');
 }
 
-function compileOnce(root, cwd, timeoutMs) {
+const TEST_CONFIG_MODULE = path.join('packages', 'testing', 'src', 'test-config', 'index.ts');
+
+/**
+ * Generates the test config of one corpus copy with the real `writeTestConfig` (run in a child process so this script
+ * stays plain `node scripts/check-determinism.mjs`; Node strips the types of the `.ts` source). Returns the absolute path.
+ */
+function generateTestConfig(root, projectDir, timeoutMs) {
+  const moduleUrl = pathToFileURL(path.join(root, TEST_CONFIG_MODULE)).href;
+  const opts = { projectDir, rulesDir: path.join(root, 'packages', 'testing', 'corpus', 'fake-model') };
+  const code = `const { writeTestConfig } = await import(${JSON.stringify(moduleUrl)}); process.stdout.write(writeTestConfig(JSON.parse(process.env.TEST_CONFIG_OPTIONS)));`;
+  const r = spawnSync(process.execPath, ['--conditions=source', '--input-type=module', '-e', code], {
+    cwd: projectDir,
+    env: { ...process.env, NO_COLOR: '1', TEST_CONFIG_OPTIONS: JSON.stringify(opts) },
+    encoding: 'utf8',
+    timeout: timeoutMs,
+  });
+  if (r.status !== 0) throw new Error(`writeTestConfig failed (exit ${r.status ?? r.error?.message}): ${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().slice(-800)}`);
+  return r.stdout.trim();
+}
+
+function compileOnce(root, cwd, configFile, timeoutMs) {
   const bin = path.join(root, 'packages', 'cli', 'src', 'bin.ts');
-  const env = { ...process.env, AI_BDD_FAKE: '1', NO_COLOR: '1', AI_BDD_FAKE_RULES: path.join(root, 'packages', 'testing', 'corpus', 'fake-model') };
+  const env = { ...process.env, NO_COLOR: '1' };
   delete env.CI;
   delete env.AI_BDD_RECORDINGS;
-  const r = spawnSync(process.execPath, ['--conditions=source', bin, 'compile'], { cwd, env, encoding: 'utf8', timeout: timeoutMs });
+  const r = spawnSync(process.execPath, ['--conditions=source', bin, '-c', configFile, 'compile'], { cwd, env, encoding: 'utf8', timeout: timeoutMs });
   return { status: r.status, output: `${r.stdout ?? ''}${r.stderr ?? ''}`, error: r.error };
 }
 
@@ -57,6 +82,7 @@ export function checkDeterminism(root, { allowSkip = false, timeoutMs = 120_000 
   const bin = path.join(root, 'packages', 'cli', 'src', 'bin.ts');
   if (!fs.existsSync(corpus)) return skip('corpus not ready');
   if (!fs.existsSync(bin)) return skip('cli not ready');
+  if (!fs.existsSync(path.join(root, TEST_CONFIG_MODULE))) return skip('test config helper not ready');
 
   // The copies live next to the corpus (inside packages/testing) so the config's `@ai-bdd/*` imports resolve through the workspace.
   const tmp = fs.mkdtempSync(path.join(path.dirname(corpus), '.determinism-'));
@@ -64,8 +90,14 @@ export function checkDeterminism(root, { allowSkip = false, timeoutMs = 120_000 
     const dirs = ['a', 'b'].map((n) => path.join(tmp, n));
     for (const d of dirs) fs.cpSync(corpus, d, { recursive: true, filter: (src) => path.basename(src) !== 'node_modules' });
     const fail = (msg) => ({ ok: false, problems: [msg] });
+    let configs;
+    try {
+      configs = dirs.map((d) => generateTestConfig(root, d, timeoutMs));
+    } catch (err) {
+      return fail(err instanceof Error ? err.message : String(err));
+    }
 
-    const first = compileOnce(root, dirs[0], timeoutMs);
+    const first = compileOnce(root, dirs[0], configs[0], timeoutMs);
     if (first.status !== 0) {
       if (/NOT_IMPLEMENTED/.test(first.output)) return skip('cli not ready');
       return fail(`compile failed (exit ${first.status ?? first.error?.message}): ${first.output.trim().slice(-800)}`);
@@ -73,11 +105,11 @@ export function checkDeterminism(root, { allowSkip = false, timeoutMs = 120_000 
     const snap1 = snapshot(path.join(dirs[0], PLANS));
     if (snap1.size === 0) return fail(`compile produced no files under ${toPosix(PLANS)}`);
 
-    const second = compileOnce(root, dirs[0], timeoutMs);
+    const second = compileOnce(root, dirs[0], configs[0], timeoutMs);
     if (second.status !== 0) return fail(`second compile failed (exit ${second.status}): ${second.output.trim().slice(-800)}`);
     const snap2 = snapshot(path.join(dirs[0], PLANS));
 
-    const fresh = compileOnce(root, dirs[1], timeoutMs);
+    const fresh = compileOnce(root, dirs[1], configs[1], timeoutMs);
     if (fresh.status !== 0) return fail(`compile in a fresh copy failed (exit ${fresh.status}): ${fresh.output.trim().slice(-800)}`);
     const snap3 = snapshot(path.join(dirs[1], PLANS));
 

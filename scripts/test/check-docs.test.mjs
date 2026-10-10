@@ -90,16 +90,31 @@ test('checkLinks flags missing files and anchors, ignores external links and acc
   }
 });
 
+// A stand-in for packages/testing/src/test-config/index.ts: writes a config file that records the options it was given.
+const TEST_CONFIG_STUB = [
+  "import fs from 'node:fs';",
+  "import path from 'node:path';",
+  'export function writeTestConfig(opts) {',
+  "  const file = path.join(opts.projectDir, 'ai-bdd.config.test.mjs');",
+  '  fs.writeFileSync(file, JSON.stringify(opts));',
+  '  return file;',
+  '}',
+].join('\n');
+
 /** A fake repository whose CLI prints its arguments and environment so that sandbox behavior can be asserted. */
 function fakeRepo(extra = {}) {
   return makeRepo({
     'packages/cli/src/bin.ts': [
       "import fs from 'node:fs';",
       'const args = process.argv.slice(2);',
-      "console.log('cli', args.join(' '), 'fake=' + process.env.AI_BDD_FAKE, 'rules=' + (process.env.AI_BDD_FAKE_RULES ?? '').split('/').slice(-2).join('/'), 'ci=' + (process.env.CI ?? 'unset'));",
-      "if (args[0] === 'fail') process.exit(3);",
-      "if (args[0] === 'touch') fs.writeFileSync('touched.txt', 'x');",
+      "const cfg = args[0] === '-c' && fs.existsSync(args[1]) ? JSON.parse(fs.readFileSync(args[1], 'utf8')) : undefined;",
+      "const command = args[0] === '-c' ? args.slice(2) : args;",
+      "console.log('cli', command.join(' '), 'config=' + (cfg ? cfg.projectDir.split('/').slice(-1)[0] : 'none'), 'rules=' + (cfg ? cfg.rulesDir.split('/').slice(-2).join('/') : 'none'), 'aibddenv=' + Object.keys(process.env).filter((k) => k.startsWith('AI_BDD_')).length, 'ci=' + (process.env.CI ?? 'unset'));",
+      "if (command[0] === 'fail') process.exit(3);",
+      "if (command[0] === 'touch') fs.writeFileSync('touched.txt', 'x');",
     ].join('\n'),
+    'packages/testing/src/test-config/index.ts': TEST_CONFIG_STUB,
+    'packages/testing/package.json': { type: 'module' },
     'packages/testing/corpus/docs/one.md': '# One\n',
     'packages/testing/corpus/fake-model/rules.json': '{}',
     'package.json': { type: 'module' },
@@ -126,7 +141,7 @@ test('sh run blocks run in a repository mirror, share state per file, and honor 
       '```sh run in=project',
       'ai-bdd touch',
       'test -f touched.txt',
-      'test "$AI_BDD_FAKE" = 1',
+      'test -z "${AI_BDD_LEAK_PROBE:-}"',
       '```',
       '',
       '```sh run in=project exit=3',
@@ -147,28 +162,28 @@ test('sh run blocks run in a repository mirror, share state per file, and honor 
   }
 });
 
-test('project blocks get the fake env and an ai-bdd shim; root blocks get neither; outer CI and AI_BDD_* do not leak', () => {
+test('project blocks get an ai-bdd shim that injects -c <generated test config>; root blocks get neither; outer CI and AI_BDD_* do not leak', () => {
   const root = fakeRepo({
     'docs/env.md': [
       '```sh run in=project',
       'out=$(ai-bdd status --x)',
       'echo "$out"',
-      'echo "$out" | grep -q "fake=1"',
-      'echo "$out" | grep -q "rules=.docs-project/fake-model"',
-      'echo "$out" | grep -q "ci=unset"',
+      'echo "$out" | grep -q "^cli status --x config=.docs-project rules=.docs-project/fake-model aibddenv=0 ci=unset"',
+      '# a -c given by the document comes after the injected one and wins (the stub CLI only reads the first)',
+      'ai-bdd -c other.mjs status | grep -q "^cli -c other.mjs status"',
       '```',
       '',
       '```sh run',
-      'test -z "${AI_BDD_FAKE:-}"',
+      'test -z "${AI_BDD_LEAK_PROBE:-}"',
       'test -z "${CI:-}"',
       '! command -v ai-bdd',
       '```',
       '',
     ].join('\n'),
   });
-  const saved = { CI: process.env.CI, AI_BDD_FAKE: process.env.AI_BDD_FAKE };
+  const saved = { CI: process.env.CI, AI_BDD_LEAK_PROBE: process.env.AI_BDD_LEAK_PROBE };
   process.env.CI = '1';
-  process.env.AI_BDD_FAKE = '1';
+  process.env.AI_BDD_LEAK_PROBE = '1';
   try {
     const r = checkDocs(root, { ts: false, links: false });
     assert.deepEqual(r.problems, []);

@@ -28,59 +28,88 @@ docs/*.md ──compile──► .ai-bdd/plans/*.plan.json     (committed, revie
 
 Read [docs/concepts.md](docs/concepts.md) for the full model.
 
-## 60-second quickstart (no API keys, no browser)
+## Quickstart with the Acme demo (real models, real browser)
 
-`AI_BDD_FAKE=1` swaps in a deterministic rule-based fake model and an in-memory fake driver for the bundled "Acme" demo app. You run the real pipeline end to end offline.
+ai-bdd always runs against a real driver and real models. The repository ships a small demo web app, "Acme" (`startAcmeApp` in `@ai-bdd/testing`), and a demo project (`packages/testing/corpus`: docs plus a real `ai-bdd.config.mjs` with the Playwright driver and AI SDK models) so you can watch the whole loop on something you do not have to set up.
 
-Prerequisites: Node 22.18 or newer, [pnpm](https://pnpm.io), and a checkout of this repository with `pnpm install` done. Run the commands from the repository root in one terminal.
+Prerequisites: Node 22.18 or newer, [pnpm](https://pnpm.io), a checkout of this repository with `pnpm install` done, a Chromium ([Real setup](#real-setup) step 4), and a model provider key. The commands cost real tokens: a few dozen model calls for the first `compile` and `run`, none for the second `run`. Run everything from the repository root unless a step says otherwise.
 
-```sh run
-# 1. Work on a copy of the demo corpus (docs + fake model rules + config).
+```sh
+# 1. Credentials. AI_GATEWAY_API_KEY is read by the AI SDK for "provider/model" ids such as the default
+#    anthropic/claude-sonnet-5.5. Use your provider's key variable instead if you pick a provider package.
+export AI_GATEWAY_API_KEY=...
+export ACME_ADMIN_PASSWORD=correct-horse-battery   # the demo app's admin password; the config declares it as a secret
+export AI_BDD_MODEL=anthropic/claude-sonnet-5.5    # optional: any model id the AI SDK can resolve
+
+# 2. Work on a copy of the demo project, then start the demo app in the background.
 cp -r packages/testing/corpus packages/testing/.quickstart
 cd packages/testing/.quickstart
-export AI_BDD_FAKE=1 AI_BDD_FAKE_RULES="$PWD/fake-model"
+node --conditions=source --input-type=module -e "import { startAcmeApp } from '@ai-bdd/testing'; const app = await startAcmeApp({ port: 4173 }); console.log('Acme on', app.url)" &
 ai-bdd() { node --conditions=source ../../cli/src/bin.ts "$@"; }
-
-# 2. Compile: extract the plans from docs/*.md (one fake model call per section).
-ai-bdd compile
-
-# 3. Nothing changed, so compiling again makes no model calls and rewrites nothing.
-ai-bdd compile
-
-# 4. Read what was extracted: Gherkin with a source quote under each step.
-ai-bdd show docs-billing--upgrade-to-pro
-
-# 5. First run: characterize. The agent acts, the judge checks, recordings are saved.
-ai-bdd run docs-billing--upgrade-to-pro
-
-# 6. Second run: replay. "Model calls: 0".
-ai-bdd run docs-billing--upgrade-to-pro
-
-# 7. See which steps are deterministic and why others are fuzzy.
-ai-bdd show docs-billing--upgrade-to-pro --recordings
 ```
 
-Expected output of steps 5 and 6 (timings vary):
+The demo project's `ai-bdd.config.mjs` is the whole integration: a driver and a model set, both plugged in through the config.
+
+```js
+// packages/testing/corpus/ai-bdd.config.mjs (abridged)
+export default defineConfig({
+  docs: ['docs/**/*.md'],
+  baseURL: process.env.ACME_URL ?? 'http://localhost:4173',
+  secrets: { adminPassword: { env: 'ACME_ADMIN_PASSWORD' } },
+  drivers: { web: { use: '@ai-bdd/driver-playwright', options: { browser: 'chromium', headless: true } } },
+  defaultDriver: 'web',
+  models: { use: '@ai-bdd/models-ai-sdk', options: { extract: model, act: model, checkgen: model, judge: model } },
+});
+```
+
+Then the loop:
+
+```sh
+# 3. Check the setup: Node, config, the driver (can it launch a browser?) and the models.
+ai-bdd doctor
+
+# 4. Compile: a real model extracts features and scenarios from docs/*.md into .ai-bdd/plans/*.plan.json.
+ai-bdd compile
+
+# 5. Compiling again changes nothing and makes no model call.
+ai-bdd compile
+
+# 6. Review the plan: Gherkin with a source quote under every step. A real model words features its own way, so
+#    your ids may differ from this README; `show` prints them. Accept what you agree with.
+ai-bdd show docs/billing.md
+ai-bdd review accept <feature-id>
+
+# 7. First run: characterize. The agent drives the browser, the judge checks the document's criterion,
+#    deterministic steps are recorded under .ai-bdd/recordings/playwright/. (docs-billing-- selects the billing doc.)
+ai-bdd run docs-billing--
+
+# 8. Second run: replay. The recorded steps run without any model: "Model calls: 0".
+ai-bdd run docs-billing--
+
+# 9. See which steps are deterministic and why others are fuzzy.
+ai-bdd show docs-billing-- --recordings
+```
+
+Expected shape of the output of steps 7 and 8 (scenario ids, counts, timings and the first run's token counts vary with your models):
 
 ```text
-PASS  docs-billing--upgrade-to-pro/upgrade-from-free-to-pro  (characterize, recording created, 10.7s)
-PASS  docs-billing--upgrade-to-pro/upgrade-button-is-visible-on-the-free-plan  (characterize, recording created, 1.8s)
-Scenarios: 2 total, 2 passed
+PASS  docs-billing--<feature>/<scenario>  (characterize, recording created, 14.2s)
 Recordings (read-write): 2 created
 ...
-PASS  docs-billing--upgrade-to-pro/upgrade-from-free-to-pro  (replay, 2.2s)
-PASS  docs-billing--upgrade-to-pro/upgrade-button-is-visible-on-the-free-plan  (replay, 0.3s)
+PASS  docs-billing--<feature>/<scenario>  (replay, 2.2s)
 Steps: 2 replayed, 0 by agent, 0 healed, 0 fuzzy
 Model calls: 0 (0 input / 0 output tokens)
 ```
 
-Look around: `.ai-bdd/plans/` (the plan), `.ai-bdd/recordings/fake/` (the recordings), `.ai-bdd/report/summary.md` (traceability matrix from doc chunks to scenarios). Then clean up:
+Look around: `.ai-bdd/plans/` (the plan), `.ai-bdd/recordings/playwright/` (the recordings), `.ai-bdd/report/summary.md` (traceability matrix from doc chunks to scenarios). Then stop the demo app and clean up:
 
 ```sh
-cd ../../.. && rm -rf packages/testing/.quickstart
+kill %1; cd ../../.. && rm -rf packages/testing/.quickstart
 ```
 
-Try the rest of the corpus: `ai-bdd run docs-todos-- docs-checkout--` shows `fuzzy` steps (volatile timestamps, a subjective criterion) and `ACT_TARGET_AMBIGUOUS` (the doc says "submits the form" and the page has two Submit buttons). The quickstart commands above are executed in CI by `scripts/check-docs.mjs`.
+Try the rest of the corpus: `ai-bdd run docs-todos-- docs-checkout--` shows `fuzzy` steps (volatile timestamps, a subjective criterion) and `ACT_TARGET_AMBIGUOUS` (the doc says "submits the form" and the page has two Submit buttons).
+
+To drive the same app with a different engine (a computer-use model, browser-use), change only the `web` entry of `drivers`: see [Plugging in a driver](docs/drivers.md#plugging-in-a-driver). Because these steps need a key and a browser, they are not executed by the docs checker; the repository's own tests use deterministic test doubles instead ([FAQ](docs/faq.md#are-there-fake-models-or-a-fake-mode)).
 
 ## Real setup
 
@@ -122,7 +151,7 @@ The packages are not published to npm yet. Until they are, build this repository
    });
    ```
 
-   The model ids are examples. The config is loaded with Node's native TypeScript support; use `ai-bdd.config.mjs` or `.json` if your Node cannot.
+   The model ids are examples. The config is loaded with Node's native TypeScript support; use `ai-bdd.config.mjs` or `.json` if your Node cannot. Drivers and models are plain config entries: `drivers: { web: { use: '<package>', options } }` plugs in any package that exports `createDriverFactory(options)`, `models: { use: '<package>', options }` any package that exports `createModelSet(options)` ([docs/drivers.md](docs/drivers.md#plugging-in-a-driver), [docs/sdk.md](docs/sdk.md#models)).
 
 4. Provide credentials and a browser. Set the provider key your adapter needs (for example `ANTHROPIC_API_KEY`) and every `secrets` variable. The driver never downloads a browser: it uses `AI_BDD_CHROMIUM_PATH`, Playwright's own lookup or a Chromium under `PLAYWRIGHT_BROWSERS_PATH`. Install one with `npx playwright-core install chromium` if needed.
 
@@ -165,14 +194,14 @@ Exit codes: `0` passed, `1` failed or inconclusive or blocked, `2` usage or conf
 | `@ai-bdd/driver-playwright` | Playwright driver, plus `sessionFromPage` for embedding. |
 | `@ai-bdd/models-ai-sdk` | Vercel AI SDK adapter for the four model purposes. |
 | `@ai-bdd/playwright-test` | Runs scenarios as `@playwright/test` tests. |
-| `@ai-bdd/testing` | Acme demo app, fake driver, fake models, corpus. Test infrastructure, not needed by users. |
+| `@ai-bdd/testing` | Acme demo app, demo corpus, and deterministic test doubles (`fakeDriver`, `createFakeModels`, `writeTestConfig`) for ai-bdd's own tests and for offline tests of integrations. Not a product mode, not needed by users. |
 
 ## Documentation
 
 - [Concepts](docs/concepts.md): compile, plan, run, characterize, fuzzy.
 - [Authoring docs](docs/authoring-docs.md): directives and writing testable prose.
 - [Review guide](docs/review-guide.md): reviewing plan diffs and recordings.
-- [Drivers](docs/drivers.md): the shipped drivers and writing your own.
+- [Drivers](docs/drivers.md): the Playwright driver, plugging in other drivers (computer-use, browser-use) and writing your own.
 - [SDK](docs/sdk.md): the integration contract and a Playwright Test example.
 - [CLI reference](docs/cli.md).
 - [Security](docs/security.md): threat model, policy, secrets, evidence integrity limits.
@@ -183,7 +212,7 @@ Exit codes: `0` passed, `1` failed or inconclusive or blocked, `2` usage or conf
 
 - The judge is an LLM. A wrong verdict on the first run can become a recording; review recordings, and use `--audit` to compare judge and checks later ([docs/faq.md](docs/faq.md)).
 - Settle detection sees ARIA busy signals, not CSS-only animations.
-- Web only for now; the `Driver` interface is the extension point.
+- Web apps only out of the box (Playwright). Other engines (computer-use, browser-use, native) plug in through the `Driver` interface ([docs/drivers.md](docs/drivers.md#plugging-in-a-driver)).
 
 ## License
 

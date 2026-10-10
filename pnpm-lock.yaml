@@ -56,9 +56,6 @@ importers:
       '@ai-bdd/sdk':
         specifier: workspace:*
         version: link:../sdk
-      '@ai-bdd/testing':
-        specifier: workspace:*
-        version: link:../testing
       commander:
         specifier: ^15.0.0
         version: 15.0.0

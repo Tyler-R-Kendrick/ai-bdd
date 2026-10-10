@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, expect, it } from 'vitest';
 import { promisify } from 'node:util';
 import { startAcmeApp } from '@ai-bdd/testing';
@@ -33,43 +33,26 @@ describePlaywright('M22 [P] @ai-bdd/playwright-test on the billing subset', () =
     const p = createProject({ docs: ['billing'], options: FAST_REAL });
     project = p;
 
-    // baseline: the CLI with the fake driver (compiles the plans as a side effect)
+    // baseline: the CLI with the generated test config (fake driver) (compiles the plans as a side effect)
     const cli = await runCli(p, ['run', 'docs/billing.md']);
     expect(cli.code, cliOutput(cli)).toBe(0);
     const baseline = new Map(readRunReport(latestRunDir(p)).scenarios.map((s) => [s.scenarioId, s.status] as const));
     expect(baseline.size).toBe(5);
 
-    writeFileSync(
-      p.path('ai-bdd.config.pwtest.mjs'),
-      [
-        "import { fileURLToPath } from 'node:url';",
-        "import base from './ai-bdd.config.mjs';",
-        "import { createFakeModels, fakeDriver } from '@ai-bdd/testing';",
-        'export default {',
-        '  ...base,',
-        '  baseURL: process.env.ACME_URL,',
-        "  // the engine of a Playwright worker is created with cwd = process.cwd(); pin everything to this project",
-        "  planDir: fileURLToPath(new URL('./.ai-bdd/plans', import.meta.url)),",
-        "  recordingsDir: fileURLToPath(new URL('./.ai-bdd/recordings', import.meta.url)),",
-        "  runsDir: fileURLToPath(new URL('./.ai-bdd/runs', import.meta.url)),",
-        "  cacheDir: fileURLToPath(new URL('./.ai-bdd/cache', import.meta.url)),",
-        "  drivers: { fake: fakeDriver({}) },",
-        "  defaultDriver: 'fake',",
-        '  models: createFakeModels({ rulesDir: process.env.AI_BDD_FAKE_RULES }),',
-        '};',
-        '',
-      ].join('\n'),
-    );
-
     const acme = await startAcmeApp({});
     try {
+      // the generated test config (fake models + fake driver through the ordinary config keys) extends the project's real config;
+      // the engine of a Playwright worker is created with cwd = process.cwd(), so everything is pinned to this project
+      const testConfig = p.writeTestConfig({
+        fileName: 'ai-bdd.config.pwtest.mjs',
+        overrides: { baseURL: acme.url, planDir: p.plansDir, recordingsDir: p.recordingsDir, runsDir: p.runsDir, cacheDir: p.cacheDir },
+      });
       const reportFile = p.path('pw-report.json');
       const env: NodeJS.ProcessEnv = {
         ...process.env,
         ACME_URL: acme.url,
         ACME_ADMIN_PASSWORD: ACME_DEFAULT_ADMIN_PASSWORD,
-        AI_BDD_FAKE_RULES: p.rulesDir,
-        AI_BDD_CONFIG: p.path('ai-bdd.config.pwtest.mjs'),
+        AI_BDD_CONFIG: testConfig,
         AI_BDD_PLAN_DIR: p.plansDir,
         AI_BDD_SELECTORS: 'docs/billing.md',
         PW_JSON_OUTPUT: reportFile,

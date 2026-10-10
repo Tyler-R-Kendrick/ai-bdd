@@ -9,9 +9,15 @@
 // Block tags (the info string after the language):
 //   ```ts check                    a standalone module, typechecked with strict settings
 //   ```sh run                      runs from the sandbox repository root (a mirror of this repository, see below)
-//   ```sh run in=project           runs in a fresh copy of packages/testing/corpus with AI_BDD_FAKE=1,
-//                                  AI_BDD_FAKE_RULES set, and an `ai-bdd` shim on PATH (blocks without `in=` get no shim)
+//   ```sh run in=project           runs in a fresh copy of packages/testing/corpus with an `ai-bdd` shim on PATH
+//                                  (blocks without `in=` get no shim). The shim runs the CLI as `ai-bdd -c <test config> ...`.
 //   ```sh run exit=N               expects exit status N instead of 0
+//
+// The test config is this checker's OWN harness, not a product feature: ai-bdd has no fake mode and reads no fake-related
+// environment variables. The documented commands need an app and a model, so the checker generates a config with
+// `writeTestConfig` from `@ai-bdd/testing` (deterministic test doubles plugged in through the ordinary `drivers` /
+// `models` keys, extending the corpus's real config) and its shim injects `-c <that file>` in front of every `ai-bdd`
+// invocation. Docs that show real models and drivers are never tagged `sh run`.
 //
 // Sandbox: a temp directory (OS temp dir) that mirrors the repository layout: `node_modules` and every package except
 // `packages/testing` are symlinks to the real ones, `packages/testing/corpus` is a real copy. Documented commands such
@@ -23,6 +29,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { isMain, parseArgs, toPosix } from './lib.mjs';
 
 const EXCLUDED_DOCS = new Set(['errors.md', 'verification-log.md', 'adversarial-findings.md']);
@@ -228,10 +235,36 @@ export function createSandbox(root, tmp) {
   const bin = path.join(tmp, 'bin');
   fs.mkdirSync(bin, { recursive: true });
   const cli = path.join(root, 'packages', 'cli', 'src', 'bin.ts');
-  const shim = path.join(bin, 'ai-bdd');
-  fs.writeFileSync(shim, `#!/bin/sh\nexec "${process.execPath}" --conditions=source "${cli}" "$@"\n`);
-  fs.chmodSync(shim, 0o755);
+  writeShim(bin, cli);
   return { repo, bin };
+}
+
+/** The `ai-bdd` shim on PATH. With `configFile`, every invocation starts with `-c <configFile>` (a later `-c` still wins). */
+function writeShim(bin, cli, configFile) {
+  const shim = path.join(bin, 'ai-bdd');
+  const config = configFile === undefined ? '' : ` -c "${configFile}"`;
+  fs.writeFileSync(shim, `#!/bin/sh\nexec "${process.execPath}" --conditions=source "${cli}"${config} "$@"\n`);
+  fs.chmodSync(shim, 0o755);
+}
+
+const TEST_CONFIG_MODULE = path.join('packages', 'testing', 'src', 'test-config', 'index.ts');
+
+/**
+ * Generates the test config of `projectDir` with the real `writeTestConfig` (child process: Node strips the types of the
+ * `.ts` source, so this stays plain `node scripts/check-docs.mjs`). Returns the absolute path of the generated file.
+ */
+function generateTestConfig(root, projectDir) {
+  const moduleUrl = pathToFileURL(path.join(root, TEST_CONFIG_MODULE)).href;
+  const opts = { projectDir, rulesDir: path.join(projectDir, 'fake-model') };
+  const code = `const { writeTestConfig } = await import(${JSON.stringify(moduleUrl)}); process.stdout.write(writeTestConfig(JSON.parse(process.env.TEST_CONFIG_OPTIONS)));`;
+  const r = spawnSync(process.execPath, ['--conditions=source', '--input-type=module', '-e', code], {
+    cwd: projectDir,
+    env: cleanEnv({ TEST_CONFIG_OPTIONS: JSON.stringify(opts) }),
+    encoding: 'utf8',
+    timeout: 60_000,
+  });
+  if (r.status !== 0) throw new Error(`writeTestConfig failed (exit ${r.status ?? r.error?.message}): ${tail(`${r.stdout ?? ''}${r.stderr ?? ''}`, 800)}`);
+  return r.stdout.trim();
 }
 
 function tail(text, n = 2000) {
@@ -252,10 +285,15 @@ function runShellBlocks(root, rel, blocks, log) {
       if (b.in === 'project') {
         if (!projectReady) {
           fs.cpSync(path.join(repo, 'packages', 'testing', 'corpus'), projectDir, { recursive: true });
+          if (!fs.existsSync(path.join(root, TEST_CONFIG_MODULE))) {
+            problems.push(`${rel}:${b.line}: ${toPosix(TEST_CONFIG_MODULE)} is missing; cannot generate the checker's test config`);
+            break;
+          }
+          writeShim(bin, path.join(root, 'packages', 'cli', 'src', 'bin.ts'), generateTestConfig(root, projectDir));
           projectReady = true;
         }
         cwd = projectDir;
-        Object.assign(extra, { PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`, AI_BDD_FAKE: '1', AI_BDD_FAKE_RULES: path.join(projectDir, 'fake-model'), ACME_ADMIN_PASSWORD: 'correct-horse-battery' });
+        Object.assign(extra, { PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`, ACME_ADMIN_PASSWORD: 'correct-horse-battery' });
       }
       log(`  run ${rel}:${b.line} (${b.in})`);
       const r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', b.code], { cwd, env: cleanEnv(extra), encoding: 'utf8', timeout: RUN_TIMEOUT_MS });

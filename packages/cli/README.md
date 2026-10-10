@@ -2,7 +2,8 @@
 
 The `ai-bdd` command line. It is a thin layer over the public `@ai-bdd/sdk` API: it translates flags into
 `CompileOptions` / `RunOptions`, prints summaries, and maps errors to exit codes. It imports only `@ai-bdd/sdk`
-and `@ai-bdd/sdk/contracts` (plus `commander`), and loads `@ai-bdd/testing` dynamically only when `AI_BDD_FAKE=1`.
+and `@ai-bdd/sdk/contracts` (plus `commander`). It runs exactly the models and drivers the loaded config registers; it has no
+built-in test doubles and reads no environment flag to swap them in.
 
 ```sh
 ai-bdd init [--yes] [--json]
@@ -38,12 +39,35 @@ When `CI` is `true` or `1` (or the resolved config says `ci`), `run` defaults to
 and `-u` fails with `RECORDING_READ_ONLY` (exit 2) unless `AI_BDD_RECORDINGS=read-write`. There is no implicit
 `--strict`. The engine enforces the same defaults; the CLI only translates them.
 
-## `AI_BDD_FAKE=1`
+## Choosing drivers and models
 
-Replaces `config.models` with `createFakeModels({ rulesDir: $AI_BDD_FAKE_RULES })`, registers driver `fake`
-(`fakeDriver({ flags: $AI_BDD_FAKE_FLAGS split on "," })`), makes it the default driver unless `--driver` is given,
-and prints `ai-bdd: FAKE models/driver active` to stderr. Without a config file, SDK defaults are used. Exits 2 if
-`@ai-bdd/testing` is not installed.
+Drivers and models are chosen by the config file (`ai-bdd.config.{ts,mjs,js,json}`, or `-c <file>`), never by environment
+flags. A missing config file, including a `-c` path that does not exist, is `CONFIG_NOT_FOUND` (exit 2).
+
+- `drivers`: a map of name to a driver. Each entry is either a factory object or `{ use, options }`, where `use` names a
+  package that exports `createDriverFactory(options)`. `defaultDriver` picks the entry used when `--driver` is not given.
+- `models`: either a `ModelSet` built with `createModelSet`, or `{ use, options }` for a package that exports
+  `createModelSet(options)`, such as `@ai-bdd/models-ai-sdk`.
+
+```js
+// ai-bdd.config.mjs
+export default {
+  docs: ['docs/**/*.md'],
+  drivers: {
+    web: { use: '@ai-bdd/driver-playwright', options: { browser: 'chromium', headless: true } },
+    // any package exporting createDriverFactory(options) works the same way:
+    cua: { use: 'my-cua-driver', options: { display: ':1' } },       // computer-use (screenshots + pointer/keyboard)
+    agent: { use: 'my-browser-use-driver', options: { /* ... */ } }, // browser-use style driver
+  },
+  defaultDriver: 'web',                                             // `ai-bdd run --driver cua` overrides it
+  models: { use: '@ai-bdd/models-ai-sdk', options: { extract: 'anthropic/claude-sonnet-5.5', act: 'anthropic/claude-sonnet-5.5' } },
+};
+```
+
+In a JS config a driver can also be a factory object (for example `drivers: { web: myDriverFactory }`), and `models` can be
+the value returned by `createModelSet(...)`. Deterministic test doubles live in `@ai-bdd/testing` and are selected the same
+way, through a config file: `writeTestConfig({ projectDir })` writes `ai-bdd.config.test.mjs`, which extends the project's real
+config and registers the fake driver and fake models; run it with `ai-bdd -c ai-bdd.config.test.mjs ...`.
 
 ## Programmatic use
 
@@ -53,5 +77,5 @@ const exitCode = await main(['status'], { cwd: '/path/to/project' }, { /* option
 ```
 
 `main(argv, io?, deps?)` never throws. `deps` (`loadConfig`, `resolveConfig`, `createEngine`,
-`createRecordingStore`, `verifyRun`, `importTesting`, `nodeVersion`, `signal`) defaults to the SDK; tests inject
+`createRecordingStore`, `verifyRun`, `nodeVersion`, `signal`) defaults to the SDK; tests inject
 an in-memory `Engine`.

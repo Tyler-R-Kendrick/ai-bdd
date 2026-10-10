@@ -5,7 +5,7 @@ const here = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url
 
 export const REPO_ROOT = here('../../../');
 export const CORPUS_DIR = `${REPO_ROOT}/packages/testing/corpus`;
-/** The complete base rule set (also what AI_BDD_FAKE_RULES points at in the README quickstart). */
+/** The complete base rule set of the deterministic fake models (the `rulesDir` option of `createFakeModels` / `writeTestConfig`). */
 export const RULES_BASE_DIR = `${CORPUS_DIR}/fake-model`;
 /** Overlays layered in front of the base set, one directory per scenario variant. */
 export const VARIANTS_DIR = `${CORPUS_DIR}/fake-model-variants`;
