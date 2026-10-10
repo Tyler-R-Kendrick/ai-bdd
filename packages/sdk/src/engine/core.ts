@@ -14,7 +14,7 @@ import {
   type RunEvent,
   type Runner,
 } from '../contracts/index.ts';
-import { MIN_SECRET_LENGTH } from '../config/resolve.ts';
+import { MIN_SECRET_LENGTH } from '../config/index.ts';
 import { uuidv7 } from '../util/index.ts';
 import type { EngineModules } from './modules.ts';
 import { createUsageMeter, type UsageMeter } from './usage.ts';
@@ -63,14 +63,25 @@ export class Core {
     this.modules.createRecordingStore({ dir: this.config.recordingsDir, mode: this.config.recordingsMode }),
   );
 
+  readonly config: ResolvedConfig;
+  readonly modules: EngineModules;
+  readonly clock: Clock;
+  readonly env: Record<string, string | undefined>;
+  private readonly driverFactories: ResolvedConfig['drivers'];
+
   constructor(
-    readonly config: ResolvedConfig,
-    readonly modules: EngineModules,
-    readonly clock: Clock,
-    readonly env: Record<string, string | undefined>,
+    config: ResolvedConfig,
+    modules: EngineModules,
+    clock: Clock,
+    env: Record<string, string | undefined>,
     models: ModelSet | undefined,
-    private readonly driverFactories: ResolvedConfig['drivers'],
+    driverFactories: ResolvedConfig['drivers'],
   ) {
+    this.config = config;
+    this.modules = modules;
+    this.clock = clock;
+    this.env = env;
+    this.driverFactories = driverFactories;
     this.meter = createUsageMeter(models, config.prices);
     // Secrets are resolved from the environment once, here. Values live only in this closure and the redactor.
     for (const [name, spec] of Object.entries(config.secrets)) {

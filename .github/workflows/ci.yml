@@ -1,0 +1,185 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: '1'
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Coverage floor: 90% lines on the core SDK modules (spec 16.1).
+      - name: Unit tests with coverage floor
+        run: >
+          pnpm test:unit
+          --coverage.enabled
+          --coverage.provider=v8
+          --coverage.include='packages/sdk/src/{markdown,extract,plan,recording,assert,judge,evidence,runner}/**/*.ts'
+          --coverage.thresholds.lines=90
+
+  acceptance:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Fake driver and fake model only; the Playwright parity tests run in the playwright job.
+      - run: pnpm test:acceptance --exclude '**/playwright.*.test.ts'
+
+  adversarial:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:adversarial
+
+  playwright:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Downloads Chromium only when it is not already present.
+      - name: Ensure Chromium
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      - name: Driver conformance (real Chromium)
+        run: pnpm test:unit packages/driver-playwright
+      - name: Playwright parity (real Chromium, fake models)
+        run: pnpm test:acceptance playwright
+
+  determinism:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [22.x, 24.x]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compile the corpus twice and compare plans
+        run: node scripts/check-determinism.mjs "$RUNNER_TEMP/plan-digest.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan-digest-${{ matrix.os }}-${{ matrix.node }}
+          path: ${{ runner.temp }}/plan-digest.txt
+
+  determinism-across-os:
+    needs: determinism
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: plan-digest-*
+          path: digests
+      - name: Plan bytes are identical across operating systems and Node versions
+        run: |
+          cat digests/*/plan-digest.txt
+          test "$(cat digests/*/plan-digest.txt | sort -u | wc -l)" -eq 1
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Script tests
+        run: node --test scripts/test
+      - name: Requirements, boundaries, stubs, licenses, errors doc, determinism
+        run: pnpm check
+      - name: Docs examples (README quickstart)
+        if: hashFiles('scripts/check-docs.mjs') != ''
+        run: node scripts/check-docs.mjs

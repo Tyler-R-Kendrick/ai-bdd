@@ -361,7 +361,6 @@ export const createPlanner: CreatePlanner = (): Planner => {
 
       const kept: Feature[] = [];
       const slots: Slot[] = [];
-      const removedFeatures: Feature[] = [];
 
       const keepFeature = (f: Feature, sectionId: string): void => {
         const r = relocateFeature(f, idx);
@@ -400,7 +399,6 @@ export const createPlanner: CreatePlanner = (): Planner => {
         if (a === undefined) prevBySection.set(f.sectionId, [f]);
         else a.push(f);
       }
-      for (const f of prevFeatures) if (f.pinned !== true && !sectionIds.has(f.sectionId)) removedFeatures.push(f);
 
       for (const section of doc.sections) {
         const mode = modes.get(section.id);
@@ -426,14 +424,9 @@ export const createPlanner: CreatePlanner = (): Planner => {
           live.map((b) => b.match),
           prevHere.map(prevFeatureMatch),
         );
-        const matchedPrev = new Set<number>();
         live.forEach((body, i) => {
           const p = matches.get(i);
-          if (p !== undefined) matchedPrev.add(p);
           slots.push({ section, body, prev: p === undefined ? undefined : prevHere[p] });
-        });
-        prevHere.forEach((f, i) => {
-          if (!matchedPrev.has(i)) removedFeatures.push(f);
         });
       }
 
@@ -635,5 +628,32 @@ function reviewPlan(plan: DocPlan, id: string, action: 'accept' | 'reject' | 'pi
     }
   }
   owner.review = feature !== undefined ? state : aggregateReview(owner.scenarios, owner.review);
+  next.uncovered = refreshUncovered(next);
   return next;
+}
+
+/** Rejected items stop covering their sources (§8.4 step 8); accepting again restores coverage. Needs no doc: plan.chunks suffices. */
+function refreshUncovered(plan: DocPlan): string[] {
+  const covered = new Set<string>();
+  const referenced = new Set<string>();
+  const visit = (refs: readonly ChunkRef[], live: boolean): void => {
+    for (const r of refs) {
+      if (r.relation !== 'source') continue;
+      referenced.add(r.chunkId);
+      if (live) covered.add(r.chunkId);
+    }
+  };
+  for (const f of plan.features) {
+    const fl = f.review !== 'rejected';
+    visit(f.sources, fl);
+    for (const s of f.scenarios) {
+      const sl = fl && s.review !== 'rejected';
+      visit(s.sources, sl);
+      for (const st of s.steps) visit(st.sources, sl);
+    }
+  }
+  const notTestable = new Set(plan.notTestable.map((n) => n.chunkId));
+  const keep = new Set(plan.uncovered.filter((id) => !covered.has(id)));
+  for (const id of referenced) if (!covered.has(id) && !notTestable.has(id)) keep.add(id);
+  return plan.chunks.filter((c) => keep.has(c.id) && c.kind !== 'heading').map((c) => c.id);
 }
