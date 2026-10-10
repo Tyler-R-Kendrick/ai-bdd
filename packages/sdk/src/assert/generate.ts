@@ -207,7 +207,8 @@ function verify(
     }
   });
   if (issues.length > 0) {
-    return { errors: issues.map((i) => i.message), kind: issues.every((i) => i.volatile) ? 'volatile' : 'other' };
+    const kind: AttemptKind = issues.every((i) => i.volatile) ? 'volatile' : issues.some((i) => i.vacuous === true) ? 'discriminative' : 'other';
+    return { errors: issues.map((i) => i.message), kind };
   }
   const onAfter = evaluatePredicates(program.predicates, req.after, req.params);
   if (!allSatisfied(onAfter)) {

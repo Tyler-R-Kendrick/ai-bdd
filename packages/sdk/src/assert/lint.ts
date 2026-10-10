@@ -3,7 +3,7 @@ import { normalizeForQuote, normalizeText } from '../util/index.ts';
 import { findVolatile } from './volatile.ts';
 
 /** A lint finding. `volatile` findings are about content stability; the rest are structural (SPEC §10.4 step 2). */
-export interface LintIssue { message: string; volatile: boolean }
+export interface LintIssue { message: string; volatile: boolean; /** Always-true predicate: it cannot discriminate (R-AS1). */ vacuous?: boolean }
 
 export type LintContext = Parameters<LintCheckProgram>[1];
 
@@ -53,7 +53,7 @@ function queryMatchesKey(p: Predicate, q: NodeQuery, key: NodeKey): boolean {
 
 export function lintDetailed(program: CheckProgram, ctx: LintContext): LintIssue[] {
   const issues: LintIssue[] = [];
-  const add = (message: string, volatile = false): void => { issues.push({ message, volatile }); };
+  const add = (message: string, volatile = false, vacuous = false): void => { issues.push(vacuous ? { message, volatile, vacuous } : { message, volatile }); };
   const preds = Array.isArray(program.predicates) ? program.predicates : [];
 
   if (preds.length === 0) add('program has no predicates');
@@ -84,11 +84,11 @@ export function lintDetailed(program: CheckProgram, ctx: LintContext): LintIssue
     if (p.op === 'text') {
       const v = p.value as { literal?: unknown; param?: unknown };
       if (typeof v?.literal === 'string' && v.literal.length === 0 && p.match === 'contains') {
-        add(`${label}: a contains match on an empty literal is vacuous`);
+        add(`${label}: a contains match on an empty literal is vacuous`, false, true);
       }
     }
-    if (p.op === 'route' && p.match === 'prefix' && (p.value === '' || p.value === '/')) add(`${label}: a route prefix of "${p.value}" matches every route, so it is vacuous`);
-    if (p.op === 'count' && p.cmp === 'gte' && p.value === 0) add(`${label}: count >= 0 is always true, so it is vacuous`);
+    if (p.op === 'route' && p.match === 'prefix' && (p.value === '' || p.value === '/')) add(`${label}: a route prefix of "${p.value}" matches every route, so it is vacuous`, false, true);
+    if (p.op === 'count' && p.cmp === 'gte' && p.value === 0) add(`${label}: count >= 0 is always true, so it is vacuous`, false, true);
 
     for (const lit of literalsOf(p)) {
       for (const m of findVolatile(lit.text)) {

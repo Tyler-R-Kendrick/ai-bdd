@@ -118,3 +118,21 @@ test('import-looking text inside a template literal is not an import', () => {
   const found = extractImports("export const T = `import { x } from '@ai-bdd/driver-playwright';\nexport default {};`;\nimport real from 'real';\nconst d = import(`dyn`);");
   assert.deepEqual(found.map((f) => f.spec), ['real', 'dyn']);
 });
+
+test('extractImports folds concatenations, consts and escapes and reports non-literal specifiers as null', () => {
+  const found = extractImports("const a = '@ai-bdd/sdk/';\nawait import(a + 'src/x.ts');\nawait import('\\x40ai-bdd\\u002fsdk');\nawait import(process.env.X);\nconst re = /`/;\nimport q from 'after-regex';\nimport.meta.resolve('r');\ncreateRequire(import.meta.url)('cr');");
+  assert.deepEqual(found.map((f) => [f.kind, f.spec]), [['dynamic', '@ai-bdd/sdk/src/x.ts'], ['dynamic', '@ai-bdd/sdk'], ['dynamic', null], ['static', 'after-regex'], ['resolve', 'r'], ['require', 'cr'], ['createRequire', null]]);
+});
+
+test('computed specifiers, createRequire and file: URLs are reported in sources but not in tests', () => {
+  const p = problemsOf({
+    'packages/cli/src/a.ts': "export const a = await import(process.env['X']);\nimport { createRequire } from 'node:module';\nexport const r = createRequire(import.meta.url);",
+    'packages/cli/src/b.ts': "export const b = await import('file:///elsewhere/x.ts');\nexport const c = await import('@ai-bdd/sdk/' + 'src/a.ts');",
+    'packages/cli/test/c.test.ts': "export const d = await import(process.env['X']);\nconst s = \"import x from '@ai-bdd/sdk/dist/a'\";",
+  });
+  assert.equal(p.length, 4);
+  assert.match(p[0], /a\.ts:1 .*not a static string/);
+  assert.match(p[1], /a\.ts:3 .*createRequire/);
+  assert.match(p[2], /b\.ts:1 .*leaves packages\/cli/);
+  assert.match(p[3], /b\.ts:2 .*public entry points/);
+});
