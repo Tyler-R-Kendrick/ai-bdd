@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual runs. The only job that is specific to them is `live` (real models, real browser, costs tokens); the
+  # other jobs also run on a manual dispatch, which is harmless.
+  workflow_dispatch:
+  # Optional: a nightly live run. Uncomment to enable (the live job still skips itself without the secret).
+  # schedule:
+  #   - cron: '17 3 * * *'
 
 permissions:
   contents: read
@@ -82,7 +88,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Fake driver and fake model only; the Playwright parity tests run in the playwright job.
+      # Deterministic test doubles from @ai-bdd/testing, plugged in through generated config files; the Playwright parity tests run in the playwright job.
       - run: pnpm test:acceptance --exclude '**/playwright.*.test.ts'
 
   adversarial:
@@ -125,7 +131,7 @@ jobs:
         run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
       - name: Driver conformance (real Chromium)
         run: pnpm test:unit packages/driver-playwright
-      - name: Playwright parity (real Chromium, fake models)
+      - name: Playwright parity (real Chromium, deterministic test-double models)
         run: pnpm test:acceptance playwright
 
   determinism:
@@ -177,6 +183,55 @@ jobs:
         run: node --test scripts/test
       - name: Requirements, boundaries, stubs, licenses, errors doc, determinism
         run: pnpm check
-      - name: Docs examples (README quickstart)
+      - name: Docs examples (typecheck ts blocks, run sh blocks against test doubles, links)
         if: hashFiles('scripts/check-docs.mjs') != ''
         run: node scripts/check-docs.mjs
+
+  # Opt-in end-to-end run with REAL models, the real CLI and the real Playwright driver (tests/live). It costs tokens, so
+  # it never runs on pull requests or pushes: only on a manual dispatch (or the optional schedule above), and it skips
+  # itself when the AI_GATEWAY_API_KEY secret is not set.
+  live:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+      AI_BDD_LIVE: '1'
+    steps:
+      - name: Check for the model key
+        id: key
+        run: |
+          if [ -n "$AI_GATEWAY_API_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=live::AI_GATEWAY_API_KEY is not set; skipping the live run"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.enabled == 'true'
+      - uses: pnpm/action-setup@v4
+        if: steps.key.outputs.enabled == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.enabled == 'true'
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: steps.key.outputs.enabled == 'true'
+      - name: Cache Playwright browsers
+        if: steps.key.outputs.enabled == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Downloads Chromium only when it is not already present.
+      - name: Ensure Chromium
+        if: steps.key.outputs.enabled == 'true'
+        run: pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+      # The live tests run the CLI from packages/cli/dist.
+      - name: Build
+        if: steps.key.outputs.enabled == 'true'
+        run: pnpm build
+      - name: Live tests (real models, real browser)
+        if: steps.key.outputs.enabled == 'true'
+        run: pnpm exec vitest run -c tests/live/vitest.live.config.ts
