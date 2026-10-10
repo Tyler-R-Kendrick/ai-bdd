@@ -46,6 +46,10 @@ export default defineConfig({
       { extends: true, test: { name: 'unit', include: ['packages/*/test/**/*.test.ts'], testTimeout: 30_000, hookTimeout: 60_000 } },
       { extends: true, test: { name: 'acceptance', include: ['tests/acceptance/**/*.test.ts'], testTimeout: 180_000, hookTimeout: 60_000 } },
       { extends: true, test: { name: 'adversarial', include: ['tests/adversarial/**/*.test.ts'], testTimeout: 180_000 } },
+      // Property-based and fuzz tests (fast-check). FC_RUNS raises the number of cases; a failing seed is printed and replayable with FC_SEED.
+      { extends: true, test: { name: 'fuzz', include: ['tests/fuzz/**/*.test.ts'], testTimeout: 300_000 } },
+      // Fault injection: crashing drivers, failing models, hostile file systems, killed processes.
+      { extends: true, test: { name: 'chaos', include: ['tests/chaos/**/*.test.ts'], testTimeout: 180_000, hookTimeout: 60_000 } },
     ],
   },
 });

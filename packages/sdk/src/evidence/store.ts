@@ -11,7 +11,7 @@ import {
   type Redactor,
   type Sha256,
 } from '../contracts/index.ts';
-import { assertInsideRealRoot, atomicWriteFile, canonicalJson, sha256Hex, stableJson } from '../util/index.ts';
+import { assertInsideRealRoot, atomicWriteFile, canonicalJson, idTooLong, sha256Hex, stableJson } from '../util/index.ts';
 
 export const MANIFEST_FILE = 'manifest.json';
 export const EVENTS_FILE = 'events.jsonl';
@@ -24,7 +24,7 @@ export function isInside(parent: string, child: string): boolean {
 }
 
 function assertSafeRunId(runId: string): void {
-  if (runId === '' || runId === '.' || runId === '..' || /[\\/\0]/.test(runId)) {
+  if (runId === '' || runId === '.' || runId === '..' || /[\\/\0]/.test(runId) || idTooLong(runId)) {
     throw new AiBddError('POLICY_DENIED', `unsafe run id: ${JSON.stringify(runId)}`);
   }
 }
@@ -56,6 +56,7 @@ export const createEvidenceStore: CreateEvidenceStore = async ({ runsDir, runId,
   assertSafeRunId(runId);
   const dir = resolve(runsDir, runId);
   await assertInsideRealRoot(dir); // a symlinked runs directory must not redirect evidence outside the project (F-09)
+  await assertInsideRealRoot(dir, resolve(runsDir)); // nor may a symlinked run directory inside it redirect the run elsewhere
   await mkdir(join(dir, ARTIFACTS_DIR), { recursive: true });
 
   const refs = new Map<string, ArtifactRef>();

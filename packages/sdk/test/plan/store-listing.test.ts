@@ -56,13 +56,13 @@ afterEach(() => {
 
 describe('plan store listing', () => {
   const URIS = ['docs/a.md', 'docs/a/b.md', 'docs/a.md.bak/c.md', 'docs/B.md', 'z.md', 'docs/deep/d.md', 'a.md'];
-  // plain code-unit order of the full posix file path: "B" < "a", "a.md.bak/..." < "a.md.plan.json" (b < p) < "a/b.md..." ("." < "/")
-  const EXPECTED = ['a.md', 'docs/B.md', 'docs/a.md.bak/c.md', 'docs/a.md', 'docs/a/b.md', 'docs/deep/d.md', 'z.md'];
+  // plain code-unit order of the docUri (not of the plan file name): "B" < "a"; "docs/a.md" is a prefix of "docs/a.md.bak/c.md"; "." < "/"
+  const EXPECTED = ['a.md', 'docs/B.md', 'docs/a.md', 'docs/a.md.bak/c.md', 'docs/a/b.md', 'docs/deep/d.md', 'z.md'];
 
   it.each([
     ['in file system order', false],
     ['when the file system lists entries in reverse order', true],
-  ])('R-PL4: plans are returned in code-unit path order %s, sync and async alike', async (_name, reverse) => {
+  ])('R-PL4: plans are returned in code-unit docUri order %s, sync and async alike', async (_name, reverse) => {
     const store = createPlanStore({ dir, readOnly: false });
     for (const uri of URIS) await store.save(samplePlan(uri));
     fsOrder.reverse = reverse;

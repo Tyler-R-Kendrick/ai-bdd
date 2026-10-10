@@ -18,6 +18,8 @@
     "coverage": "vitest run --passWithNoTests --project unit --coverage.enabled && node scripts/coverage-report.mjs",
     "test:acceptance": "vitest run --passWithNoTests --project acceptance",
     "test:adversarial": "vitest run --passWithNoTests --project adversarial",
+    "test:fuzz": "vitest run --passWithNoTests --project fuzz",
+    "test:chaos": "vitest run --passWithNoTests --project chaos",
     "check": "node scripts/check-all.mjs",
     "test:live": "vitest run -c tests/live/vitest.live.config.ts"
   },
