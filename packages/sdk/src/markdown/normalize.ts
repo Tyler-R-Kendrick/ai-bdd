@@ -82,7 +82,7 @@ export function limitNesting(text: string): { text: string; blanked: number[] } 
 // ───────────────────────── input budgets (R-EX1)
 
 /** Largest document (UTF-16 units) the chunker accepts; larger ones are reported as unreadable. */
-export const MAX_DOC_CHARS = 512 * 1024;
+export const MAX_DOC_CHARS = 256 * 1024;
 /** Active inline delimiters (`[`, `]`, `*`, `_`, `~`) per blank-line separated run. micromark's inline resolver is quadratic in them. */
 export const MAX_RUN_DELIMITERS = 1000;
 /** Longest stretch (characters) a `[` may stay unclosed before it is literal text. */

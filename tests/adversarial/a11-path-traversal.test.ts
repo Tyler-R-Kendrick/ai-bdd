@@ -123,7 +123,9 @@ describe('A11 R-PL4 symlinks planted in the repository cannot redirect writes ou
     symlinkSync(outside, project.runsDir);
     const h = await openEngine(project);
     await h.compile();
-    await h.run({ titles: ['Upgrade button is visible on the Free plan'] });
+    // Failing closed is the expected outcome: the run is refused with POLICY_DENIED. Completing without evidence would also be acceptable.
+    const error = await h.run({ titles: ['Upgrade button is visible on the Free plan'] }).then(() => undefined, (e: unknown) => e);
+    if (error !== undefined) expect(error).toMatchObject({ code: 'POLICY_DENIED' });
     await h.close();
     expect(walkFiles(outside), 'evidence written through a planted symlink').toEqual([]);
   });
