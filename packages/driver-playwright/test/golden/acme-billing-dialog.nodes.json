@@ -1,0 +1,136 @@
+[
+  {
+    "ref": "e2",
+    "role": "navigation",
+    "name": "Primary",
+    "states": {},
+    "depth": 0
+  },
+  {
+    "ref": "e3",
+    "role": "link",
+    "name": "Billing",
+    "states": {},
+    "depth": 1,
+    "url": "/settings/billing",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e4",
+    "role": "link",
+    "name": "Todos",
+    "states": {},
+    "depth": 1,
+    "url": "/todos",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e5",
+    "role": "link",
+    "name": "Checkout",
+    "states": {},
+    "depth": 1,
+    "url": "/forms/two",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e6",
+    "role": "link",
+    "name": "Release notes",
+    "states": {},
+    "depth": 1,
+    "url": "/notes",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e7",
+    "role": "main",
+    "name": "",
+    "states": {},
+    "depth": 0
+  },
+  {
+    "ref": "e9",
+    "role": "heading",
+    "name": "Billing",
+    "states": {},
+    "depth": 1,
+    "level": 1,
+    "parentRef": "e7"
+  },
+  {
+    "ref": "e10",
+    "role": "region",
+    "name": "Plan",
+    "states": {},
+    "depth": 1,
+    "parentRef": "e7"
+  },
+  {
+    "ref": "e11",
+    "role": "status",
+    "name": "Plan: Free",
+    "states": {},
+    "depth": 2,
+    "text": "Plan: Free",
+    "parentRef": "e10"
+  },
+  {
+    "ref": "e12",
+    "role": "button",
+    "name": "Upgrade to Pro",
+    "states": {},
+    "depth": 2,
+    "parentRef": "e10"
+  },
+  {
+    "ref": "e13",
+    "role": "region",
+    "name": "Invoice preview",
+    "states": {},
+    "depth": 1,
+    "parentRef": "e7"
+  },
+  {
+    "ref": "e14",
+    "role": "paragraph",
+    "name": "Next invoice: $0.00",
+    "states": {},
+    "depth": 2,
+    "text": "Next invoice: $0.00",
+    "parentRef": "e13"
+  },
+  {
+    "ref": "e15",
+    "role": "dialog",
+    "name": "Confirm upgrade",
+    "states": {},
+    "depth": 1,
+    "parentRef": "e7"
+  },
+  {
+    "ref": "e16",
+    "role": "paragraph",
+    "name": "You will be charged a prorated amount of $12.50 today.",
+    "states": {},
+    "depth": 2,
+    "text": "You will be charged a prorated amount of $12.50 today.",
+    "parentRef": "e15"
+  },
+  {
+    "ref": "e17",
+    "role": "button",
+    "name": "Confirm",
+    "states": {},
+    "depth": 2,
+    "parentRef": "e15"
+  },
+  {
+    "ref": "e18",
+    "role": "button",
+    "name": "Cancel",
+    "states": {},
+    "depth": 2,
+    "parentRef": "e15"
+  }
+]

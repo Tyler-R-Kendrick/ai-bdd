@@ -1,0 +1,79 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {
+        "fuzzy": true,
+        "tags": [
+          "one"
+        ]
+      },
+      "docUri": "docs/directive-adjacent-multiple.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-adjacent-multiple.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-adjacent-multiple.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {
+        "fuzzy": true,
+        "tags": [
+          "one"
+        ]
+      },
+      "docUri": "docs/directive-adjacent-multiple.md",
+      "hash": "f06dce27b84e18ccb3c7e94a0679c279cd42027da23bcf1e1ca1f94e365ea420",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-adjacent-multiple.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 6,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/directive-adjacent-multiple.md#doc",
+      "text": "Text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "364bc4c1a58c51abdf0d5d09facad5942853e8b5eb3429fb0a98372fa6bbf930",
+    "title": "Doc",
+    "uri": "docs/directive-adjacent-multiple.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-adjacent-multiple.md#doc/h",
+        "docs/directive-adjacent-multiple.md#doc/p1"
+      ],
+      "docUri": "docs/directive-adjacent-multiple.md",
+      "hash": "ff1a78c0f65161a790afb33ab069f475da4463037653ff206ca82ba905ef8d3c",
+      "id": "docs/directive-adjacent-multiple.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 6,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+import type { Chunk, Diagnostic, Section, SourceRange } from '../contracts/index.ts';
+import { sha256Hex } from '../util/index.ts';
+
+/** A resolved chunk plus structure needed for splitting. */
+export interface Member {
+  chunk: Chunk;
+  /** Anchor of the heading path the chunk lives under. */
+  pathAnchor: string;
+  /** Heading level, for heading chunks only. */
+  level?: number;
+}
+
+interface Piece {
+  anchor: string;
+  title: string;
+  level: number;
+  members: Member[];
+}
+
+export interface SectionOptions {
+  sectionDepth: number;
+  maxSectionChars: number;
+}
+
+function excluded(m: Member): boolean {
+  return m.chunk.directives.ignore === true || m.chunk.directives.context === true;
+}
+
+function size(members: readonly Member[]): number {
+  let n = 0;
+  for (const m of members) if (!excluded(m)) n += m.chunk.text.length;
+  return n;
+}
+
+function before(a: SourceRange, b: SourceRange): boolean {
+  return a.startLine < b.startLine || (a.startLine === b.startLine && a.startColumn < b.startColumn);
+}
+
+function after(a: SourceRange, b: SourceRange): boolean {
+  return a.endLine > b.endLine || (a.endLine === b.endLine && a.endColumn > b.endColumn);
+}
+
+/**
+ * Build the extraction sections of a document (spec 6.4) and set `chunk.sectionId` on every chunk.
+ * Oversized sections split at their next-deeper headings, then at chunk boundaries into `part-n`.
+ */
+export function buildSections(
+  docUri: string,
+  members: readonly Member[],
+  opts: SectionOptions,
+  diagnostics: Diagnostic[],
+): Section[] {
+  const base: Piece[] = [];
+  let current: Piece = { anchor: '_preamble', title: 'Preamble', level: 0, members: [] };
+  base.push(current);
+  for (const m of members) {
+    if (m.chunk.kind === 'heading' && m.level !== undefined && m.level <= opts.sectionDepth) {
+      current = { anchor: m.pathAnchor, title: m.chunk.text, level: m.level, members: [] };
+      base.push(current);
+    }
+    current.members.push(m);
+  }
+
+  const pieces: Piece[] = [];
+  for (const piece of base) split(piece, opts.maxSectionChars, docUri, diagnostics, pieces);
+
+  const usedIds = new Set<string>();
+  const sections: Section[] = [];
+  for (const piece of pieces) {
+    let anchor = piece.anchor;
+    for (let n = 2; usedIds.has(`${docUri}#${anchor}`); n++) anchor = `${piece.anchor}-${n}`;
+    const id = `${docUri}#${anchor}`;
+    usedIds.add(id);
+    for (const m of piece.members) m.chunk.sectionId = id;
+    const included = piece.members.filter((m) => !excluded(m));
+    if (included.length === 0) continue;
+    let range = included[0]?.chunk.range as SourceRange;
+    range = { ...range };
+    for (const m of included) {
+      const r = m.chunk.range;
+      if (before(r, range)) {
+        range.startLine = r.startLine;
+        range.startColumn = r.startColumn;
+      }
+      if (after(r, range)) {
+        range.endLine = r.endLine;
+        range.endColumn = r.endColumn;
+      }
+    }
+    sections.push({
+      id,
+      docUri,
+      anchor,
+      title: piece.title,
+      level: piece.level,
+      chunkIds: included.map((m) => m.chunk.id),
+      hash: sha256Hex(included.map((m) => m.chunk.hash).join('\n')),
+      range,
+    });
+  }
+  return sections;
+}
+
+function split(piece: Piece, max: number, docUri: string, diagnostics: Diagnostic[], out: Piece[]): void {
+  if (size(piece.members) <= max) {
+    out.push(piece);
+    return;
+  }
+
+  // 1. next-deeper headings
+  let deeper = Number.POSITIVE_INFINITY;
+  for (const m of piece.members) {
+    if (m.chunk.kind === 'heading' && m.level !== undefined && m.level > piece.level && m.level < deeper) deeper = m.level;
+  }
+  if (Number.isFinite(deeper)) {
+    const subs: Piece[] = [];
+    let cur: Piece = { anchor: piece.anchor, title: piece.title, level: piece.level, members: [] };
+    subs.push(cur);
+    for (const m of piece.members) {
+      if (m.chunk.kind === 'heading' && m.level === deeper) {
+        cur = { anchor: m.pathAnchor, title: m.chunk.text, level: deeper, members: [] };
+        subs.push(cur);
+      }
+      cur.members.push(m);
+    }
+    for (const sub of subs) split(sub, max, docUri, diagnostics, out);
+    return;
+  }
+
+  // 2. chunk boundaries
+  const parts: Member[][] = [];
+  let cur: Member[] = [];
+  let curSize = 0;
+  const flush = (): void => {
+    if (cur.length > 0) parts.push(cur);
+    cur = [];
+    curSize = 0;
+  };
+  for (const m of piece.members) {
+    const len = excluded(m) ? 0 : m.chunk.text.length;
+    if (len > max) {
+      diagnostics.push({
+        code: 'DOC_CHUNK_TOO_LARGE',
+        severity: 'warning',
+        message: `chunk is ${len} characters, over the section limit of ${max}; it becomes its own part`,
+        uri: docUri,
+        range: m.chunk.range,
+        details: { chunkId: m.chunk.id, chars: len, maxSectionChars: max },
+      });
+      flush();
+      parts.push([m]);
+      continue;
+    }
+    if (curSize > 0 && curSize + len > max) flush();
+    cur.push(m);
+    curSize += len;
+  }
+  flush();
+
+  if (parts.length <= 1) {
+    out.push(piece);
+    return;
+  }
+  parts.forEach((members, i) => {
+    out.push({ anchor: `${piece.anchor}/part-${i + 1}`, title: `${piece.title} (part ${i + 1})`, level: piece.level, members });
+  });
+}
