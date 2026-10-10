@@ -4,7 +4,6 @@ import type {
   ActResult,
   ArtifactRef,
   CheckProgram,
-  DriverCapabilities,
   PerformedAction,
   Recorder,
   FixtureContext,
@@ -241,15 +240,7 @@ async function callActor(sc: StepCtx, hints: RecordedAction[] | undefined): Prom
   return res;
 }
 
-type CapabilityAwareToRecording = (
-  ...args: [...Parameters<Recorder['toRecording']>, { capabilities: DriverCapabilities }]
-) => ReturnType<Recorder['toRecording']>;
-
-/**
- * Re-record a performed step. The session capabilities travel as an optional sixth argument
- * (contracts-proposals/S-RECORDING.md) so `agent-only-driver` can be derived; recorders that
- * only know the frozen five-argument contract ignore it.
- */
+/** Re-record a performed step; the session capabilities let the recorder derive `agent-only-driver`. */
 function rerecord(
   sc: StepCtx,
   performed: readonly PerformedAction[],
@@ -257,9 +248,7 @@ function rerecord(
   after: Observation,
   afterProbe: Observation,
 ): ReturnType<Recorder['toRecording']> {
-  const recorder = sc.env.deps.recorder;
-  const call = recorder.toRecording as CapabilityAwareToRecording;
-  return call.call(recorder, performed, before, after, afterProbe, sc.step, { capabilities: sc.st.session.capabilities });
+  return sc.env.deps.recorder.toRecording(performed, before, after, afterProbe, sc.step, { capabilities: sc.st.session.capabilities });
 }
 
 function actFailure(res: ActResult, path: StepPath, determinism: StepBody['determinism']): StepBody {

@@ -69,9 +69,6 @@ describePlaywright('M22 [P] @ai-bdd/playwright-test on the billing subset', () =
         ACME_URL: acme.url,
         ACME_ADMIN_PASSWORD: ACME_DEFAULT_ADMIN_PASSWORD,
         AI_BDD_FAKE_RULES: p.rulesDir,
-        // Finding (docs/integration-notes/X-CORPUS.md): with sessionFactory the confirm run is handed the SAME page, which already
-        // holds the upgraded state, so a characterization run under read-write ends in CHARACTERIZATION_UNSTABLE.
-        AI_BDD_RECORDINGS: 'read-only',
         AI_BDD_CONFIG: p.path('ai-bdd.config.pwtest.mjs'),
         AI_BDD_PLAN_DIR: p.plansDir,
         AI_BDD_SELECTORS: 'docs/billing.md',

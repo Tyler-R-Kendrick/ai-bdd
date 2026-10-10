@@ -138,6 +138,11 @@ describe('@playwright/test runs ai-bdd scenarios (M22, AC9)', () => {
           '  baseURL: process.env.AI_BDD_ACME_URL,',
           '  fixtures: acmeFixtures,',
           "  secrets: { adminPassword: { env: 'ACME_ADMIN_PASSWORD' } },",
+          "  // a Playwright worker creates its engine with cwd = process.cwd(); pin every directory to this project",
+          `  planDir: ${JSON.stringify(join(project, '.ai-bdd', 'plans'))},`,
+          `  recordingsDir: ${JSON.stringify(join(project, '.ai-bdd', 'recordings'))},`,
+          `  runsDir: ${JSON.stringify(join(project, '.ai-bdd', 'runs'))},`,
+          `  cacheDir: ${JSON.stringify(join(project, '.ai-bdd', 'cache'))},`,
           "  drivers: { fake: fakeDriver({}) },",
           "  defaultDriver: 'fake',",
           `  models: createFakeModels({ rulesDir: ${JSON.stringify(join(project, 'fake-model'))} }),`,
@@ -182,7 +187,7 @@ describe('@playwright/test runs ai-bdd scenarios (M22, AC9)', () => {
         const attachments = spec.results.flatMap((r) => r.attachments ?? []);
         const read = (name: string): string => {
           const a = attachments.find((x) => x.name === name);
-          if (a === undefined) throw new Error(`attachment ${name} missing`);
+          if (a === undefined) throw new Error(`attachment ${name} missing\n${out}`);
           return a.path === undefined ? Buffer.from(a.body ?? '', 'base64').toString('utf8') : readFileSync(a.path, 'utf8');
         };
         const result = JSON.parse(read('ai-bdd-result.json')) as { scenarioId: string; status: string };

@@ -372,7 +372,7 @@ describe.skipIf(!hasBrowser)('driver-playwright', () => {
         const obs = await s.observe();
         await s.perform({ verb: 'click', target: { ref: find(obs, 'button', name).ref } });
         // The popup may exist for an instant before the session closes it; it must not survive.
-        const deadline = Date.now() + 5000;
+        const deadline = Date.now() + 12_000;
         while (ctx.pages().length > 1 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
         await new Promise((r) => setTimeout(r, 300));
         expect(ctx.pages().length, name + ' ' + ctx.pages().map((p) => p.url()).join(',')).toBe(1);

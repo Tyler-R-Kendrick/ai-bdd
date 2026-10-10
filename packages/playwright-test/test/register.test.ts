@@ -206,6 +206,33 @@ describe('engine and session wiring (R-SDK3)', () => {
     expect(toSession).toHaveBeenCalledWith(page, sessionOpts, { policy: config.policy, baseURL: 'http://localhost:3999' });
   });
 
+  it('R-SDK3 gives the second and later sessions of a scenario a page in a fresh browser context, and closes it', async () => {
+    const config = fakeConfig();
+    const closeContext = vi.fn(() => Promise.resolve());
+    engine = fakeEngine(async (_id, opts) => {
+      const o = { scenarioId: 's', policy: config.policy, resolveValue: () => '' } as SessionOptions;
+      await opts?.sessionFactory?.(o);
+      await opts?.sessionFactory?.(o);
+      expect(closeContext).not.toHaveBeenCalled();
+      return result();
+    }, config);
+    loadCfg.mockResolvedValue(config);
+    makeEngine.mockResolvedValue(engine);
+    const freshPage = { fresh: true };
+    const newContext = vi.fn(() => Promise.resolve({ newPage: () => Promise.resolve(freshPage), close: closeContext }));
+    const hostPage = { context: () => ({ browser: () => ({ newContext }) }) } as unknown as Parameters<typeof sessionFromPage>[0];
+    toSession.mockResolvedValue({} as DriverSession);
+
+    const rec = recordingTest();
+    registerAiBddScenarios({ test: rec.test });
+    await rec.tests[0]?.body({ page: hostPage }, fakeTestInfo());
+
+    expect(toSession.mock.calls[0]?.[0]).toBe(hostPage);
+    expect(toSession.mock.calls[1]?.[0]).toBe(freshPage);
+    expect(newContext).toHaveBeenCalledTimes(1);
+    expect(closeContext).toHaveBeenCalledTimes(1);
+  });
+
   it('R-SDK3 omits baseURL from the session context when the config has none', async () => {
     toSession.mockResolvedValue({} as DriverSession);
     const rec = recordingTest();

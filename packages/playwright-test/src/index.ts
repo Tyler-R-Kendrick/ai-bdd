@@ -66,6 +66,10 @@ function annotate(testInfo: TestInfoLike, plan: DocPlan, scenario: Scenario, res
   });
 }
 
+interface FreshContextHost {
+  newContext(): Promise<{ newPage(): Promise<unknown>; close(): Promise<void> }>;
+}
+
 async function runScenarioTest(
   args: { plan: DocPlan; feature: Feature; scenario: Scenario; opts: RegisterOptions },
   page: PageLike,
@@ -76,11 +80,27 @@ async function runScenarioTest(
   const { config } = engine;
   const ctx = { policy: config.policy, ...(config.baseURL === undefined ? {} : { baseURL: config.baseURL }) };
 
+  // The first session adopts the test's own page. Characterization confirm runs (and heals) need a clean start state,
+  // which a page that already ran the scenario cannot give, so every later session gets a page in a fresh browser context.
+  const extraContexts: { close(): Promise<void> }[] = [];
+  let handedOutTestPage = false;
+  const nextPage = async (): Promise<PageLike> => {
+    if (!handedOutTestPage) {
+      handedOutTestPage = true;
+      return page;
+    }
+    const browser = (page as unknown as { context(): { browser(): FreshContextHost | null } }).context().browser();
+    if (browser === null) return page;
+    const context = await browser.newContext();
+    extraContexts.push(context);
+    return (await context.newPage()) as PageLike;
+  };
+
   let result: ScenarioResult;
   try {
     // R-SDK3: the engine builds the SessionOptions; the host framework supplies the page.
     result = await engine.runScenario(scenario.id, {
-      sessionFactory: (sessionOpts) => sessionFromPage(page, sessionOpts, ctx),
+      sessionFactory: async (sessionOpts) => sessionFromPage(await nextPage(), sessionOpts, ctx),
     });
   } catch (error) {
     const code = (error as { code?: unknown } | null)?.code;
@@ -92,6 +112,8 @@ async function runScenarioTest(
       );
     }
     throw error;
+  } finally {
+    await Promise.all(extraContexts.map((c) => c.close().catch(() => undefined)));
   }
 
   annotate(testInfo, plan, scenario, result);

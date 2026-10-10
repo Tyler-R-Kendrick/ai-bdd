@@ -259,7 +259,7 @@ export type FuzzyReason =
   | 'directive' | 'subjective' | 'volatile-content' | 'check-not-discriminative' | 'check-generation-failed'
   | 'confirm-replay-failed' | 'confirm-check-failed' | 'coordinate-action' | 'no-observable-effect' | 'heal-threshold' | 'agent-only-driver';
 export interface Recorder {
-  toRecording(performed: readonly PerformedAction[], before: Observation, after: Observation, afterProbe: Observation | undefined, step: Step): { act: ActProgram; fuzzyReasons: FuzzyReason[] };
+  toRecording(performed: readonly PerformedAction[], before: Observation, after: Observation, afterProbe: Observation | undefined, step: Step, opts?: { capabilities?: DriverCapabilities }): { act: ActProgram; fuzzyReasons: FuzzyReason[] };
   replay(act: ActProgram, session: DriverSession, ctx: { baseURL?: string; policy: Policy; signal?: AbortSignal }): Promise<ReplayResult>;
 }
 export interface NodeQuery { role?: string; name?: string; nameMatch?: 'exact' | 'contains'; testId?: string; within?: NodeKey }
