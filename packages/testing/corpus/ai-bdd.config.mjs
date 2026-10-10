@@ -1,5 +1,5 @@
 // The Acme demo project's REAL config: a Playwright browser driver and AI SDK models, plugged in through the ordinary
-// `drivers` / `models` keys. To drive Acme with a different engine (a computer-use driver, a browser-use driver), swap the
+// `drivers` / `models` keys. To drive Acme with a different engine (a driver built on Cua Driver, a browser-use driver), swap the
 // `web` entry for any package that exports `createDriverFactory(options)`; nothing else changes.
 //
 //   export AI_GATEWAY_API_KEY=...            # or the key your model provider's AI SDK package reads

@@ -5,7 +5,8 @@ A **driver** gives ai-bdd a way to see and operate one application. It is the on
 | Driver | Package | Use |
 |---|---|---|
 | `playwright` | `@ai-bdd/driver-playwright` | Real browsers (Chromium default). The driver for web apps, and the only one that ships. |
-| Yours | any package that exports `createDriverFactory(options)` | A computer-use harness, a browser-use agent runtime, a native or mobile bridge. See [Plugging in a driver](#plugging-in-a-driver). |
+| Cua Driver | not shipped; you wrap [Cua Driver](https://cua.ai/docs/cua-driver) (`cua-driver`) in a `createDriverFactory` package | Native desktop apps and browsers on macOS, Windows and Linux, operated in the background. See [(b) Cua Driver](#b-cua-driver-cuaai). |
+| Yours | any package that exports `createDriverFactory(options)` | A browser-use agent runtime, a native or mobile bridge, another screen-driving engine. See [Plugging in a driver](#plugging-in-a-driver). |
 
 Drivers are always real: they operate a real application. (`@ai-bdd/testing` has an in-memory double of the demo app for ai-bdd's own tests; it is not a product mode, see [sdk.md](sdk.md#test-doubles).)
 
@@ -63,7 +64,7 @@ A driver is a config entry. ai-bdd does not care what is behind it, only that it
 - **`{ use: '<package or ./file>', options }`**: ai-bdd imports the package (resolved from the project root) and calls its `createDriverFactory(options)`. It works in `.json`, `.mjs` and `.js` configs, so the choice of engine can be a one-line JSON change.
 - **A factory object**: import the factory yourself and put it under `drivers`. This is the only form a typed `.ts` config accepts (`defineConfig` types `drivers` as `DriverFactory` values).
 
-The examples below use the built-in Playwright driver and two **hypothetical** packages, `my-cua-driver` and `my-browser-use-driver`. They are placeholders for whatever computer-use or browser-use driver package you or your vendor publish; they do not exist on npm and ai-bdd does not ship them. Everything else in the config (docs, models, secrets, policy, `baseURL`) stays the same when you swap the driver.
+The examples below use the built-in Playwright driver, [Cua Driver](https://cua.ai/) through a driver package you write, and one **hypothetical** package, `my-browser-use-driver`, a placeholder for whatever browser-use runtime package you publish. ai-bdd ships only the Playwright driver; neither Cua Driver nor `my-browser-use-driver` has an ai-bdd package yet. Everything else in the config (docs, models, secrets, policy, `baseURL`) stays the same when you swap the driver.
 
 ### (a) The built-in Playwright driver
 
@@ -88,34 +89,34 @@ export default defineConfig({
 });
 ```
 
-### (b) A computer-use (CUA) driver package
+### (b) Cua Driver (cua.ai)
 
-A computer-use driver operates a screen (a browser window, a VM, a remote desktop) with screenshots and mouse and keyboard events. With a hypothetical `my-cua-driver`:
+[Cua Driver](https://cua.ai/docs/cua-driver) is a specific product from [Cua](https://cua.ai/): an open-source (MIT) driver that lets an agent operate native apps and browsers on macOS, Windows and Linux in the background, without taking the system cursor or focus where the platform allows. It is reached through the `cua-driver` CLI (`cua-driver call <tool>`) or as an MCP server over stdio (`cua-driver mcp`); install it from the [Cua Driver quickstart](https://cua.ai/docs/cua-driver/quickstart). Its tools include `get_window_state`, `click`, `type_text`, `press_key` and `invoke_menu`; run `cua-driver list-tools` and `cua-driver describe <tool>` for the exact names and input schemas, and see the [CLI reference](https://cua.ai/docs/cua-driver/reference/cli) and [Connecting an agent](https://cua.ai/docs/cua-driver/guides/connect-your-agent).
+
+ai-bdd does not ship a Cua Driver package. To use it you write a small driver package (your own repository, or a `./drivers/cua.mjs` file in the project) whose `createDriverFactory(options)` returns a `DriverFactory` that translates ai-bdd's `observe()` and `perform(action)` into Cua Driver tool calls. The mapping is the one in [Screenshot-and-coordinate drivers](#screenshot-and-coordinate-drivers-honest-limits): turn the window state Cua Driver reports into `ObservedNode`s with a role and an accessible name, and turn `click`, `fill` and `press` on those refs into Cua Driver calls. Check what `get_window_state` returns on your platform before relying on it; ai-bdd steps whose targets have no role or name stay `fuzzy`.
 
 ```js
-// ai-bdd.config.mjs: the package form
+// ai-bdd.config.mjs: the package form (the package is the one you wrote around Cua Driver)
 export default {
-  baseURL: 'https://staging.example.com',
   drivers: {
-    screen: { use: 'my-cua-driver', options: { display: ':1', screenshotScale: 1, startUrl: 'https://staging.example.com' } },
+    desktop: { use: './drivers/cua.mjs', options: { app: 'Acme', command: 'cua-driver' } },
   },
-  defaultDriver: 'screen',
+  defaultDriver: 'desktop',
   // models, secrets ... unchanged
 };
 ```
 
 ```js
 // ai-bdd.config.mjs: the factory form (a JS config can await the factory)
-import { createDriverFactory } from 'my-cua-driver';
+import { createDriverFactory } from './drivers/cua.mjs';
 
 export default {
-  baseURL: 'https://staging.example.com',
-  drivers: { screen: await createDriverFactory({ display: ':1', screenshotScale: 1 }) },
-  defaultDriver: 'screen',
+  drivers: { desktop: await createDriverFactory({ app: 'Acme', command: 'cua-driver' }) },
+  defaultDriver: 'desktop',
 };
 ```
 
-Run it with `ai-bdd doctor` first (it calls the driver's `selfCheck`), then `ai-bdd run --driver screen` or set `defaultDriver`. Recordings are filed under the driver's id (`.ai-bdd/recordings/<driverId>/`), so characterizing on `screen` does not touch the recordings made on `playwright`. A screen shared by all sessions should declare `exclusiveResource` so scenarios run one at a time. How such a driver maps screenshots and coordinates onto the verb set, and what that costs, is in [Screenshot-and-coordinate drivers](#screenshot-and-coordinate-drivers-honest-limits).
+`app` and `command` are options of the package you write, not of Cua Driver or ai-bdd. Run `ai-bdd doctor` first (it calls the driver's `selfCheck`, which should verify that `cua-driver` is installed and has its OS permissions), then `ai-bdd run --driver desktop` or set `defaultDriver`. Recordings are filed under the driver's id (`.ai-bdd/recordings/<driverId>/`), so characterizing on `desktop` does not touch the recordings made on `playwright`. Desktop windows are one shared resource, so declare `exclusiveResource` and `maxSessions: 1` and scenarios run one at a time. Confine navigation yourself: Cua Driver operates real apps and does not know `policy.allowHosts`.
 
 ### (c) A browser-use driver package
 
@@ -141,7 +142,7 @@ export default {
 };
 ```
 
-You can keep several drivers in one config (`drivers: { web: ..., screen: ... }`) and pick per scenario with the `driver` directive in the doc or per run with `--driver <name>`; `-c <file>` selects a different config file altogether (`ai-bdd -c ai-bdd.cua.config.mjs run`).
+You can keep several drivers in one config (`drivers: { web: ..., desktop: ... }`) and pick per scenario with the `driver` directive in the doc or per run with `--driver <name>`; `-c <file>` selects a different config file altogether (`ai-bdd -c ai-bdd.cua.config.mjs run`).
 
 ### What a driver package must export
 
@@ -160,12 +161,12 @@ Typical capability sets (illustrative, set them to what your implementation real
 | | `verbs` | `pixels` | `maskingProven` | `request` | `maxSessions` | `exclusiveResource` |
 |---|---|---|---|---|---|---|
 | Playwright | all ten | `true` | `true` | `true` | 8 | none |
-| CUA, one shared screen | `navigate click fill press scroll hover wait` | `true` | `false` | `false` | 1 | `'screen'` |
+| Screen driver, one shared screen | `navigate click fill press scroll hover wait` | `true` | `false` | `false` | 1 | `'screen'` |
 | Browser-use over CDP | the ten, if the runtime has them | `true` | `false` until you can show masking | `false` | a few | none |
 
 ### Screenshot-and-coordinate drivers (honest limits)
 
-ai-bdd's action surface is **ref-based**: the agent picks a node from `observe()` and the driver performs `click` or `fill` on that ref. A computer-use backend speaks screenshots and `(x, y)`. The driver is the bridge:
+ai-bdd's action surface is **ref-based**: the agent picks a node from `observe()` and the driver performs `click` or `fill` on that ref. A screen-driving backend (Cua Driver, for example) speaks screenshots, window state and `(x, y)` or element indexes. The driver is the bridge:
 
 1. **`observe()` must still return nodes.** Per observation, take a screenshot and produce `ObservedNode`s with an ARIA role and an accessible name (and `level`, `states`, `url` where you can). The best source is the platform's accessibility tree (CDP accessibility tree, UIA, AX, AT-SPI) read at the same moment as the screenshot, keeping each node's bounding box in the session. If you only have pixels, a vision model can propose labelled regions, but that is a model call inside your driver on every observation, and its labels will wobble from run to run.
 2. **Refs carry the revision (`r<rev>:e<n>`) and map to boxes.** A `click` on a ref becomes a click at the centre of its box; `fill` is click, select all, type (resolve `{secret}` values at the moment of typing and taint the session); `hover` moves the mouse; `scroll` is a wheel event at a point; `press` sends the key; `navigate` and `back` use the browser or the OS. Reject refs of an older revision with `STALE_REF`. Verbs the backend cannot do reliably (`select` on a native dropdown, `check`) should be left out of `capabilities.verbs`.
@@ -233,7 +234,7 @@ const centre = (b: Box): [number, number] => [Math.round(b.x + b.w / 2), Math.ro
 
 class ScreenSession implements DriverSession {
   readonly id: string;
-  readonly driverId = 'my-cua';
+  readonly driverId = 'my-screen';
   readonly driverVersion = '1.0.0';
   readonly capabilities = CAPABILITIES;
   private readonly backend: ScreenBackend;
@@ -337,22 +338,22 @@ class ScreenSession implements DriverSession {
   }
 }
 
-/** The export a `{ use: 'my-cua-driver', options }` config entry calls. */
+/** The export a `{ use: 'my-screen-driver', options }` config entry calls. */
 export function createDriverFactory(options: unknown): DriverFactory {
   const display = (options as { display?: unknown } | null)?.display;
-  if (typeof display !== 'string') throw new AiBddError('CONFIG_INVALID', 'my-cua-driver: options.display must be a string');
+  if (typeof display !== 'string') throw new AiBddError('CONFIG_INVALID', 'my-screen-driver: options.display must be a string');
   return {
-    id: 'my-cua',
+    id: 'my-screen',
     async create(): Promise<Driver> {
       const backend = await connectBackend({ display });
       let sessions = 0;
       return {
-        id: 'my-cua',
+        id: 'my-screen',
         version: '1.0.0',
         capabilities: CAPABILITIES,
         async openSession(opts: SessionOptions): Promise<DriverSession> {
           sessions += 1;
-          return new ScreenSession(`my-cua-${sessions}`, backend, opts);
+          return new ScreenSession(`my-screen-${sessions}`, backend, opts);
         },
         async selfCheck() {
           try {
@@ -579,7 +580,7 @@ vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 const app = await startAcmeApp({});
 afterAll(() => app.close());
 
-runDriverConformance('my-cua-driver', () => createDriverFactory({ display: ':1' }), { appUrl: app.url });
+runDriverConformance('my-screen-driver', () => createDriverFactory({ display: ':1' }), { appUrl: app.url });
 ```
 
 The app-level cases look for Acme roles and names (`/login`, `/settings/billing`, `/todos`, `/forms/two`, `/slow`, `/notes`). A driver that perceives the page through a vision model may not reproduce them exactly: treat the failures as information about how stable your perception is, since recordings depend on exactly that stability. `options` also takes `testToken`, `adminPassword`, `allowHosts` and `slowMs` for apps that differ from the defaults. If the kit does not fit your platform, copy it and adapt the assertions; the contracts it checks are the ones listed above in this document.

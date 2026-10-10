@@ -17,7 +17,7 @@ prune [--dry-run]
 doctor [--offline]
 ```
 
-`-c, --config <path>` loads that config instead of searching for `ai-bdd.config.{ts,mjs,js,json}` in the current directory. The project root is always the current directory. Use it for several setups side by side (for example `ai-bdd -c ai-bdd.cua.config.mjs run` to drive the same docs through a computer-use driver, see [drivers.md](drivers.md#plugging-in-a-driver)) and for test configs that plug in deterministic doubles ([sdk.md](sdk.md#test-doubles)). A path that does not exist is `CONFIG_NOT_FOUND` (exit 2). Place it before the command; the examples in this file that run in CI go through a wrapper that supplies a test config, which is the checker's own harness and not something you need.
+`-c, --config <path>` loads that config instead of searching for `ai-bdd.config.{ts,mjs,js,json}` in the current directory. The project root is always the current directory. Use it for several setups side by side (for example `ai-bdd -c ai-bdd.desktop.config.mjs run` to drive the same docs through another driver, for example one built on Cua Driver, see [drivers.md](drivers.md#plugging-in-a-driver)) and for test configs that plug in deterministic doubles ([sdk.md](sdk.md#test-doubles)). A path that does not exist is `CONFIG_NOT_FOUND` (exit 2). Place it before the command; the examples in this file that run in CI go through a wrapper that supplies a test config, which is the checker's own harness and not something you need.
 
 ## Exit codes
 

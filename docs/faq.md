@@ -87,7 +87,7 @@ Prefer editing the document. A hand-edited feature survives recompiles only if i
 
 ## Can it test things other than web apps?
 
-The engine only needs a `Driver`: an accessibility-style tree to observe, actions to perform and a navigation policy. Only the Playwright driver ships today. Other engines plug in through config: a computer-use or browser-use driver package, or one you write ([drivers.md](drivers.md#plugging-in-a-driver), [writing a driver](drivers.md#writing-a-driver)). Note the honest limit for screenshot-and-coordinate engines: steps whose target has no role or accessible name are `fuzzy` (`coordinate-action`) and keep calling the model ([details](drivers.md#screenshot-and-coordinate-drivers-honest-limits)).
+The engine only needs a `Driver`: an accessibility-style tree to observe, actions to perform and a navigation policy. Only the Playwright driver ships today. Other engines plug in through config: a driver package you write around an engine such as [Cua Driver](https://cua.ai/docs/cua-driver) or a browser-use runtime ([drivers.md](drivers.md#plugging-in-a-driver), [writing a driver](drivers.md#writing-a-driver)). Note the honest limit for screenshot-and-coordinate engines: steps whose target has no role or accessible name are `fuzzy` (`coordinate-action`) and keep calling the model ([details](drivers.md#screenshot-and-coordinate-drivers-honest-limits)).
 
 ## How does it behave in parallel and in CI?
 

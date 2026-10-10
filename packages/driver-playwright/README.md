@@ -18,7 +18,7 @@ defaultDriver: 'web',
 ```
 
 or as a factory object (the only form a typed `.ts` config takes): `drivers: { web: playwright({ browser: 'chromium' }) }`.
-Any other driver package (a computer-use or browser-use driver, for example) plugs in the same way; see
+Any other driver package (one you write around Cua Driver or a browser-use runtime, for example) plugs in the same way; see
 `docs/drivers.md#plugging-in-a-driver`. This package is also the reference implementation for the shared conformance
 kit (`conformance.test.ts` below).
 

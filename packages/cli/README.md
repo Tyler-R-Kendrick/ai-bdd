@@ -56,10 +56,10 @@ export default {
   drivers: {
     web: { use: '@ai-bdd/driver-playwright', options: { browser: 'chromium', headless: true } },
     // any package exporting createDriverFactory(options) works the same way:
-    cua: { use: 'my-cua-driver', options: { display: ':1' } },       // computer-use (screenshots + pointer/keyboard)
+    desktop: { use: './drivers/cua.mjs', options: {} },               // your own package wrapping Cua Driver (https://cua.ai)
     agent: { use: 'my-browser-use-driver', options: { /* ... */ } }, // browser-use style driver
   },
-  defaultDriver: 'web',                                             // `ai-bdd run --driver cua` overrides it
+  defaultDriver: 'web',                                             // `ai-bdd run --driver desktop` overrides it
   models: { use: '@ai-bdd/models-ai-sdk', options: { extract: 'anthropic/claude-sonnet-5.5', act: 'anthropic/claude-sonnet-5.5' } },
 };
 ```
