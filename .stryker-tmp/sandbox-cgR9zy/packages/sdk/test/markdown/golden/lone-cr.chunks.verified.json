@@ -1,0 +1,89 @@
+{
+  "chunks": [
+    {
+      "anchor": "title/h",
+      "directives": {},
+      "docUri": "docs/lone-cr.md",
+      "hash": "7e8cd2056da73a7fefb6cd91f4e5d199d08d9058c517b9a2476b1b520324d674",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/lone-cr.md#title/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/lone-cr.md#title",
+      "text": "Title"
+    },
+    {
+      "anchor": "title/p1",
+      "directives": {},
+      "docUri": "docs/lone-cr.md",
+      "hash": "d81a3666613ec12f156333d04f362a7989dba32489799d7880357efc9e3c3d66",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/lone-cr.md#title/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 15,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/lone-cr.md#title",
+      "text": "Para one still para one"
+    },
+    {
+      "anchor": "title/li1",
+      "directives": {},
+      "docUri": "docs/lone-cr.md",
+      "hash": "4a33eacd5fa65f2b2e2871cd131286b53c415b131666d71173bb6e3fe59361b3",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/lone-cr.md#title/li1",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 7,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/lone-cr.md#title",
+      "text": "item"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "459ef5ca9d9c9575834dc09c912c60dfefe649a92d150006fd06a5cb69aa4dcd",
+    "title": "Title",
+    "uri": "docs/lone-cr.md"
+  },
+  "sections": [
+    {
+      "anchor": "title",
+      "chunkIds": [
+        "docs/lone-cr.md#title/h",
+        "docs/lone-cr.md#title/p1",
+        "docs/lone-cr.md#title/li1"
+      ],
+      "docUri": "docs/lone-cr.md",
+      "hash": "281986d92370b1bf30f624af89c1294cb8d385ff920e31d3ef96e8d1d3474adc",
+      "id": "docs/lone-cr.md#title",
+      "level": 1,
+      "range": {
+        "endColumn": 7,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Title"
+    }
+  ]
+}

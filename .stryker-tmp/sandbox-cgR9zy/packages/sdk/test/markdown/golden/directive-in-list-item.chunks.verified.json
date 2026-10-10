@@ -1,0 +1,135 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {},
+      "docUri": "docs/directive-in-list-item.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-in-list-item.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-in-list-item.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/li1",
+      "directives": {
+        "fuzzy": true
+      },
+      "docUri": "docs/directive-in-list-item.md",
+      "hash": "3d12fe7a30f10bca0abe6e8ef7037332410a30246c2f0842aa4dfa6dfdbaf875",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-in-list-item.md#doc/li1",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 19,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/directive-in-list-item.md#doc",
+      "text": "Fuzzy item text."
+    },
+    {
+      "anchor": "doc/li2",
+      "directives": {},
+      "docUri": "docs/directive-in-list-item.md",
+      "hash": "e415e91afc5762cda73e63a83d563a2c770b08b54b2bff0b7a992f15302a9419",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-in-list-item.md#doc/li2",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 14,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/directive-in-list-item.md#doc",
+      "text": "Normal item"
+    },
+    {
+      "anchor": "doc/li3",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-in-list-item.md",
+      "hash": "2f8d8f95d1d9fe86a04043a223fdd4cc7ef50ace744c53467f8fac120e31e87f",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-in-list-item.md#doc/li3",
+      "kind": "listItem",
+      "parentId": "docs/directive-in-list-item.md#doc/li2",
+      "range": {
+        "endColumn": 24,
+        "endLine": 7,
+        "startColumn": 3,
+        "startLine": 7
+      },
+      "sectionId": "docs/directive-in-list-item.md#doc",
+      "text": "ignored nested item"
+    },
+    {
+      "anchor": "doc/li4",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-in-list-item.md",
+      "hash": "bb1014ed9c05a59be2b0cbb13fce07ddbf94c43951a80ef799402c2f8e92f8a3",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-in-list-item.md#doc/li4",
+      "kind": "listItem",
+      "parentId": "docs/directive-in-list-item.md#doc/li2",
+      "range": {
+        "endColumn": 32,
+        "endLine": 8,
+        "startColumn": 3,
+        "startLine": 8
+      },
+      "sectionId": "docs/directive-in-list-item.md#doc",
+      "text": "another ignored nested item"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "8f7eabef1594744279d87824d5ca6159257d392ddf2fb828c833a08a13991826",
+    "title": "Doc",
+    "uri": "docs/directive-in-list-item.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-in-list-item.md#doc/h",
+        "docs/directive-in-list-item.md#doc/li1",
+        "docs/directive-in-list-item.md#doc/li2"
+      ],
+      "docUri": "docs/directive-in-list-item.md",
+      "hash": "e312b043c25c9596e5bc814b40825d1194ef767ecfb3e46dfe1c423606b3413c",
+      "id": "docs/directive-in-list-item.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 14,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    }
+  ]
+}

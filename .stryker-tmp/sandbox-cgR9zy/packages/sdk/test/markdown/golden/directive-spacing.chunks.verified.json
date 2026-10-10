@@ -1,0 +1,152 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {},
+      "docUri": "docs/directive-spacing.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-spacing.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-spacing.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {},
+      "docUri": "docs/directive-spacing.md",
+      "hash": "14377f570d516c6bde6f27b8c5112dc4c92be2eb8d2b6254f5b8669182b1b9ff",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-spacing.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 16,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/directive-spacing.md#doc",
+      "text": "Lead paragraph."
+    },
+    {
+      "anchor": "doc/p2",
+      "directives": {
+        "ignore": true
+      },
+      "docUri": "docs/directive-spacing.md",
+      "hash": "7692c3ad3540bb803c020b3aee66cd8887123234ea0c6e7143c0add73ff431ed",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-spacing.md#doc/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 4,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/directive-spacing.md#doc",
+      "text": "one"
+    },
+    {
+      "anchor": "doc/p3",
+      "directives": {
+        "fuzzy": true
+      },
+      "docUri": "docs/directive-spacing.md",
+      "hash": "3fc4ccfe745870e2c0d99f71f30ff0656c8dedd41cc1d7d3d376b0dbe685e2f3",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-spacing.md#doc/p3",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 4,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/directive-spacing.md#doc",
+      "text": "two"
+    },
+    {
+      "anchor": "doc/p4",
+      "directives": {},
+      "docUri": "docs/directive-spacing.md",
+      "hash": "8b5b9db0c13db24256c829aa364aa90c6d2eba318b9232a4ab9313b954d3555f",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-spacing.md#doc/p4",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 6,
+        "endLine": 12,
+        "startColumn": 1,
+        "startLine": 12
+      },
+      "sectionId": "docs/directive-spacing.md#doc",
+      "text": "three"
+    },
+    {
+      "anchor": "doc/p5",
+      "directives": {},
+      "docUri": "docs/directive-spacing.md",
+      "hash": "04efaf080f5a3e74e1c29d1ca6a48569382cbbcd324e8d59d2b83ef21c039f00",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-spacing.md#doc/p5",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 5,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 15
+      },
+      "sectionId": "docs/directive-spacing.md#doc",
+      "text": "four"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "3cda7049820c921791acc7198b9faeb0e5ec2b049cdffe58d5911cc73959ad65",
+    "title": "Doc",
+    "uri": "docs/directive-spacing.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-spacing.md#doc/h",
+        "docs/directive-spacing.md#doc/p1",
+        "docs/directive-spacing.md#doc/p3",
+        "docs/directive-spacing.md#doc/p4",
+        "docs/directive-spacing.md#doc/p5"
+      ],
+      "docUri": "docs/directive-spacing.md",
+      "hash": "f989dc6afe1d07eebccf756644be243a45cdb1b7023c4d017b7cab91d6fbeaee",
+      "id": "docs/directive-spacing.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 5,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    }
+  ]
+}

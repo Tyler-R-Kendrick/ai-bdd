@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Predicate } from '../../src/contracts/index.ts';
 import { evaluatePredicates } from '../../src/assert/index.ts';
 import { buildNodes, makeObs, type NodeSpec } from './helpers.ts';
+import { bestCpuMs } from '../kit/budget.ts';
 
 function wideTree(n: number): NodeSpec[] {
   const regions: NodeSpec[] = [];
@@ -28,15 +29,7 @@ const PREDICATES: Predicate[] = [
   { op: 'route', match: 'prefix', value: '/' },
 ];
 
-function bestOf(runs: number, fn: () => void): number {
-  let best = Infinity;
-  for (let i = 0; i < runs; i += 1) {
-    const t0 = performance.now();
-    fn();
-    best = Math.min(best, performance.now() - t0);
-  }
-  return best;
-}
+const bestOf = bestCpuMs;
 
 describe('evaluation time is linear in node count (R-AS3)', () => {
   it('R-AS3: 8 predicates over 10k nodes finish in under 250ms', () => {

@@ -1,0 +1,7 @@
+Usage: ai-bdd doctor [options]
+
+check Node, config, drivers, model reachability and plan freshness
+
+Options:
+  --offline   skip checks that need the network
+  -h, --help  display help for command

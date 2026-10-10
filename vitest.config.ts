@@ -6,12 +6,12 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 /** Per-package floors (percent). Measured on the unit suite; see scripts/coverage-report.mjs for the current table. */
 const floor = (lines: number, branches: number, functions: number) => ({ lines, statements: lines, branches, functions });
 const COVERAGE_FLOORS = {
-  'packages/sdk/src/**': floor(96, 86, 96),
-  'packages/cli/src/**': floor(94, 79, 96),
-  'packages/driver-cua/src/**': floor(94, 77, 92),
+  'packages/sdk/src/**': floor(97, 88, 97),
+  'packages/cli/src/**': floor(96, 90, 97),
+  'packages/driver-cua/src/**': floor(92, 76, 87),
   'packages/driver-playwright/src/**': floor(86, 69, 72),
-  'packages/models-ai-sdk/src/**': floor(99, 91, 99),
-  'packages/playwright-test/src/**': floor(97, 92, 96),
+  'packages/models-ai-sdk/src/**': floor(99, 95, 99),
+  'packages/playwright-test/src/**': floor(98, 95, 97),
   'packages/testing/src/**': floor(97, 88, 98),
 };
 

@@ -1,0 +1,171 @@
+{
+  "chunks": [
+    {
+      "anchor": "_preamble/p1",
+      "directives": {},
+      "docUri": "docs/split-preamble.md",
+      "hash": "d51b20a9662302ac318d20b0eba4865d982ea0b86cf90e2cdc5655ab50581778",
+      "headingPath": [],
+      "id": "docs/split-preamble.md#_preamble/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 32,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/split-preamble.md#_preamble/part-1",
+      "text": "Preamble paragraph one is here."
+    },
+    {
+      "anchor": "_preamble/p2",
+      "directives": {},
+      "docUri": "docs/split-preamble.md",
+      "hash": "29d04bda73cb6952135aca3525817c9b57b4b2323dac2f4ff01fddf4689397e3",
+      "headingPath": [],
+      "id": "docs/split-preamble.md#_preamble/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 32,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/split-preamble.md#_preamble/part-2",
+      "text": "Preamble paragraph two is here."
+    },
+    {
+      "anchor": "_preamble/p3",
+      "directives": {},
+      "docUri": "docs/split-preamble.md",
+      "hash": "97bc53f992ed798fa8da7058746345aa69066ee3e9c6a466d72dd2b04ab78b24",
+      "headingPath": [],
+      "id": "docs/split-preamble.md#_preamble/p3",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 34,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/split-preamble.md#_preamble/part-3",
+      "text": "Preamble paragraph three is here."
+    },
+    {
+      "anchor": "title/h",
+      "directives": {},
+      "docUri": "docs/split-preamble.md",
+      "hash": "7e8cd2056da73a7fefb6cd91f4e5d199d08d9058c517b9a2476b1b520324d674",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/split-preamble.md#title/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/split-preamble.md#title",
+      "text": "Title"
+    },
+    {
+      "anchor": "title/p1",
+      "directives": {},
+      "docUri": "docs/split-preamble.md",
+      "hash": "e84cc4b2d9feab1111021899ea2715efbd32a42322c8175ce5d6bc85d2b7e3ff",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/split-preamble.md#title/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 7,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/split-preamble.md#title",
+      "text": "Small."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "ea1328822dfd7c52a8ffb063c8f067b6bdd3a737cae6982dfbaa83acba95bda4",
+    "title": "Title",
+    "uri": "docs/split-preamble.md"
+  },
+  "sections": [
+    {
+      "anchor": "_preamble/part-1",
+      "chunkIds": [
+        "docs/split-preamble.md#_preamble/p1"
+      ],
+      "docUri": "docs/split-preamble.md",
+      "hash": "6eb3154e802c3902256add3d3acc79af6d7335146d2886424f751762fb822515",
+      "id": "docs/split-preamble.md#_preamble/part-1",
+      "level": 0,
+      "range": {
+        "endColumn": 32,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Preamble (part 1)"
+    },
+    {
+      "anchor": "_preamble/part-2",
+      "chunkIds": [
+        "docs/split-preamble.md#_preamble/p2"
+      ],
+      "docUri": "docs/split-preamble.md",
+      "hash": "83066c0507d11498c350d9225a14ffaf861f64a4648e468e24e71bb9d28c229c",
+      "id": "docs/split-preamble.md#_preamble/part-2",
+      "level": 0,
+      "range": {
+        "endColumn": 32,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "title": "Preamble (part 2)"
+    },
+    {
+      "anchor": "_preamble/part-3",
+      "chunkIds": [
+        "docs/split-preamble.md#_preamble/p3"
+      ],
+      "docUri": "docs/split-preamble.md",
+      "hash": "73a52541135731c3920b6436068df87ee177211694cea1886288cc343601dee5",
+      "id": "docs/split-preamble.md#_preamble/part-3",
+      "level": 0,
+      "range": {
+        "endColumn": 34,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "title": "Preamble (part 3)"
+    },
+    {
+      "anchor": "title",
+      "chunkIds": [
+        "docs/split-preamble.md#title/h",
+        "docs/split-preamble.md#title/p1"
+      ],
+      "docUri": "docs/split-preamble.md",
+      "hash": "36114292c98b38314a8c822da0a3ddf6378e7eaccd8b6145c097ba12cea9bcdc",
+      "id": "docs/split-preamble.md#title",
+      "level": 1,
+      "range": {
+        "endColumn": 7,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "title": "Title"
+    }
+  ]
+}

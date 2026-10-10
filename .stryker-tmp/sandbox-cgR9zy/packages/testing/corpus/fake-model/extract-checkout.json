@@ -1,0 +1,187 @@
+{
+  "rules": [
+    {
+      "id": "extract-checkout-h1",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/checkout.md",
+        "sectionAnchor": "checkout"
+      },
+      "respond": {
+        "object": {
+          "features": [],
+          "notTestable": []
+        }
+      }
+    },
+    {
+      "id": "extract-checkout-submit",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/checkout.md",
+        "sectionAnchor": {
+          "contains": "submit-the-form"
+        }
+      },
+      "respond": {
+        "object": {
+          "features": [
+            {
+              "title": "Submit the checkout form",
+              "story": null,
+              "description": null,
+              "tags": [],
+              "sources": [
+                {
+                  "handle": "c2",
+                  "relation": "source",
+                  "quote": "The customer submits the form to complete the order"
+                }
+              ],
+              "scenarios": [
+                {
+                  "title": "Submit the form",
+                  "tags": [],
+                  "sources": [
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "The customer submits the form to complete the order"
+                    }
+                  ],
+                  "steps": [
+                    {
+                      "kind": "when",
+                      "text": "the customer submits the form",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "The customer submits the form"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    },
+                    {
+                      "kind": "then",
+                      "text": "a saved message appears",
+                      "grounding": "inferred",
+                      "sources": [],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "notTestable": []
+        }
+      }
+    },
+    {
+      "id": "extract-checkout-shipping",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/checkout.md",
+        "sectionAnchor": {
+          "contains": "save-the-shipping-street"
+        }
+      },
+      "respond": {
+        "object": {
+          "features": [
+            {
+              "title": "Save the shipping street",
+              "story": null,
+              "description": null,
+              "tags": [],
+              "sources": [
+                {
+                  "handle": "c2",
+                  "relation": "source",
+                  "quote": "A message confirms that the shipping address was saved"
+                }
+              ],
+              "scenarios": [
+                {
+                  "title": "Save the shipping street",
+                  "tags": [],
+                  "sources": [
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "The customer types the street into the Shipping section"
+                    }
+                  ],
+                  "steps": [
+                    {
+                      "kind": "when",
+                      "text": "the customer types 12 Main Street into the street field of the Shipping section",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "types the street into the Shipping section"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": [
+                        {
+                          "name": "street",
+                          "value": "12 Main Street"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "when",
+                      "text": "the customer submits the Shipping section",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "submits the Shipping section"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    },
+                    {
+                      "kind": "then",
+                      "text": "a message confirms the shipping address was saved",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "A message confirms that the shipping address was saved"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "notTestable": []
+        }
+      }
+    }
+  ]
+}

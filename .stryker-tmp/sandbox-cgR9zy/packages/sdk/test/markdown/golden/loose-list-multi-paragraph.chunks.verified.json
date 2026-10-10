@@ -1,0 +1,110 @@
+{
+  "chunks": [
+    {
+      "anchor": "loose/h",
+      "directives": {},
+      "docUri": "docs/loose-list-multi-paragraph.md",
+      "hash": "384bf8e88ca42ab09c2339209eaada821379644b2b88a04f4aaebf32d0ef88f6",
+      "headingPath": [
+        "Loose"
+      ],
+      "id": "docs/loose-list-multi-paragraph.md#loose/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/loose-list-multi-paragraph.md#loose",
+      "text": "Loose"
+    },
+    {
+      "anchor": "loose/li1",
+      "directives": {},
+      "docUri": "docs/loose-list-multi-paragraph.md",
+      "hash": "0e249990a69012b5b423db19baf05f0e0636fcbeadbe0fbd76ff8f3687c453ee",
+      "headingPath": [
+        "Loose"
+      ],
+      "id": "docs/loose-list-multi-paragraph.md#loose/li1",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 34,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/loose-list-multi-paragraph.md#loose",
+      "text": "First paragraph of item one. Second paragraph of item one. Trailing paragraph of item one."
+    },
+    {
+      "anchor": "loose/li2",
+      "directives": {},
+      "docUri": "docs/loose-list-multi-paragraph.md",
+      "hash": "b173395d871cf60baeff451a64634abd144f61453262fcf7c88aaa74232bb9d5",
+      "headingPath": [
+        "Loose"
+      ],
+      "id": "docs/loose-list-multi-paragraph.md#loose/li2",
+      "kind": "listItem",
+      "parentId": "docs/loose-list-multi-paragraph.md#loose/li1",
+      "range": {
+        "endColumn": 21,
+        "endLine": 7,
+        "startColumn": 3,
+        "startLine": 7
+      },
+      "sectionId": "docs/loose-list-multi-paragraph.md#loose",
+      "text": "Nested under one"
+    },
+    {
+      "anchor": "loose/li3",
+      "directives": {},
+      "docUri": "docs/loose-list-multi-paragraph.md",
+      "hash": "300b420e0902a6cffbe9296b59d978d0ee59f11ce1ef0eae151cbec107045a8e",
+      "headingPath": [
+        "Loose"
+      ],
+      "id": "docs/loose-list-multi-paragraph.md#loose/li3",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 12,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 11
+      },
+      "sectionId": "docs/loose-list-multi-paragraph.md#loose",
+      "text": "Item two."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "75674eed05cf9c65346aa48b4db8209ec403acccfd2e260556e159406692fe3d",
+    "title": "Loose",
+    "uri": "docs/loose-list-multi-paragraph.md"
+  },
+  "sections": [
+    {
+      "anchor": "loose",
+      "chunkIds": [
+        "docs/loose-list-multi-paragraph.md#loose/h",
+        "docs/loose-list-multi-paragraph.md#loose/li1",
+        "docs/loose-list-multi-paragraph.md#loose/li2",
+        "docs/loose-list-multi-paragraph.md#loose/li3"
+      ],
+      "docUri": "docs/loose-list-multi-paragraph.md",
+      "hash": "4e6722d1648d9961f3f44ca595cc20251ef8008a8a4ca8604d298c27e07fc79a",
+      "id": "docs/loose-list-multi-paragraph.md#loose",
+      "level": 1,
+      "range": {
+        "endColumn": 12,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Loose"
+    }
+  ]
+}
