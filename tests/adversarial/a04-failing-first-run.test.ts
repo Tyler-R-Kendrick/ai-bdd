@@ -115,26 +115,46 @@ describe('A4 R-CH1 R-CH2 R-CH6 no recording from a failing first run', () => {
     expect(noRecordingFiles(project)).toEqual([]);
   });
 
-  it('A4 R-CH1 R-SE1: a missing secret makes the step (and so the scenario) an error: nothing is written', async () => {
+  it('A4 R-CH1 R-SE1: a missing secret makes the step that uses it an error (SECRET_MISSING, exit code 3); the typing step must not pass without typing anything', async () => {
+    project = createProject({ docs: ['login'] });
+    const h = await openEngine(project, { env: { ACME_ADMIN_PASSWORD: undefined } });
+    await h.compile();
+    const report = await h.run({ titles: ['Administrator signs in with the admin password'] });
+    await h.close();
+    const r = report.scenarios[0];
+    const typing = r?.steps.find((s) => s.text.includes('<secret:adminPassword>'));
+    expect(typing?.status, 'the step that needs the missing secret').toBe('error');
+    expect(typing?.error?.code).toBe('SECRET_MISSING');
+    expect(r?.status).toBe('error');
+    expect(report.exitCode).toBe(3);
+    expect(noRecordingFiles(project)).toEqual([]);
+  });
+
+  it('A4 R-CH1: a missing secret never ends in a recording, whatever the status labels are (control for the test above)', async () => {
     project = createProject({ docs: ['login'] });
     const h = await openEngine(project, { env: { ACME_ADMIN_PASSWORD: undefined } });
     await h.compile();
     const r = await h.runScenario('Administrator signs in with the admin password');
     await h.close();
-    expect(r.status).toBe('error');
-    expect(r.steps.some((s) => s.error?.code === 'SECRET_MISSING')).toBe(true);
+    expect(r.status).not.toBe('passed');
     expect(r.recording).toBe('discarded');
     expect(noRecordingFiles(project)).toEqual([]);
   });
 
-  it('A4 R-CH1: a checkgen model that throws turns the step into an error: nothing is written', async () => {
+  it('A4 R-CH1 R-CH3: a checkgen model that keeps failing degrades the assertions to fuzzy (check-generation-failed) but the judge still decides; nothing deterministic is recorded for them', async () => {
     project = createProject({ docs: ['billing'] });
     const h = await openEngine(project, { models: overriding('checkgen', () => { throw new Error('checkgen exploded'); }) });
     await h.compile();
     const r = await h.runScenario(UPGRADE);
     await h.close();
-    expect(r.status).toBe('error');
-    expect(noRecordingFiles(project)).toEqual([]);
+    expect(r.status).toBe('passed');
+    for (const s of r.steps.filter((x) => x.kind === 'then')) {
+      expect(s.determinism).toBe('fuzzy');
+      expect(s.fuzzyReasons).toContain('check-generation-failed');
+      expect(s.path).toBe('judge');
+    }
+    const rec = readRecordings(project)[0]?.recording;
+    expect(rec?.steps.filter((x) => x.kind === 'then').every((x) => x.check === undefined && x.determinism === 'fuzzy')).toBe(true);
   });
 
   it('A4 R-CH1: a judge call that fails with MODEL_UNAVAILABLE is an error, not a pass: nothing is written', async () => {
