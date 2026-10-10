@@ -7,6 +7,21 @@ locators, and enforces the navigation policy in the browser itself (defense in d
 import { playwright, createDriverFactory, sessionFromPage, parseAriaSnapshot } from '@ai-bdd/driver-playwright';
 ```
 
+## Plug it into a project
+
+Through the ordinary `drivers` config key, either as a package entry (JSON, `.mjs`, `.js` configs; the loader calls this
+package's `createDriverFactory(options)`):
+
+```js
+drivers: { web: { use: '@ai-bdd/driver-playwright', options: { browser: 'chromium', headless: true } } },
+defaultDriver: 'web',
+```
+
+or as a factory object (the only form a typed `.ts` config takes): `drivers: { web: playwright({ browser: 'chromium' }) }`.
+Any other driver package (a computer-use or browser-use driver, for example) plugs in the same way; see
+`docs/drivers.md#plugging-in-a-driver`. This package is also the reference implementation for the shared conformance
+kit (`conformance.test.ts` below).
+
 ## Exports
 
 | Export | Purpose |

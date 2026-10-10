@@ -2,9 +2,9 @@
 // (@ai-bdd/models-ai-sdk, configured by the corpus' own ai-bdd.config.mjs) and the real Playwright driver (Chromium)
 // against the Acme app started in this process. Only structural guarantees are asserted, never exact model output.
 //
-//   AI_BDD_LIVE=1 AI_GATEWAY_API_KEY=... pnpm test:live          (script: vitest run -c tests/live/vitest.live.config.ts)
+//   pnpm build && AI_BDD_LIVE=1 AI_GATEWAY_API_KEY=... pnpm exec vitest run -c tests/live/vitest.live.config.ts
 //
-// Skipped (with the reason in the suite name) unless AI_BDD_LIVE=1, a provider key and a Chromium are all available.
+// Skipped (with the reason in the suite name) unless AI_BDD_LIVE=1, a provider key, a Chromium and the built packages are available.
 import { spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,9 +12,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { discoverChromium } from '@ai-bdd/driver-playwright';
 import { loadPlansSync, normalizeForQuote } from '@ai-bdd/sdk';
 import { startAcmeApp } from '@ai-bdd/testing';
-import { CLI_BIN, CORPUS_DIR, WORK_ROOT } from '../acceptance/helpers/paths.ts';
+import { CORPUS_DIR, REPO_ROOT, WORK_ROOT } from '../acceptance/helpers/paths.ts';
 import { findSecret } from '../acceptance/helpers/scan.ts';
 
+// The BUILT binary (`pnpm build` first). `node --conditions=source packages/cli/src/bin.ts` cannot be used here: third-party
+// packages such as the AI SDK's dependencies also publish a `source` export condition that points at TypeScript, which Node
+// refuses to strip under node_modules.
+const CLI_DIST_BIN = `${REPO_ROOT}/packages/cli/dist/bin.js`;
 const PROVIDER_KEYS = ['AI_GATEWAY_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'] as const;
 const ADMIN_PASSWORD = 'live-e2e-correct-horse-battery';
 const MODEL = process.env['AI_BDD_MODEL'] ?? 'anthropic/claude-sonnet-5.5';
@@ -22,6 +26,7 @@ const MODEL = process.env['AI_BDD_MODEL'] ?? 'anthropic/claude-sonnet-5.5';
 function skipReason(): string | null {
   if (process.env['AI_BDD_LIVE'] !== '1') return 'AI_BDD_LIVE=1 is not set';
   if (!PROVIDER_KEYS.some((k) => (process.env[k] ?? '') !== '')) return `no provider credentials (${PROVIDER_KEYS.join(', ')})`;
+  if (!existsSync(CLI_DIST_BIN)) return 'packages are not built (run pnpm build)';
   const explicit = process.env['AI_BDD_CHROMIUM_PATH'];
   if (explicit !== undefined && explicit !== '' ? !existsSync(explicit) : discoverChromium(true) === undefined) {
     return 'no Chromium found (set AI_BDD_CHROMIUM_PATH or PLAYWRIGHT_BROWSERS_PATH)';
@@ -35,10 +40,10 @@ interface CliResult {
   stderr: string;
 }
 
-/** The real binary, no `-c`: the project's own ai-bdd.config.mjs (Playwright driver + AI SDK models) is found by name. */
+/** The real built binary, no `-c`: the project's own ai-bdd.config.mjs (Playwright driver + AI SDK models) is found by name. */
 function cli(cwd: string, args: string[], env: Record<string, string>, timeoutMs: number): Promise<CliResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['--conditions=source', CLI_BIN, ...args], { cwd, env });
+    const child = spawn(process.execPath, [CLI_DIST_BIN, ...args], { cwd, env });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d: Buffer) => (stdout += d.toString('utf8')));

@@ -80,7 +80,7 @@ Limits you must know:
 
 - **To the extract model**: document chunks, outline, fixture catalog, secret *names*, rejected titles, your `context` string.
 - **To the act, checkgen and judge models**: redacted accessibility trees of the pages under test, step text, parameters, your `context` string, and screenshots only when untainted or masked and proven.
-- Never: secret values, the structured `context` metadata field of a model request (it exists for logs and fakes), the config object.
+- Never: secret values, the structured `context` metadata field of a model request (it exists for logs and test doubles), the config object.
 
 Use synthetic data in the environment under test and a provider whose terms fit the content of your docs and pages.
 

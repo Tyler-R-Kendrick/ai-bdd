@@ -1,11 +1,17 @@
 # @ai-bdd/testing
 
 Test infrastructure for ai-bdd: the **Acme fixture app** (one state machine, two renderers), a **fake driver** over it,
-**fixtures** for it, a deterministic **fake model** and the acceptance **corpus**. Nothing here is needed by users of
-`@ai-bdd/sdk`; it exists so the whole pipeline can be exercised offline and deterministically.
+**fixtures** for it, a deterministic **fake model**, `writeTestConfig`, and the demo/acceptance **corpus**.
+
+**These are test doubles, not a product mode.** They are used by ai-bdd's own test suite and by authors of integrations
+(a driver package, a model adapter, a test-framework bridge) who want offline, deterministic tests of their own glue code.
+The `ai-bdd` CLI has no fake mode and reads no environment variable for one; real use is a real driver and real models
+plugged in through the config (`drivers: { web: { use: '<package>', options } }`, `models: { use: '<package>', options }`).
+The Acme app itself (`startAcmeApp`) is also the demo target of the README quickstart, driven by real models and a real
+browser. Users of `@ai-bdd/sdk` do not need this package.
 
 ```ts
-import { acmeModel, startAcmeApp, fakeDriver, acmeFixtures } from '@ai-bdd/testing';
+import { acmeModel, startAcmeApp, fakeDriver, createFakeModels, writeTestConfig, acmeFixtures } from '@ai-bdd/testing';
 ```
 
 ## Acme app
@@ -67,11 +73,40 @@ Both need the header `x-acme-test-token` (401 otherwise), act on the caller's co
 - `request()` serves the test API in-process on the session's state.
 - `maxSessions` is advertised and enforced (`SESSION_LIMIT`).
 
+## Test config (`writeTestConfig`)
+
+Tests do not edit the project's real config. They generate a second one that extends it and swaps the driver and models
+for the doubles, through the same `drivers` / `models` keys any config uses, and select it with `ai-bdd -c <file>`
+(or `loadConfig({ configPath })`):
+
+```ts
+import { writeTestConfig } from '@ai-bdd/testing';
+
+const configFile = writeTestConfig({
+  projectDir,                              // where the file is written; relative paths resolve against it
+  rulesDir: 'fake-model',                  // directory of fake-model rule files (*.json)
+  flags: ['v2'],                           // Acme flags every fake-driver session starts with
+  // fileName, baseConfig (default ./ai-bdd.config.mjs; null = empty), logPath (JSONL of every fake model call), overrides
+});
+// then: ai-bdd -c <configFile> compile | run ...
+```
+
+The generated file registers `fakeDriver` as driver `fake` (the default) and `createFakeModels({ rulesDir })` as `models`.
+A missing rule is a loud `MODEL_NO_RULE`. Nothing is read from the environment.
+
 ## Fixtures
 
 `acmeFixtures = [seedAccount, resetAccount]`. `seedAccount({plan, unpaid})` resets first and then seeds, so it is
 idempotent; both call the test API through `session.request` with the token (`ACME_TEST_TOKEN` overrides the default) and
 then reload the current page so a real browser shows the new data.
+
+## Corpus
+
+`corpus/` is the Acme demo project: docs with directives and a **real** `ai-bdd.config.mjs` (Playwright driver and AI SDK
+models; model id from `AI_BDD_MODEL`, default `anthropic/claude-sonnet-5.5`; needs `AI_GATEWAY_API_KEY` or your provider's
+key, a Chromium and `ACME_ADMIN_PASSWORD`). `corpus/fake-model/` holds the rule files the fake models answer from and
+`corpus/fake-model-variants/` variants for specific tests; both exist only for the test doubles. The README quickstart runs
+the corpus with real models.
 
 ## Tests
 
