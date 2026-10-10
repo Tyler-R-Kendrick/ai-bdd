@@ -146,6 +146,20 @@ describe('content', () => {
     expect(Array.from(fs.readFileSync(files('bin', 'bin').received))).toEqual([1, 2, 4]);
   });
 
+  // Found by tests/fuzz/verify-serialize.test.ts.
+  it('an own "__proto__" key is kept as data (it used to set the prototype of the copy and vanish)', () => {
+    const payload = JSON.parse('{"__proto__":{"admin":true},"a":1}') as unknown;
+    expect(JSON.parse(stableStringify(payload))).toEqual(payload);
+    expect(stableStringify(payload)).toContain('"__proto__": {\n    "admin": true\n  }');
+    expect(stableStringify(new Map([['__proto__', 1]]))).toContain('"__proto__": 1');
+  });
+
+  it('a Map is not lossy: keys that stringify alike stay apart, and string keys sort like object keys (not by locale)', () => {
+    expect(stableStringify(new Map<unknown, number>([[{ a: 1 }, 1], [{ a: 2 }, 2]]))).toBe(JSON.stringify([[{ a: 1 }, 1], [{ a: 2 }, 2]], null, 2));
+    expect(stableStringify(new Map<unknown, string>([[1, 'number'], ['1', 'string']]))).toBe(JSON.stringify([['1', 'string'], [1, 'number']], null, 2));
+    expect(Object.keys(JSON.parse(stableStringify(new Map([['b', 1], ['B', 2], ['a', 3]]))) as object)).toEqual(['B', 'a', 'b']);
+  });
+
   it('serialization covers odd values without losing the difference between them', () => {
     expect(stableStringify({ u: undefined, n: Number.NaN, i: Infinity, b: 10n, d: new Date(0), bad: new Date(Number.NaN), e: new TypeError('boom'), f() {}, bytes: new Uint8Array([255]) })).toBe(
       JSON.stringify({ b: '10n', bad: '[invalid date]', bytes: '[bytes 1: ff]', d: '1970-01-01T00:00:00.000Z', e: { name: 'TypeError', message: 'boom' }, f: '[function]', i: 'Infinity', n: 'NaN', u: '[undefined]' }, null, 2),
