@@ -38,12 +38,12 @@ function tracking(inner: DriverFactory, id: string, shared: { open: number; peak
         async openSession(o) {
           shared.open += 1;
           shared.peak = Math.max(shared.peak, shared.open);
-          shared.log.push(`open ${o.scenarioId}`);
+          shared.log.push(`open ${id} ${o.scenarioId}`);
           const s = await d.openSession(o);
           const close = s.close.bind(s);
           s.close = async () => {
             shared.open -= 1;
-            shared.log.push(`close ${o.scenarioId}`);
+            shared.log.push(`close ${id} ${o.scenarioId}`);
             return close();
           };
           return s;
@@ -149,7 +149,7 @@ describe('A10 R-RN2 fake driver, 8 workers', () => {
     await h2.close();
     expect(report.scenarios.length).toBe(8);
     expect(report.scenarios.every((s) => s.status === 'passed'), JSON.stringify(report.scenarios.map((s) => [s.driver, s.status, s.error?.code]))).toBe(true);
-    expect(new Set(report.scenarios.map((s) => s.driver))).toEqual(new Set(['fake', 'fake2']));
+    expect(new Set(shared.log.filter((l) => l.startsWith('open ')).map((l) => l.split(' ')[1]))).toEqual(new Set(['fake', 'fake2']));
     expect(shared.peak, 'sessions of drivers sharing an exclusive resource overlapped').toBe(1);
   });
 

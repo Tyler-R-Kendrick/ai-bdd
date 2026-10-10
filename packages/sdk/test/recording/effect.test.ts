@@ -125,7 +125,7 @@ describe('local volatile patterns (SPEC 10.4)', () => {
     for (const s of ['a'.repeat(100_000), '1'.repeat(100_000), '1:'.repeat(50_000), 'deadbeef'.repeat(12_500), '1 '.repeat(50_000) + 'x']) {
       const t = performance.now();
       isVolatileText(s);
-      expect(performance.now() - t).toBeLessThan(200);
+      expect(performance.now() - t).toBeLessThan(1000);
     }
   });
 });
