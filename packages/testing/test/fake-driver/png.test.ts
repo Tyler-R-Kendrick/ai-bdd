@@ -56,7 +56,7 @@ describe('png encoder', () => {
     expect(sha256Hex(a)).toBe(sha256Hex(b));
     expect([...decode(a).pixels.subarray(1, 4)]).toEqual([0xa1, 0xb2, 0xc3]);
     expect(sha256Hex(screenshotPng('ffffff' + '0'.repeat(58)))).not.toBe(sha256Hex(a));
-    // pinned bytes: guards against accidental encoder changes breaking recorded screenshot hashes
+    // screenshotPng is solidPng over the first three digest bytes
     expect(sha256Hex(screenshotPng('000000'))).toBe(sha256Hex(solidPng(32, 32, [0, 0, 0])));
   });
 });
