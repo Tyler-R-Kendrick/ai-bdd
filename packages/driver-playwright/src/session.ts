@@ -94,6 +94,7 @@ export class PlaywrightSession implements DriverSession {
   private readonly navHandler: (f: Frame) => void;
   private readonly requestHandler: (r: Request) => void;
   private readonly cdpSessions: CDPSession[] = [];
+  private sweeper: ReturnType<typeof setInterval> | undefined;
 
   constructor(page: Page, opts: SessionOptions, ctx: { policy: Policy; baseURL?: string }, internals: SessionInternals, onClose?: () => void) {
     this.page = page;
@@ -205,6 +206,17 @@ export class PlaywrightSession implements DriverSession {
     this.context.on('page', this.pageHandler);
     this.context.on('request', this.requestHandler);
     this.page.on('framenavigated', this.navHandler);
+    // Backstop for popups whose events raced their first commit: no page other than ours may sit on a denied URL.
+    this.sweeper = setInterval(() => {
+      for (const p of this.context.pages()) {
+        if (p === this.page || p.isClosed()) continue;
+        const u = p.url();
+        if (u === '' || u === 'about:blank' || checkNavigation(u, undefined, this.policy).ok) continue;
+        this.denials.push({ url: u, reason: 'popup on a disallowed URL' });
+        void p.close().catch(() => undefined);
+      }
+    }, 200);
+    this.sweeper.unref();
   }
 
   // ───────────────────────── policy helpers
@@ -572,6 +584,7 @@ export class PlaywrightSession implements DriverSession {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    if (this.sweeper !== undefined) clearInterval(this.sweeper);
     this.page.off('framenavigated', this.navHandler);
     this.context.off('page', this.pageHandler);
     this.context.off('request', this.requestHandler);
