@@ -8,3 +8,4 @@ test-results/
 playwright-report/
 .determinism-*/
 packages/testing/.quickstart/
+.claude/worktrees/
