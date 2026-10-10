@@ -157,8 +157,14 @@ export function tokenizeDirective(body: string): { entries: RawEntry[]; errors: 
 
 const DRIVER_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const TAG_RE = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,63}$/;
-// eslint-disable-next-line no-control-regex
-const CONTROL_RE = /[\u0000-\u001f\u007f]/;
+
+function hasControlChar(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 32 || c === 127) return true;
+  }
+  return false;
+}
 
 function addTag(set: DirectiveSet, raw: string, report: DirectiveReport): void {
   const tag = raw.trim().replace(/^@/, '');
@@ -203,7 +209,7 @@ export function applyDirectiveEntry(set: DirectiveSet, key: string, value: unkno
     return;
   }
   if (key === 'start') {
-    if (typeof value !== 'string' || value.trim() === '' || value.length > 2048 || CONTROL_RE.test(value)) {
+    if (typeof value !== 'string' || value.trim() === '' || value.length > 2048 || hasControlChar(value)) {
       report('DIRECTIVE_INVALID', '"start" requires a non-empty path or URL', { key });
       return;
     }

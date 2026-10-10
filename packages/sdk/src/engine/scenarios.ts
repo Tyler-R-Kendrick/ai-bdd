@@ -21,11 +21,12 @@ export function selectorMatches(selector: string, t: ScenarioTarget): boolean {
 
 const normTag = (t: string): string => (t.startsWith('@') ? t.slice(1) : t).toLowerCase();
 
-/** `listScenarios` semantics (§9.1): non-rejected scenarios filtered by selectors, tags (any) and grep. */
-export function selectTargets(plans: readonly DocPlan[], filter: ScenarioFilter = {}): ScenarioTarget[] {
+/** `listScenarios` semantics (§9.1): non-rejected scenarios filtered by selectors, tags (any) and grep.
+ * With `strictSelectors` (used by `run`), a selector that matches nothing is SCENARIO_NOT_FOUND. */
+export function selectTargets(plans: readonly DocPlan[], filter: ScenarioFilter = {}, opts: { strictSelectors?: boolean } = {}): ScenarioTarget[] {
   const all = allTargets(plans);
   const selectors = filter.selectors?.filter((s) => s.length > 0) ?? [];
-  for (const sel of selectors) {
+  for (const sel of opts.strictSelectors === true ? selectors : []) {
     if (!all.some((t) => selectorMatches(sel, t))) {
       throw new AiBddError('SCENARIO_NOT_FOUND', `Selector "${sel}" matches no scenario, feature or document in the plans`, { details: { selector: sel } });
     }
