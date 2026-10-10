@@ -86,12 +86,6 @@ export function exitCodeForError(e: unknown): ExitCode {
   return err ? EXIT_BY_ERROR_CODE[err.code] : 3;
 }
 
-/** The larger of two exit codes by §5.1 precedence: 4 and 2 are pre-run failures, then 3 over 1 over 0. */
-export function worstExit(a: ExitCode, b: ExitCode): ExitCode {
-  const rank: Record<ExitCode, number> = { 0: 0, 1: 1, 3: 2, 2: 3, 4: 4 };
-  return rank[a] >= rank[b] ? a : b;
-}
-
 export function describeError(e: unknown, debug: boolean): string {
   const err = asAiBddError(e);
   if (err) return `ai-bdd: error [${err.code}]: ${err.message}`;
