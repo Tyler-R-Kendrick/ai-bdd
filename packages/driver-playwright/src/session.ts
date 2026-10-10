@@ -22,7 +22,6 @@ export const CAPABILITIES: DriverCapabilities = {
 /** Elements whose content must never reach an observation, screenshot or log. */
 export const SECRET_SELECTOR = 'input[type=password], [data-ai-bdd-secret]';
 const BUSY_EXPRESSION = '!!document.querySelector(\'[aria-busy="true"],[role="progressbar"],progress\')';
-const SECRET_MATCH_FN = `el => el.closest(${JSON.stringify(SECRET_SELECTOR)}) !== null`;
 const SECRET_TEXTS_EXPRESSION = `[...document.querySelectorAll('[data-ai-bdd-secret]')].map(e => ('value' in e && typeof e.value === 'string' && e.value) || e.textContent || '')`;
 const ARIA_REF = /^(?:f\d+)?e\d+$/;
 const REVISIONED = /^r(\d+):(.+)$/;
@@ -276,7 +275,12 @@ export class PlaywrightSession implements DriverSession {
 
   private async isSecretElement(target: Target): Promise<boolean> {
     try {
-      return (await this.locatorFor(target).evaluate(SECRET_MATCH_FN, undefined, { timeout: 1500 })) === true;
+      const matches = await this.locatorFor(target).evaluate(
+        (el: unknown, selector: string) => (el as { closest(s: string): unknown }).closest(selector) !== null,
+        SECRET_SELECTOR,
+        { timeout: 1500 },
+      );
+      return matches === true;
     } catch {
       return true; // fail closed
     }
