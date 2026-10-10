@@ -58,12 +58,14 @@ function buildTools(req: ModelRequest): ToolSet | undefined {
 
 class AiSdkChatModel implements ChatModel {
   readonly id: string;
+  private readonly purpose: ModelPurpose;
+  private readonly model: LanguageModel;
+  private readonly opts: AiSdkModelsOptions;
 
-  constructor(
-    private readonly purpose: ModelPurpose,
-    private readonly model: LanguageModel,
-    private readonly opts: AiSdkModelsOptions,
-  ) {
+  constructor(purpose: ModelPurpose, model: LanguageModel, opts: AiSdkModelsOptions) {
+    this.purpose = purpose;
+    this.model = model;
+    this.opts = opts;
     this.id = modelIdOf(model);
   }
 
