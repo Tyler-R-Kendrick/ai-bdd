@@ -48,11 +48,19 @@ export async function importConfigModule(file: string, importer: ModuleImporter 
 async function importUse(spec: string, projectRoot: string, where: string, importer: ModuleImporter): Promise<Record<string, unknown>> {
   try {
     if (spec.startsWith('.') || isAbsolute(spec)) return await importer(pathToFileURL(resolve(projectRoot, spec)).href);
+    let resolved: string | undefined;
+    let resolveError: unknown;
     try {
-      const resolved = createRequire(join(projectRoot, 'package.json')).resolve(spec);
-      return await importer(pathToFileURL(resolved).href);
-    } catch {
+      resolved = createRequire(join(projectRoot, 'package.json')).resolve(spec);
+    } catch (err) {
+      resolveError = err; // not resolvable from the project: let the importer try (workspace / global installs)
+    }
+    // a package that resolves but fails to load reports its own error, never a masking "cannot find package"
+    if (resolved !== undefined) return await importer(pathToFileURL(resolved).href);
+    try {
       return await importer(spec);
+    } catch (err) {
+      throw new Error(`${errMessage(err)} (resolving from ${projectRoot}: ${errMessage(resolveError)})`, { cause: err });
     }
   } catch (err) {
     throw new AiBddError('CONFIG_INVALID', `${where}: cannot load "${spec}": ${errMessage(err)}`, { cause: err });
