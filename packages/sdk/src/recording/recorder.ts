@@ -1,6 +1,7 @@
 import {
   AiBddError,
   type ActProgram,
+  type ActionOutcome,
   type CreateRecorder,
   type DriverAction,
   type DriverCapabilities,
@@ -36,6 +37,12 @@ export interface RecorderDeps {
   capabilities?: DriverCapabilities;
 }
 export interface ToRecordingOptions { capabilities?: DriverCapabilities }
+/** `Recorder` plus the optional capabilities argument of `toRecording` (still assignable to `Recorder`). */
+export interface CapabilityAwareRecorder extends Recorder {
+  toRecording(
+    performed: readonly PerformedAction[], before: Observation, after: Observation, afterProbe: Observation | undefined, step: Step, opts?: ToRecordingOptions,
+  ): { act: ActProgram; fuzzyReasons: FuzzyReason[] };
+}
 
 /** sha256 over the sorted, unique `role|name` of landmark nodes and level-1 headings. */
 export function landmarkHash(obs: Observation): string {
@@ -139,7 +146,7 @@ function agentOnly(actions: readonly RecordedAction[], roles: readonly string[],
   return !verbs.has('select') && roles.some((r) => SELECT_ROLES.has(r));
 }
 
-export const createRecorder: CreateRecorder = (deps: RecorderDeps): Recorder => {
+export function createRecorder(deps: RecorderDeps): CapabilityAwareRecorder {
   const settleOpts: SettleOptions = {
     quietMs: deps.config.settle?.quietMs ?? DEFAULT_SETTLE.quietMs,
     intervalMs: deps.config.settle?.intervalMs ?? DEFAULT_SETTLE.intervalMs,
@@ -202,7 +209,7 @@ export const createRecorder: CreateRecorder = (deps: RecorderDeps): Recorder => 
           if (found.status === 'ambiguous') return finish('target-ambiguous', done, obs, `${sel.role} "${sel.name}": ${found.count} candidates, expected ${sel.of}`);
           ref = found.node.ref;
         }
-        let outcome;
+        let outcome: ActionOutcome;
         try {
           outcome = await session.perform(toDriverAction(action, ref));
         } catch (err) {
@@ -219,4 +226,7 @@ export const createRecorder: CreateRecorder = (deps: RecorderDeps): Recorder => 
       return finish('replayed', done, obs);
     },
   };
-};
+}
+
+/** Compile-time proof that the implementation satisfies the frozen factory contract. */
+export const createRecorderContract: CreateRecorder = createRecorder;

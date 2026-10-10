@@ -215,7 +215,9 @@ describe('recording store', () => {
     await expect(store.load('playwright', SCENARIO)).rejects.toMatchObject({ code: 'RECORDING_CORRUPT' });
 
     const badAction = recording();
-    (badAction.steps[0]?.act?.actions as unknown[]).push({ verb: 'teleport' });
+    const firstAct = badAction.steps[0]?.act;
+    if (firstAct === undefined) throw new Error('fixture');
+    (firstAct.actions as unknown[]).push({ verb: 'teleport' });
     await writeFile(file, JSON.stringify(badAction));
     await expect(store.load('playwright', SCENARIO)).rejects.toMatchObject({ code: 'RECORDING_CORRUPT' });
 

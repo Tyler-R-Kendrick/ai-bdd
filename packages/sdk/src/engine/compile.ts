@@ -120,11 +120,9 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   // Plan which sections are dirty; unchanged sections are "reused" without any model call.
   const extractor = modules.createExtractor({ model: core.models.extract, redactor: core.redactor(), config, ...(evidence === undefined ? {} : { evidence }) });
   const tasks: Task[] = [];
-  const dirtyByDoc = new Map<string, Set<string>>();
   for (const doc of chunked) {
     const previous = planByUri.get(doc.doc.uri) ?? null;
     const dirty = new Set(core.planner().dirtySections(doc, previous, { full }));
-    dirtyByDoc.set(doc.doc.uri, dirty);
     for (const section of doc.sections) {
       if (dirty.has(section.id)) tasks.push({ doc, section, previous });
       else core.emit({ type: 'compile-section', docUri: doc.doc.uri, sectionId: section.id, status: 'reused' });

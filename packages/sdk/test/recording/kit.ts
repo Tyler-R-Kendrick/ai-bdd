@@ -91,10 +91,12 @@ export class FakeSession implements DriverSession {
   readonly performed: DriverAction[] = [];
   observations = 0;
   revision = 0;
-  constructor(
-    public state: AppState,
-    private readonly reduce: (action: DriverAction, state: AppState) => ActionOutcome | void = () => undefined,
-  ) {}
+  state: AppState;
+  private readonly reduce: (action: DriverAction, state: AppState) => ActionOutcome | void;
+  constructor(state: AppState, reduce: (action: DriverAction, state: AppState) => ActionOutcome | void = () => undefined) {
+    this.state = state;
+    this.reduce = reduce;
+  }
   async observe(): Promise<Observation> {
     this.observations++;
     return observation(this.state.nodes.map((n) => ({ ...n })), this.state.route, { revision: this.revision++ });
