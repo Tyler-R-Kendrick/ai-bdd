@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { CreateReporters, JsonValue, Reporter, ReporterName, RunReport } from '../contracts/index.ts';
+import { AiBddError, type CreateReporters, type JsonValue, type Reporter, type ReporterName, type RunReport } from '../contracts/index.ts';
 import { atomicWriteFile, stableJson } from '../util/index.ts';
 import { renderJunit } from './junit.ts';
 import { renderMarkdown } from './markdown.ts';
@@ -28,7 +28,9 @@ export const createReporters: CreateReporters = (names) => {
   for (const n of names) {
     if (seen.has(n)) continue;
     seen.add(n);
-    out.push(FACTORIES[n]());
+    const factory = FACTORIES[n] as (() => Reporter) | undefined;
+    if (factory === undefined) throw new AiBddError('USAGE', `unknown reporter "${String(n)}" (expected json, junit or markdown)`);
+    out.push(factory());
   }
   return out;
 };
