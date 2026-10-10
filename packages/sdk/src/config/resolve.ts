@@ -55,6 +55,13 @@ function unique(list: readonly string[]): string[] {
  * Secret VALUES are read from `env` only to validate their length; they are never stored (R-SE1).
  */
 export const resolveConfig: ResolveConfig = (user, opts) => {
+  // zod's record parsing skips an own "__proto__" key without a word, which would leave a secret declared under that name unredacted.
+  const declared: unknown = (user as { secrets?: unknown } | null)?.secrets;
+  if (typeof declared === 'object' && declared !== null && Object.hasOwn(declared, '__proto__')) {
+    throw invalid('Invalid ai-bdd config:\n  - secrets.__proto__: "__proto__" cannot be a secret name', [
+      { path: 'secrets.__proto__', message: '"__proto__" cannot be a secret name' },
+    ]);
+  }
   const parsed = userConfigSchema.safeParse(user);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => ({
@@ -86,7 +93,7 @@ export const resolveConfig: ResolveConfig = (user, opts) => {
   const secrets: Record<string, { env: string }> = {};
   for (const [name, spec] of Object.entries(u.secrets ?? {})) {
     secrets[name] = { env: spec.env };
-    const value = env[spec.env];
+    const value = Object.hasOwn(env, spec.env) ? env[spec.env] : undefined; // not an inherited property such as `constructor`
     if (value !== undefined && value !== '' && value.length < MIN_SECRET_LENGTH) {
       throw new AiBddError(
         'SECRET_TOO_SHORT',
