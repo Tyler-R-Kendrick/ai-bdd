@@ -307,6 +307,14 @@ describe('doctor (G8)', () => {
     expect(h.stdout).toContain('1 check(s) failed.');
   });
 
+  it('does not duplicate checks the engine already reports', async () => {
+    const doctor = vi.fn(async () => ({ ok: true, checks: [{ name: 'node', ok: true, detail: 'engine node check' }, { name: 'config', ok: true, detail: 'engine config check' }] }));
+    const h = await runCli(['doctor'], { engine: { doctor }, deps: { nodeVersion: '22.22.0' } });
+    expect(h.stdout.match(/\] node:/g)).toHaveLength(1);
+    expect(h.stdout).toContain('engine node check');
+    expect(h.stdout.match(/\] config:/g)).toHaveLength(1);
+  });
+
   it('fails the node check on old Node versions', async () => {
     const h = await runCli(['doctor'], { deps: { nodeVersion: '20.11.1' } });
     expect(h.code).toBe(1);

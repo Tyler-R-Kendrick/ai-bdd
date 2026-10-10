@@ -144,7 +144,7 @@ export async function executeScenario(
         });
         const recordedSteps = sink.entries.slice();
         startOnce();
-        await runMainSteps(env, st, stepResults, pushResult, recordedSteps, sink);
+        await runMainSteps(env, st, pushResult, recordedSteps, sink);
         if (opts.signal?.aborted && stepResults.some((r) => r.status === 'skipped')) {
           scenarioError = redactPayload(redactor, errorPayload(new AiBddError('ABORTED', 'run aborted')));
         }
@@ -245,7 +245,6 @@ export async function executeScenario(
 async function runMainSteps(
   env: ScenarioEnv,
   st: SessionState,
-  results: StepResult[],
   push: (r: StepResult) => void,
   recorded: readonly (StepRecording | undefined)[],
   sink: PendingSink,
@@ -267,5 +266,4 @@ async function runMainSteps(
     if (STEP_FAILURES.has(result.status)) halted = true;
     push(result);
   }
-  void results;
 }

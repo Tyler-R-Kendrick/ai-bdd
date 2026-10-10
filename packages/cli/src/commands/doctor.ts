@@ -33,6 +33,9 @@ export async function runDoctor(ctx: Ctx, flags: { offline?: boolean | undefined
   if (engineHandle) {
     try {
       const report = await engineHandle.engine.doctor({ offline: flags.offline === true });
+      // The engine's own node/config checks are authoritative; ours remain only as a fallback.
+      const reported = new Set(report.checks.map((c) => c.name));
+      for (let i = checks.length - 1; i >= 0; i--) if (reported.has(checks[i]?.name ?? '')) checks.splice(i, 1);
       for (const c of report.checks) checks.push({ name: c.name, ok: c.ok, detail: c.detail });
     } catch (e) {
       const err = asAiBddError(e);
