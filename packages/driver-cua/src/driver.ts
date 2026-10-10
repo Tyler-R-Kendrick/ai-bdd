@@ -337,6 +337,7 @@ function positive(v: unknown, what: string): number {
 
 /** Build a factory from JSON-compatible configuration (`{ use: '@ai-bdd/driver-cua', options }`). Unknown keys are rejected. */
 export function createDriverFactory(options: Record<string, unknown> = {}): DriverFactory {
+  if (!isRecord(options)) bad('options must be an object');
   noExtra(options, ['kind', 'launch', 'window', 'scope', 'delivery', 'cuaDriver', 'titleSuffix', 'startTimeoutMs', 'treeTimeoutMs', 'actionTimeoutMs', 'settleMs', 'maxSessions'], '');
   const out: CuaOptions = {};
   for (const [k, v] of Object.entries(options)) {

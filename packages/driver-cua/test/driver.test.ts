@@ -55,6 +55,13 @@ describe('createDriverFactory', () => {
   });
 });
 
+describe('createDriverFactory: options that are not an object', () => {
+  // Found by tests/fuzz/cua-options.test.ts: createDriverFactory(null) threw a TypeError instead of CONFIG_INVALID.
+  it.each([null, 5, 'launch', true, ['launch']])('%j is CONFIG_INVALID, not a TypeError', (options) => {
+    expect(() => createDriverFactory(options as never)).toThrowError(expect.objectContaining({ code: 'CONFIG_INVALID' }));
+  });
+});
+
 describe('capabilities', () => {
   it('a browser offers navigation, a native app does not; hover and select are never offered', async () => {
     const b = await open(standard, { kind: 'browser' });
