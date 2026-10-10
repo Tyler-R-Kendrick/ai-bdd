@@ -22,7 +22,6 @@ it('probe', async () => {
   ctx.on('request', (r) => console.log('REQ', r.url()));
   await page.goto(`${fx.url}/redirect-same`).catch((e) => console.log('ERR', e.message.split('\n')[0]));
   console.log('same-redirect landed', page.url());
-  await page.goto(`${fx.url}/redirect-off`).catch((e) => console.log('ERR', e.message.split('\n')[0]));
   console.log('hits', fx.offHostHits, page.url());
   await page.goto(`${fx.url}/set-cookie?v=1`);
   await page.goto(`${fx.url}/whoami`);
