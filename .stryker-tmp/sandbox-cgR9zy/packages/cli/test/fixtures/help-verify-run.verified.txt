@@ -1,9 +1,0 @@
-Usage: ai-bdd verify-run [options] <runDir>
-
-recompute artifact hashes and the manifest digest of a run directory
-
-Arguments:
-  runDir      run directory, e.g. .ai-bdd/runs/<runId>
-
-Options:
-  -h, --help  display help for command
