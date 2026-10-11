@@ -106,6 +106,21 @@ describe.skipIf(!hasBrowser)('driver-playwright request()', () => {
       await s.close();
     });
 
+    it('R-AG3: credentials the caller attached do not follow a redirect to another origin, even an allowed one; a same-origin redirect keeps them', async () => {
+      const s = await open({ policy: { allowHosts: ['localhost', '127.0.0.1'], denyVerbs: [] } });
+      const port = new URL(edge.url).port;
+      const headers = { Authorization: 'Bearer t0k3n', Cookie: 'sid=1', 'X-Keep': '1' };
+      type Echo = { authorization: string | null; cookie: string | null };
+      const via = async (to: string): Promise<Echo> => {
+        const res = (await s.request?.({ method: 'GET', path: `/r?status=302&to=${encodeURIComponent(to)}`, headers })) as { status: number; body: Echo };
+        expect(res.status).toBe(200);
+        return res.body;
+      };
+      expect(await via(`http://127.0.0.1:${port}/api/credentials`)).toMatchObject({ authorization: null, cookie: null });
+      expect(await via('/api/credentials')).toMatchObject({ authorization: 'Bearer t0k3n', cookie: 'sid=1' });
+      await s.close();
+    });
+
     it('R-AG3: a relative Location resolves against the URL that sent it; a redirect without Location is returned as the answer', async () => {
       const s = await open();
       const before = edge.hits.length;

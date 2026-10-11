@@ -43,6 +43,8 @@ export async function startEdgeServer(): Promise<EdgeServer> {
         const body = await readBody(req);
         return send(200, 'application/json', JSON.stringify({ method: req.method, contentType: req.headers['content-type'] ?? null, body }));
       }
+      case '/api/credentials':
+        return send(200, 'application/json', JSON.stringify({ authorization: req.headers['authorization'] ?? null, cookie: req.headers['cookie'] ?? null }));
       case '/r':
         return send(Number(q('status')), 'text/plain', 'redirecting', { location: q('to') });
       case '/nolocation':

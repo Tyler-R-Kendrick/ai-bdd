@@ -43,6 +43,7 @@ interface Denial { url: string; reason: string }
 
 /** Headers that describe a request body (the fetch standard's "request-body-header names" plus the length). */
 const BODY_HEADERS = new Set(['content-type', 'content-length', 'content-encoding', 'content-language', 'content-location']);
+const CROSS_ORIGIN_HEADERS = new Set(['authorization', 'cookie', 'proxy-authorization']);
 const BLOCKED_RESPONSE = { status: 200, headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment' }, body: '' } as const;
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
@@ -637,7 +638,12 @@ export class PlaywrightSession implements DriverSession {
         const loc = res.headers()['location'];
         if ([301, 302, 303, 307, 308].includes(res.status()) && loc !== undefined) {
           if (hop === 5) break; // the sixth redirect: give up instead of handing the caller a 3xx as if it were the answer
-          url = new URL(loc, url);
+          const next = new URL(loc, url);
+          if (next.origin !== url.origin) {
+            // like fetch: credentials the caller attached for one origin do not follow a redirect to another (even an allowed) one
+            for (const name of Object.keys(headers)) if (CROSS_ORIGIN_HEADERS.has(name.toLowerCase())) delete headers[name];
+          }
+          url = next;
           if (res.status() === 303 || ((res.status() === 301 || res.status() === 302) && method === 'POST')) {
             method = 'GET';
             data = undefined;
