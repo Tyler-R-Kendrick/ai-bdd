@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-export const DEFAULT_SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', '.git', '.ai-bdd', 'test-results', 'playwright-report']);
+// `.work` and `.stryker-tmp` hold scratch projects and sandboxes that tests and tools create and delete while other tests scan the repository
+export const DEFAULT_SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', '.git', '.ai-bdd', 'test-results', 'playwright-report', '.work', '.stryker-tmp']);
 
 /** Repository root derived from a script's `import.meta.url` (scripts live in `<root>/scripts`). */
 export function defaultRoot(metaUrl) {
