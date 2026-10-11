@@ -1,1 +1,6 @@
-{ "lightningcss": "MPL-2.0, dev-only transitive dependency of vite (build tooling, never shipped)", "lightningcss-linux-x64-gnu": "MPL-2.0, dev-only (see lightningcss)", "lightningcss-linux-x64-musl": "MPL-2.0, dev-only (see lightningcss)" }
+{
+  "lightningcss": "MPL-2.0, dev-only transitive dependency of vite (build tooling, never shipped)",
+  "lightningcss-linux-x64-gnu": "MPL-2.0, dev-only (see lightningcss)",
+  "lightningcss-linux-x64-musl": "MPL-2.0, dev-only (see lightningcss)",
+  "caniuse-lite": "CC-BY-4.0 (browser support data), dev-only transitive dependency of the mutation testing tooling (Stryker), never shipped"
+}
