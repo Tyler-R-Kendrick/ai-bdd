@@ -71,6 +71,7 @@ function isWs(ch: string | undefined): boolean {
 }
 
 function isKeyChar(ch: string | undefined): boolean {
+  // Stryker disable next-line BooleanLiteral: isKeyChar is only called with body[i] under an `i < n` guard, so the undefined branch is unreachable
   if (ch === undefined) return false;
   const c = ch.charCodeAt(0);
   return (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 45 || c === 95;
@@ -89,12 +90,16 @@ export function tokenizeDirective(body: string): { entries: RawEntry[]; errors: 
   }
   const n = body.length;
   let i = 0;
+  // Stryker disable next-line EqualityOperator: at i === n the body immediately breaks (`i >= n`), so `i <= n` changes nothing
   while (i < n) {
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: body[n] is undefined and isWs(undefined) is false, so the bound check is redundant here
     while (i < n && isWs(body[i])) i++;
     if (i >= n) break;
     const start = i;
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: body[n] is undefined and isKeyChar(undefined) is false, so the bound check is redundant here
     while (i < n && isKeyChar(body[i])) i++;
     if (i === start) {
+      // Stryker disable next-line EqualityOperator: running one step past the end (i = n + 1) leaves slice(start, i) and the exhausted loop unchanged
       while (i < n && !isWs(body[i])) i++;
       errors.push(`unexpected token ${JSON.stringify(excerpt(body.slice(start, i)))}`);
       continue;
@@ -111,6 +116,7 @@ export function tokenizeDirective(body: string): { entries: RawEntry[]; errors: 
         i++;
         let value = '';
         let closed = false;
+        // Stryker disable next-line EqualityOperator: one extra iteration at i === n only appends to a value that is discarded because the quote is unterminated
         while (i < n) {
           const c = body[i] as string;
           if (c === '\\' && (body[i + 1] === q || body[i + 1] === '\\')) {
@@ -132,6 +138,7 @@ export function tokenizeDirective(body: string): { entries: RawEntry[]; errors: 
         }
         if (i < n && !isWs(body[i])) {
           const s = i;
+          // Stryker disable next-line EqualityOperator: running one step past the end (i = n + 1) leaves slice(s, i) and the exhausted loop unchanged
           while (i < n && !isWs(body[i])) i++;
           errors.push(`unexpected characters ${JSON.stringify(excerpt(body.slice(s, i)))} after quoted value of "${key}"`);
           continue;
@@ -139,11 +146,13 @@ export function tokenizeDirective(body: string): { entries: RawEntry[]; errors: 
         entries.push({ key, value });
       } else {
         const s = i;
+        // Stryker disable next-line EqualityOperator: running one step past the end (i = n + 1) leaves slice(s, i) and the exhausted loop unchanged
         while (i < n && !isWs(body[i])) i++;
         entries.push({ key, value: body.slice(s, i) });
       }
     } else if (i < n && !isWs(body[i])) {
       const s = start;
+      // Stryker disable next-line EqualityOperator: running one step past the end (i = n + 1) leaves slice(s, i) and the exhausted loop unchanged
       while (i < n && !isWs(body[i])) i++;
       errors.push(`unexpected token ${JSON.stringify(excerpt(body.slice(s, i)))}`);
     } else {
@@ -159,6 +168,7 @@ const DRIVER_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const TAG_RE = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,63}$/;
 
 function hasControlChar(s: string): boolean {
+  // Stryker disable next-line EqualityOperator: charCodeAt(s.length) is NaN, and both comparisons with NaN are false
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
     if (c < 32 || c === 127) return true;

@@ -4,6 +4,7 @@
  * (§10.2) does not depend on a sibling module. All patterns are linear-time.
  */
 const VOLATILE_PATTERNS: readonly RegExp[] = [
+  // Stryker disable next-line Regex: equivalent mutants in the optional seconds and fraction groups, they only lengthen a match that already ends at a word boundary and the pattern is only used with test()
   /\b\d{1,2}:\d{2}(:\d{2})?(\.\d+)?\b/i,
   /\b\d{4}-\d{2}-\d{2}\b/i,
   /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/i,
@@ -21,6 +22,7 @@ export function isVolatileText(text: string): boolean {
   }
   for (const m of text.matchAll(HEX_ID)) {
     const s = m[0];
+    // Stryker disable next-line Regex: equivalent mutant (`/[^a-f]/i`), s is all hex digits, so the only s without a letter is all digits, which the \b\d{5,}\b pattern above has already reported
     if (/\d/.test(s) && /[a-f]/i.test(s)) return true;
   }
   return false;

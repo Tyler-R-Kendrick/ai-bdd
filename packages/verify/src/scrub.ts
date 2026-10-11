@@ -35,10 +35,12 @@ const DURATION_MS = /\b\d+(?:\.\d+)?ms\b/g;
 const LOCAL_PORT = /(?<=(?:localhost|127\.0\.0\.1|\[::1\]):)\d{2,5}\b/g;
 
 /** UUIDs (including v7 ids): `Guid_1`, `Guid_2`, ... */
+// Stryker disable next-line MethodExpression: equivalent mutant, the key only decides which matches are equal, and upper case compares the same way as lower case for hex digits and hyphens
 export const guids = (): Scrubber => counted(GUID, 'Guid', (m) => m.toLowerCase());
 /** ISO-8601 instants: `Instant_1`, ... */
 export const instants = (): Scrubber => counted(ISO_INSTANT, 'Instant');
 /** Hex sha256 digests: `Sha256_1`, ... (use when the digest is incidental, not the thing under test). */
+// Stryker disable next-line MethodExpression: equivalent mutant, the key only decides which matches are equal, and upper case compares the same way as lower case for hex digits
 export const digests = (): Scrubber => counted(SHA256, 'Sha256', (m) => m.toLowerCase());
 /** Durations such as `123ms`. */
 export const durations = (): Scrubber => replace(DURATION_MS, '{duration}');
@@ -64,6 +66,7 @@ export function paths(dirs: Record<string, string>): Scrubber {
 /** Line endings to `\n`, trailing whitespace on each line removed, exactly one final newline. */
 export function normalizeText(text: string): string {
   const lines = text.replace(/\r\n?/g, '\n').split('\n').map((l) => l.replace(/[ \t]+$/, ''));
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent mutants, with no lines left lines[-1] is undefined and never equals "", so the loop ends there anyway
   while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
   return `${lines.join('\n')}\n`;
 }

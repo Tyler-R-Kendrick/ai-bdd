@@ -108,6 +108,7 @@ export function parseDocPlan(value: unknown): { ok: true; plan: DocPlan } | { ok
   const r = DocPlanSchema.safeParse(value);
   if (!r.success) {
     const first = r.error.issues[0];
+    // Stryker disable next-line StringLiteral: a failed safeParse always carries at least one issue, so the `first === undefined` fallback is unreachable
     const where = first === undefined ? '' : ` at ${first.path.join('.') || '(root)'}: ${first.message}`;
     return { ok: false, message: `invalid plan${where}` };
   }

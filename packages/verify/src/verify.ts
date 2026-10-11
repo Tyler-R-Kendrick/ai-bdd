@@ -51,6 +51,7 @@ export function acceptRequested(env: Record<string, string | undefined>): boolea
 }
 
 export function slug(text: string, max = 80): string {
+  // Stryker disable next-line Regex: equivalent mutants, runs of non-alphanumerics were collapsed to a single hyphen first, so at most one hyphen is ever at either end
   const s = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max).replace(/-+$/g, '');
   return s.length > 0 ? s : 'snapshot';
 }
@@ -72,6 +73,7 @@ function claim(file: string, owner: string): void {
   claimed.set(file, owner);
 }
 
+// Stryker disable next-line ConditionalExpression: equivalent mutant, Buffer.compare is non-zero for different lengths, so the length check is only a shortcut
 const sameBytes = (a: Uint8Array, b: Uint8Array): boolean => a.length === b.length && Buffer.compare(a, b) === 0;
 
 function write(file: string, data: string | Uint8Array): void {

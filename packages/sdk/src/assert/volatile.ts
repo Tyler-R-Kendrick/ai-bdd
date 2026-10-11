@@ -71,9 +71,12 @@ function tokenize(text: string): Tokens {
     let allDigit = true;
     let allHex = true;
     let hasAlphaChar = false;
+    // Stryker disable next-line EqualityOperator: the extra iteration only reads past the end, which is no word character, so at most a final separator token ends one later; every matcher needs a word token after a separator, so nothing observable changes
     while (i < n && isWordCode(text.charCodeAt(i)) === isWord) {
+      // Stryker disable next-line ConditionalExpression: allDigit, allHex and hasAlphaChar are declared per token and only read under `if (isWord)` below, so updating them while scanning a separator run is unobservable
       if (isWord) {
         const c = text.charCodeAt(i);
+        // Stryker disable next-line ConditionalExpression: inside `if (isWord)` the code is a word character and every word character is >= 48, so `c >= 48` is always true there
         const digit = c >= 48 && c <= 57;
         const hexLetter = (c >= 65 && c <= 70) || (c >= 97 && c <= 102);
         if (!digit) allDigit = false;
@@ -85,6 +88,7 @@ function tokenize(text: string): Tokens {
     start[count] = startIdx;
     end[count] = i;
     word[count] = isWord ? 1 : 0;
+    // Stryker disable next-line ConditionalExpression: the flags of a separator token are never read, every reader first checks that the token is a word token
     if (isWord) {
       let f = 0;
       if (allDigit) f |= WORD_DIGIT;
@@ -102,6 +106,7 @@ function len(t: Tokens, i: number): number {
 }
 
 function isWordTok(t: Tokens, i: number): boolean {
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: the guards are redundant, flags of separator and out-of-range tokens are 0 and their text is never 'just', 'now', 'ago' or a unit, so digitsWord, hexWord and wordLower answer the same
   return i < t.count && t.word[i] === 1;
 }
 
@@ -117,10 +122,12 @@ function hexWord(t: Tokens, i: number, exact: number): boolean {
 
 /** Separator token that is exactly the one character `ch`. */
 function sepIs(t: Tokens, i: number, ch: string): boolean {
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: the guards on i and word[i] are redundant, an out-of-range token has length 0 and a word token starts with a word character, never the separator `ch`; only the len === 1 term matters (see the '12::34' test)
   return i < t.count && t.word[i] === 0 && len(t, i) === 1 && t.text[t.start[i] ?? 0] === ch;
 }
 
 function sepIsSpace(t: Tokens, i: number): boolean {
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator,BooleanLiteral: callers only pass the position after a word token (a separator or one past the end) and always follow with a word check that fails past the end, so the early return is unobservable
   if (i >= t.count || t.word[i] !== 0) return false;
   for (let k = t.start[i] ?? 0; k < (t.end[i] ?? 0); k += 1) {
     if (!isSpaceCode(t.text.charCodeAt(k))) return false;
@@ -129,6 +136,7 @@ function sepIsSpace(t: Tokens, i: number): boolean {
 }
 
 function wordLower(t: Tokens, i: number): string {
+  // Stryker disable next-line StringLiteral: any string that matches nothing works, the result is only compared with 'just', 'now', 'ago' and the unit set
   return isWordTok(t, i) ? t.text.slice(t.start[i] ?? 0, t.end[i] ?? 0).toLowerCase() : '';
 }
 
@@ -138,6 +146,7 @@ const RELATIVE_UNITS: ReadonlySet<string> = new Set([
 
 /** All volatile matches in `text`, ordered by index. Linear time in `text.length`. */
 export function findVolatile(text: string): VolatileMatch[] {
+  // Stryker disable next-line ConditionalExpression: tokenizing the empty string yields no tokens, so the scan finds nothing and returns [] anyway
   if (text.length === 0) return [];
   const t = tokenize(text);
   const out: VolatileMatch[] = [];
@@ -150,7 +159,9 @@ export function findVolatile(text: string): VolatileMatch[] {
     lastEnd[kind] = e;
     out.push({ kind, text: text.slice(s, e), index: s });
   };
+  // Stryker disable next-line EqualityOperator: word[count] is 0 (or undefined past the array), so the extra iteration takes the `continue` below
   for (let i = 0; i < t.count; i += 1) {
+    // Stryker disable next-line ConditionalExpression: separator tokens have flags 0 and never equal 'just', and every matcher below needs a word token at i, so they match nothing
     if (t.word[i] !== 1) continue;
     const f = t.flags[i] ?? 0;
     const l = len(t, i);
@@ -192,13 +203,16 @@ export function findVolatile(text: string): VolatileMatch[] {
       push('relative-time', i, i + 2);
     }
   }
+  // Stryker disable next-line MethodExpression,ArithmeticOperator: out is already ordered by index (every push uses the start of the current token i), so the sort is a no-op, and in V8 a comparator that is never negative keeps ordered input as it is
   out.sort((a, b) => a.index - b.index);
   return out;
 }
 
 function hasDigit(t: Tokens, i: number): boolean {
+  // Stryker disable next-line EqualityOperator: index end holds the character after the word, which is a separator or the end of the text, never a digit
   for (let k = t.start[i] ?? 0; k < (t.end[i] ?? 0); k += 1) {
     const c = t.text.charCodeAt(k);
+    // Stryker disable next-line ConditionalExpression: only word characters reach this point and all of them are >= 48
     if (c >= 48 && c <= 57) return true;
   }
   return false;

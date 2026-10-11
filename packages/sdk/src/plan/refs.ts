@@ -59,6 +59,7 @@ export function resolveRef(ref: ChunkRef, idx: DocIndex): RefResolution {
   if (cur !== undefined && cur.hash === ref.hash && !isIgnored(cur) && (!isSource || !isContext(idx, cur))) return { kind: 'same' };
   const candidates = (isSource ? idx.sourceByHash : idx.contextByHash).get(ref.hash) ?? [];
   if (candidates.length === 1) return { kind: 'moved', chunk: candidates[0] as Chunk };
+  // Stryker disable next-line EqualityOperator: the `=== 1` case returned on the line above, so `>= 1` here sees the same inputs as `> 1`
   if (candidates.length > 1) return { kind: 'ambiguous' };
   return { kind: 'changed' };
 }
@@ -101,8 +102,10 @@ export function sectionsOwningAnchor(anchor: string, sections: readonly Section[
   let best = -1;
   for (const s of sections) {
     const base = sectionBase(s);
+    // Stryker disable next-line EqualityOperator: on equal length `>=` re-assigns the same value to `best`
     if ((anchor === base || anchor.startsWith(`${base}/`)) && base.length > best) best = base.length;
   }
+  // Stryker disable next-line ConditionalExpression: with best === -1 the filter below (length === -1) is empty as well, so the early return is only a shortcut
   return best < 0 ? [] : sections.filter((s) => sectionBase(s).length === best && (anchor === sectionBase(s) || anchor.startsWith(`${sectionBase(s)}/`)));
 }
 
@@ -167,6 +170,7 @@ function classifyChunks(doc: ChunkedDoc, previous: DocPlan, idx: DocIndex): { ne
     if (pool !== undefined && pool.length > 0) pool.shift();
     else newChunkIds.add(c.id);
   }
+  // Stryker disable next-line ArrayDeclaration: the mutant's seed anchor is a string no slug-derived section anchor can equal, so it never selects a section
   const vanishedAnchors: string[] = [];
   for (const ids of prevLeft.values()) {
     for (const id of ids) {

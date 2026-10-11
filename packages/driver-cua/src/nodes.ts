@@ -59,22 +59,25 @@ export function parseElements(structured: Record<string, unknown>): CuaElement[]
   return out.sort((a, b) => a.element_index - b.element_index);
 }
 
-/** AT-SPI (and UIA / AX style) role names -> the ARIA-ish roles ai-bdd selectors and prompts use. */
+/**
+ * AT-SPI (and UIA / AX style) role names -> the ARIA-ish roles ai-bdd selectors and prompts use. Spellings that differ only in case,
+ * spaces or hyphens are one entry (see `compact`): `checkbox` and `check-box` are found through `check box`.
+ */
 const ROLE_MAP: Record<string, string> = {
-  'push button': 'button', 'toggle button': 'button', button: 'button', 'check box': 'checkbox', checkbox: 'checkbox',
+  'push button': 'button', 'toggle button': 'button', button: 'button', 'check box': 'checkbox',
   'radio button': 'radio', radio: 'radio', 'check menu item': 'menuitemcheckbox', 'radio menu item': 'menuitemradio',
   entry: 'textbox', text: 'textbox', 'password text': 'textbox', edit: 'textbox', 'text field': 'textbox', 'text box': 'textbox',
   'text entry': 'textbox', 'search box': 'searchbox', 'spin button': 'spinbutton', slider: 'slider', switch: 'switch',
-  'combo box': 'combobox', combobox: 'combobox', 'list box': 'listbox', list: 'list', 'list item': 'listitem', option: 'option',
+  'combo box': 'combobox', 'list box': 'listbox', list: 'list', 'list item': 'listitem', option: 'option',
   link: 'link', heading: 'heading', paragraph: 'paragraph', label: 'text', static: 'text', 'static text': 'text', caption: 'text',
   image: 'img', icon: 'img', 'progress bar': 'progressbar', separator: 'separator', 'scroll bar': 'scrollbar',
-  menu: 'menu', 'menu bar': 'menubar', 'menu item': 'menuitem', 'popup menu': 'menu', 'tool bar': 'toolbar', toolbar: 'toolbar',
+  menu: 'menu', 'menu bar': 'menubar', 'menu item': 'menuitem', 'popup menu': 'menu', 'tool bar': 'toolbar',
   'tool tip': 'tooltip', 'page tab': 'tab', 'page tab list': 'tablist', tab: 'tab', 'tab list': 'tablist',
   table: 'table', 'table row': 'row', 'table cell': 'cell', 'table column header': 'columnheader', 'table row header': 'rowheader',
   'column header': 'columnheader', 'row header': 'rowheader', tree: 'tree', 'tree item': 'treeitem', 'tree table': 'treegrid',
   dialog: 'dialog', alert: 'alert', 'status bar': 'status', form: 'form', 'document web': 'document', 'document frame': 'document',
   document: 'document', frame: 'window', window: 'window', 'application': 'application', article: 'article', landmark: 'region',
-  grouping: 'group', group: 'group', 'list-item': 'listitem',
+  grouping: 'group', group: 'group',
   // layout containers: no meaning of their own
   panel: 'generic', section: 'generic', filler: 'generic', 'scroll pane': 'generic', 'split pane': 'generic', viewport: 'generic',
   'layered pane': 'generic', 'root pane': 'generic', 'glass pane': 'generic', canvas: 'generic', 'redundant object': 'generic',
@@ -82,12 +85,14 @@ const ROLE_MAP: Record<string, string> = {
 };
 
 /** Platforms spell the same role `push button`, `push-button`, `pushbutton` or `PushButton`: look roles up without separators or case. */
+// Stryker disable next-line Regex: equivalent mutant, removing the `+` strips the same characters one at a time
 const compact = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 const ROLE_LOOKUP = new Map(Object.entries(ROLE_MAP).map(([k, v]) => [compact(k), v] as const));
 
 export function ariaRole(raw: string): string {
   const mapped = ROLE_LOOKUP.get(compact(raw));
   if (mapped !== undefined) return mapped;
+  // Stryker disable next-line Regex,MethodExpression: equivalent mutants, runs of separators are collapsed to one hyphen first, so trimming one hyphen or the spaces first changes nothing
   const slug = raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return slug.length > 0 ? slug : 'generic';
 }
@@ -140,6 +145,7 @@ export function buildNodes(elements: readonly CuaElement[], revision: number, op
   const secrets = [...new Set(opts.secrets)].filter((s) => s.length >= (opts.minSecretLength ?? 4)).sort((a, b) => b.length - a.length);
   const scrub = (text: string): string => {
     let out = text;
+    // Stryker disable next-line ConditionalExpression: equivalent mutant, splitting on a secret that is absent returns the text unchanged
     for (const s of secrets) if (out.includes(s)) out = out.split(s).join('[secret]');
     return out;
   };
@@ -166,6 +172,7 @@ export function buildNodes(elements: readonly CuaElement[], revision: number, op
     const role = ariaRole(el.role);
     const isPassword = compact(el.role) === 'passwordtext';
     // For an empty off-screen node the driver repeats its "scroll it into view" note as the label: a description is not a name.
+    // Stryker disable next-line ConditionalExpression: equivalent mutant, with no label the comparison with the description is false or both are undefined
     const name = scrub(cleanLabel(el.label !== undefined && el.label === el.description ? undefined : el.label, role));
     const rawValue = isPassword || el.value === undefined || el.value.length === 0 ? undefined : scrub(el.value);
     if (role === 'progressbar') busy = true;

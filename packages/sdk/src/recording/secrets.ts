@@ -75,6 +75,7 @@ function scrubValue(v: ValueSource, ctx: SecretContext): { value: ValueSource; c
   if (ctx.secretValue !== undefined) {
     for (const name of ctx.redactor.secretNames) {
       const secret = ctx.secretValue(name);
+      // Stryker disable next-line ConditionalExpression: equivalent mutant (`secret === v.literal` -> false), equal strings normalize to equal strings, so the second operand accepts the same inputs
       if (secret !== undefined && (secret === v.literal || norm(secret) === norm(v.literal))) return { value: { secret: name }, changed: false };
     }
   }

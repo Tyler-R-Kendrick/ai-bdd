@@ -97,6 +97,7 @@ export const computeEffect: ComputeEffect = (before, after, afterProbe) => {
       const fromValue = propertyValue(from, property);
       const toValue = propertyValue(to, property);
       if (fromValue === toValue) continue;
+      // Stryker disable next-line ConditionalExpression: equivalent mutant (`property === 'value'` -> true), a tracked state is a boolean or 'mixed', and neither is ever volatile text
       if (property === 'value' && ((typeof fromValue === 'string' && isVolatileText(fromValue)) || (typeof toValue === 'string' && isVolatileText(toValue)))) continue;
       if (p !== undefined) {
         const probed = probeGroup?.length === 1 ? probeGroup[0] : undefined;
