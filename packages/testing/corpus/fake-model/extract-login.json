@@ -1,0 +1,137 @@
+{
+  "rules": [
+    {
+      "id": "extract-login-h1",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/login.md",
+        "sectionAnchor": "login"
+      },
+      "respond": {
+        "object": {
+          "features": [],
+          "notTestable": []
+        }
+      }
+    },
+    {
+      "id": "extract-login-signin",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/login.md",
+        "sectionAnchor": {
+          "contains": "administrator-sign-in"
+        }
+      },
+      "respond": {
+        "object": {
+          "features": [
+            {
+              "title": "Administrator sign-in",
+              "story": null,
+              "description": null,
+              "tags": [],
+              "sources": [
+                {
+                  "handle": "c2",
+                  "relation": "source",
+                  "quote": "An administrator signs in from the login page"
+                }
+              ],
+              "scenarios": [
+                {
+                  "title": "Administrator signs in with the admin password",
+                  "tags": [],
+                  "sources": [
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "An administrator signs in from the login page"
+                    },
+                    {
+                      "handle": "c3",
+                      "relation": "source",
+                      "quote": "its value is never written in this document"
+                    }
+                  ],
+                  "steps": [
+                    {
+                      "kind": "when",
+                      "text": "the administrator types admin@acme.example into the email field",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "entering an email address and the admin password"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": [
+                        {
+                          "name": "email",
+                          "value": "admin@acme.example"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "when",
+                      "text": "the administrator types <secret:adminPassword> into the password field",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c3",
+                          "relation": "source",
+                          "quote": "its value is never written in this document"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    },
+                    {
+                      "kind": "when",
+                      "text": "the administrator presses Sign in",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "then pressing Sign in"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    },
+                    {
+                      "kind": "then",
+                      "text": "the billing page is shown",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "the billing page is shown"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "notTestable": []
+        }
+      }
+    }
+  ]
+}

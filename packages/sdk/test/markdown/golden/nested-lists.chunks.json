@@ -1,0 +1,316 @@
+{
+  "chunks": [
+    {
+      "anchor": "lists/h",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "308d5a0903f2c5714ec7774808fc9a67b92c602a01a69b2084b05bdb2f6ae699",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Lists"
+    },
+    {
+      "anchor": "lists/li1",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "5393e9833135e4a5bddbac3349cc5425d7dddf9b31f5f2c36273cff3e69df4a9",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li1",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 10,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Top one"
+    },
+    {
+      "anchor": "lists/li2",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "ddd1e23f410b0be1cf4bd28f391a5bab172853c91976c4ab3d6202440a003efc",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li2",
+      "kind": "listItem",
+      "parentId": "docs/nested-lists.md#lists/li1",
+      "range": {
+        "endColumn": 15,
+        "endLine": 4,
+        "startColumn": 3,
+        "startLine": 4
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Nested one"
+    },
+    {
+      "anchor": "lists/li3",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "afd19987f75853e415df1bb60ee419b6c8fa0e2b5e1831d976e6d6f95ee880e6",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li3",
+      "kind": "listItem",
+      "parentId": "docs/nested-lists.md#lists/li2",
+      "range": {
+        "endColumn": 15,
+        "endLine": 5,
+        "startColumn": 5,
+        "startLine": 5
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Deep one"
+    },
+    {
+      "anchor": "lists/li4",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "4dd6a5f459e4247e0605ac379daa55ec16672873cf8d3830af7e0aee9a601ab7",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li4",
+      "kind": "listItem",
+      "parentId": "docs/nested-lists.md#lists/li2",
+      "range": {
+        "endColumn": 15,
+        "endLine": 6,
+        "startColumn": 5,
+        "startLine": 6
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Deep two"
+    },
+    {
+      "anchor": "lists/li5",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "9b70c0eaf02db55716a945f8a8d500d9540d0e88e42f392500ca6aedd08e623c",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li5",
+      "kind": "listItem",
+      "parentId": "docs/nested-lists.md#lists/li1",
+      "range": {
+        "endColumn": 15,
+        "endLine": 7,
+        "startColumn": 3,
+        "startLine": 7
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Nested two"
+    },
+    {
+      "anchor": "lists/li6",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "e2b47177f1f8324b7eb12175a997be11e8f6f9535ceb6a461a5b30e11c088c36",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li6",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 10,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Top two"
+    },
+    {
+      "anchor": "lists/li7",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "285fa4fe29cdeffa8bbc5fcabc1e29748a59e06f65cf16f17fbda703d675f58c",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li7",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 12,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Top three"
+    },
+    {
+      "anchor": "lists/li8",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "27a64c2e86638399da4cc3fabf2148a00611878fe59b02e19a6b933e3e8bd0f3",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li8",
+      "kind": "listItem",
+      "parentId": "docs/nested-lists.md#lists/li7",
+      "range": {
+        "endColumn": 17,
+        "endLine": 10,
+        "startColumn": 3,
+        "startLine": 10
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Nested three"
+    },
+    {
+      "anchor": "lists/li9",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "a151ceb1711aad529a7704248f03333990022ebbfa07a7f04c004d70c167919f",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li9",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 9,
+        "endLine": 12,
+        "startColumn": 1,
+        "startLine": 12
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "First"
+    },
+    {
+      "anchor": "lists/li10",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "8b88a85089561b7978c4e52c3150112912125f3d34ec59b6ff1450fc1079979c",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li10",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 10,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Second"
+    },
+    {
+      "anchor": "lists/li11",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "33930407f8fa04da7b77a155f50c0a4295e0db95b5c98cee9d387d1e66f6f33c",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li11",
+      "kind": "listItem",
+      "parentId": "docs/nested-lists.md#lists/li10",
+      "range": {
+        "endColumn": 15,
+        "endLine": 14,
+        "startColumn": 4,
+        "startLine": 14
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Second a"
+    },
+    {
+      "anchor": "lists/li12",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "8afd27b4c12c580d0532e38742bf71ea86eec7f4086bf29b445c1e7753fe087d",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li12",
+      "kind": "listItem",
+      "parentId": "docs/nested-lists.md#lists/li10",
+      "range": {
+        "endColumn": 15,
+        "endLine": 15,
+        "startColumn": 4,
+        "startLine": 15
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Second b"
+    },
+    {
+      "anchor": "lists/li13",
+      "directives": {},
+      "docUri": "docs/nested-lists.md",
+      "hash": "5e7425d72f32c5c80a5f7a131585657b80723ae22e01fd69776828feb19e3bd5",
+      "headingPath": [
+        "Lists"
+      ],
+      "id": "docs/nested-lists.md#lists/li13",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 9,
+        "endLine": 16,
+        "startColumn": 1,
+        "startLine": 16
+      },
+      "sectionId": "docs/nested-lists.md#lists",
+      "text": "Third"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "212c4f1f73ca270b77b7fb6925e07bd88c439f6dc192e42a62513d713f556679",
+    "title": "Lists",
+    "uri": "docs/nested-lists.md"
+  },
+  "sections": [
+    {
+      "anchor": "lists",
+      "chunkIds": [
+        "docs/nested-lists.md#lists/h",
+        "docs/nested-lists.md#lists/li1",
+        "docs/nested-lists.md#lists/li2",
+        "docs/nested-lists.md#lists/li3",
+        "docs/nested-lists.md#lists/li4",
+        "docs/nested-lists.md#lists/li5",
+        "docs/nested-lists.md#lists/li6",
+        "docs/nested-lists.md#lists/li7",
+        "docs/nested-lists.md#lists/li8",
+        "docs/nested-lists.md#lists/li9",
+        "docs/nested-lists.md#lists/li10",
+        "docs/nested-lists.md#lists/li11",
+        "docs/nested-lists.md#lists/li12",
+        "docs/nested-lists.md#lists/li13"
+      ],
+      "docUri": "docs/nested-lists.md",
+      "hash": "b7127fc44f8e3b4747b40ff72f9e919db0896e504a7abb667ba6ac3bd8bbd0ea",
+      "id": "docs/nested-lists.md#lists",
+      "level": 1,
+      "range": {
+        "endColumn": 9,
+        "endLine": 16,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Lists"
+    }
+  ]
+}

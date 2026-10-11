@@ -1,0 +1,50 @@
+{
+  "rules": [
+    {
+      "id": "bad-check-plan-pro-retry",
+      "description": "The first attempt is non-discriminative; the retry is correct.",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the plan changes to Pro"
+        }
+      },
+      "respond": {
+        "byAttempt": [
+          {
+            "object": {
+              "classification": "change",
+              "predicates": [
+                {
+                  "op": "exists",
+                  "query": {
+                    "role": "heading",
+                    "name": "Billing"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "object": {
+              "classification": "change",
+              "predicates": [
+                {
+                  "op": "exists",
+                  "query": {
+                    "role": "status",
+                    "name": "Plan: Pro",
+                    "within": {
+                      "role": "region",
+                      "name": "Plan"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

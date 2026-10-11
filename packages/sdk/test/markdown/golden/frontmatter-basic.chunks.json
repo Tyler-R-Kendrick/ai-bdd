@@ -1,0 +1,80 @@
+{
+  "chunks": [
+    {
+      "anchor": "heading/h",
+      "directives": {},
+      "docUri": "docs/frontmatter-basic.md",
+      "hash": "b34f17f02ecf0307437429f667421d119aaf1bf819694236efe15c538850445c",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-basic.md#heading/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 8,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/frontmatter-basic.md#heading",
+      "text": "Heading"
+    },
+    {
+      "anchor": "heading/p1",
+      "directives": {},
+      "docUri": "docs/frontmatter-basic.md",
+      "hash": "4319bbb0a28e6761cdf1b618cbd54d368d4eaf35a98c3f3802f4820dff1448a5",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-basic.md#heading/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 11,
+        "endLine": 10,
+        "startColumn": 1,
+        "startLine": 10
+      },
+      "sectionId": "docs/frontmatter-basic.md#heading",
+      "text": "Body text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "frontmatter": {
+      "labels": [
+        "a",
+        "b"
+      ],
+      "nested": {
+        "key": "value"
+      },
+      "title": "My Doc",
+      "version": 2
+    },
+    "sha256": "2652ba895962001a8661c1772affcf63664bc584267f165634c39c12a6ab32e3",
+    "title": "Heading",
+    "uri": "docs/frontmatter-basic.md"
+  },
+  "sections": [
+    {
+      "anchor": "heading",
+      "chunkIds": [
+        "docs/frontmatter-basic.md#heading/h",
+        "docs/frontmatter-basic.md#heading/p1"
+      ],
+      "docUri": "docs/frontmatter-basic.md",
+      "hash": "d0c7cd7e01f78714763b782cc01d95befe494cdd3a0f54ed66371aa7e6d488c4",
+      "id": "docs/frontmatter-basic.md#heading",
+      "level": 1,
+      "range": {
+        "endColumn": 11,
+        "endLine": 10,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "title": "Heading"
+    }
+  ]
+}

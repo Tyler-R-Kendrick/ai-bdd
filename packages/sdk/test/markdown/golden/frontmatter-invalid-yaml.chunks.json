@@ -1,0 +1,82 @@
+{
+  "chunks": [
+    {
+      "anchor": "heading/h",
+      "directives": {},
+      "docUri": "docs/frontmatter-invalid-yaml.md",
+      "hash": "b34f17f02ecf0307437429f667421d119aaf1bf819694236efe15c538850445c",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-invalid-yaml.md#heading/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/frontmatter-invalid-yaml.md#heading",
+      "text": "Heading"
+    },
+    {
+      "anchor": "heading/p1",
+      "directives": {},
+      "docUri": "docs/frontmatter-invalid-yaml.md",
+      "hash": "4319bbb0a28e6761cdf1b618cbd54d368d4eaf35a98c3f3802f4820dff1448a5",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-invalid-yaml.md#heading/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 11,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/frontmatter-invalid-yaml.md#heading",
+      "text": "Body text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [
+    {
+      "code": "DOC_READ_FAILED",
+      "message": "frontmatter is not valid YAML and was ignored: Flow sequence in block collection must be sufficiently indented and end with a ] at line 2, column 1",
+      "range": {
+        "endColumn": 4,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "severity": "warning",
+      "uri": "docs/frontmatter-invalid-yaml.md"
+    }
+  ],
+  "doc": {
+    "sha256": "8ad1fb59e68d52a7ccabe5b3d5cb766f528c0451b4ebf479e5b2e551c31a3fc1",
+    "title": "Heading",
+    "uri": "docs/frontmatter-invalid-yaml.md"
+  },
+  "sections": [
+    {
+      "anchor": "heading",
+      "chunkIds": [
+        "docs/frontmatter-invalid-yaml.md#heading/h",
+        "docs/frontmatter-invalid-yaml.md#heading/p1"
+      ],
+      "docUri": "docs/frontmatter-invalid-yaml.md",
+      "hash": "d0c7cd7e01f78714763b782cc01d95befe494cdd3a0f54ed66371aa7e6d488c4",
+      "id": "docs/frontmatter-invalid-yaml.md#heading",
+      "level": 1,
+      "range": {
+        "endColumn": 11,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "title": "Heading"
+    }
+  ]
+}

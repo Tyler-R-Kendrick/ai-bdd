@@ -1,0 +1,35 @@
+{
+  "rules": [
+    {
+      "id": "judge-friendly-band",
+      "purpose": "judge",
+      "when": {
+        "criterion": {
+          "contains": "the confirmation message feels friendly"
+        }
+      },
+      "respond": {
+        "samples": [
+          {
+            "probability": 0.6,
+            "verdict": "holds",
+            "explanation": "Probably friendly.",
+            "observed": "Upgraded to Pro"
+          },
+          {
+            "probability": 0.6,
+            "verdict": "holds",
+            "explanation": "Maybe friendly.",
+            "observed": "Upgraded to Pro"
+          },
+          {
+            "probability": 0.55,
+            "verdict": "holds",
+            "explanation": "Hard to say.",
+            "observed": "Upgraded to Pro"
+          }
+        ]
+      }
+    }
+  ]
+}

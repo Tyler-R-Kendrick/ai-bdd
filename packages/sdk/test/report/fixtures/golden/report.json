@@ -1,0 +1,566 @@
+{
+  "coverage": {
+    "docs": [
+      {
+        "chunks": 11,
+        "covered": 8,
+        "docUri": "docs/billing.md",
+        "notTestable": [
+          "docs/billing.md#billing/performance/p1"
+        ],
+        "uncovered": [
+          "docs/billing.md#billing/upgrades/li4"
+        ]
+      },
+      {
+        "chunks": 4,
+        "covered": 3,
+        "docUri": "docs/auth.md",
+        "notTestable": [],
+        "uncovered": []
+      },
+      {
+        "chunks": 2,
+        "covered": 0,
+        "docUri": "docs/legacy.md",
+        "notTestable": [],
+        "uncovered": [
+          "docs/legacy.md#old/p1"
+        ]
+      }
+    ]
+  },
+  "exitCode": 3,
+  "finishedAt": "2026-10-09T10:00:42.500Z",
+  "options": {
+    "audit": false,
+    "frozen": true,
+    "noAgent": false,
+    "recordingsMode": "read-only",
+    "strict": false,
+    "updateRecordings": false,
+    "workers": 4
+  },
+  "runId": "01900000-0000-7000-8000-000000000001",
+  "scenarios": [
+    {
+      "docUri": "docs/billing.md",
+      "driver": "fake",
+      "durationMs": 1250,
+      "featureId": "docs-billing--upgrade-plan",
+      "mode": "replay",
+      "recording": "unchanged",
+      "review": "accepted",
+      "scenarioId": "docs-billing--upgrade-plan/upgrade-to-pro",
+      "status": "passed",
+      "steps": [
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "given",
+          "path": "fixture",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "given:74b6b35ad100",
+          "text": "a signed-in user on the Free plan",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "when",
+          "path": "replay",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "when:3377aa73bf50",
+          "text": "the user clicks \"Upgrade to Pro\"",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "then",
+          "path": "check",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "then:d7112cc15abb",
+          "text": "the plan badge reads \"Pro\"",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Upgrade to Pro",
+      "usage": {
+        "inputTokens": 0,
+        "modelCalls": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "docUri": "docs/billing.md",
+      "driver": "fake",
+      "durationMs": 4800,
+      "featureId": "docs-billing--upgrade-plan",
+      "mode": "mixed",
+      "recording": "none",
+      "review": "unreviewed",
+      "scenarioId": "docs-billing--upgrade-plan/receipt-is-shown",
+      "status": "healed",
+      "steps": [
+        {
+          "actions": 2,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "when",
+          "path": "heal",
+          "sources": [],
+          "status": "healed",
+          "stepKey": "when:3377aa73bf50",
+          "text": "the user clicks \"Upgrade to Pro\"",
+          "usage": {
+            "inputTokens": 900,
+            "modelCalls": 2,
+            "outputTokens": 80
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "then",
+          "path": "check",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "then:4841761c57d0",
+          "text": "a receipt is shown",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Upgrade to \"Pro\" & see <receipt>",
+      "usage": {
+        "inputTokens": 0,
+        "modelCalls": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "docUri": "docs/billing.md",
+      "driver": "fake",
+      "durationMs": 5,
+      "featureId": "docs-billing--upgrade-plan",
+      "mode": "replay",
+      "recording": "none",
+      "review": "accepted",
+      "scenarioId": "docs-billing--upgrade-plan/downgrade-needs-invoice",
+      "status": "blocked",
+      "steps": [
+        {
+          "actions": 0,
+          "determinism": "n/a",
+          "durationMs": 10,
+          "error": {
+            "code": "FIXTURE_REQUIRED",
+            "details": {
+              "stub": "import type { FixtureDefinition } from '@ai-bdd/sdk';\n\nexport const aCustomerWithTwoUnpaidInvoices: FixtureDefinition = {\n  name: 'aCustomerWithTwoUnpaidInvoices',\n  description: 'a customer with two unpaid invoices',\n  params: {},\n  async run() { /* create the state */ },\n};"
+            },
+            "message": "Step needs state the UI cannot create; register a fixture.",
+            "retryable": false
+          },
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "given",
+          "path": "none",
+          "sources": [],
+          "status": "blocked",
+          "stepKey": "given:673bf3a82ac3",
+          "text": "a customer with two unpaid invoices",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "n/a",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "when",
+          "path": "none",
+          "sources": [],
+          "status": "skipped",
+          "stepKey": "when:1b4d8d837780",
+          "text": "the user clicks \"Downgrade\"",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Downgrade with open invoices",
+      "usage": {
+        "inputTokens": 0,
+        "modelCalls": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "docUri": "docs/billing.md",
+      "driver": "fake",
+      "durationMs": 9100,
+      "featureId": "docs-billing--invoices",
+      "mode": "characterize",
+      "recording": "discarded",
+      "review": "unreviewed",
+      "scenarioId": "docs-billing--invoices/list-invoices",
+      "status": "failed",
+      "steps": [
+        {
+          "actions": 0,
+          "determinism": "fuzzy",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [
+            "volatile-content"
+          ],
+          "kind": "when",
+          "path": "agent",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "when:d29fde9ecda4",
+          "text": "the user opens the invoices page",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "error": {
+            "code": "CHECK_FAILED",
+            "message": "row \"INV-1\" not found | table has 0 rows",
+            "retryable": false
+          },
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "then",
+          "path": "check",
+          "sources": [],
+          "status": "failed",
+          "stepKey": "then:8c9fac156e67",
+          "text": "the invoice table lists INV-1",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Invoices are listed",
+      "usage": {
+        "inputTokens": 4200,
+        "modelCalls": 5,
+        "outputTokens": 310
+      }
+    },
+    {
+      "docUri": "docs/billing.md",
+      "driver": "fake",
+      "durationMs": 3300,
+      "featureId": "docs-billing--invoices",
+      "mode": "mixed",
+      "recording": "none",
+      "review": "accepted",
+      "scenarioId": "docs-billing--invoices/invoice-looks-good",
+      "status": "inconclusive",
+      "steps": [
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "when",
+          "path": "replay",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "when:196be0915b90",
+          "text": "the user opens an invoice",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "fuzzy",
+          "durationMs": 10,
+          "error": {
+            "code": "JUDGE_INCONCLUSIVE",
+            "message": "judge score 0.55 is inside the inconclusive band",
+            "retryable": false
+          },
+          "evidence": [],
+          "fuzzyReasons": [
+            "subjective"
+          ],
+          "kind": "then",
+          "path": "judge",
+          "sources": [],
+          "status": "inconclusive",
+          "stepKey": "then:4ee3c86e17e6",
+          "text": "the invoice looks professional",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Invoice PDF looks good",
+      "usage": {
+        "inputTokens": 2100,
+        "modelCalls": 3,
+        "outputTokens": 150
+      }
+    },
+    {
+      "docUri": "docs/auth.md",
+      "driver": "fake",
+      "durationMs": 1250,
+      "featureId": "docs-auth--login",
+      "mode": "replay",
+      "recording": "unchanged",
+      "review": "accepted",
+      "scenarioId": "docs-auth--login/login-with-password",
+      "status": "passed",
+      "steps": [
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "when",
+          "path": "replay",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "when:33005edb7de8",
+          "text": "the user fills the password <secret:adminPassword>",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "deterministic",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "then",
+          "path": "check",
+          "sources": [],
+          "status": "passed",
+          "stepKey": "then:172a798e30d3",
+          "text": "the dashboard heading is visible",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Log in with a password",
+      "usage": {
+        "inputTokens": 0,
+        "modelCalls": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "docUri": "docs/auth.md",
+      "driver": "fake",
+      "durationMs": 1250,
+      "error": {
+        "code": "DRIVER_UNAVAILABLE",
+        "message": "browser crashed",
+        "retryable": true
+      },
+      "featureId": "docs-auth--login",
+      "mode": "replay",
+      "recording": "none",
+      "review": "accepted",
+      "scenarioId": "docs-auth--login/session-expires",
+      "status": "error",
+      "steps": [
+        {
+          "actions": 0,
+          "determinism": "fuzzy",
+          "durationMs": 10,
+          "error": {
+            "code": "DRIVER_UNAVAILABLE",
+            "message": "browser crashed",
+            "retryable": true
+          },
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "when",
+          "path": "agent",
+          "sources": [],
+          "status": "error",
+          "stepKey": "when:d41c98b0b0e2",
+          "text": "the user waits for the session to expire",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        },
+        {
+          "actions": 0,
+          "determinism": "n/a",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "then",
+          "path": "none",
+          "sources": [],
+          "status": "skipped",
+          "stepKey": "then:62a7db271dc9",
+          "text": "the login form is shown again",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Session expires",
+      "usage": {
+        "inputTokens": 0,
+        "modelCalls": 0,
+        "outputTokens": 0
+      }
+    },
+    {
+      "docUri": "docs/auth.md",
+      "driver": "fake",
+      "durationMs": 0,
+      "featureId": "docs-auth--login",
+      "mode": "replay",
+      "recording": "none",
+      "review": "accepted",
+      "scenarioId": "docs-auth--login/remember-me",
+      "status": "skipped",
+      "steps": [
+        {
+          "actions": 0,
+          "determinism": "n/a",
+          "durationMs": 10,
+          "evidence": [],
+          "fuzzyReasons": [],
+          "kind": "when",
+          "path": "none",
+          "sources": [],
+          "status": "skipped",
+          "stepKey": "when:2ab658d1c6c5",
+          "text": "the user ticks \"Remember me\"",
+          "usage": {
+            "inputTokens": 0,
+            "modelCalls": 0,
+            "outputTokens": 0
+          }
+        }
+      ],
+      "title": "Remember me",
+      "usage": {
+        "inputTokens": 0,
+        "modelCalls": 0,
+        "outputTokens": 0
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "startedAt": "2026-10-09T10:00:00.000Z",
+  "totals": {
+    "blocked": 1,
+    "error": 1,
+    "failed": 1,
+    "healed": 1,
+    "inconclusive": 1,
+    "passed": 2,
+    "skipped": 1
+  },
+  "usage": {
+    "byPurpose": {
+      "act": {
+        "inputTokens": 5100,
+        "modelCalls": 7,
+        "outputTokens": 400
+      },
+      "checkgen": {
+        "inputTokens": 1000,
+        "modelCalls": 1,
+        "outputTokens": 100
+      },
+      "extract": {
+        "inputTokens": 0,
+        "modelCalls": 0,
+        "outputTokens": 0
+      },
+      "judge": {
+        "inputTokens": 3100,
+        "modelCalls": 4,
+        "outputTokens": 200
+      }
+    },
+    "estimatedCostUsd": 0.4217,
+    "inputTokens": 9200,
+    "modelCalls": 12,
+    "outputTokens": 700
+  },
+  "warnings": [
+    {
+      "code": "PLAN_CONTEXT_CHANGED",
+      "message": "context chunk changed in docs/billing.md",
+      "severity": "warning",
+      "uri": "docs/billing.md"
+    }
+  ]
+}

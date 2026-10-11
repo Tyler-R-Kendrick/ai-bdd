@@ -1,0 +1,181 @@
+{
+  "chunks": [
+    {
+      "anchor": "title/h",
+      "directives": {
+        "tags": [
+          "crlf"
+        ]
+      },
+      "docUri": "docs/crlf.md",
+      "hash": "7e8cd2056da73a7fefb6cd91f4e5d199d08d9058c517b9a2476b1b520324d674",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/crlf.md#title/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/crlf.md#title",
+      "text": "Title"
+    },
+    {
+      "anchor": "title/p1",
+      "directives": {
+        "tags": [
+          "crlf"
+        ]
+      },
+      "docUri": "docs/crlf.md",
+      "hash": "909b5cd919addb2510c253bc99b2f588346bee38a526bb99b79de5666b44f74d",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/crlf.md#title/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 12,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 8
+      },
+      "sectionId": "docs/crlf.md#title",
+      "text": "First line second line"
+    },
+    {
+      "anchor": "title/li1",
+      "directives": {
+        "tags": [
+          "crlf"
+        ]
+      },
+      "docUri": "docs/crlf.md",
+      "hash": "1d79a1e5b5dea3c32539506612ed38557a4a855687c8e3c31a395efc9273a738",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/crlf.md#title/li1",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 11,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 11
+      },
+      "sectionId": "docs/crlf.md#title",
+      "text": "item one"
+    },
+    {
+      "anchor": "title/li2",
+      "directives": {
+        "tags": [
+          "crlf"
+        ]
+      },
+      "docUri": "docs/crlf.md",
+      "hash": "ca53c5144733169a3c67385033b74a01eb190cf78056a5390a3f11aaa750cdf2",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/crlf.md#title/li2",
+      "kind": "listItem",
+      "range": {
+        "endColumn": 11,
+        "endLine": 12,
+        "startColumn": 1,
+        "startLine": 12
+      },
+      "sectionId": "docs/crlf.md#title",
+      "text": "item two"
+    },
+    {
+      "anchor": "title/tr1",
+      "directives": {
+        "tags": [
+          "crlf"
+        ]
+      },
+      "docUri": "docs/crlf.md",
+      "hash": "da07c9b2478d0218d59819cd00cad973a9ca98bd9f5bbe047f382c8552175bf1",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/crlf.md#title/tr1",
+      "kind": "tableRow",
+      "range": {
+        "endColumn": 10,
+        "endLine": 16,
+        "startColumn": 1,
+        "startLine": 16
+      },
+      "sectionId": "docs/crlf.md#title",
+      "text": "A: 1; B: 2"
+    },
+    {
+      "anchor": "title/code1",
+      "directives": {
+        "tags": [
+          "crlf"
+        ]
+      },
+      "docUri": "docs/crlf.md",
+      "hash": "5694d08a2e53ffcae0c3103e5ad6f6076abd960eb1f8a56577040bc1028f702b",
+      "headingPath": [
+        "Title"
+      ],
+      "id": "docs/crlf.md#title/code1",
+      "kind": "code",
+      "range": {
+        "endColumn": 4,
+        "endLine": 20,
+        "startColumn": 1,
+        "startLine": 18
+      },
+      "sectionId": "docs/crlf.md#title",
+      "text": "code"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "frontmatter": {
+      "ai-bdd": {
+        "tags": [
+          "crlf"
+        ]
+      },
+      "title": "CRLF"
+    },
+    "sha256": "6fdce206a4dd9f46fe255fe5309e5ab53ec35407bceaf6367ba14b7ecc4c8919",
+    "title": "Title",
+    "uri": "docs/crlf.md"
+  },
+  "sections": [
+    {
+      "anchor": "title",
+      "chunkIds": [
+        "docs/crlf.md#title/h",
+        "docs/crlf.md#title/p1",
+        "docs/crlf.md#title/li1",
+        "docs/crlf.md#title/li2",
+        "docs/crlf.md#title/tr1",
+        "docs/crlf.md#title/code1"
+      ],
+      "docUri": "docs/crlf.md",
+      "hash": "08e57d2be3f20d695c81715b6b326e0d61270adc079fb0c30857ce8bcc299afd",
+      "id": "docs/crlf.md#title",
+      "level": 1,
+      "range": {
+        "endColumn": 4,
+        "endLine": 20,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "title": "Title"
+    }
+  ]
+}

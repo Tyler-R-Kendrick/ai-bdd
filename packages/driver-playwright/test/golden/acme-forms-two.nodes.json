@@ -1,0 +1,109 @@
+[
+  {
+    "ref": "e2",
+    "role": "navigation",
+    "name": "Primary",
+    "states": {},
+    "depth": 0
+  },
+  {
+    "ref": "e3",
+    "role": "link",
+    "name": "Billing",
+    "states": {},
+    "depth": 1,
+    "url": "/settings/billing",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e4",
+    "role": "link",
+    "name": "Todos",
+    "states": {},
+    "depth": 1,
+    "url": "/todos",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e5",
+    "role": "link",
+    "name": "Checkout",
+    "states": {},
+    "depth": 1,
+    "url": "/forms/two",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e6",
+    "role": "link",
+    "name": "Release notes",
+    "states": {},
+    "depth": 1,
+    "url": "/notes",
+    "parentRef": "e2"
+  },
+  {
+    "ref": "e7",
+    "role": "main",
+    "name": "",
+    "states": {},
+    "depth": 0
+  },
+  {
+    "ref": "e9",
+    "role": "heading",
+    "name": "Checkout",
+    "states": {},
+    "depth": 1,
+    "level": 1,
+    "parentRef": "e7"
+  },
+  {
+    "ref": "e10",
+    "role": "region",
+    "name": "Shipping",
+    "states": {},
+    "depth": 1,
+    "parentRef": "e7"
+  },
+  {
+    "ref": "e11",
+    "role": "textbox",
+    "name": "Street",
+    "states": {},
+    "depth": 2,
+    "parentRef": "e10"
+  },
+  {
+    "ref": "e12",
+    "role": "button",
+    "name": "Submit",
+    "states": {},
+    "depth": 2,
+    "parentRef": "e10"
+  },
+  {
+    "ref": "e13",
+    "role": "region",
+    "name": "Billing address",
+    "states": {},
+    "depth": 1,
+    "parentRef": "e7"
+  },
+  {
+    "ref": "e14",
+    "role": "textbox",
+    "name": "Street",
+    "states": {},
+    "depth": 2,
+    "parentRef": "e13"
+  },
+  {
+    "ref": "e15",
+    "role": "button",
+    "name": "Submit",
+    "states": {},
+    "depth": 2,
+    "parentRef": "e13"
+  }
+]

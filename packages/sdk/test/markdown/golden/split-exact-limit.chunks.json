@@ -1,0 +1,89 @@
+{
+  "chunks": [
+    {
+      "anchor": "edge/h",
+      "directives": {},
+      "docUri": "docs/split-exact-limit.md",
+      "hash": "0f82fe727756eb9a80e0e95581f2ef26aeaffb0bf903dcf8106d575878960fb6",
+      "headingPath": [
+        "Edge"
+      ],
+      "id": "docs/split-exact-limit.md#edge/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/split-exact-limit.md#edge",
+      "text": "Edge"
+    },
+    {
+      "anchor": "edge/p1",
+      "directives": {},
+      "docUri": "docs/split-exact-limit.md",
+      "hash": "37f96542b663971bfdf6b7785174b7255d9aa320fa3455a5b4fa7b079427cf97",
+      "headingPath": [
+        "Edge"
+      ],
+      "id": "docs/split-exact-limit.md#edge/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 19,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/split-exact-limit.md#edge",
+      "text": "123456789012345678"
+    },
+    {
+      "anchor": "edge/p2",
+      "directives": {},
+      "docUri": "docs/split-exact-limit.md",
+      "hash": "37f96542b663971bfdf6b7785174b7255d9aa320fa3455a5b4fa7b079427cf97",
+      "headingPath": [
+        "Edge"
+      ],
+      "id": "docs/split-exact-limit.md#edge/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 19,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/split-exact-limit.md#edge",
+      "text": "123456789012345678"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "63f021abb5af1291e0359c8db188c44eed2026e7318124ff2fb285b5949a75f2",
+    "title": "docs/split-exact-limit.md",
+    "uri": "docs/split-exact-limit.md"
+  },
+  "sections": [
+    {
+      "anchor": "edge",
+      "chunkIds": [
+        "docs/split-exact-limit.md#edge/h",
+        "docs/split-exact-limit.md#edge/p1",
+        "docs/split-exact-limit.md#edge/p2"
+      ],
+      "docUri": "docs/split-exact-limit.md",
+      "hash": "769fcda63e2a820a20faa235ef08f1473f2adafb0e5eda278edab5caa98991a0",
+      "id": "docs/split-exact-limit.md#edge",
+      "level": 2,
+      "range": {
+        "endColumn": 19,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Edge"
+    }
+  ]
+}

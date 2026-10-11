@@ -1,0 +1,23 @@
+{
+  "rules": [
+    {
+      "id": "act-bug-heal-confirm-done",
+      "description": "M11: with flag bug-upgrade-noop the replayed click closes the dialog without upgrading (effect-unverified). The heal turn sees the closed dialog and, like a real agent, calls the step done; the recorded CHECK then fails.",
+      "purpose": "act",
+      "when": {
+        "stepText": "the customer confirms the upgrade"
+      },
+      "respond": {
+        "script": [
+          {
+            "tool": "complete_step",
+            "args": {
+              "status": "done",
+              "summary": "The confirmation dialog is already closed, so the step is complete."
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

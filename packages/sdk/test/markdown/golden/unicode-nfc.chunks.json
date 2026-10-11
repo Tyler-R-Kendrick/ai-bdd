@@ -1,0 +1,69 @@
+{
+  "chunks": [
+    {
+      "anchor": "cafe/h",
+      "directives": {},
+      "docUri": "docs/unicode-nfc.md",
+      "hash": "73473dcc12b763085904a5279d048c4d5b3b008c46f1f32443b99de04aa83a14",
+      "headingPath": [
+        "Café"
+      ],
+      "id": "docs/unicode-nfc.md#cafe/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/unicode-nfc.md#cafe",
+      "text": "Café"
+    },
+    {
+      "anchor": "cafe/p1",
+      "directives": {},
+      "docUri": "docs/unicode-nfc.md",
+      "hash": "af72721e4f94e98feb94238b434caaab94a23ad6dc5ae6fdcc978272475a8cfe",
+      "headingPath": [
+        "Café"
+      ],
+      "id": "docs/unicode-nfc.md#cafe/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 29,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/unicode-nfc.md#cafe",
+      "text": "Café and Café are the same."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "6966df1325266d0ae89bd8f65bace52083c25cdd01a19a80059d5feeaf56daf5",
+    "title": "Café",
+    "uri": "docs/unicode-nfc.md"
+  },
+  "sections": [
+    {
+      "anchor": "cafe",
+      "chunkIds": [
+        "docs/unicode-nfc.md#cafe/h",
+        "docs/unicode-nfc.md#cafe/p1"
+      ],
+      "docUri": "docs/unicode-nfc.md",
+      "hash": "599dc4abaa0bc4e70c2b68327c187b789e6c8471912ca3a66a3f130496dbcc6f",
+      "id": "docs/unicode-nfc.md#cafe",
+      "level": 1,
+      "range": {
+        "endColumn": 29,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Café"
+    }
+  ]
+}

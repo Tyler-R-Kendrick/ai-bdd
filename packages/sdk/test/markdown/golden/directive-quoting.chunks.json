@@ -1,0 +1,97 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {
+        "driver": "web",
+        "start": "/a b",
+        "tags": [
+          "z"
+        ]
+      },
+      "docUri": "docs/directive-quoting.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-quoting.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-quoting.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {
+        "driver": "web",
+        "start": "/a b",
+        "tags": [
+          "z"
+        ]
+      },
+      "docUri": "docs/directive-quoting.md",
+      "hash": "f06dce27b84e18ccb3c7e94a0679c279cd42027da23bcf1e1ca1f94e365ea420",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-quoting.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 6,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 4
+      },
+      "sectionId": "docs/directive-quoting.md#doc",
+      "text": "Text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [
+    {
+      "code": "DIRECTIVE_INVALID",
+      "details": {
+        "key": "tags"
+      },
+      "message": "invalid tag \"x\\\"y\"",
+      "range": {
+        "endColumn": 57,
+        "endLine": 2,
+        "startColumn": 1,
+        "startLine": 2
+      },
+      "severity": "warning",
+      "uri": "docs/directive-quoting.md"
+    }
+  ],
+  "doc": {
+    "sha256": "55b23a47ffb0a1462858a9fd6c65c2e790297eb5de6dd7de2a030ec2449b82f6",
+    "title": "Doc",
+    "uri": "docs/directive-quoting.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-quoting.md#doc/h",
+        "docs/directive-quoting.md#doc/p1"
+      ],
+      "docUri": "docs/directive-quoting.md",
+      "hash": "ff1a78c0f65161a790afb33ab069f475da4463037653ff206ca82ba905ef8d3c",
+      "id": "docs/directive-quoting.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 6,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    }
+  ]
+}

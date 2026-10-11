@@ -1,0 +1,24 @@
+- generic [active] [ref=e1]:
+  - navigation "Primary" [ref=e2]:
+    - link "Billing" [ref=e3] [cursor=pointer]:
+      - /url: /settings/billing
+    - link "Todos" [ref=e4] [cursor=pointer]:
+      - /url: /todos
+    - link "Checkout" [ref=e5] [cursor=pointer]:
+      - /url: /forms/two
+    - link "Release notes" [ref=e6] [cursor=pointer]:
+      - /url: /notes
+  - main [ref=e7]:
+    - heading "Billing" [level=1] [ref=e8]
+    - region "Plan" [ref=e9]:
+      - status [ref=e10]: "Plan: Free"
+      - button "Upgrade to Pro" [ref=e11]
+      - button "Downgrade to Free" [disabled] [ref=e12]
+    - region "Invoice preview" [ref=e13]:
+      - paragraph [ref=e14]: "Next invoice: $0.00"
+    - dialog "Confirm upgrade" [ref=e15]:
+      - paragraph [ref=e16]: You will be charged a prorated amount of $12.50 today.
+      - button "Confirm" [ref=e17]
+      - button "Cancel" [ref=e18]
+    - status [ref=e19]: Upgraded to Pro
+    - alert [ref=e20]: You have 2 unpaid invoices. Settle them before downgrading.

@@ -1,0 +1,407 @@
+{
+  "rules": [
+    {
+      "id": "check-dialog-prorated",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the confirmation dialog shows the prorated charge"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "dialog",
+                "name": "Confirm upgrade"
+              }
+            },
+            {
+              "op": "text",
+              "query": {
+                "role": "paragraph",
+                "within": {
+                  "role": "dialog",
+                  "name": "Confirm upgrade"
+                }
+              },
+              "match": "contains",
+              "value": {
+                "literal": "$12.50"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-plan-pro",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the plan changes to Pro"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "status",
+                "name": "Plan: Pro",
+                "within": {
+                  "role": "region",
+                  "name": "Plan"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-invoice-prorated",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the invoice preview shows the prorated amount"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "paragraph",
+                "name": "Next invoice: $12.50 (prorated)",
+                "within": {
+                  "role": "region",
+                  "name": "Invoice preview"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-upgrade-toast",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "an upgrade confirmation message appears"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "status",
+                "name": "Upgraded to Pro"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-upgrade-visible",
+      "description": "No action precedes this step, so the check must be an invariant (SPEC 9.6).",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the upgrade button is visible"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "invariant",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "button",
+                "name": "Upgrade to Pro",
+                "within": {
+                  "role": "region",
+                  "name": "Plan"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-unpaid-alert",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "an alert says how many invoices are unpaid"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "alert"
+              }
+            },
+            {
+              "op": "text",
+              "query": {
+                "role": "alert"
+              },
+              "match": "contains",
+              "value": {
+                "literal": "2 unpaid invoices"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-plan-free",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the plan changes to Free"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "status",
+                "name": "Plan: Free",
+                "within": {
+                  "role": "region",
+                  "name": "Plan"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-downgrade-toast",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "a downgrade confirmation message appears"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "status",
+                "name": "Downgraded to Free"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-todo-listed",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the new todo appears in the list"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "listitem",
+                "name": "Buy milk",
+                "nameMatch": "contains",
+                "within": {
+                  "role": "list",
+                  "name": "Todo items"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-todo-added-time-volatile",
+      "description": "Deliberately bad: the literal is a time that is not in the step text (volatile-content, R-AS2).",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the new todo shows the time it was added"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "text",
+              "query": {
+                "role": "listitem",
+                "name": "Buy milk",
+                "nameMatch": "contains"
+              },
+              "match": "contains",
+              "value": {
+                "literal": "added 12:00:00"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-sync-volatile-node",
+      "description": "Deliberately bad: the query matches the node whose name changes between after and afterProbe (volatile-content).",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the sync indicator shows the last sync time"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "invariant",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "status",
+                "name": "Synced at",
+                "nameMatch": "contains"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-shipping-saved",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "a message confirms the shipping address was saved"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "status",
+                "name": "Shipping saved"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-billing-page",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the billing page is shown"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "route",
+              "match": "equals",
+              "value": "/settings/billing"
+            },
+            {
+              "op": "exists",
+              "query": {
+                "role": "heading",
+                "name": "Billing"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-release-heading",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the heading Release notes is shown"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "change",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "heading",
+                "name": "Release notes"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-report-ready",
+      "purpose": "checkgen",
+      "when": {
+        "criterion": {
+          "contains": "the report is ready"
+        }
+      },
+      "respond": {
+        "object": {
+          "classification": "invariant",
+          "predicates": [
+            {
+              "op": "exists",
+              "query": {
+                "role": "heading",
+                "name": "Report ready"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

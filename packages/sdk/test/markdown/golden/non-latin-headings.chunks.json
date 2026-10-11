@@ -1,0 +1,301 @@
+{
+  "chunks": [
+    {
+      "anchor": "h-562657ca/h",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "562657ca3066395e077f62ce023014429a41c4c593a3d0a8f8c26c03af7b45aa",
+      "headingPath": [
+        "製品概要"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 7,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca",
+      "text": "製品概要"
+    },
+    {
+      "anchor": "h-562657ca/p1",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "e30fff627be08db9068dccd1964268bb65bc5c23d2705332fd0313fdc6587e02",
+      "headingPath": [
+        "製品概要"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 7,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca",
+      "text": "概要の説明。"
+    },
+    {
+      "anchor": "h-562657ca/h-830d1964/h",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "830d1964dc8673182a40f9adebf598960d37fbe200405b249774ecfa5b465748",
+      "headingPath": [
+        "製品概要",
+        "Привет мир"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/h-830d1964/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 14,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/h-830d1964",
+      "text": "Привет мир"
+    },
+    {
+      "anchor": "h-562657ca/h-830d1964/p1",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "5b264cec0a9b40bf74ce472392ce0755e669da705e7d07ee157654c2ca1c8030",
+      "headingPath": [
+        "製品概要",
+        "Привет мир"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/h-830d1964/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 15,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/h-830d1964",
+      "text": "Русский текст."
+    },
+    {
+      "anchor": "h-562657ca/h-f0443a34/h",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "f0443a342c5ef54783a111b51ba56c938e474c32324d90c3a60c9c8e3a37e2d9",
+      "headingPath": [
+        "製品概要",
+        "😀"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/h-f0443a34/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/h-f0443a34",
+      "text": "😀"
+    },
+    {
+      "anchor": "h-562657ca/h-f0443a34/p1",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "e21262cbe5003a23f819be5bfc933639678a77401b16a94403c0e914ae175b05",
+      "headingPath": [
+        "製品概要",
+        "😀"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/h-f0443a34/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 15,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 11
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/h-f0443a34",
+      "text": "Emoji heading."
+    },
+    {
+      "anchor": "h-562657ca/cafe-deja-vu/h",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "a2bc03790d79932b59b78d824e8de976aeeb170773f7b95ec8dff9324c91d6cd",
+      "headingPath": [
+        "製品概要",
+        "Café Déjà Vu"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/cafe-deja-vu/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 16,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/cafe-deja-vu",
+      "text": "Café Déjà Vu"
+    },
+    {
+      "anchor": "h-562657ca/cafe-deja-vu/p1",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "f1e5e1648ba0e8f0aac7b80d819ec8d45c02b56ccf1094bcd9be2fd18b576112",
+      "headingPath": [
+        "製品概要",
+        "Café Déjà Vu"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/cafe-deja-vu/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 18,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 15
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/cafe-deja-vu",
+      "text": "Accented heading."
+    },
+    {
+      "anchor": "h-562657ca/h-562657ca/h",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "562657ca3066395e077f62ce023014429a41c4c593a3d0a8f8c26c03af7b45aa",
+      "headingPath": [
+        "製品概要",
+        "製品概要"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/h-562657ca/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 8,
+        "endLine": 17,
+        "startColumn": 1,
+        "startLine": 17
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/h-562657ca",
+      "text": "製品概要"
+    },
+    {
+      "anchor": "h-562657ca/h-562657ca/p1",
+      "directives": {},
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "2d2ddd335b93a05f1cf03c94f8f45b02cbeb780e73fc85de65432ac6a3141330",
+      "headingPath": [
+        "製品概要",
+        "製品概要"
+      ],
+      "id": "docs/non-latin-headings.md#h-562657ca/h-562657ca/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 20,
+        "endLine": 19,
+        "startColumn": 1,
+        "startLine": 19
+      },
+      "sectionId": "docs/non-latin-headings.md#h-562657ca/h-562657ca",
+      "text": "duplicate non-latin"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "dd5f60da989e9c3b4efdae404b41b02b62a0388bc4cf88e66dd894e02d7baacb",
+    "title": "製品概要",
+    "uri": "docs/non-latin-headings.md"
+  },
+  "sections": [
+    {
+      "anchor": "h-562657ca",
+      "chunkIds": [
+        "docs/non-latin-headings.md#h-562657ca/h",
+        "docs/non-latin-headings.md#h-562657ca/p1"
+      ],
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "4b7c844d39716f2395a46a3806968272fda3ad898cc805fbf3781a0edc83be4e",
+      "id": "docs/non-latin-headings.md#h-562657ca",
+      "level": 1,
+      "range": {
+        "endColumn": 7,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "製品概要"
+    },
+    {
+      "anchor": "h-562657ca/h-830d1964",
+      "chunkIds": [
+        "docs/non-latin-headings.md#h-562657ca/h-830d1964/h",
+        "docs/non-latin-headings.md#h-562657ca/h-830d1964/p1"
+      ],
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "ff7938506f5830abbc3cb898bb2ca07d15cad5d76a53b292382a409fb828b2a8",
+      "id": "docs/non-latin-headings.md#h-562657ca/h-830d1964",
+      "level": 2,
+      "range": {
+        "endColumn": 15,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "title": "Привет мир"
+    },
+    {
+      "anchor": "h-562657ca/h-f0443a34",
+      "chunkIds": [
+        "docs/non-latin-headings.md#h-562657ca/h-f0443a34/h",
+        "docs/non-latin-headings.md#h-562657ca/h-f0443a34/p1"
+      ],
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "d8a5e1183b311644a20671db061a100c052985492c81bce0f5d3220eb9621468",
+      "id": "docs/non-latin-headings.md#h-562657ca/h-f0443a34",
+      "level": 2,
+      "range": {
+        "endColumn": 15,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "title": "😀"
+    },
+    {
+      "anchor": "h-562657ca/cafe-deja-vu",
+      "chunkIds": [
+        "docs/non-latin-headings.md#h-562657ca/cafe-deja-vu/h",
+        "docs/non-latin-headings.md#h-562657ca/cafe-deja-vu/p1"
+      ],
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "91fd3bd4014572f2e6057144cb1915f760b207f70f55719d4ee69a6db5c06e2f",
+      "id": "docs/non-latin-headings.md#h-562657ca/cafe-deja-vu",
+      "level": 2,
+      "range": {
+        "endColumn": 18,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "title": "Café Déjà Vu"
+    },
+    {
+      "anchor": "h-562657ca/h-562657ca",
+      "chunkIds": [
+        "docs/non-latin-headings.md#h-562657ca/h-562657ca/h",
+        "docs/non-latin-headings.md#h-562657ca/h-562657ca/p1"
+      ],
+      "docUri": "docs/non-latin-headings.md",
+      "hash": "32023760a4c1202e9537fa5129be0dcf292509a3317b5051ae15d23cf4885b6d",
+      "id": "docs/non-latin-headings.md#h-562657ca/h-562657ca",
+      "level": 2,
+      "range": {
+        "endColumn": 20,
+        "endLine": 19,
+        "startColumn": 1,
+        "startLine": 17
+      },
+      "title": "製品概要"
+    }
+  ]
+}

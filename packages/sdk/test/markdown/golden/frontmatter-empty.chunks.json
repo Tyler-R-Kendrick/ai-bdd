@@ -1,0 +1,69 @@
+{
+  "chunks": [
+    {
+      "anchor": "heading/h",
+      "directives": {},
+      "docUri": "docs/frontmatter-empty.md",
+      "hash": "b34f17f02ecf0307437429f667421d119aaf1bf819694236efe15c538850445c",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-empty.md#heading/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/frontmatter-empty.md#heading",
+      "text": "Heading"
+    },
+    {
+      "anchor": "heading/p1",
+      "directives": {},
+      "docUri": "docs/frontmatter-empty.md",
+      "hash": "4319bbb0a28e6761cdf1b618cbd54d368d4eaf35a98c3f3802f4820dff1448a5",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-empty.md#heading/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 11,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/frontmatter-empty.md#heading",
+      "text": "Body text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "d9e0542c5a95e8de3ef5b239e07dae6a2f9c76293f1b3bfd13f56fb17842972f",
+    "title": "Heading",
+    "uri": "docs/frontmatter-empty.md"
+  },
+  "sections": [
+    {
+      "anchor": "heading",
+      "chunkIds": [
+        "docs/frontmatter-empty.md#heading/h",
+        "docs/frontmatter-empty.md#heading/p1"
+      ],
+      "docUri": "docs/frontmatter-empty.md",
+      "hash": "d0c7cd7e01f78714763b782cc01d95befe494cdd3a0f54ed66371aa7e6d488c4",
+      "id": "docs/frontmatter-empty.md#heading",
+      "level": 1,
+      "range": {
+        "endColumn": 11,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "title": "Heading"
+    }
+  ]
+}

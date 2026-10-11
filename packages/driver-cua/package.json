@@ -1,0 +1,26 @@
+{
+  "name": "@ai-bdd/driver-cua",
+  "version": "0.1.0",
+  "description": "Cua Driver (cua.ai) driver for ai-bdd: operates native apps and browsers on macOS, Windows and Linux through the cua-driver MCP server",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@ai-bdd/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1"
+  }
+}

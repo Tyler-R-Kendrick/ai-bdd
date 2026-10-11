@@ -1,0 +1,82 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {},
+      "docUri": "docs/directive-orphan.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-orphan.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-orphan.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {},
+      "docUri": "docs/directive-orphan.md",
+      "hash": "f06dce27b84e18ccb3c7e94a0679c279cd42027da23bcf1e1ca1f94e365ea420",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-orphan.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 6,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/directive-orphan.md#doc",
+      "text": "Text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [
+    {
+      "code": "DIRECTIVE_INVALID",
+      "message": "directive is not followed by a block it can apply to",
+      "range": {
+        "endColumn": 24,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "severity": "warning",
+      "uri": "docs/directive-orphan.md"
+    }
+  ],
+  "doc": {
+    "sha256": "79cabc8ffbf713899b6f172145d1228e07e5af917de81ca0612bd2a443988e3b",
+    "title": "Doc",
+    "uri": "docs/directive-orphan.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-orphan.md#doc/h",
+        "docs/directive-orphan.md#doc/p1"
+      ],
+      "docUri": "docs/directive-orphan.md",
+      "hash": "ff1a78c0f65161a790afb33ab069f475da4463037653ff206ca82ba905ef8d3c",
+      "id": "docs/directive-orphan.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 6,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    }
+  ]
+}

@@ -1,0 +1,252 @@
+{
+  "chunks": [
+    {
+      "anchor": "one/h",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "8b12507783d5becacbf2ebe5b01a60024d8728a8f86dcc818bce699e8b3320bc",
+      "headingPath": [
+        "One"
+      ],
+      "id": "docs/section-depth-3.md#one/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/section-depth-3.md#one",
+      "text": "One"
+    },
+    {
+      "anchor": "one/two/h",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "94a72c074cfe574742c9e99e863322f73feff82981d065ff65a0308f44f19f62",
+      "headingPath": [
+        "One",
+        "Two"
+      ],
+      "id": "docs/section-depth-3.md#one/two/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 7,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/section-depth-3.md#one/two",
+      "text": "Two"
+    },
+    {
+      "anchor": "one/two/three/h",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "926f52d1c1e19c0c58a7d39bf234a0d239352f5acfa26c73989d9c3845614999",
+      "headingPath": [
+        "One",
+        "Two",
+        "Three"
+      ],
+      "id": "docs/section-depth-3.md#one/two/three/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/section-depth-3.md#one/two/three",
+      "text": "Three"
+    },
+    {
+      "anchor": "one/two/three/p1",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "5dcf48bb14be0721082fd6fd4f51dbba65bb2741a6fddd071591ec2b113553c1",
+      "headingPath": [
+        "One",
+        "Two",
+        "Three"
+      ],
+      "id": "docs/section-depth-3.md#one/two/three/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 11,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/section-depth-3.md#one/two/three",
+      "text": "three text"
+    },
+    {
+      "anchor": "one/two/three/four/h",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "12f5aedc5d39035cfd80b4569a521de7b4b577cf206326a6fced1572006c4b04",
+      "headingPath": [
+        "One",
+        "Two",
+        "Three",
+        "Four"
+      ],
+      "id": "docs/section-depth-3.md#one/two/three/four/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/section-depth-3.md#one/two/three",
+      "text": "Four"
+    },
+    {
+      "anchor": "one/two/three/four/p1",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "e99cc6fdba903528c3457d6a09e99ce21f8773e84e1e8447748bf1973690c56d",
+      "headingPath": [
+        "One",
+        "Two",
+        "Three",
+        "Four"
+      ],
+      "id": "docs/section-depth-3.md#one/two/three/four/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 10,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 11
+      },
+      "sectionId": "docs/section-depth-3.md#one/two/three",
+      "text": "four text"
+    },
+    {
+      "anchor": "one/two/three-b/h",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "937daabd0e598cfb684853d395c2610c8bae6dedc45eef0335e720af15d2f2a2",
+      "headingPath": [
+        "One",
+        "Two",
+        "Three b"
+      ],
+      "id": "docs/section-depth-3.md#one/two/three-b/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 12,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "sectionId": "docs/section-depth-3.md#one/two/three-b",
+      "text": "Three b"
+    },
+    {
+      "anchor": "one/two/three-b/p1",
+      "directives": {},
+      "docUri": "docs/section-depth-3.md",
+      "hash": "d228e4b8d1a63b0f430f78aa501aedca8dd4dd338d505a33cacdac7e10f739b8",
+      "headingPath": [
+        "One",
+        "Two",
+        "Three b"
+      ],
+      "id": "docs/section-depth-3.md#one/two/three-b/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 13,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 15
+      },
+      "sectionId": "docs/section-depth-3.md#one/two/three-b",
+      "text": "three b text"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "2380402976454c501f5b87c9a9ac969bbefe4f7ab97bbbf8260efd024bb83603",
+    "title": "One",
+    "uri": "docs/section-depth-3.md"
+  },
+  "sections": [
+    {
+      "anchor": "one",
+      "chunkIds": [
+        "docs/section-depth-3.md#one/h"
+      ],
+      "docUri": "docs/section-depth-3.md",
+      "hash": "38d3e4d5d797c1051a28f2369223320a0931c9794ffbb688a3e62f5f078f86e1",
+      "id": "docs/section-depth-3.md#one",
+      "level": 1,
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "One"
+    },
+    {
+      "anchor": "one/two",
+      "chunkIds": [
+        "docs/section-depth-3.md#one/two/h"
+      ],
+      "docUri": "docs/section-depth-3.md",
+      "hash": "f2481933a333dd27bb95f31f2b0e0bd891828175ab60348395af34411e6e122f",
+      "id": "docs/section-depth-3.md#one/two",
+      "level": 2,
+      "range": {
+        "endColumn": 7,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "title": "Two"
+    },
+    {
+      "anchor": "one/two/three",
+      "chunkIds": [
+        "docs/section-depth-3.md#one/two/three/h",
+        "docs/section-depth-3.md#one/two/three/p1",
+        "docs/section-depth-3.md#one/two/three/four/h",
+        "docs/section-depth-3.md#one/two/three/four/p1"
+      ],
+      "docUri": "docs/section-depth-3.md",
+      "hash": "57a04d394e4692b49b86204ba47e36be5d0877da0c665493b08d6b1ea437f771",
+      "id": "docs/section-depth-3.md#one/two/three",
+      "level": 3,
+      "range": {
+        "endColumn": 10,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "title": "Three"
+    },
+    {
+      "anchor": "one/two/three-b",
+      "chunkIds": [
+        "docs/section-depth-3.md#one/two/three-b/h",
+        "docs/section-depth-3.md#one/two/three-b/p1"
+      ],
+      "docUri": "docs/section-depth-3.md",
+      "hash": "cefdd8656429f90e172cac40b84b33791dfc5f33c6e47a73f4dbb2395391dc97",
+      "id": "docs/section-depth-3.md#one/two/three-b",
+      "level": 3,
+      "range": {
+        "endColumn": 13,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "title": "Three b"
+    }
+  ]
+}

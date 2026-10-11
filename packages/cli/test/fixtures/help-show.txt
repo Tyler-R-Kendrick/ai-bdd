@@ -1,0 +1,11 @@
+Usage: ai-bdd show [options] [id|docUri]
+
+render plan elements as Gherkin-like text with source quotes
+
+Arguments:
+  id|docUri     feature id, scenario id (or id prefix), or doc path
+
+Options:
+  --json        print machine-readable JSON
+  --recordings  add determinism and fuzzy reasons per step
+  -h, --help    display help for command

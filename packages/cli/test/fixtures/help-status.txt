@@ -1,0 +1,7 @@
+Usage: ai-bdd status [options]
+
+show plan freshness, coverage and review state (no model calls)
+
+Options:
+  --json      print machine-readable JSON
+  -h, --help  display help for command

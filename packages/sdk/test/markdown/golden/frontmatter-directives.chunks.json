@@ -1,0 +1,171 @@
+{
+  "chunks": [
+    {
+      "anchor": "heading/h",
+      "directives": {
+        "driver": "web",
+        "fuzzy": true,
+        "start": "/billing",
+        "tags": [
+          "smoke",
+          "billing"
+        ]
+      },
+      "docUri": "docs/frontmatter-directives.md",
+      "hash": "b34f17f02ecf0307437429f667421d119aaf1bf819694236efe15c538850445c",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-directives.md#heading/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "sectionId": "docs/frontmatter-directives.md#heading",
+      "text": "Heading"
+    },
+    {
+      "anchor": "heading/p1",
+      "directives": {
+        "driver": "web",
+        "fuzzy": true,
+        "start": "/billing",
+        "tags": [
+          "smoke",
+          "billing"
+        ]
+      },
+      "docUri": "docs/frontmatter-directives.md",
+      "hash": "4319bbb0a28e6761cdf1b618cbd54d368d4eaf35a98c3f3802f4820dff1448a5",
+      "headingPath": [
+        "Heading"
+      ],
+      "id": "docs/frontmatter-directives.md#heading/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 11,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 11
+      },
+      "sectionId": "docs/frontmatter-directives.md#heading",
+      "text": "Body text."
+    },
+    {
+      "anchor": "heading/child/h",
+      "directives": {
+        "driver": "web",
+        "fuzzy": true,
+        "start": "/billing",
+        "tags": [
+          "smoke",
+          "billing"
+        ]
+      },
+      "docUri": "docs/frontmatter-directives.md",
+      "hash": "8053321281f5d162ee6c1c1263a0d1a88ee2d500e4c30c65dc343f37240aaefd",
+      "headingPath": [
+        "Heading",
+        "Child"
+      ],
+      "id": "docs/frontmatter-directives.md#heading/child/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 9,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "sectionId": "docs/frontmatter-directives.md#heading/child",
+      "text": "Child"
+    },
+    {
+      "anchor": "heading/child/p1",
+      "directives": {
+        "driver": "web",
+        "fuzzy": true,
+        "start": "/billing",
+        "tags": [
+          "smoke",
+          "billing"
+        ]
+      },
+      "docUri": "docs/frontmatter-directives.md",
+      "hash": "8a75a34cb6acd3c4eba9f9b231ea1e2993aba5810c71330a9320833d01e56ddc",
+      "headingPath": [
+        "Heading",
+        "Child"
+      ],
+      "id": "docs/frontmatter-directives.md#heading/child/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 12,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 15
+      },
+      "sectionId": "docs/frontmatter-directives.md#heading/child",
+      "text": "Child text."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "frontmatter": {
+      "ai-bdd": {
+        "driver": "web",
+        "fuzzy": true,
+        "start": "/billing",
+        "tags": [
+          "smoke",
+          "@billing"
+        ]
+      },
+      "title": "Directive Doc"
+    },
+    "sha256": "f0a61c8ef456977534c7ed6ba3f61988c1378bcd45f256cfa5c6794797a084b4",
+    "title": "Heading",
+    "uri": "docs/frontmatter-directives.md"
+  },
+  "sections": [
+    {
+      "anchor": "heading",
+      "chunkIds": [
+        "docs/frontmatter-directives.md#heading/h",
+        "docs/frontmatter-directives.md#heading/p1"
+      ],
+      "docUri": "docs/frontmatter-directives.md",
+      "hash": "d0c7cd7e01f78714763b782cc01d95befe494cdd3a0f54ed66371aa7e6d488c4",
+      "id": "docs/frontmatter-directives.md#heading",
+      "level": 1,
+      "range": {
+        "endColumn": 11,
+        "endLine": 11,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "title": "Heading"
+    },
+    {
+      "anchor": "heading/child",
+      "chunkIds": [
+        "docs/frontmatter-directives.md#heading/child/h",
+        "docs/frontmatter-directives.md#heading/child/p1"
+      ],
+      "docUri": "docs/frontmatter-directives.md",
+      "hash": "be2b6450f02d842e0a17538ac2e9620fc9aea51f9587be35ad7ce3b2327b430d",
+      "id": "docs/frontmatter-directives.md#heading/child",
+      "level": 2,
+      "range": {
+        "endColumn": 12,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "title": "Child"
+    }
+  ]
+}

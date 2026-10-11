@@ -1,0 +1,109 @@
+{
+  "chunks": [
+    {
+      "anchor": "pricing/h",
+      "directives": {},
+      "docUri": "docs/table-basic.md",
+      "hash": "dfe95783edfef7918760312f94edd764f4ce3ffd38b90c2c955a0cc3b250f040",
+      "headingPath": [
+        "Pricing"
+      ],
+      "id": "docs/table-basic.md#pricing/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 10,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/table-basic.md#pricing",
+      "text": "Pricing"
+    },
+    {
+      "anchor": "pricing/tr1",
+      "directives": {},
+      "docUri": "docs/table-basic.md",
+      "hash": "1381d52aa44203bacdb442faaf21c63517edf1fec9ea396dfb2040ea466c0c90",
+      "headingPath": [
+        "Pricing"
+      ],
+      "id": "docs/table-basic.md#pricing/tr1",
+      "kind": "tableRow",
+      "range": {
+        "endColumn": 25,
+        "endLine": 5,
+        "startColumn": 1,
+        "startLine": 5
+      },
+      "sectionId": "docs/table-basic.md#pricing",
+      "text": "Plan: Free; Price: $0; Seats: 1"
+    },
+    {
+      "anchor": "pricing/tr2",
+      "directives": {},
+      "docUri": "docs/table-basic.md",
+      "hash": "94a9293b501b125b8d34a1369835de2ee3ec47565fbebb4b3fc6bf359bb3c9cd",
+      "headingPath": [
+        "Pricing"
+      ],
+      "id": "docs/table-basic.md#pricing/tr2",
+      "kind": "tableRow",
+      "range": {
+        "endColumn": 25,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/table-basic.md#pricing",
+      "text": "Plan: Pro; Price: $12; Seats: 10"
+    },
+    {
+      "anchor": "pricing/tr3",
+      "directives": {},
+      "docUri": "docs/table-basic.md",
+      "hash": "d8f4a00b61e06229aeab48873f3507c8ec4b65ef4c163177ef151bd3a44953ef",
+      "headingPath": [
+        "Pricing"
+      ],
+      "id": "docs/table-basic.md#pricing/tr3",
+      "kind": "tableRow",
+      "range": {
+        "endColumn": 25,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/table-basic.md#pricing",
+      "text": "Plan: Team; Price: $40; Seats: 50"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "42cd0a6475c61d1d0ac7dbf697ae887cab6cec1f44811d7343c9338bfd78402b",
+    "title": "Pricing",
+    "uri": "docs/table-basic.md"
+  },
+  "sections": [
+    {
+      "anchor": "pricing",
+      "chunkIds": [
+        "docs/table-basic.md#pricing/h",
+        "docs/table-basic.md#pricing/tr1",
+        "docs/table-basic.md#pricing/tr2",
+        "docs/table-basic.md#pricing/tr3"
+      ],
+      "docUri": "docs/table-basic.md",
+      "hash": "3d9c95dc04fde3fb9e828ae7c519a130942cee5f30930a833d7a6c7ba590d6b2",
+      "id": "docs/table-basic.md#pricing",
+      "level": 1,
+      "range": {
+        "endColumn": 25,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Pricing"
+    }
+  ]
+}

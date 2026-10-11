@@ -1,0 +1,83 @@
+{
+  "chunks": [
+    {
+      "anchor": "_preamble/p1",
+      "directives": {},
+      "docUri": "docs/basic-paragraphs.md",
+      "hash": "98ea01bc109a52fdf7145c10c648e8b27b8ebc877aaa79405f20b044ecfcacaa",
+      "headingPath": [],
+      "id": "docs/basic-paragraphs.md#_preamble/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 17,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/basic-paragraphs.md#_preamble",
+      "text": "First paragraph."
+    },
+    {
+      "anchor": "_preamble/p2",
+      "directives": {},
+      "docUri": "docs/basic-paragraphs.md",
+      "hash": "a102b227c4a4bcd53d247de66d552730d8c4ab639406dd3d163699ddbd1e2af5",
+      "headingPath": [],
+      "id": "docs/basic-paragraphs.md#_preamble/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 19,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "sectionId": "docs/basic-paragraphs.md#_preamble",
+      "text": "Second paragraph with a soft break."
+    },
+    {
+      "anchor": "_preamble/p3",
+      "directives": {},
+      "docUri": "docs/basic-paragraphs.md",
+      "hash": "91f42c024cda50b9ffe0cc7e95e4f15521469062986e86345baa4cc52fd5665b",
+      "headingPath": [],
+      "id": "docs/basic-paragraphs.md#_preamble/p3",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 54,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "sectionId": "docs/basic-paragraphs.md#_preamble",
+      "text": "Third paragraph with bold, emphasis and code."
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [],
+  "doc": {
+    "sha256": "ea99b8d987ffcc34e7569afea55e34a74ff5ec4ace88c50f0e9d9dda6290d3b6",
+    "title": "docs/basic-paragraphs.md",
+    "uri": "docs/basic-paragraphs.md"
+  },
+  "sections": [
+    {
+      "anchor": "_preamble",
+      "chunkIds": [
+        "docs/basic-paragraphs.md#_preamble/p1",
+        "docs/basic-paragraphs.md#_preamble/p2",
+        "docs/basic-paragraphs.md#_preamble/p3"
+      ],
+      "docUri": "docs/basic-paragraphs.md",
+      "hash": "e46bec9b6fe622ef39cf145248813cebc24400e8f512c098575c5b9983edf9ab",
+      "id": "docs/basic-paragraphs.md#_preamble",
+      "level": 0,
+      "range": {
+        "endColumn": 54,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Preamble"
+    }
+  ]
+}

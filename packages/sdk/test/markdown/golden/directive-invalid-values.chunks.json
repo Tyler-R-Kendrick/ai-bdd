@@ -1,0 +1,331 @@
+{
+  "chunks": [
+    {
+      "anchor": "doc/h",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "49f4e57c2625d4aeb4c5fd15cdc68fce543ea1790ceef4dcecf9e610b1609106",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/h",
+      "kind": "heading",
+      "range": {
+        "endColumn": 6,
+        "endLine": 1,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "Doc"
+    },
+    {
+      "anchor": "doc/p1",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p1",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 4,
+        "startColumn": 1,
+        "startLine": 4
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "a"
+    },
+    {
+      "anchor": "doc/p2",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p2",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 7,
+        "startColumn": 1,
+        "startLine": 7
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "b"
+    },
+    {
+      "anchor": "doc/p3",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p3",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 10,
+        "startColumn": 1,
+        "startLine": 10
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "c"
+    },
+    {
+      "anchor": "doc/p4",
+      "directives": {
+        "tags": [
+          "ok"
+        ]
+      },
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p4",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 13,
+        "startColumn": 1,
+        "startLine": 13
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "d"
+    },
+    {
+      "anchor": "doc/p5",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p5",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 16,
+        "startColumn": 1,
+        "startLine": 16
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "e"
+    },
+    {
+      "anchor": "doc/p6",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p6",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 19,
+        "startColumn": 1,
+        "startLine": 19
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "f"
+    },
+    {
+      "anchor": "doc/p7",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "cd0aa9856147b6c5b4ff2b7dfee5da20aa38253099ef1b4a64aced233c9afe29",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p7",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 22,
+        "startColumn": 1,
+        "startLine": 22
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "g"
+    },
+    {
+      "anchor": "doc/p8",
+      "directives": {},
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "aaa9402664f1a41f40ebbc52c9993eb66aeb366602958fdfaa283b71e64db123",
+      "headingPath": [
+        "Doc"
+      ],
+      "id": "docs/directive-invalid-values.md#doc/p8",
+      "kind": "paragraph",
+      "range": {
+        "endColumn": 2,
+        "endLine": 25,
+        "startColumn": 1,
+        "startLine": 25
+      },
+      "sectionId": "docs/directive-invalid-values.md#doc",
+      "text": "h"
+    }
+  ],
+  "contextChunkIds": [],
+  "diagnostics": [
+    {
+      "code": "DIRECTIVE_INVALID",
+      "details": {
+        "key": "driver"
+      },
+      "message": "\"driver\" requires a driver name (letters, digits, \".\", \"_\", \"-\")",
+      "range": {
+        "endColumn": 24,
+        "endLine": 3,
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "message": "key \"driver\" has an empty value",
+      "range": {
+        "endColumn": 25,
+        "endLine": 6,
+        "startColumn": 1,
+        "startLine": 6
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "details": {
+        "key": "ignore"
+      },
+      "message": "\"ignore\" is a flag; expected no value, true or false",
+      "range": {
+        "endColumn": 30,
+        "endLine": 9,
+        "startColumn": 1,
+        "startLine": 9
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "details": {
+        "key": "tags"
+      },
+      "message": "invalid tag \"bad tag!\"",
+      "range": {
+        "endColumn": 36,
+        "endLine": 12,
+        "startColumn": 1,
+        "startLine": 12
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "message": "unterminated quoted value for key \"start\"",
+      "range": {
+        "endColumn": 37,
+        "endLine": 15,
+        "startColumn": 1,
+        "startLine": 15
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "message": "empty directive",
+      "range": {
+        "endColumn": 17,
+        "endLine": 18,
+        "startColumn": 1,
+        "startLine": 18
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "message": "unexpected token \"$$\"",
+      "range": {
+        "endColumn": 23,
+        "endLine": 21,
+        "startColumn": 1,
+        "startLine": 21
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "message": "unexpected token \"##\"",
+      "range": {
+        "endColumn": 23,
+        "endLine": 21,
+        "startColumn": 1,
+        "startLine": 21
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    },
+    {
+      "code": "DIRECTIVE_INVALID",
+      "message": "key \"tags\" has an empty value",
+      "range": {
+        "endColumn": 23,
+        "endLine": 24,
+        "startColumn": 1,
+        "startLine": 24
+      },
+      "severity": "warning",
+      "uri": "docs/directive-invalid-values.md"
+    }
+  ],
+  "doc": {
+    "sha256": "8e6be6f4328a2447ffac53eddca2238f2e4470a3532be48c0e9690a6dc07f8dc",
+    "title": "Doc",
+    "uri": "docs/directive-invalid-values.md"
+  },
+  "sections": [
+    {
+      "anchor": "doc",
+      "chunkIds": [
+        "docs/directive-invalid-values.md#doc/h",
+        "docs/directive-invalid-values.md#doc/p1",
+        "docs/directive-invalid-values.md#doc/p2",
+        "docs/directive-invalid-values.md#doc/p3",
+        "docs/directive-invalid-values.md#doc/p4",
+        "docs/directive-invalid-values.md#doc/p5",
+        "docs/directive-invalid-values.md#doc/p6",
+        "docs/directive-invalid-values.md#doc/p7",
+        "docs/directive-invalid-values.md#doc/p8"
+      ],
+      "docUri": "docs/directive-invalid-values.md",
+      "hash": "275c12b9cdb95623637106bc7b8157a8d42e360efde4181e4f3034f266128b10",
+      "id": "docs/directive-invalid-values.md#doc",
+      "level": 1,
+      "range": {
+        "endColumn": 2,
+        "endLine": 25,
+        "startColumn": 1,
+        "startLine": 1
+      },
+      "title": "Doc"
+    }
+  ]
+}

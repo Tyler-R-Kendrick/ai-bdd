@@ -1,0 +1,79 @@
+{
+  "rules": [
+    {
+      "id": "extract-reports-h1",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/reports.md",
+        "sectionAnchor": "reports"
+      },
+      "respond": {
+        "object": {
+          "features": [],
+          "notTestable": []
+        }
+      }
+    },
+    {
+      "id": "extract-reports-page",
+      "purpose": "extract",
+      "when": {
+        "docUri": "docs/reports.md",
+        "sectionAnchor": {
+          "contains": "report-page"
+        }
+      },
+      "respond": {
+        "object": {
+          "features": [
+            {
+              "title": "Report loading",
+              "story": null,
+              "description": null,
+              "tags": [],
+              "sources": [
+                {
+                  "handle": "c2",
+                  "relation": "source",
+                  "quote": "The report page loads in the background"
+                }
+              ],
+              "scenarios": [
+                {
+                  "title": "Report page finishes loading",
+                  "tags": [],
+                  "sources": [
+                    {
+                      "handle": "c2",
+                      "relation": "source",
+                      "quote": "once the data is ready the page shows the heading Report ready"
+                    }
+                  ],
+                  "steps": [
+                    {
+                      "kind": "then",
+                      "text": "the report is ready",
+                      "grounding": "quoted",
+                      "sources": [
+                        {
+                          "handle": "c2",
+                          "relation": "source",
+                          "quote": "once the data is ready the page shows the heading Report ready"
+                        }
+                      ],
+                      "nature": null,
+                      "requiresState": null,
+                      "fixture": null,
+                      "params": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "notTestable": []
+        }
+      }
+    }
+  ]
+}

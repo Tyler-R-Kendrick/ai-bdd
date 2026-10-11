@@ -1,0 +1,35 @@
+{
+  "rules": [
+    {
+      "id": "judge-friendly-spread",
+      "purpose": "judge",
+      "when": {
+        "criterion": {
+          "contains": "the confirmation message feels friendly"
+        }
+      },
+      "respond": {
+        "samples": [
+          {
+            "probability": 0.95,
+            "verdict": "holds",
+            "explanation": "Clearly friendly.",
+            "observed": "Upgraded to Pro"
+          },
+          {
+            "probability": 0.9,
+            "verdict": "holds",
+            "explanation": "Friendly.",
+            "observed": "Upgraded to Pro"
+          },
+          {
+            "probability": 0.2,
+            "verdict": "fails",
+            "explanation": "Not friendly.",
+            "observed": "Upgraded to Pro"
+          }
+        ]
+      }
+    }
+  ]
+}
