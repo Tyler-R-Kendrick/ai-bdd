@@ -22,6 +22,8 @@ test('the repository targets are well formed and name existing source directorie
   for (const [name, t] of Object.entries(targets)) {
     assert.ok(t.mutate.length > 0 && t.tests.length > 0, name);
     assert.ok(Number.isInteger(t.break) && t.break >= 0 && t.break <= 100, `${name}: break`);
+    // the ratchet: every target was measured at 100 % with its equivalent mutants marked, so a lower break is a weakened gate
+    assert.ok(t.break >= 95, `${name}: break ${t.break} is below the 95 floor`);
     for (const pattern of t.mutate.filter((p) => !p.startsWith('!'))) {
       const dir = pattern.split('/**')[0].replace(/\/[^/]*\.ts$/, '');
       assert.ok(fs.existsSync(path.join(root, dir)), `${name}: ${dir} exists`);

@@ -78,6 +78,7 @@ export function lintDetailed(program: CheckProgram, ctx: LintContext): LintIssue
       }
       if (!nonEmpty(q.role) && !nonEmpty(q.testId)) add(`${label}: query must specify a role or a testId`);
     }
+    // Stryker disable next-line ConditionalExpression: equivalent mutant, Number.isInteger is false for every non-number, so dropping the typeof guard still reports a non-number count value
     if (p.op === 'count' && (typeof p.value !== 'number' || !Number.isInteger(p.value) || p.value < 0)) {
       add(`${label}: count value must be a non-negative integer`);
     }
@@ -104,6 +105,7 @@ export function lintDetailed(program: CheckProgram, ctx: LintContext): LintIssue
       }
     }
 
+    // Stryker disable next-line LogicalOperator,ConditionalExpression: equivalent mutants, past the early return above q is an object (non-route) or undefined (route), so `typeof q === 'object'` adds nothing to the truthiness of q
     if (q && typeof q === 'object') {
       for (const key of ctx.volatileNodeKeys) {
         if (queryMatchesKey(p, q, key)) {

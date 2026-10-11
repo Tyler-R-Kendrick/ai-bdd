@@ -32,6 +32,7 @@ class EvalContext {
   constructor(obs: Observation) {
     this.obs = obs;
     this.nodes = obs.nodes;
+    // Stryker disable next-line ArrayDeclaration: only the preallocated length differs; an unassigned entry reads as undefined either way and entries are assigned by index
     this.names = new Array<string | undefined>(obs.nodes.length);
   }
 
@@ -49,6 +50,7 @@ class EvalContext {
     const n = this.nodes.length;
     const byRef = new Map<string, number>();
     for (let i = 0; i < n; i += 1) byRef.set((this.nodes[i] as ObservedNode).ref, i);
+    // Stryker disable next-line UnaryOperator: the fill value is never read; the loop below assigns out[i] for every i on both of its branches
     const out = new Int32Array(n).fill(-1);
     const stack: number[] = [];
     for (let i = 0; i < n; i += 1) {
@@ -77,6 +79,7 @@ class EvalContext {
     // 0 unknown, 1 has matching ancestor, 2 none, 3 in progress
     const state = new Uint8Array(n);
     const isKey = (i: number): boolean => (this.nodes[i] as ObservedNode).role === key.role && this.foldedName(i) === fk;
+    // Stryker disable next-line EqualityOperator: s === n is skipped anyway, state[n] is undefined on a Uint8Array and `undefined !== 0` takes the `continue`
     for (let s = 0; s < n; s += 1) {
       if (state[s] !== 0) continue;
       const path: number[] = [];
@@ -97,6 +100,7 @@ class EvalContext {
       for (const x of path) state[x] = result;
     }
     const flags = new Uint8Array(n);
+    // Stryker disable next-line EqualityOperator: a write at index n of a Uint8Array of length n is silently ignored, so the extra iteration changes nothing
     for (let i = 0; i < n; i += 1) flags[i] = state[i] === 1 ? 1 : 0;
     this.ancestorCache.set(cacheKey, flags);
     return flags;
@@ -144,6 +148,7 @@ function evalExists(ctx: EvalContext, predicate: Of<'exists'>): PredicateResult 
 
 function evalCount(ctx: EvalContext, predicate: Of<'count'>): PredicateResult {
   const n = ctx.select(predicate.query).length;
+  // Stryker disable next-line ConditionalExpression: n === 0 is implied by nodes.length === 0 (no nodes, no matches), so the term is redundant
   if (n === 0 && ctx.nodes.length === 0 && (predicate.cmp === 'lte' || (predicate.cmp === 'eq' && predicate.value === 0))) return blank(predicate);
   const v = predicate.value;
   let ok: boolean | 'unknown';

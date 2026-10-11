@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Mutation testing with Stryker (vitest runner + TypeScript checker), one target at a time.
+// Mutation testing with Stryker (command runner + TypeScript checker), one target at a time.
 //
 //   node scripts/mutation.mjs --list                  print the targets
 //   node scripts/mutation.mjs <target> [<target>...]  mutate the target's sources and run only its tests against every mutant
