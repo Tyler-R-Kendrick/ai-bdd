@@ -102,7 +102,7 @@ const KEEP_UNNAMED = new Set([
 
 /** Object replacement characters stand in for embedded children in AT-SPI labels; they are not text. */
 const OBJECT_REPLACEMENT = /￼/g;
-const LIST_MARKER = /^[•◦▪‣]\s*/;
+const LIST_MARKER = /^(?:[•◦▪‣]\s*)+/;
 
 export function cleanLabel(raw: string | undefined, role: string): string {
   if (raw === undefined) return '';
@@ -136,7 +136,8 @@ export interface BuiltNodes {
  * unnamed layout containers pruned (their children move up). Refs are `r<revision>:e<element_index>`.
  */
 export function buildNodes(elements: readonly CuaElement[], revision: number, opts: BuildOptions): BuiltNodes {
-  const secrets = [...opts.secrets].filter((s) => s.length >= (opts.minSecretLength ?? 4));
+  // longest first: a secret that contains another one ("alice" / "alice123") must be replaced whole, not in pieces
+  const secrets = [...new Set(opts.secrets)].filter((s) => s.length >= (opts.minSecretLength ?? 4)).sort((a, b) => b.length - a.length);
   const scrub = (text: string): string => {
     let out = text;
     for (const s of secrets) if (out.includes(s)) out = out.split(s).join('[secret]');

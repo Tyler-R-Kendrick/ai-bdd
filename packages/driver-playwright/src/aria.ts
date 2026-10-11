@@ -98,7 +98,8 @@ function splitBody(body: string): { key: string; value: string | undefined; hasC
 export function tokenizeLines(text: string): ParsedLine[] {
   const out: ParsedLine[] = [];
   for (const line of text.split('\n')) {
-    const m = /^( *)- (.*)$/.exec(line.replace(/\r$/, ''));
+    // dotAll: a name may hold U+2028 / U+2029 / U+0085, which a plain `.` stops at (the element would silently vanish)
+    const m = /^( *)- (.*)$/s.exec(line.replace(/\r$/, ''));
     if (m === null) continue;
     const indent = m[1] ?? '';
     const { key, value, hasColon } = splitBody(m[2] ?? '');
@@ -253,7 +254,11 @@ export function pruneWrappers(nodes: readonly ObservedNode[]): ObservedNode[] {
   const keptRefs = new Set<string>();
   const nearestKept = (ref: string | undefined): ObservedNode | undefined => {
     let cur = ref === undefined ? undefined : byRef.get(ref);
-    while (cur !== undefined && !keptRefs.has(cur.ref)) cur = cur.parentRef === undefined ? undefined : byRef.get(cur.parentRef);
+    // Refs come from the snapshot text, so a repeated ref can make the parent chain loop: give up after one lap.
+    for (let hops = 0; cur !== undefined && !keptRefs.has(cur.ref); hops += 1) {
+      if (hops > nodes.length) return undefined;
+      cur = cur.parentRef === undefined ? undefined : byRef.get(cur.parentRef);
+    }
     return cur;
   };
   const newDepth = new Map<string, number>();

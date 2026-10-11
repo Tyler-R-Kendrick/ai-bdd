@@ -145,6 +145,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:adversarial
 
+  fuzz:
+    # Property-based tests (fast-check): 300 runs per property by default. A failure prints the seed and the shrunk
+    # counterexample; rerun with FC_SEED=<seed> to reproduce it, FC_RUNS=<n> to search deeper.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:fuzz
+
   playwright:
     runs-on: ubuntu-latest
     strategy:

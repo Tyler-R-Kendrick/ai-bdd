@@ -63,6 +63,17 @@ describe('approval flow', () => {
     expect(fs.readFileSync(files().verified, 'utf8')).toBe('hello\n');
   });
 
+  // Found by tests/fuzz/verify-scrub.test.ts: "\ud83d" is stored as U+FFFD, so the value could never match its own snapshot.
+  it('a value with a lone surrogate matches the snapshot that was accepted for it (the file holds U+FFFD)', () => {
+    const value = 'broken \ud83d surrogate';
+    fail(() => verifyValue(ctx(), value));
+    expect(fs.readFileSync(files().received, 'utf8')).toBe('broken \ufffd surrogate\n');
+    acceptReceived(findReceived(dir));
+    verifyValue(ctx(), value);
+    expect(fs.existsSync(files().received)).toBe(false);
+    expect(fail(() => verifyValue(ctx(), 'broken \ufffd other'))).toBeInstanceOf(VerifyError);
+  });
+
   it('a different value fails with a diff of verified (-) against received (+) and keeps the verified file untouched', () => {
     fs.mkdirSync(path.dirname(files().verified), { recursive: true });
     fs.writeFileSync(files().verified, 'one\ntwo\nthree\n');
@@ -144,6 +155,20 @@ describe('content', () => {
     const e = fail(() => verifyValue(ctx('bin'), new Uint8Array([1, 2, 4])));
     expect(e.message).toContain('binary snapshot differs (3 -> 3 bytes)');
     expect(Array.from(fs.readFileSync(files('bin', 'bin').received))).toEqual([1, 2, 4]);
+  });
+
+  // Found by tests/fuzz/verify-serialize.test.ts.
+  it('an own "__proto__" key is kept as data (it used to set the prototype of the copy and vanish)', () => {
+    const payload = JSON.parse('{"__proto__":{"admin":true},"a":1}') as unknown;
+    expect(JSON.parse(stableStringify(payload))).toEqual(payload);
+    expect(stableStringify(payload)).toContain('"__proto__": {\n    "admin": true\n  }');
+    expect(stableStringify(new Map([['__proto__', 1]]))).toContain('"__proto__": 1');
+  });
+
+  it('a Map is not lossy: keys that stringify alike stay apart, and string keys sort like object keys (not by locale)', () => {
+    expect(stableStringify(new Map<unknown, number>([[{ a: 1 }, 1], [{ a: 2 }, 2]]))).toBe(JSON.stringify([[{ a: 1 }, 1], [{ a: 2 }, 2]], null, 2));
+    expect(stableStringify(new Map<unknown, string>([[1, 'number'], ['1', 'string']]))).toBe(JSON.stringify([['1', 'string'], [1, 'number']], null, 2));
+    expect(Object.keys(JSON.parse(stableStringify(new Map([['b', 1], ['B', 2], ['a', 3]]))) as object)).toEqual(['B', 'a', 'b']);
   });
 
   it('serialization covers odd values without losing the difference between them', () => {

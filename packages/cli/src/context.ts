@@ -29,7 +29,8 @@ export function createCtx(io: CliIo, deps: CliDeps): Ctx {
   const secrets = new Set<string>();
   const scrub = (s: string): string => {
     let r = s;
-    for (const v of secrets) r = r.split(v).join('[redacted]');
+    // longest first, so that a secret containing another one is replaced whole
+    for (const v of [...secrets].sort((a, b) => b.length - a.length)) r = r.split(v).join('[redacted]');
     return r;
   };
   return {

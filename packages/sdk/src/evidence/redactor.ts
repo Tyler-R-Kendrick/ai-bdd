@@ -6,6 +6,11 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Lone surrogates become U+FFFD, as UTF-8 encoding would make them (`encodeURIComponent` throws on them). */
+function wellFormed(s: string): string {
+  return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD');
+}
+
 /** Every textual form in which a secret value may surface (raw, URL-encoded, base64, JSON-escaped). */
 function variantsOf(value: string): string[] {
   const out = new Set<string>();
@@ -13,7 +18,7 @@ function variantsOf(value: string): string[] {
     if (s.length > 0) out.add(s);
   };
   add(value);
-  const uri = encodeURIComponent(value);
+  const uri = encodeURIComponent(wellFormed(value));
   add(uri);
   add(uri.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase()));
   add(uri.replace(/%20/g, '+'));

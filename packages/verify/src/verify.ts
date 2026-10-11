@@ -100,7 +100,9 @@ export function verifyValue(ctx: VerifyContext, value: unknown, opts: VerifyOpti
   } else {
     const dirs = { root: ctx.root ?? process.cwd(), tmp: os.tmpdir() };
     const scrubbers = [...(opts.scrubDefaults === false ? [] : defaultScrubbers(dirs)), ...(opts.scrubbers ?? [])];
-    received = normalizeText(applyScrubbers(s.text as string, scrubbers));
+    // Snapshots are UTF-8 files, in which a lone surrogate can only be stored as U+FFFD: compare what the file will hold,
+    // or such a value could never match its own snapshot.
+    received = Buffer.from(normalizeText(applyScrubbers(s.text as string, scrubbers)), 'utf8').toString('utf8');
   }
 
   const hasVerified = fs.existsSync(files.verified);

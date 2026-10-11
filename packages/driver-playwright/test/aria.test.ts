@@ -17,6 +17,21 @@ const SCREENS: Record<string, string> = {
 };
 void PAGES;
 
+describe('parseAriaSnapshot: robustness against hostile snapshot text', () => {
+  // Found by tests/fuzz/playwright-aria.test.ts: `.` stops at U+2028 / U+2029, so an element with such a name vanished.
+  it.each(['\u2028', '\u2029', '\u0085'])('keeps an element whose name contains %j and the lines after it', (sep) => {
+    const nodes = parseAriaSnapshot([`- button "Save${sep}draft" [ref=e1]`, '- button "Next" [ref=e2]'].join('\n'));
+    expect(nodes.map((n) => [n.ref, n.name])).toEqual([['e1', `Save${sep}draft`], ['e2', 'Next']]);
+  });
+
+  // Found by the same fuzz suite: a repeated ref made the parent chain of pruneWrappers loop forever.
+  it('pruneWrappers terminates on repeated refs and re-parents to the nearest kept ancestor it can find', () => {
+    const nodes = parseAriaSnapshot(['- generic [ref=x]', '  - generic [ref=x]', '    - button "b" [ref=k]'].join('\n'));
+    const pruned = pruneWrappers(nodes);
+    expect(pruned.map((n) => [n.ref, n.depth])).toEqual([['k', 0]]);
+  });
+});
+
 describe('parseAriaSnapshot grammar (V3/V4)', () => {
   it('R-AG4: parses role, name, attributes, level, refs, inline text and /url properties', () => {
     const nodes = parseAriaSnapshot([

@@ -52,9 +52,11 @@ export function unifiedDiff(verified: string, received: string, { context = 3, m
     ops = lcsOps(a, b);
   }
   const keep = new Array<boolean>(ops.length).fill(false);
+  // a window wider than the diff shows everything; without the clamp a huge (or infinite) `context` made every change cost O(context)
+  const reach = Math.min(context, ops.length);
   ops.forEach((o, idx) => {
     if (o.op === ' ') return;
-    for (let d = -context; d <= context; d += 1) {
+    for (let d = -reach; d <= reach; d += 1) {
       const at = idx + d;
       if (at >= 0 && at < ops.length) keep[at] = true;
     }
