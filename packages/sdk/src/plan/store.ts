@@ -157,7 +157,8 @@ export const createPlanStore: CreatePlanStore = ({ dir, readOnly }) => {
       const file = planPathFor(dir, plan.docUri);
       const parsed = parseDocPlan(plan);
       if (!parsed.ok) throw new AiBddError('PLAN_CORRUPT', `refusing to write ${parsed.message}`, { details: { docUri: plan.docUri } });
-      await atomicWriteFile(file, stableJson(parsed.plan as unknown as JsonValue), { root: resolve(dir) });
+      await assertInsideRealRoot(dirname(file)); // a plans directory that is itself a symlink out of the project must not receive plans
+      await atomicWriteFile(file, stableJson(parsed.plan as unknown as JsonValue), { root: resolve(dir), sweep: true });
     },
     async remove(docUri) {
       if (readOnly) denyWrite('remove');

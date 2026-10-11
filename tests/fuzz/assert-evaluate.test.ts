@@ -142,6 +142,12 @@ describe('fuzz: evaluatePredicates', () => {
           [{ op: 'exists', query: q }, { op: 'exists', query: q, negate: true }, { op: 'count', query: q, cmp: 'eq', value: 0 }, { op: 'count', query: q, cmp: 'gte', value: 1 }],
           t,
         ) as [PredicateResult, PredicateResult, PredicateResult, PredicateResult];
+        if (observation(t).nodes.length === 0) {
+          // a blank observation shows nothing, so it cannot show absence: those checks are unknown (and fail), never a vacuous pass
+          expect([pos.satisfied, count1.satisfied]).toEqual([false, false]);
+          expect([neg.satisfied, count0.satisfied]).toEqual(['unknown', 'unknown']);
+          return;
+        }
         expect(typeof pos.satisfied).toBe('boolean');
         expect(neg.satisfied).toBe(!pos.satisfied);
         expect(count0.satisfied).toBe(!pos.satisfied);
@@ -166,6 +172,15 @@ describe('fuzz: evaluatePredicates', () => {
           t,
         ) as PredicateResult[] as [PredicateResult, PredicateResult, PredicateResult, PredicateResult, PredicateResult];
         const matches = (any.actual as { matches: number }).matches;
+        if (observation(t).nodes.length === 0) {
+          // blank page: "no matches" proves nothing, so the zero-count forms are unknown; the others are plain comparisons
+          expect(any.satisfied).toBe(false);
+          expect(eq.satisfied).toBe(n === 0 ? 'unknown' : false);
+          expect(gte.satisfied).toBe(0 >= n);
+          expect(lte.satisfied).toBe('unknown');
+          expect(lteBelow.satisfied).toBe('unknown');
+          return;
+        }
         expect(eq.satisfied).toBe(matches === n);
         expect(eq.satisfied).toBe(gte.satisfied === true && lte.satisfied === true);
         expect(gte.satisfied).toBe(!lteBelow.satisfied);

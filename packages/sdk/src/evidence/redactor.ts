@@ -12,7 +12,7 @@ function wellFormed(s: string): string {
 }
 
 /** Every textual form in which a secret value may surface (raw, URL-encoded, base64, JSON-escaped). */
-function variantsOf(value: string): string[] {
+export function secretVariants(value: string): string[] {
   const out = new Set<string>();
   const add = (s: string): void => {
     if (s.length > 0) out.add(s);
@@ -43,7 +43,7 @@ export const createRedactor: CreateRedactor = (secrets) => {
     if (typeof value !== 'string' || value.length < MIN_SECRET_LENGTH) {
       throw new AiBddError('SECRET_TOO_SHORT', `secret "${name}" must be at least ${MIN_SECRET_LENGTH} characters long`, { details: { name } });
     }
-    for (const v of variantsOf(value)) {
+    for (const v of secretVariants(value)) {
       if (!byVariant.has(v)) byVariant.set(v, name);
     }
   }

@@ -100,10 +100,11 @@ export const createRecordingStore: CreateRecordingStore = (opts: { dir: string; 
         });
       }
       const bytes = stableJson(parsed.data as JsonValue);
-      await assertInsideRealRoot(dirname(path), resolve(dir)); // ... nor receive writes through a symlinked directory
+      await assertInsideRealRoot(dirname(path)); // a recordings directory that is itself a symlink out of the project must not receive recordings
+      await assertInsideRealRoot(dirname(path), resolve(dir)); // ... nor may a symlinked directory inside it redirect the write
       const existing = await readIfExists(path);
       if (existing === bytes) return 'unchanged';
-      await atomicWriteFile(path, bytes, { root: resolve(dir) });
+      await atomicWriteFile(path, bytes, { root: resolve(dir), sweep: true });
       return existing === null ? 'created' : 'updated';
     },
 

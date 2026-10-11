@@ -8,7 +8,6 @@
   "packages/sdk/src/agent/index.ts#runAct": 38,
   "packages/sdk/src/runner/scenario.ts#executeScenario": 36,
   "packages/sdk/src/extract/validate.ts#validateExtraction": 34,
-  "packages/sdk/src/engine/compile.ts#compile": 32,
   "packages/sdk/src/markdown/directives.ts#tokenizeDirective": 32,
   "packages/driver-playwright/src/aria.ts#parseAriaSnapshot": 31,
   "packages/sdk/src/recording/effect.ts#computeEffect": 30.1,

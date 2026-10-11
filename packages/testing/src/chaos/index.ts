@@ -1,0 +1,43 @@
+export { seededRandom, type SeededRandom } from './random.ts';
+export {
+  DRIVER_HOOKS,
+  GARBLE_MODES,
+  MODEL_HOOKS,
+  validateDriverPlan,
+  validateModelPlan,
+  type ChaosEvent,
+  type ChaosOptions,
+  type DriverFault,
+  type DriverFaultPlan,
+  type DriverHook,
+  type DriverRule,
+  type FaultPlan,
+  type GarbleMode,
+  type ModelFault,
+  type ModelFaultPlan,
+  type ModelHook,
+  type ModelRule,
+  type RuleTrigger,
+} from './plan.ts';
+export { chaosDriver, garbleObservation, type ChaosDriverFactory, type ChaosDriverStats } from './driver.ts';
+export { chaosModels, type ChaosModelSet, type ChaosModelStats } from './models.ts';
+export {
+  devFullUnavailableReason,
+  diffSnapshots,
+  findTempLeftovers,
+  linkToDevFull,
+  lockDirectory,
+  makeOutsideDir,
+  mountTinyTmpfs,
+  raceStart,
+  removePath,
+  replaceWithFile,
+  replaceWithSymlink,
+  snapshotTree,
+  symlinkEscape,
+  symlinkLoop,
+  type MountResult,
+  type PermissionLock,
+  type TreeDiff,
+  type TreeEntry,
+} from './fs.ts';
