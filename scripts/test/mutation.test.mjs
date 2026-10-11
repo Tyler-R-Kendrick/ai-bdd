@@ -113,3 +113,10 @@ test('main runs Stryker per target with only that target tests, reports the scor
     cleanup(root);
   }
 });
+
+test('the nightly workflow runs exactly the targets of the table', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  const text = fs.readFileSync(path.join(root, '.github', 'workflows', 'mutation.yml'), 'utf8');
+  const listed = /target: \[([^\]]+)\]/.exec(text)?.[1].split(',').map((t) => t.trim()).sort();
+  assert.deepEqual(listed, Object.keys(loadTargets(root)).sort());
+});

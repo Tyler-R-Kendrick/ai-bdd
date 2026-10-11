@@ -57,7 +57,8 @@ describe('fuzz: normalizeResult', () => {
         if (r.failed) {
           const message = typeof refusal?.['message'] === 'string' ? refusal['message'] : typeof sc['detail'] === 'string' ? sc['detail'] : undefined;
           expect(r.text).toBe(joined.length === 0 && message !== undefined ? message : joined);
-          const candidate = refusal?.['code'] ?? sc['code'];
+          // the refusal's code wins when it is a string; otherwise the structured content's (a non-string refusal code hides nothing)
+          const candidate = typeof refusal?.['code'] === 'string' ? refusal['code'] : sc['code'];
           if (typeof candidate === 'string') expect(r.code).toBe(candidate);
           else expect(r.code).toBeUndefined();
         } else {

@@ -217,6 +217,9 @@ describe('normalizeResult edge cases', () => {
       .toMatchObject({ failed: true, code: 'a', text: 'refusal message' });
     expect(normalizeResult({ isError: true, structuredContent: { code: 'b', detail: 'detail text' } })).toMatchObject({ failed: true, code: 'b', text: 'detail text' });
     expect(normalizeResult({ isError: true, structuredContent: { refusal: { message: 6 }, code: 'c' } })).toMatchObject({ failed: true, code: 'c', text: '' });
+    // a refusal code that is not a string does not hide the code of the structured content
+    expect(normalizeResult({ structuredContent: { status: 'refused', refusal: { code: 5 }, code: 'c' } })).toMatchObject({ failed: true, code: 'c' });
+    expect(normalizeResult({ structuredContent: { status: 'refused', refusal: { code: 5 } } }).code).toBeUndefined();
     expect(normalizeResult({ isError: true })).toEqual({ failed: true, text: '', structured: {}, images: [] });
   });
 
