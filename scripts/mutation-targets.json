@@ -13,7 +13,7 @@
       "tests/fuzz/cua-nodes.test.ts",
       "packages/driver-cua/test/nodes-tables.test.ts"
     ],
-    "break": 60
+    "break": 95
   },
   "verify": {
     "mutate": [
@@ -29,7 +29,7 @@
       "tests/fuzz/verify-scrub.test.ts",
       "tests/fuzz/verify-serialize.test.ts"
     ],
-    "break": 0
+    "break": 95
   },
   "sdk-util": {
     "mutate": [
@@ -42,7 +42,7 @@
       "tests/fuzz/util-navigation.test.ts",
       "tests/fuzz/redaction.test.ts"
     ],
-    "break": 0
+    "break": 95
   },
   "sdk-assert": {
     "mutate": [
@@ -56,7 +56,7 @@
       "tests/fuzz/assert-evaluate.test.ts",
       "tests/fuzz/assert-volatile.test.ts"
     ],
-    "break": 0
+    "break": 95
   },
   "sdk-plan": {
     "mutate": [
@@ -71,7 +71,7 @@
       "tests/fuzz/plan-merge.test.ts",
       "tests/fuzz/plan-schema.test.ts"
     ],
-    "break": 0
+    "break": 95
   },
   "sdk-recording": {
     "mutate": [
@@ -85,7 +85,7 @@
       "packages/sdk/test/recording/*.test.ts",
       "tests/fuzz/secrets-scrub.test.ts"
     ],
-    "break": 0
+    "break": 95
   },
   "sdk-markdown": {
     "mutate": [
@@ -102,6 +102,6 @@
       "tests/fuzz/markdown-chunker.test.ts",
       "tests/fuzz/markdown-normalize.test.ts"
     ],
-    "break": 0
+    "break": 95
   }
 }
