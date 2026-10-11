@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it , vi } from 'vitest';
+import { verify } from '@ai-bdd/verify';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Driver, DriverSession, Observation, ObservedNode, Policy, ValueSource } from '@ai-bdd/sdk/contracts';
 import { parseAriaSnapshot, playwright, pruneWrappers, sessionFromPage } from '../src/index.ts';
 import { browserAvailable, launchRaw } from './browser.ts';
@@ -31,8 +31,7 @@ const hasBrowser = await browserAvailable();
 const startAcme = await probeAcme();
 const ADMIN = 'correct-horse-battery';
 const here = dirname(fileURLToPath(import.meta.url));
-const golden = (name: string): string => join(here, 'golden', name);
-const UPDATE = process.env['UPDATE_GOLDEN'] === '1';
+const goldenDir = join(here, 'golden');
 const policy: Policy = { allowHosts: ['127.0.0.1', 'localhost'], denyVerbs: [] };
 
 /** Volatile clock text and per-document frame prefixes are normalized so goldens are stable. */
@@ -46,7 +45,7 @@ const find = (obs: Observation, role: string, name: string): ObservedNode => {
 
 const suite = hasBrowser && startAcme !== undefined ? describe : describe.skip;
 const suiteName = startAcme === undefined
-  ? 'driver-playwright against the Acme app (SKIPPED: startAcmeApp from @ai-bdd/testing is still an unimplemented stub)'
+  ? 'driver-playwright against the Acme app (SKIPPED: no browser, or startAcmeApp from @ai-bdd/testing is unavailable)'
   : 'driver-playwright against the Acme app';
 
 suite(suiteName, () => {
@@ -118,15 +117,10 @@ suite(suiteName, () => {
         const live = normalize(await page.ariaSnapshot({ mode: 'ai' }));
         await raw.close();
         await ctx.close();
-        const textFile = golden(`${screen.name}.aria.txt`);
-        const nodesFile = golden(`${screen.name}.nodes.json`);
-        if (UPDATE || !existsSync(textFile)) {
-          writeFileSync(textFile, `${live}\n`);
-          writeFileSync(nodesFile, `${JSON.stringify(pruneWrappers(parseAriaSnapshot(live)), null, 2)}\n`);
-        }
-        expect(`${live}\n`).toBe(readFileSync(textFile, 'utf8'));
-        const nodes = pruneWrappers(parseAriaSnapshot(readFileSync(textFile, 'utf8')));
-        expect(JSON.parse(JSON.stringify(nodes))).toEqual(JSON.parse(readFileSync(nodesFile, 'utf8')));
+        // approve a changed screen with `pnpm verify:accept`
+        await verify(`${live}\n`, { directory: goldenDir, fileName: `${screen.name}.aria`, extension: 'txt', scrubDefaults: false });
+        const nodes = pruneWrappers(parseAriaSnapshot(live));
+        await verify(nodes, { directory: goldenDir, fileName: `${screen.name}.nodes`, extension: 'json', scrubDefaults: false });
 
         // The driver's own observation of the same screen carries the same roles and names, in order.
         const obs = await s.observe();

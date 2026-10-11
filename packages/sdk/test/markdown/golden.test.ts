@@ -1,5 +1,6 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { verify } from '@ai-bdd/verify';
 import { describe, expect, it } from 'vitest';
 import type { ChunkOptions, JsonValue } from '../../src/contracts/index.ts';
 import { createChunker } from '../../src/markdown/index.ts';
@@ -7,7 +8,6 @@ import { stableJson } from '../../src/util/index.ts';
 import { DEFAULT_OPTS, makeDoc } from './helpers.ts';
 
 const dir = fileURLToPath(new URL('./golden/', import.meta.url));
-const update = process.env['UPDATE_GOLDEN'] === '1';
 
 interface CaseOpts extends Partial<ChunkOptions> {
   /** Line-ending / BOM transform applied to the fixture text before chunking. */
@@ -45,7 +45,7 @@ describe('markdown golden cases', () => {
     const optsPath = `${dir}${name}.opts.json`;
     const caseOpts: CaseOpts = existsSync(optsPath) ? (JSON.parse(readFileSync(optsPath, 'utf8')) as CaseOpts) : {};
     const req = (caseOpts.req ?? ['G1']).join(' ');
-    it(`${req}: golden ${name}`, () => {
+    it(`${req}: golden ${name}`, async () => {
       const base = readFileSync(`${dir}${name}.md`, 'utf8');
       const doc = makeDoc(transformText(base, caseOpts.transform), `docs/${name}.md`, base);
       const opts: ChunkOptions = {
@@ -53,13 +53,8 @@ describe('markdown golden cases', () => {
         maxSectionChars: caseOpts.maxSectionChars ?? DEFAULT_OPTS.maxSectionChars,
       };
       const actual = stableJson(createChunker().chunk(doc, opts) as unknown as JsonValue);
-      const goldenPath = `${dir}${name}.chunks.json`;
-      if (update) {
-        writeFileSync(goldenPath, actual);
-        return;
-      }
-      expect(existsSync(goldenPath), `missing golden ${name}.chunks.json (run with UPDATE_GOLDEN=1)`).toBe(true);
-      expect(actual).toBe(readFileSync(goldenPath, 'utf8'));
+      // approve a changed or new case with `pnpm verify:accept`
+      await verify(actual, { directory: dir, fileName: `${name}.chunks`, extension: 'json', scrubDefaults: false });
     });
   }
 });

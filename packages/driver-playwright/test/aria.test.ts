@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verify } from '@ai-bdd/verify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Browser } from 'playwright-core';
 import { parseAriaSnapshot, pruneWrappers } from '../src/index.ts';
@@ -9,8 +9,7 @@ import { PAGES, startFixture } from './fixture.ts';
 import type { Fixture } from './fixture.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const golden = (name: string): string => join(here, 'golden', name);
-const UPDATE = process.env['UPDATE_GOLDEN'] === '1';
+const goldenDir = join(here, 'golden');
 const hasBrowser = await browserAvailable();
 
 const SCREENS: Record<string, string> = {
@@ -142,15 +141,9 @@ describe.skipIf(!hasBrowser)('parseAriaSnapshot goldens captured from Chromium (
       await page.goto(`${fx.url}${path}`);
       const live = await page.ariaSnapshot({ mode: 'ai' });
       await ctx.close();
-      const textFile = golden(`${name}.aria.txt`);
-      const nodesFile = golden(`${name}.nodes.json`);
-      if (UPDATE || !existsSync(textFile)) {
-        writeFileSync(textFile, `${live}\n`);
-        writeFileSync(nodesFile, `${JSON.stringify(pruneWrappers(parseAriaSnapshot(live)), null, 2)}\n`);
-      }
-      expect(`${live}\n`).toBe(readFileSync(textFile, 'utf8'));
-      const pinned = JSON.parse(readFileSync(nodesFile, 'utf8')) as unknown;
-      expect(JSON.parse(JSON.stringify(pruneWrappers(parseAriaSnapshot(readFileSync(textFile, 'utf8')))))).toEqual(pinned);
+      // approve a changed screen with `pnpm verify:accept`
+      await verify(`${live}\n`, { directory: goldenDir, fileName: `${name}.aria`, extension: 'txt', scrubDefaults: false });
+      await verify(pruneWrappers(parseAriaSnapshot(live)), { directory: goldenDir, fileName: `${name}.nodes`, extension: 'json', scrubDefaults: false });
     });
   }
 

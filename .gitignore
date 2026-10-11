@@ -9,6 +9,7 @@ playwright-report/
 .determinism-*/
 packages/testing/.quickstart/
 .claude/worktrees/
+*.received.*
 .stryker-tmp/
 reports/
 .stryker-tmp/

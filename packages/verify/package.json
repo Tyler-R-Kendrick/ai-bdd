@@ -1,0 +1,33 @@
+{
+  "name": "@ai-bdd/verify",
+  "version": "0.1.0",
+  "description": "Approval (snapshot) testing for vitest in the style of VerifyTests/Verify: verified files are committed, received files appear on a mismatch, scrubbers make output stable",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "ai-bdd-verify": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "peerDependencies": {
+    "vitest": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  }
+}

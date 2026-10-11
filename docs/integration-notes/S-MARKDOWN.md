@@ -53,7 +53,7 @@ Container nesting guard: micromark is quadratic in the depth of nested container
 
 ### Tests
 
-`packages/sdk/test/markdown/`: 70 golden cases (`golden/*.md` with `.chunks.json`; optional `.opts.json` with `sectionDepth`, `maxSectionChars`, `transform` of `crlf`, `cr`, `bom`, `bom+crlf`, and `req` ids used in the test name; `UPDATE_GOLDEN=1` rewrites), directive unit tests, chunker unit tests, fast-check properties (`numRuns` 200, `FC_RUNS` overrides) and discovery tests. Line coverage of `src/markdown` is about 96%.
+`packages/sdk/test/markdown/`: 70 golden cases (`golden/*.md` with `.chunks.json`; optional `.opts.json` with `sectionDepth`, `maxSectionChars`, `transform` of `crlf`, `cr`, `bom`, `bom+crlf`, and `req` ids used in the test name; `pnpm verify:accept` approves a changed case), directive unit tests, chunker unit tests, fast-check properties (`numRuns` 200, `FC_RUNS` overrides) and discovery tests. Line coverage of `src/markdown` is about 96%.
 
 ## VERIFY outcomes
 

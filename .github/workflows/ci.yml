@@ -66,6 +66,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:unit
+      # Snapshots that differ leave *.received.* files (approval testing, @ai-bdd/verify): keep them for review.
+      - name: Upload received snapshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-snapshots-${{ matrix.node }}
+          path: '**/*.received.*'
+          if-no-files-found: ignore
 
   # Coverage floors per package (vitest.config.ts): lines, branches and functions of every package, unit tests only. Needs the
   # browser so that the Playwright driver's tests run; the Cua Driver's real-product tests are not part of it (no desktop).
