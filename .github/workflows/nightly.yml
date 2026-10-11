@@ -1,0 +1,33 @@
+name: nightly
+
+# Deeper searches than a pull request can afford: the property tests with 5000 cases per property on a fresh random seed.
+# A failure prints the seed and the shrunk counterexample; replay it with FC_SEED=<seed> pnpm test:fuzz.
+on:
+  schedule:
+    - cron: '47 1 * * *'
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'Cases per property'
+        required: false
+        default: '5000'
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-deep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: fuzz
+        run: pnpm test:fuzz
+        env:
+          FC_RUNS: ${{ github.event.inputs.runs || '5000' }}
