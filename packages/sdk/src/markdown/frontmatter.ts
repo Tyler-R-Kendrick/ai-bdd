@@ -5,6 +5,7 @@ const MAX_DEPTH = 64;
 
 /** Convert an arbitrary parsed YAML value into JSON-safe data (no NaN/Infinity/Date/Map, no `__proto__`). */
 export function toJsonValue(value: unknown, depth = 0): JsonValue {
+  // Stryker disable next-line ConditionalExpression: undefined falls through every typeof check to the final `return null`, same as the early return
   if (value === null || value === undefined) return null;
   if (typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
@@ -39,6 +40,7 @@ export function parseFrontmatter(source: string): FrontmatterResult {
     return { ok: true, value: toJsonValue(parsed) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // Stryker disable next-line StringLiteral: String.prototype.split always yields at least one element, so the fallback is unreachable
     const firstLine = message.split('\n')[0] ?? 'invalid YAML';
     return { ok: false, error: firstLine.replace(/[:\s]+$/, '').slice(0, 300) };
   }
