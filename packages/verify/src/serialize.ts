@@ -27,10 +27,9 @@ function normalizeForJson(value: unknown, seen: WeakSet<object>): unknown {
           return Object.fromEntries(entries.map(([k, v]) => [k as string, normalizeForJson(v, seen)] as const).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
         }
         // Other keys (numbers, objects, ...) would collapse when stringified ("1" and 1, or two objects), so the Map is listed as [key, value] pairs.
-        return entries
-          .map(([k, v]) => [normalizeForJson(k, seen), normalizeForJson(v, seen)] as const)
-          // Stryker disable next-line StringLiteral,ConditionalExpression,EqualityOperator: equivalent mutants, normalizeForJson never yields undefined, a function or a symbol so JSON.stringify never returns undefined, and the sort only asks whether the comparator result is negative
-          .sort(([a], [b]) => { const x = JSON.stringify(a) ?? ''; const y = JSON.stringify(b) ?? ''; return x < y ? -1 : x > y ? 1 : 0; });
+        // Stryker disable next-line StringLiteral,ConditionalExpression,EqualityOperator: equivalent mutants, normalizeForJson never yields undefined, a function or a symbol so JSON.stringify never returns undefined, and the sort only asks whether the comparator result is negative
+        const byKeyJson = ([a]: readonly [unknown, unknown], [b]: readonly [unknown, unknown]): number => { const x = JSON.stringify(a) ?? ''; const y = JSON.stringify(b) ?? ''; return x < y ? -1 : x > y ? 1 : 0; };
+        return entries.map(([k, v]) => [normalizeForJson(k, seen), normalizeForJson(v, seen)] as const).sort(byKeyJson);
       }
       if (value instanceof Set) return [...value].map((v) => normalizeForJson(v, seen));
       if (Array.isArray(value)) return value.map((v) => normalizeForJson(v, seen));

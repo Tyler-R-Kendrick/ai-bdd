@@ -55,16 +55,16 @@ export function normalizeForQuote(s: string): string {
 }
 
 export function slugify(input: string, max = 64): string {
-  const s = input
+  const dashed = input
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    // Stryker disable next-line Regex: a run of non-alphanumerics was already collapsed to a single '-', so '-' and '-+' match the same text at either end
-    .replace(/^-+|-+$/g, '')
-    .slice(0, max)
-    // Stryker disable next-line Regex: after the cut there are no runs of '-' left, so '-$' and '-+$' match the same text
-    .replace(/-+$/g, '');
+    .replace(/[^a-z0-9]+/g, '-');
+  // Stryker disable next-line Regex: a run of non-alphanumerics was already collapsed to a single '-', so '-' and '-+' match the same text at either end
+  const trimmed = dashed.replace(/^-+|-+$/g, '');
+  const cut = trimmed.slice(0, max);
+  // Stryker disable next-line Regex: after the cut there are no runs of '-' left, so '-$' and '-+$' match the same text
+  const s = cut.replace(/-+$/g, '');
   return s.length > 0 ? s : `h-${sha256Hex(input).slice(0, 8)}`;
 }
 
@@ -75,10 +75,11 @@ export function renderTree(nodes: readonly ObservedNode[], opts: { refs: boolean
       const parts: string[] = [`${'  '.repeat(n.depth)}- ${n.role}`];
       if (n.name) parts.push(JSON.stringify(n.name));
       if (n.level !== undefined) parts.push(`[level=${n.level}]`);
+      // Stryker disable next-line ConditionalExpression,EqualityOperator: state names are distinct, so <= and >= behave as < and >, and sort only tests the result for < 0 (1 and 0 order alike)
+      const byName = ([a]: readonly [string, unknown], [b]: readonly [string, unknown]): number => (a < b ? -1 : a > b ? 1 : 0);
       const states = Object.entries(n.states)
         .filter(([, v]) => v !== undefined && v !== false)
-        // Stryker disable next-line ConditionalExpression,EqualityOperator: state names are distinct, so <= and >= behave as < and >, and sort only tests the result for < 0 (1 and 0 order alike)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .sort(byName)
         .map(([k, v]) => (v === true ? `[${k}]` : `[${k}=${String(v)}]`));
       parts.push(...states);
       if (n.value !== undefined) parts.push(`value=${JSON.stringify(n.value)}`);
