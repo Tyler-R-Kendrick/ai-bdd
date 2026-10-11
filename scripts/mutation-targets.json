@@ -52,11 +52,7 @@
       "packages/sdk/src/assert/generate.ts"
     ],
     "tests": [
-      "packages/sdk/test/assert/blank-page.test.ts",
-      "packages/sdk/test/assert/evaluate.test.ts",
-      "packages/sdk/test/assert/generate.test.ts",
-      "packages/sdk/test/assert/lint.test.ts",
-      "packages/sdk/test/assert/volatile.test.ts",
+      "packages/sdk/test/assert/*.test.ts",
       "tests/fuzz/assert-evaluate.test.ts",
       "tests/fuzz/assert-volatile.test.ts"
     ],
@@ -102,12 +98,7 @@
       "packages/sdk/src/markdown/walker.ts"
     ],
     "tests": [
-      "packages/sdk/test/markdown/chunker.test.ts",
-      "packages/sdk/test/markdown/directives.test.ts",
-      "packages/sdk/test/markdown/frontmatter.test.ts",
-      "packages/sdk/test/markdown/golden.test.ts",
-      "packages/sdk/test/markdown/properties.test.ts",
-      "packages/sdk/test/markdown/text.test.ts",
+      "packages/sdk/test/markdown/*.test.ts",
       "tests/fuzz/markdown-chunker.test.ts",
       "tests/fuzz/markdown-normalize.test.ts"
     ],
