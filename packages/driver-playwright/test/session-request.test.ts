@@ -92,6 +92,20 @@ describe.skipIf(!hasBrowser)('driver-playwright request()', () => {
       await s.close();
     });
 
+    it('R-AG3: a redirect that turns the request into a bodyless GET drops the headers that described the body; 307/308 keep them', async () => {
+      const s = await open();
+      const sent = async (status: number): Promise<{ method: string; contentType: string | null }> => {
+        const res = (await s.request?.({
+          method: 'POST', path: `/r?status=${status}&to=/api/echo`, body: 'payload', headers: { 'Content-Type': 'text/plain', 'content-length': '7', 'x-keep': '1' },
+        })) as { status: number; body: { method: string; contentType: string | null } };
+        expect(res.status).toBe(200);
+        return res.body;
+      };
+      for (const status of [301, 302, 303]) expect(await sent(status), String(status)).toMatchObject({ method: 'GET', contentType: null });
+      for (const status of [307, 308]) expect(await sent(status), String(status)).toMatchObject({ method: 'POST', contentType: 'text/plain' });
+      await s.close();
+    });
+
     it('R-AG3: a relative Location resolves against the URL that sent it; a redirect without Location is returned as the answer', async () => {
       const s = await open();
       const before = edge.hits.length;

@@ -103,7 +103,7 @@ export function _docPlanIsSchemaCompatible(plan: DocPlan): z.infer<typeof DocPla
   return plan;
 }
 
-/** Validates a parsed value as a DocPlan. The result carries no `undefined`-valued keys. */
+/** Validates a parsed value as a DocPlan. Optional fields explicitly set to `undefined` are accepted; they vanish when the plan is serialized. */
 export function parseDocPlan(value: unknown): { ok: true; plan: DocPlan } | { ok: false; message: string } {
   const r = DocPlanSchema.safeParse(value);
   if (!r.success) {
