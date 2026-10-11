@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { lineOf, stripComments, finish } from '../lib.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { lineOf, stripComments, finish, walk } from '../lib.mjs';
 
 test('stripComments blanks comments but keeps strings and line numbers', () => {
   const src = "const g = 'docs/**/*.md'; // trailing\n/* block\nspan */ import x from './y';\n";
@@ -25,4 +28,17 @@ test('finish returns exit codes and prints problems', () => {
   assert.equal(finish('x', { ok: true, skipped: 'later', problems: [] }, log), 0);
   assert.equal(finish('x', { ok: false, skipped: 'later', problems: ['p'] }, log), 1);
   assert.ok(lines.some((l) => l.includes('boom')));
+});
+
+test('walk skips the scratch directories that tests and tools create and delete while others scan', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'walk-'));
+  try {
+    for (const d of ['src', '.work/p-1', '.stryker-tmp/x', 'node_modules/m', 'dist']) {
+      fs.mkdirSync(path.join(dir, d), { recursive: true });
+      fs.writeFileSync(path.join(dir, d, 'f.ts'), '');
+    }
+    assert.deepEqual(walk(dir).map((f) => path.relative(dir, f)), [path.join('src', 'f.ts')]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

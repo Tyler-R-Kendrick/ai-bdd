@@ -167,7 +167,14 @@ export function checkBoundaries(root) {
   const scanFile = (abs, pkg) => {
     const rel = toPosix(path.relative(root, abs));
     const test = isTestFile(rel);
-    const imports = extractImports(fs.readFileSync(abs, 'utf8'), abs);
+    let source;
+    try {
+      source = fs.readFileSync(abs, 'utf8');
+    } catch (err) {
+      if (err?.code === 'ENOENT') return; // deleted between listing and reading (a test cleaning up): nothing to scan
+      throw err;
+    }
+    const imports = extractImports(source, abs);
     scanned++;
     for (const imp of imports) {
       const spec = imp.spec;
