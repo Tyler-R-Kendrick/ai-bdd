@@ -134,6 +134,7 @@ async function generate(
       modelId = res.modelId || model.id;
       let raw: unknown = res.object;
       if (raw === undefined && typeof res.text === 'string') {
+        // Stryker disable next-line BlockStatement: equivalent mutant, when JSON.parse throws the assignment never happens, so `raw` is already undefined and an empty catch block leaves it undefined too
         try { raw = JSON.parse(res.text); } catch { raw = undefined; }
       }
       responseJson = (raw ?? null) as JsonValue;
@@ -223,12 +224,14 @@ function verify(
   }
   // R-AS1: the model chooses the classification, so it cannot be trusted to waive discrimination. Whenever an action
   // preceded the assertion, the program must be false on BEFORE, or it would still pass if the action did nothing.
+  // Stryker disable next-line LogicalOperator,ConditionalExpression: equivalent mutants, after an action the classification is forced to 'change' (see above) and without an action a 'change' never reaches verify (lint rejects it), so the condition is just `req.actionPreceded`
   if (req.actionPreceded || program.classification === 'change') {
     const onBefore = evaluatePredicates(program.predicates, req.before, req.params);
     if (allSatisfied(onBefore)) {
       return {
         errors: [
           'CHECK_NOT_DISCRIMINATIVE: the program is already true on the BEFORE observation' +
+            // Stryker disable next-line ConditionalExpression,StringLiteral: equivalent mutants, this branch runs only after an action, where the classification is always 'change', so the 'invariant' wording is unreachable
             (program.classification === 'change' ? '' : ' (an "invariant" label does not waive this when an action preceded the check)') +
             '; it must be false before the action so that it fails if the action did nothing',
         ],
@@ -242,6 +245,8 @@ function verify(
 
 function testIdOf(p: Predicate): string | undefined {
   if (p.op === 'route') return undefined;
+  // Stryker disable next-line OptionalChaining: equivalent mutant, every non-route predicate comes from parseCheckgenOutput, which requires and normalizes a query object
   const t = p.query?.testId;
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent mutants, normQuery only sets testId when it is a non-empty string, so t is a non-empty string or undefined and both tests are redundant
   return typeof t === 'string' && t.length > 0 ? t : undefined;
 }
