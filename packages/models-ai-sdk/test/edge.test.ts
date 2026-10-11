@@ -65,11 +65,18 @@ describe('mapModelError: passthrough and aborts', () => {
     expect(err.retryable).toBe(true);
   });
 
-  it.each(['AbortError', 'TimeoutError'])('an Error named %s (directly or as the last retry error) is ABORTED', (name) => {
-    const e = Object.assign(new Error('stopped'), { name });
+  it('an Error named AbortError (directly or as the last retry error) is ABORTED', () => {
+    const e = Object.assign(new Error('stopped'), { name: 'AbortError' });
     expect(mapModelError(e, ctx).code).toBe('ABORTED');
     const wrapped = new RetryError({ message: 'm', reason: 'errorNotRetryable', errors: [e] });
     expect(mapModelError(wrapped, ctx).code).toBe('ABORTED');
+  });
+
+  it('a TimeoutError the caller did not ask for is the provider timing out: MODEL_UNAVAILABLE, retryable', () => {
+    const e = Object.assign(new Error('timed out'), { name: 'TimeoutError' });
+    const err = mapModelError(e, ctx);
+    expect(err.code).toBe('MODEL_UNAVAILABLE');
+    expect(err.retryable).toBe(true);
   });
 
   it('an Error with another name and a non-Error object named AbortError are not aborts', () => {
@@ -125,10 +132,11 @@ describe('mapModelError: unavailable models', () => {
     expect(mapModelError(retry, ctx).retryable).toBe(false);
   });
 
-  it('provider errors and generic errors are retryable', () => {
-    for (const e of [apiError({ statusCode: 400, isRetryable: false }), new Error('ECONNRESET'), new TypeError('fetch failed')]) {
+  it('transient provider errors and generic errors are retryable; a provider-classified permanent failure is not', () => {
+    for (const e of [apiError({ statusCode: 503, isRetryable: true }), new Error('ECONNRESET'), new TypeError('fetch failed')]) {
       expect(mapModelError(e, ctx).retryable).toBe(true);
     }
+    expect(mapModelError(apiError({ statusCode: 400, isRetryable: false }), ctx).retryable).toBe(false);
   });
 });
 

@@ -1,0 +1,232 @@
+{
+  "_about": "Raw MCP tool results recorded from cua-driver 0.34.0 on Linux/X11 (Chromium window). click_background_refused is a background click that happened to be accepted; background_unavailable and foreground_unavailable are the refusals the same product returned for an unfocused Chromium renderer and for a desktop without a window manager.",
+  "list_windows": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Found 1 windows:\n  window_id=6291458 pid=23802 \"Probe - Google Chrome for Testing\" 1100x760+0+0 app=Chromium-browser"
+      }
+    ],
+    "structuredContent": {
+      "windows": [
+        {
+          "app_name": "Chromium-browser",
+          "bounds": {
+            "height": 760,
+            "width": 1100,
+            "x": 0,
+            "y": 0
+          },
+          "height": 760,
+          "is_on_screen": true,
+          "pid": 23802,
+          "title": "Probe - Google Chrome for Testing",
+          "width": 1100,
+          "window_id": 6291458,
+          "x": 0,
+          "y": 0,
+          "z_index": 0
+        }
+      ]
+    }
+  },
+  "click_foreground_ok": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Clicked element [38] (pid 23802) with a real pointer click (delivery_mode=foreground, focus_after=target); not verified \u2014 confirm with a screenshot. [window_point=(272, 290) screen_point=(272, 290)]"
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "foreground"
+      },
+      "effect": "unverifiable",
+      "route": "global_input",
+      "summary": "Clicked element [38] (pid 23802) with a real pointer click (delivery_mode=foreground, focus_after=target); not verified \u2014 confirm with a screenshot. [window_point=(272, 290) screen_point=(272, 290)]"
+    }
+  },
+  "press_key_ok": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Pressed key 'a' as a real key event (delivery_mode=foreground, focus_after=target); not verified \u2014 confirm with a screenshot."
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "foreground"
+      },
+      "effect": "unverifiable",
+      "route": "global_input",
+      "summary": "Pressed key 'a' as a real key event (delivery_mode=foreground, focus_after=target); not verified \u2014 confirm with a screenshot."
+    }
+  },
+  "type_text_ok": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Typed 1 character(s) as real key events (delivery_mode=foreground, focus_after=target); not verified \u2014 confirm with a screenshot."
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "foreground"
+      },
+      "effect": "unverifiable",
+      "route": "global_input",
+      "summary": "Typed 1 character(s) as real key events (delivery_mode=foreground, focus_after=target); not verified \u2014 confirm with a screenshot."
+    }
+  },
+  "scroll_ok": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Scrolled down 5 ticks (delivery_mode=foreground)."
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "foreground"
+      },
+      "effect": "unverifiable",
+      "route": "global_input",
+      "summary": "Scrolled down 5 ticks (delivery_mode=foreground)."
+    }
+  },
+  "click_stale_token": {
+    "isError": true,
+    "content": [
+      {
+        "type": "text",
+        "text": "element_token is stale; call get_window_state again to refresh; current snapshots for pid 23802: s00000002 (window 6291458)"
+      }
+    ],
+    "structuredContent": {
+      "current_snapshots": [
+        {
+          "snapshot_id": "s00000002",
+          "window_id": 6291458
+        }
+      ],
+      "refusal": {
+        "code": "stale_element_token",
+        "message": "element_token is stale; call get_window_state again to refresh; current snapshots for pid 23802: s00000002 (window 6291458)"
+      },
+      "status": "refused"
+    }
+  },
+  "click_unknown_window": {
+    "isError": true,
+    "content": [
+      {
+        "type": "text",
+        "text": "Window target pid 23802, window_id 999999 is stale or no longer running; refresh list_windows."
+      }
+    ],
+    "structuredContent": {
+      "code": "tool_invocation_failed"
+    }
+  },
+  "health_report": {
+    "content": [],
+    "structuredContent": {
+      "overall": "ok",
+      "driver_version": "0.34.0",
+      "platform": "linux",
+      "checks": [
+        {
+          "name": "binary_version",
+          "status": "pass",
+          "message": "cua-driver 0.34.0"
+        },
+        {
+          "name": "platform_supported",
+          "status": "pass",
+          "message": "Ubuntu 24.04.5 LTS (x86_64)"
+        },
+        {
+          "name": "session_active",
+          "status": "pass",
+          "message": "MCP session is active."
+        },
+        {
+          "name": "bundle_identity",
+          "status": "skip",
+          "message": "not applicable on Linux"
+        },
+        {
+          "name": "tcc_accessibility",
+          "status": "skip",
+          "message": "not applicable on Linux"
+        },
+        {
+          "name": "tcc_screen_recording",
+          "status": "skip",
+          "message": "not applicable on Linux"
+        },
+        {
+          "name": "ax_capability",
+          "status": "pass",
+          "message": "X11 reachable and org.a11y.Bus is on the session bus; AT-SPI inspection + XSendEvent input will work."
+        },
+        {
+          "name": "screen_capture_capability",
+          "status": "pass",
+          "message": "X11 reachable; screen capture path is functional."
+        },
+        {
+          "name": "wayland_backend",
+          "status": "skip",
+          "message": "No WAYLAND_DISPLAY in the environment \u2014 not a Wayland session."
+        }
+      ]
+    }
+  },
+  "click_background_accepted": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Clicked element [38] (pid 23802)."
+      },
+      {
+        "type": "text",
+        "text": "A popup menu is open, so pid 23802 holds a keyboard grab until it closes."
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "background"
+      },
+      "effect": "unverifiable",
+      "route": "accessibility",
+      "summary": "Clicked element [38] (pid 23802)."
+    }
+  },
+  "click_background_unavailable": {
+    "isError": true,
+    "content": [
+      {
+        "type": "text",
+        "text": "Background delivery is not available: Chromium/Electron does not accept pointer or keyboard input addressed to an occluded, unfocused renderer through X11 background injection. Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target window, confirm it holds the input focus, and deliver real input to it."
+      }
+    ],
+    "structuredContent": {
+      "code": "background_unavailable",
+      "detail": "Chromium/Electron does not accept pointer or keyboard input addressed to an occluded, unfocused renderer through X11 background injection. Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target window, confirm it holds the input focus, and deliver real input to it."
+    }
+  },
+  "click_foreground_unavailable": {
+    "isError": true,
+    "content": [
+      {
+        "type": "text",
+        "text": "foreground_unavailable: window 0x400002 did not become the active, focused window within 800ms (active=0x0, focus_within_target=true); no input was sent. No window is active at all: the window manager has not set _NET_ACTIVE_WINDOW"
+      }
+    ],
+    "structuredContent": {
+      "code": "foreground_unavailable",
+      "detail": "foreground_unavailable: window 0x400002 did not become the active, focused window within 800ms (active=0x0, focus_within_target=true); no input was sent. No window is active at all: the window manager has not set _NET_ACTIVE_WINDOW"
+    }
+  }
+}

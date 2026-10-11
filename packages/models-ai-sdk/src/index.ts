@@ -70,6 +70,10 @@ class AiSdkChatModel implements ChatModel {
   }
 
   async generate(req: ModelRequest): Promise<ModelResponse> {
+    // An aborted request never reaches the provider, whether or not the provider would have looked at the signal.
+    if (req.signal?.aborted === true) {
+      throw new AiBddError('ABORTED', `model call aborted (${this.purpose})`, { details: { purpose: this.purpose, modelId: this.id } });
+    }
     // NOTE: `req.context` is deliberately never read here. It is for fakes, logs and evidence only.
     const tools = buildTools(req);
     const output =
@@ -122,8 +126,12 @@ class AiSdkChatModel implements ChatModel {
     };
     if (result.text.length > 0) response.text = result.text;
     if (output !== undefined && toolCalls.length === 0) {
-      // `result.output` is already parsed; a parse failure was thrown (and mapped) above.
-      response.object = result.output as JsonValue;
+      // `result.output` is already parsed, but reading it throws when the model produced no output at all (a refusal).
+      try {
+        response.object = result.output as JsonValue;
+      } catch (error) {
+        throw mapModelError(error, { purpose: this.purpose, modelId: this.id, signal: req.signal });
+      }
     }
     return response;
   }

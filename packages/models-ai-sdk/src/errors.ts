@@ -55,7 +55,9 @@ function isPermanent(error: unknown): boolean {
 function isAbort(error: unknown, signal: AbortSignal | undefined): boolean {
   if (signal?.aborted === true) return true;
   if (RetryError.isInstance(error) && error.reason === 'abort') return true;
-  return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+  // A `TimeoutError` the caller did not ask for (its signal is not aborted) is the provider timing out: that is
+  // MODEL_UNAVAILABLE and retryable, not an abort. Aborts the caller asked for are caught by `signal.aborted` above.
+  return error instanceof Error && error.name === 'AbortError';
 }
 
 function messageOf(error: unknown): string {
@@ -87,7 +89,8 @@ export function mapModelError(error: unknown, ctx: ErrorContext): AiBddError {
   if (APICallError.isInstance(inner)) {
     if (inner.statusCode !== undefined) details.statusCode = inner.statusCode;
   }
-  const permanent = isPermanent(inner);
+  // The provider layer already classified HTTP failures: 4xx other than 408/409/429 (bad key, bad request) are not retryable.
+  const permanent = isPermanent(inner) || (APICallError.isInstance(inner) && !inner.isRetryable);
   return new AiBddError(
     'MODEL_UNAVAILABLE',
     `model unavailable (${ctx.purpose}/${ctx.modelId}): ${messageOf(inner)}`,
