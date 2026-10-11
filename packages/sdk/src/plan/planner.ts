@@ -318,7 +318,7 @@ function diag(code: Diagnostic['code'], severity: Diagnostic['severity'], messag
   return d;
 }
 
-type SectionMode = 'extract' | 'keep' | 'failed';
+type SectionMode = 'extract' | 'failed';
 
 interface Slot {
   section: Section;
@@ -360,9 +360,6 @@ export const createPlanner: CreatePlannerRedacting = (_config, redact): Planner 
           diagnostics.push(
             diag('EXTRACT_SECTION_FAILED', 'warning', `section ${s.id} was not extracted; previous features are kept`, docUri, { sectionId: s.id }),
           );
-        // Stryker disable next-line BlockStatement: a section without a mode is handled exactly like 'keep' ('keep' is never compared, only 'extract' and 'failed' are)
-        } else {
-          modes.set(s.id, 'keep');
         }
       }
 
@@ -487,10 +484,14 @@ export const createPlanner: CreatePlannerRedacting = (_config, redact): Planner 
         built.push(feature);
       }
 
+      const byFirstSource = (a: { f: Feature; i: number }, b: { f: Feature; i: number }): number => {
+        if (a.i === b.i) return 0;
+        // Stryker disable next-line EqualityOperator: `a.i <= b.i` is only reached when a.i !== b.i (the equal case returned 0 above)
+        return a.i < b.i ? -1 : 1;
+      };
       const features = [...kept, ...built]
         .map((f) => ({ f, i: firstSourceIndex(f, idx) }))
-        // Stryker disable next-line EqualityOperator: `a.i <= b.i` is only reached when a.i !== b.i (the equal case returns 0 first)
-        .sort((a, b) => (a.i === b.i ? 0 : a.i < b.i ? -1 : 1) || cmp(a.f.title, b.f.title) || cmp(a.f.id, b.f.id))
+        .sort((a, b) => byFirstSource(a, b) || cmp(a.f.title, b.f.title) || cmp(a.f.id, b.f.id))
         .map((x) => x.f);
 
       // notTestable: replace entries of re-extracted sections, relocate the rest.
