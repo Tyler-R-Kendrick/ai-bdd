@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { VerifyError, acceptRequested, acceptReceived, findReceived, isCI, slug, snapshotFiles, stableStringify, serialize, verify, verifyJson, verifyValue } from '../src/index.ts';
+import { spawnSync } from 'node:child_process';
 import { run } from '../src/cli.ts';
 
 let dir: string;
@@ -228,12 +229,44 @@ describe('cli', () => {
 
   it('accept approves everything and says so; with nothing to approve it says that', () => {
     fs.writeFileSync(path.join(dir, 'a.received.json'), '{}');
-    expect(run(['accept', dir], log)).toBe(0);
+    expect(run(['accept', dir], log, {})).toBe(0);
     expect(fs.existsSync(path.join(dir, 'a.verified.json'))).toBe(true);
     expect(out.join('\n')).toContain('approved');
     out.length = 0;
-    run(['accept', dir], log);
+    run(['accept', dir], log, {});
     expect(out).toEqual(['nothing to approve']);
+  });
+
+  it('accept is refused when CI is set, and approves nothing', () => {
+    fs.writeFileSync(path.join(dir, 'a.received.json'), '{}');
+    expect(run(['accept', dir], log, { CI: 'true' })).toBe(1);
+    expect(out.join('\n')).toContain('refused in CI');
+    expect(fs.existsSync(path.join(dir, 'a.verified.json'))).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'a.received.json'))).toBe(true);
+  });
+
+  it('check also skips the sandboxes and worktrees that tools leave behind', () => {
+    for (const name of ['.stryker-tmp', '.claude', 'reports']) {
+      fs.mkdirSync(path.join(dir, name), { recursive: true });
+      fs.writeFileSync(path.join(dir, name, 'x.received.txt'), 'ignored');
+    }
+    expect(run(['check', dir], log)).toBe(0);
+    expect(out).toEqual([]);
+  });
+
+  it('the program runs when started through a symlink to it or from a path with a space', () => {
+    const received = path.join(dir, 'x.received.txt');
+    fs.writeFileSync(received, 'x');
+    const real = path.resolve(import.meta.dirname, '..', 'src', 'cli.ts');
+    const spaced = path.join(dir, 'a dir with spaces');
+    fs.mkdirSync(spaced);
+    const link = path.join(spaced, 'bin.ts');
+    fs.symlinkSync(real, link);
+    for (const entry of [real, link]) {
+      const r = spawnSync(process.execPath, [entry, 'check', dir], { encoding: 'utf8' });
+      expect(r.status, entry).toBe(1);
+      expect(r.stdout, entry).toContain('x.received.txt');
+    }
   });
 
   it('unknown commands print usage and fail; --help succeeds', () => {

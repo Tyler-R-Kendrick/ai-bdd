@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { applyScrubbers, counted, defaultScrubbers, digests, durations, guids, instants, normalizeText, paths, ports, replace } from '../src/index.ts';
 
 describe('scrubbers', () => {
+  it('guids: an id glued to an underscore or a letter is still scrubbed; a longer hex run is not an id', () => {
+    const a = '123e4567-e89b-12d3-a456-426614174000';
+    expect(guids()(`run_${a} session-${a}x ${a}`)).toBe('run_Guid_1 session-Guid_1x Guid_1');
+    expect(guids()(`0${a} ${a}f`)).toBe(`0${a} ${a}f`);
+    expect(guids()(`${a}-5`)).toBe('Guid_1-5');
+  });
+
   it('guids: distinct values get distinct counters, equal values the same one, case-insensitively', () => {
     const a = '0190a1b2-3c4d-7e5f-8a9b-0c1d2e3f4a5b';
     const b = '11111111-2222-3333-4444-555555555555';

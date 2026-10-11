@@ -31,7 +31,7 @@ export default defineConfig({
   },
   test: {
     // `pnpm coverage` (unit tests, V8). Thresholds are floors per package: raise them when coverage rises, never lower them.
-    // packages/cli/src/bin.ts is a five-line entry shim that only subprocess tests execute.
+    // packages/cli/src/bin.ts is a short entry shim that only subprocess tests execute.
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.ts'],

@@ -44,6 +44,32 @@ describe('chaosModels passthrough', () => {
   });
 });
 
+describe('seeded damage does not depend on how calls interleave', () => {
+  const slowInner = (): ModelSet => {
+    const real = inner();
+    const delayed = (m: ModelSet['judge']): ModelSet['judge'] => ({
+      get id() {
+        return m.id;
+      },
+      generate: async (r) => {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+        return m.generate(r);
+      },
+    });
+    return { ...real, judge: delayed(real.judge) } as ModelSet;
+  };
+  const chaos = () => chaosModels(slowInner(), { seed: 'interleave', rules: [{ at: 'judge', nth: 1, fault: { kind: 'schema-invalid' } }] });
+
+  it('the first judge call is damaged the same way alone and while a second call is in flight', async () => {
+    const alone = await chaos().judge.generate(ask('judge'));
+    const c = chaos();
+    const first = c.judge.generate(ask('judge'));
+    const second = c.judge.generate(ask('judge'));
+    const [overlapped] = await Promise.all([first, second]);
+    expect(overlapped).toEqual(alone);
+  });
+});
+
 describe('failing faults', () => {
   it('unavailable is a retryable MODEL_UNAVAILABLE unless permanent', async () => {
     const err = (await fails(make([{ at: 'judge', fault: { kind: 'unavailable' } }]).judge.generate(ask('judge')))) as AiBddError;

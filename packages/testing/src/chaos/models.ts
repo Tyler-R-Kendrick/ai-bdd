@@ -173,6 +173,7 @@ export function chaosModels(models: ModelSet, plan: ModelFaultPlan, options: Cha
     },
     async generate(req: ModelRequest): Promise<ModelResponse> {
       calls[purpose] += 1;
+      const ordinal = calls[purpose]; // read before any await: a concurrent call must not change this call's seeded damage
       const fired: { index: number; fault: ModelFault }[] = [];
       plan.rules.forEach((rule, index) => {
         if (rule.at !== '*' && rule.at !== purpose) return;
@@ -231,7 +232,7 @@ export function chaosModels(models: ModelSet, plan: ModelFaultPlan, options: Cha
       const real = await inner.generate(req);
       if (terminal === undefined || fault === undefined) return real;
       note(terminal);
-      return mutate(fault, real, root.fork(`${purpose}-${calls[purpose]}`));
+      return mutate(fault, real, root.fork(`${purpose}-${ordinal}`));
     },
   });
 

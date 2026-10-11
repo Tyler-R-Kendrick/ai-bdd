@@ -45,7 +45,7 @@ describe.skipIf(!hasBrowser)('driver-playwright forceClose', () => {
     const { internals, close } = await session();
     try {
       const { page, sent, state } = stuckPage();
-      internals.context.newCDPSession = async () => ({ send: async (method: string) => { sent.push(method); state.closed = true; } }) as unknown as CDPSession;
+      internals.context.newCDPSession = async () => ({ send: async (method: string) => { sent.push(method); state.closed = true; }, detach: async () => undefined }) as unknown as CDPSession;
       await internals.forceClose(page);
       expect(sent).toEqual(['Page.close']);
       expect(page.isClosed()).toBe(true);
@@ -78,6 +78,37 @@ describe.skipIf(!hasBrowser)('driver-playwright forceClose', () => {
       await internals.forceClose(page);
       expect(Date.now() - t0).toBeLessThan(6000);
       expect(internals.condemned.has(page)).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it('R-AG3: a CDP session made for one attempt is detached afterwards', async () => {
+    const { internals, close } = await session();
+    try {
+      const { page, state } = stuckPage();
+      const detached: number[] = [];
+      internals.context.newCDPSession = async () =>
+        ({ send: async () => { state.closed = true; }, detach: async () => { detached.push(1); throw new Error('target already gone'); } }) as unknown as CDPSession;
+      await internals.forceClose(page);
+      await vi.waitFor(() => expect(detached).toEqual([1]), { timeout: 2000, interval: 20 });
+    } finally {
+      await close();
+    }
+  });
+
+  it('R-AG3: after five attempts the guard stops asking a page that will not close, and forgets it', async () => {
+    const { internals, close } = await session();
+    try {
+      let closeCalls = 0;
+      const page = { isClosed: () => false, close: () => { closeCalls += 1; return new Promise<void>(() => undefined); } } as unknown as Page;
+      internals.context.newCDPSession = async () => { throw new Error('no CDP'); };
+      for (let i = 0; i < 5; i += 1) await internals.forceClose(page);
+      expect(closeCalls).toBe(5);
+      expect(internals.condemned.has(page)).toBe(true);
+      await internals.forceClose(page);
+      expect(closeCalls).toBe(5);
+      expect(internals.condemned.has(page)).toBe(false);
     } finally {
       await close();
     }

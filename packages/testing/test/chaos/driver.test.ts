@@ -24,6 +24,27 @@ async function toBilling(session: DriverSession): Promise<Observation> {
 
 const rejection = async (p: Promise<unknown>): Promise<unknown> => p.then(() => undefined, (e: unknown) => e);
 
+describe('seeded damage does not depend on how observations interleave', () => {
+  it('the first observation is shuffled the same way alone and while a second observe is in flight, for every seed', async () => {
+    const refs = (o: Observation): string => o.nodes.map((n) => n.ref).join();
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const rules: DriverRule[] = [{ at: 'observe', nth: 1, fault: { kind: 'garble', mode: 'shuffle' } }];
+      const onBilling = async (): Promise<DriverSession> => {
+        const { session: s } = await open(make(rules, seed));
+        expect((await s.perform({ verb: 'navigate', url: '/settings/billing' })).ok).toBe(true);
+        return s;
+      };
+      const alone = refs(await (await onBilling()).observe());
+      const session = await onBilling();
+      const first = session.observe();
+      const second = session.observe();
+      const [overlapped] = await Promise.all([first, second]);
+      expect(alone.length, 'there are nodes to shuffle').toBeGreaterThan(0);
+      expect(refs(overlapped), `seed ${seed}`).toBe(alone);
+    }
+  });
+});
+
 describe('chaosDriver passthrough', () => {
   it('with no rules it behaves like the wrapped driver and keeps its identity', async () => {
     const inner = fakeDriver();

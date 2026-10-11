@@ -1,14 +1,17 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { acceptReceived, findReceived } from './files.ts';
+import { isCI } from './verify.ts';
 
 const USAGE = `ai-bdd-verify <command> [dir]
 
   list     print the received snapshot files that wait for review
   check    like list, but exit 1 when there are any (for CI)
-  accept   approve every received snapshot (received -> verified)`;
+  accept   approve every received snapshot (received -> verified); refused when CI is set`;
 
-export function run(argv: string[], log: Pick<Console, 'log' | 'error'> = console): number {
+export function run(argv: string[], log: Pick<Console, 'log' | 'error'> = console, env: Record<string, string | undefined> = process.env): number {
   const [command, dir] = argv;
   const root = path.resolve(dir ?? process.cwd());
   switch (command) {
@@ -23,6 +26,10 @@ export function run(argv: string[], log: Pick<Console, 'log' | 'error'> = consol
       return 0;
     }
     case 'accept': {
+      if (isCI(env)) {
+        log.error('verify: accept is refused in CI (CI is set); approve snapshots locally and commit them');
+        return 1;
+      }
       const approved = acceptReceived(findReceived(root));
       for (const f of approved) log.log(`approved ${path.relative(process.cwd(), f)}`);
       if (approved.length === 0) log.log('nothing to approve');
@@ -34,4 +41,15 @@ export function run(argv: string[], log: Pick<Console, 'log' | 'error'> = consol
   }
 }
 
-if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) process.exitCode = run(process.argv.slice(2));
+/** True when this module is the program being run, also when it is reached through a symlink (a package manager's bin shim) or a path with special characters. */
+function isMain(): boolean {
+  const entry = process.argv[1];
+  if (entry === undefined) return false;
+  try {
+    return pathToFileURL(fs.realpathSync(entry)).href === import.meta.url;
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) process.exitCode = run(process.argv.slice(2));

@@ -37,6 +37,8 @@ Options: `name` (several snapshots in one test), `extension`, `scrubbers`, `scru
 
 Binary values (`Uint8Array`) are compared byte for byte. Two tests whose names map to the same file are an error rather than a silently shared snapshot. Line endings and trailing blanks are normalized, so a Windows checkout of a verified file still matches.
 
+The test name comes from Vitest's global state (`expect.getState()`), so snapshot tests must run one at a time: do not use `it.concurrent` / `describe.concurrent` with `verify`, concurrent tests would share a name (and a file).
+
 ## CLI
 
-`ai-bdd-verify list|check|accept [dir]` finds `*.received.*` files under `dir` (default: the current directory).
+`ai-bdd-verify list|check|accept [dir]` finds `*.received.*` files under `dir` (default: the current directory; `node_modules`, `dist`, `.git`, `coverage`, `.ai-bdd`, `.work`, `.stryker-tmp`, `.claude` and `reports` are skipped). `accept` is refused when `CI` is set. `check` exits 1 when anything is left to review.

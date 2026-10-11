@@ -7,7 +7,7 @@ ai-bdd tests itself with ten kinds of test. Each answers a different question, a
 | Unit | Does each function do what it says, atomically, with specific values? | `pnpm test:unit` | CI `unit` (Node 22 and 24) |
 | Acceptance (BDD) | Does the whole product behave as specified, through the real CLI and SDK? | `pnpm test:acceptance` | CI `acceptance` |
 | Adversarial | Does it resist hostile documents, pages, models and file systems? | `pnpm test:adversarial` | CI `adversarial` |
-| Characterization (approval) | Did any output we have approved change? | `pnpm verify:check` | CI `unit` (received files fail the build) |
+| Characterization (approval) | Did any output we have approved change? | `pnpm verify:check` | CI `unit` (a snapshot that differs fails its test; `verify:check` is the local check for leftovers) |
 | Contract | Does every implementation of a seam honour the seam? | part of `unit`; `driver-cua` contract against the live Cua Driver in CI `cua` | CI |
 | Fuzz and property | Do the invariants hold for inputs nobody thought of? | `pnpm test:fuzz` | CI `fuzz` |
 | Chaos (fault injection) | What happens when drivers, models, disks and processes fail? | `pnpm test:chaos` | CI `chaos` |
@@ -19,7 +19,7 @@ The live end to end test (`pnpm test:live`, a real provider model and a real bro
 
 ## Unit tests
 
-`packages/*/test`, run by Vitest in the `unit` project. A unit test asserts exact values, never "does not throw". Anything that launches a browser or a process gets 30 s, not Vitest's 5 s default. Performance assertions use CPU time, not wall-clock time (`packages/sdk/test/kit/budget.ts`: `cpuMs`, `bestCpuMs`), so they do not flake under load or coverage instrumentation, and ratio tests have an explicit floor for the baseline.
+`packages/*/test`, run by Vitest in the `unit` project. A unit test asserts exact values, never "does not throw". Anything that launches a browser or a process gets 30 s, not Vitest's 5 s default. The performance budgets of the parser, assertion and volatile-content tests use CPU time, not wall-clock time (`packages/sdk/test/kit/budget.ts`: `cpuMs`, `bestCpuMs`), so they do not flake under load or coverage instrumentation, and ratio tests have an explicit floor for the baseline. A few tests of the test doubles and the browser driver assert coarse wall-clock bounds of seconds on purpose (a hang must end, a timeout must fire).
 
 Tests that need a desktop or a browser skip themselves when it is missing, with the reason visible. A skipped test is not a pass: CI runs them on runners that have the browser (`playwright` job) and a virtual desktop (`cua` job).
 
@@ -43,7 +43,7 @@ it('renders the report', async () => {
 });
 ```
 
-The result is compared with the committed `__verified__/<test file>.<test name>.verified.<ext>`. On the first run there is none: the test fails and writes the received file for you to read. Afterwards a difference writes `….received.<ext>` next to the verified file and fails with a line diff. `pnpm verify:accept` approves what the last run received (or run once with `VERIFY_ACCEPT=1`); **approval is refused when `CI` is set**, so a pipeline can never rewrite its own expectations. `pnpm verify:check` fails if a `.received.` file is left behind, and CI uploads them as an artifact on failure.
+The result is compared with the committed `__verified__/<test file>.<test name>.verified.<ext>`. On the first run there is none: the test fails and writes the received file for you to read. Afterwards a difference writes `….received.<ext>` next to the verified file and fails with a line diff. `pnpm verify:accept` approves what the last run received (or run once with `VERIFY_ACCEPT=1`); **approval is refused when `CI` is set** (both `VERIFY_ACCEPT=1` and `ai-bdd-verify accept`), so a pipeline can never rewrite its own expectations. `pnpm verify:check` fails if a `.received.` file is left behind, and CI uploads them as an artifact on failure. The test name comes from Vitest's global state, so a snapshot test must not run concurrently with another one (`it.concurrent`).
 
 Scrubbers keep output that varies between runs stable: GUIDs, ISO instants and absolute paths by default; digests, durations, ports and your own counters on request. Equal values keep equal placeholders (`Guid_1` stays `Guid_1`), so a snapshot still shows which occurrences were the same value. Binary snapshots compare bytes. Two tests that map to one file are an error. Details: `packages/verify/README.md`.
 
@@ -66,7 +66,7 @@ The Cua driver also has a consumer-driven contract with the real product: raw MC
 `tests/fuzz`, [fast-check](https://fast-check.dev). A property states an invariant over generated input: the Markdown chunker never reports an internal error and is deterministic; canonical JSON equals a reference RFC 8785 implementation; `checkNavigation` agrees with `new URL`; plan merge is idempotent and independent of order; redaction removes every spelling of every secret; the CLI returns a documented exit code for any argv.
 
 ```sh
-pnpm test:fuzz                 # 300 cases per property
+pnpm test:fuzz                 # 300 cases per property (the expensive ones fewer, never below 25)
 FC_RUNS=5000 pnpm test:fuzz    # search deeper
 FC_SEED=390400209 pnpm test:fuzz   # replay a failure; the seed and the shrunk counterexample are printed
 ```
@@ -89,18 +89,18 @@ Tests that need root (mounting a tmpfs) skip with the reason when they cannot ru
 |---|---|---|---|
 | cli | 100.0 | 99.1 | 100.0 |
 | driver-cua | 99.8 | 96.0 | 93.6 |
-| driver-playwright | 98.6 | 91.5 | 86.0 |
+| driver-playwright | 98.7 | 91.5 | 84.3 |
 | models-ai-sdk | 100.0 | 100.0 | 100.0 |
 | playwright-test | 100.0 | 100.0 | 100.0 |
 | sdk | 99.2 | 93.1 | 98.9 |
 | testing | 99.7 | 93.5 | 99.6 |
-| verify | 99.5 | 96.9 | 100.0 |
+| verify | 99.1 | 96.4 | 100.0 |
 
 Measured on the unit tests only. The CLI is also exercised by the acceptance suite through subprocesses, which V8 coverage here does not merge.
 
 ## CRAP
 
-`scripts/crap.mjs` scores every function in `packages/*/src` with **CRAP = complexity² × (1 − coverage)³ + complexity**: cyclomatic complexity from the TypeScript AST (nested functions are scored on their own) and the function's own statement coverage. `node scripts/crap.mjs --check` fails on a new function over 30 and on a baselined one that got worse. `scripts/crap-baseline.json` lists the functions that are over 30 today; it is a ratchet and only shrinks.
+`scripts/crap.mjs` scores every function in `packages/*/src` with **CRAP = complexity² × (1 − coverage)³ + complexity**: cyclomatic complexity from the TypeScript AST (nested functions are scored on their own) and the function's own statement coverage. `node scripts/crap.mjs --check` fails on a new function over 30 and on a baselined one that got worse. `scripts/crap-baseline.json` lists the functions that are over 30 today; it is a ratchet: `--update-baseline` lowers or drops entries and never raises one, a new function enters only with `--allow-new`, and the check fails when a baselined function gets worse. An entry that improved keeps its old allowance until someone runs `--update-baseline`, so lock improvements in.
 
 ## Mutation testing
 
@@ -108,7 +108,7 @@ Line coverage says a line ran. A mutation test says the tests would notice if it
 
 ```sh
 pnpm mutation --list           # the targets and their break scores
-pnpm mutation driver-cua       # one target
+pnpm mutation cua              # one target
 pnpm mutation all
 ```
 
@@ -127,12 +127,12 @@ All seven targets were run to completion with the final sources and tests.
 | `sdk-util` | `util/index.ts` | 274 | 263 | 11 | 0 | 32 | 100 % | 95 |
 | `sdk-assert` | `evaluate`, `volatile`, `lint`, `generate` | 943 | 929 | 14 | 0 | 107 | 100 % | 95 |
 | `sdk-plan` | `planner`, `match`, `refs`, `schema`, `store` | 804 | 799 | 5 | 0 | 66 | 100 % | 95 |
-| `sdk-recording` | the recording module | 385 | 379 | 6 | 0 | 53 | 100 % | 95 |
-| `sdk-markdown` | the Markdown module (7 files) | 1086 | 1012 | 74 | 0 | 257 | 100 % | 95 |
+| `sdk-recording` | `effect`, `selector`, `secrets`, `volatile`, `verify` (not `recorder`, `store`, `schema`) | 385 | 379 | 6 | 0 | 53 | 100 % | 95 |
+| `sdk-markdown` | 7 of the 9 Markdown files (not `discover`, `index`) | 1086 | 1012 | 74 | 0 | 257 | 100 % | 95 |
 
 4,220 mutants run, none survived. 603 mutants are marked equivalent. A further 2,191 were rejected by the TypeScript checker (they do not compile) and are not counted either way.
 
-The first measurements were far lower (the Markdown target started at 66 %, the Cua Driver mapping at 72 %, `sdk-assert` at 76 %). The tests that closed the gap are the `*-mutants.test.ts` files next to the unit tests of each module: exact values, both sides of every boundary, whole result objects and exact messages.
+The first measurements were far lower (the Markdown target started at 66 %, the Cua Driver mapping at 72 %, `sdk-assert` at 76 %). The tests that closed the gap are the `*-mutants.test.ts` files next to the unit tests of the assert, markdown, plan and recording modules (`mutants.test.ts` for verify, `nodes-tables.test.ts` for the Cua mapping, the `sdk-util` tests in `packages/sdk/test/util`): exact values, both sides of every boundary, whole result objects and exact messages.
 
 What these numbers do **not** say:
 
