@@ -111,9 +111,8 @@ export class Walker {
       if (node.type === 'heading') {
         if (this.enterHeading(node, nodeScopes)) {
           this.afterHeading = true;
-        // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent mutants, mapping an empty list pushes nothing
-        } else if (nodeScopes.length > 0) {
-          // an empty heading is not a block; keep the directive for the next real block
+        } else {
+          // an empty heading is not a block; keep the directive for the next real block (no directive: nothing to push)
           pending.push(...nodeScopes.map((set) => ({ set, range: rangeOf(node) })));
         }
         continue;
@@ -121,8 +120,7 @@ export class Walker {
       const before = this.chunks.length;
       this.walkBlock(node, { parentId: undefined, extra: nodeScopes });
       if (this.chunks.length > before) this.afterHeading = false;
-      // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent mutants, mapping an empty list pushes nothing
-      else if (nodeScopes.length > 0) pending.push(...nodeScopes.map((set) => ({ set, range: rangeOf(node) })));
+      else pending.push(...nodeScopes.map((set) => ({ set, range: rangeOf(node) })));
     }
     this.reportOrphans(pending);
   }
