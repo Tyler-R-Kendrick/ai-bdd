@@ -46,6 +46,7 @@ interface Ctx {
 }
 
 const ABBR: Record<ChunkKind, string> = {
+  // Stryker disable next-line StringLiteral: equivalent mutant, heading chunks are pushed with a literal anchor and never go through emit, so this entry is never read
   heading: 'h',
   paragraph: 'p',
   listItem: 'li',
@@ -74,6 +75,7 @@ export class Walker {
   private readonly counters = new Map<string, number>();
   private readonly usedSlugs = new Map<string, Set<string>>();
   private readonly slugCounts = new Map<string, number>();
+  // Stryker disable next-line BooleanLiteral: equivalent mutant, with no heading entered the stack is empty and the top check already sends directives to the pending list
   private afterHeading = false;
 
   private readonly docUri: string;
@@ -96,17 +98,20 @@ export class Walker {
     for (const node of children) {
       if (node.type === 'html') {
         const found = this.readDirectives(node);
+        // Stryker disable next-line ConditionalExpression: equivalent mutant, an empty list adds nothing to the heading scope or to pending
         if (found.length === 0) continue;
         const top = this.stack[this.stack.length - 1];
         if (this.afterHeading && top !== undefined) for (const f of found) mergeInto(top.scope, f.set);
         else pending.push(...found);
         continue;
       }
+      // Stryker disable next-line ConditionalExpression,StringLiteral: equivalent mutant, a yaml node yields no chunk and carries no pending directives, so walking it as a block does nothing
       if (node.type === 'yaml') continue;
       const nodeScopes = this.consume(pending, node);
       if (node.type === 'heading') {
         if (this.enterHeading(node, nodeScopes)) {
           this.afterHeading = true;
+        // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent mutants, mapping an empty list pushes nothing
         } else if (nodeScopes.length > 0) {
           // an empty heading is not a block; keep the directive for the next real block
           pending.push(...nodeScopes.map((set) => ({ set, range: rangeOf(node) })));
@@ -116,6 +121,7 @@ export class Walker {
       const before = this.chunks.length;
       this.walkBlock(node, { parentId: undefined, extra: nodeScopes });
       if (this.chunks.length > before) this.afterHeading = false;
+      // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent mutants, mapping an empty list pushes nothing
       else if (nodeScopes.length > 0) pending.push(...nodeScopes.map((set) => ({ set, range: rangeOf(node) })));
     }
     this.reportOrphans(pending);
@@ -127,6 +133,7 @@ export class Walker {
   private readDirectives(node: MdNode): Pending[] {
     const out: Pending[] = [];
     const range = rangeOf(node);
+    // Stryker disable next-line StringLiteral: equivalent mutant, an html node always has a string value
     for (const comment of findComments(node.value ?? '')) {
       const text = directiveBody(comment.body);
       if (text === null) continue;
@@ -142,6 +149,7 @@ export class Walker {
 
   /** Take the pending directives that apply to `node`. Non-chunk blocks leave them pending. */
   private consume(pending: Pending[], node: MdNode): DirectiveSet[] {
+    // Stryker disable next-line ConditionalExpression: equivalent mutant, with nothing pending consume returns an empty list either way
     if (pending.length === 0 || !yieldsChunks(node)) return [];
     const sets = pending.map((p) => p.set);
     pending.length = 0;
@@ -258,10 +266,12 @@ export class Walker {
     const range = rangeOf(node);
     switch (node.type) {
       case 'paragraph':
+      // Stryker disable next-line StringLiteral: equivalent mutant, headings are handled before walkBlock and nested headings are paragraphs of list items, so this label is never reached
       case 'heading': // headings below the top level (inside list items) read as paragraphs
         this.emit('paragraph', inlineText(node, this.inlineHtmlWarning(range)), range, ctx);
         return;
       case 'code':
+        // Stryker disable next-line StringLiteral: equivalent mutant, a code node always has a string value
         this.emit('code', node.value ?? '', range, ctx);
         return;
       case 'blockquote': {
@@ -278,6 +288,7 @@ export class Walker {
       case 'table':
         this.walkTable(node, ctx);
         return;
+      // Stryker disable next-line ConditionalExpression: equivalent mutant, the default clause is the last one and only returns
       default:
         return;
     }

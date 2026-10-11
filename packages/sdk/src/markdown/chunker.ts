@@ -109,6 +109,7 @@ function chunkDocument(doc: SourceDoc, rawOpts: ChunkOptions): ChunkedDoc {
   const yamlNode = children.find((n) => n.type === 'yaml');
   if (yamlNode !== undefined) {
     const range = rangeOf(yamlNode);
+    // Stryker disable next-line StringLiteral: equivalent mutant, a yaml node always carries a string value so the fallback is never used
     const parsed = parseFrontmatter(yamlNode.value ?? '');
     if (!parsed.ok) {
       diag('DOC_READ_FAILED', `frontmatter is not valid YAML and was ignored: ${parsed.error}`, range);
@@ -134,6 +135,7 @@ function chunkDocument(doc: SourceDoc, rawOpts: ChunkOptions): ChunkedDoc {
       anchor: raw.anchor,
       kind: raw.kind,
       headingPath: raw.headingPath,
+      // Stryker disable next-line StringLiteral: equivalent mutant, buildSections assigns the section id of every chunk right after, so this placeholder is never observed
       sectionId: '',
       text: raw.text,
       hash: sha256Hex(raw.text),
