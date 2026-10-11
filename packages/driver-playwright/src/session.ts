@@ -41,6 +41,11 @@ type Target =
 
 interface Denial { url: string; reason: string }
 
+/** Headers that describe a request body (the fetch standard's "request-body-header names" plus the length). */
+const BODY_HEADERS = new Set(['content-type', 'content-length', 'content-encoding', 'content-language', 'content-location']);
+/** How many times the guard asks a popup to close before it gives up on it. */
+const MAX_FORCE_CLOSE_ATTEMPTS = 5;
+const CROSS_ORIGIN_HEADERS = new Set(['authorization', 'cookie', 'proxy-authorization']);
 const BLOCKED_RESPONSE = { status: 200, headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment' }, body: '' } as const;
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
@@ -109,6 +114,7 @@ export class PlaywrightSession implements DriverSession {
   private readonly closing = new WeakSet<Page>();
   /** Pages we decided to close. The sweeper keeps closing them until they are gone: `page.close()` can hang on a popup that is mid-navigation. */
   private readonly condemned = new Set<Page>();
+  private readonly forceCloseAttempts = new WeakMap<Page, number>();
   private sweeper: ReturnType<typeof setInterval> | undefined;
   /** When a top-level request of a frame that is not the session's page was last denied (a popup's first request). */
   private popupDenialAt = -Infinity;
@@ -315,6 +321,13 @@ export class PlaywrightSession implements DriverSession {
     }
     this.condemned.add(page);
     if (this.closing.has(page)) return;
+    const attempt = (this.forceCloseAttempts.get(page) ?? 0) + 1;
+    this.forceCloseAttempts.set(page, attempt);
+    if (attempt > MAX_FORCE_CLOSE_ATTEMPTS) {
+      // a target that ignores `page.close()` and `Page.close` this many times will not close: stop piling up requests for it (its denial is already reported)
+      this.condemned.delete(page);
+      return;
+    }
     this.closing.add(page);
     try {
       const closed = await Promise.race([
@@ -323,8 +336,13 @@ export class PlaywrightSession implements DriverSession {
       ]);
       if (!closed && !page.isClosed()) {
         // Chromium only: ask the page's own target to close, with a session of its own when the guard has none for it.
-        const cdp = this.pageCdp.get(page) ?? (await within(this.context.newCDPSession(page).catch(() => undefined)));
-        await bounded((cdp?.send('Page.close') ?? Promise.resolve()).catch(() => undefined));
+        const guardCdp = this.pageCdp.get(page);
+        const cdp = guardCdp ?? (await within(this.context.newCDPSession(page).catch(() => undefined)));
+        try {
+          await bounded((cdp?.send('Page.close') ?? Promise.resolve()).catch(() => undefined));
+        } finally {
+          if (guardCdp === undefined) void cdp?.detach().catch(() => undefined); // a session made for this one attempt is not left on the user's context
+        }
       }
     } finally {
       this.closing.delete(page);
@@ -635,8 +653,18 @@ export class PlaywrightSession implements DriverSession {
         const loc = res.headers()['location'];
         if ([301, 302, 303, 307, 308].includes(res.status()) && loc !== undefined) {
           if (hop === 5) break; // the sixth redirect: give up instead of handing the caller a 3xx as if it were the answer
-          url = new URL(loc, url);
-          if (res.status() === 303 || ((res.status() === 301 || res.status() === 302) && method === 'POST')) { method = 'GET'; data = undefined; }
+          const next = new URL(loc, url);
+          if (next.origin !== url.origin) {
+            // like fetch: credentials the caller attached for one origin do not follow a redirect to another (even an allowed) one
+            for (const name of Object.keys(headers)) if (CROSS_ORIGIN_HEADERS.has(name.toLowerCase())) delete headers[name];
+          }
+          url = next;
+          if (res.status() === 303 || ((res.status() === 301 || res.status() === 302) && method === 'POST')) {
+            method = 'GET';
+            data = undefined;
+            // the body is gone: its headers go with it (a stale Content-Length makes the server wait for bytes that never come)
+            for (const name of Object.keys(headers)) if (BODY_HEADERS.has(name.toLowerCase())) delete headers[name];
+          }
           continue;
         }
         const text = await res.text();

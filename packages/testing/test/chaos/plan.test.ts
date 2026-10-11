@@ -26,6 +26,13 @@ const problemsOf = (fn: () => unknown): string[] => {
 const driverPlan = (...rules: unknown[]): DriverFaultPlan => ({ seed: 1, rules: rules as unknown as DriverRule[] });
 const modelPlan = (...rules: unknown[]): ModelFaultPlan => ({ seed: 1, rules: rules as unknown as ModelRule[] });
 
+describe('fault kinds are looked up as own properties only', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('a driver rule with kind "%s" is a CONFIG_INVALID problem, not a TypeError', (kind) => {
+    const problems = problemsOf(() => validateDriverPlan(driverPlan({ at: 'observe', fault: { kind } })));
+    expect(problems).toEqual([`rules[0]: unknown fault kind "${kind}"`]);
+  });
+});
+
 describe('validateDriverPlan', () => {
   it('accepts a sound plan and returns it unchanged', () => {
     const plan: DriverFaultPlan = {

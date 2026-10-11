@@ -156,7 +156,7 @@ export function validateDriverPlan(plan: DriverFaultPlan): DriverFaultPlan {
       if (rule.session !== undefined && !isCount(rule.session, 1)) problems.push(`${where}: session must be a positive integer`);
       if (rule.verb !== undefined && rule.at !== 'perform') problems.push(`${where}: verb only applies to "perform"`);
       const fault = rule.fault as DriverFault | undefined;
-      if (typeof fault !== 'object' || fault === null || !(fault.kind in DRIVER_ALLOWED)) {
+      if (typeof fault !== 'object' || fault === null || !Object.hasOwn(DRIVER_ALLOWED, fault.kind)) {
         return void problems.push(`${where}: unknown fault kind "${String((fault as { kind?: unknown } | undefined)?.kind)}"`);
       }
       if (!DRIVER_ALLOWED[fault.kind].includes(rule.at)) problems.push(`${where}: fault "${fault.kind}" cannot strike "${rule.at}"`);

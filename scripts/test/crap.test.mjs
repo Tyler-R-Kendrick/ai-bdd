@@ -70,6 +70,12 @@ test('withUniqueIds numbers repeated ids', () => {
   assert.deepEqual(ids, ['a#f', 'a#f~2', 'b#g']);
 });
 
+test('withUniqueIds numbers repeated ids in source order, whatever their rank', () => {
+  // sorted by CRAP: the later function (line 40) comes first, but the earlier one (line 10) is still "~1"
+  const ranked = [{ id: 'a#anon', file: 'a', line: 40 }, { id: 'a#anon', file: 'a', line: 10 }];
+  assert.deepEqual(withUniqueIds(ranked).map((r) => [r.line, r.id]), [[40, 'a#anon~2'], [10, 'a#anon']]);
+});
+
 test('main: analyzes a repository, writes and enforces a baseline', () => {
   const root = makeRepo({});
   try {
@@ -83,8 +89,19 @@ test('main: analyzes a repository, writes and enforces a baseline', () => {
     assert.equal(main(['--root', root, '--check'], { log }), 1, 'risky is complexity 6 and untested: 6*6+6 = 42');
     assert.match(out.join('\n'), /a\.ts#risky .*over 30/);
     out.length = 0;
+    assert.equal(main(['--root', root, '--update-baseline'], { log }), 1, 'a new function enters the baseline only on request');
+    assert.match(out.join('\n'), /risky is over 30 and not in the baseline/);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'scripts', 'crap-baseline.json'), 'utf8')), {});
+    assert.equal(main(['--root', root, '--update-baseline', '--allow-new'], { log }), 0);
+    const baselineFile = path.join(root, 'scripts', 'crap-baseline.json');
+    assert.deepEqual(JSON.parse(fs.readFileSync(baselineFile, 'utf8')), { 'packages/p/src/a.ts#risky': 42 });
+    fs.writeFileSync(baselineFile, JSON.stringify({ 'packages/p/src/a.ts#risky': 60, 'packages/p/src/a.ts#gone': 50 }));
     assert.equal(main(['--root', root, '--update-baseline'], { log }), 0);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'scripts', 'crap-baseline.json'), 'utf8')), { 'packages/p/src/a.ts#risky': 42 });
+    assert.deepEqual(JSON.parse(fs.readFileSync(baselineFile, 'utf8')), { 'packages/p/src/a.ts#risky': 42 }, 'lowered to the current value; entries that are gone are dropped');
+    fs.writeFileSync(baselineFile, JSON.stringify({ 'packages/p/src/a.ts#risky': 40 }));
+    assert.equal(main(['--root', root, '--update-baseline'], { log }), 0);
+    assert.deepEqual(JSON.parse(fs.readFileSync(baselineFile, 'utf8')), { 'packages/p/src/a.ts#risky': 40 }, 'never raised');
+    fs.writeFileSync(baselineFile, JSON.stringify({ 'packages/p/src/a.ts#risky': 42 }));
     assert.equal(main(['--root', root, '--check'], { log }), 0);
     assert.match(renderRows(analyze(root, JSON.parse(fs.readFileSync(finalFile, 'utf8')))), /42\.0 +6 +0 +packages\/p\/src\/a\.ts#risky/);
     fs.rmSync(finalFile);

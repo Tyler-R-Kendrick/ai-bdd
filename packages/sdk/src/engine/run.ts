@@ -87,7 +87,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
   const workers = opts.workers ?? config.concurrency.scenarios;
   guardRecordingsMode(core, updateRecordings);
   throwIfAborted(opts.signal);
-  await assertOutputDirs(config, ['plans', 'recordings', 'runs', 'cache'], ['recordings', 'runs', 'cache', ...(shouldCompile ? (['plans'] as const) : [])]);
+  await assertOutputDirs(config, ['plans', 'recordings', 'runs', 'cache'], ['recordings', 'runs', 'cache']); // plans are checked for writing by compile, and only when it has something to write
 
   const before = core.meter.snapshot();
   const startedAt = new Date(core.clock.now()).toISOString();

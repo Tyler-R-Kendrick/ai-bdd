@@ -49,10 +49,12 @@ export async function settledObservation(
 function abortable(session: DriverSession, signal: AbortSignal | undefined): DriverSession {
   if (signal === undefined) return session;
   const guard = <T>(what: string, call: () => Promise<T>): Promise<T> => {
+    // fixture cleanups run while the run is being torn down, usually because it was aborted: they still get the live session
+    if (tornDown.has(proxy)) return call();
     if (signal.aborted) return Promise.reject(new AiBddError('ABORTED', `${what} aborted`));
     return raceAbort(call(), signal, what);
   };
-  return new Proxy(session, {
+  const proxy: DriverSession = new Proxy(session, {
     get(target, prop) {
       const value: unknown = Reflect.get(target, prop, target);
       if (typeof value !== 'function') return value;
@@ -63,7 +65,11 @@ function abortable(session: DriverSession, signal: AbortSignal | undefined): Dri
       return method;
     },
   });
+  return proxy;
 }
+
+/** Sessions (as returned by {@link abortable}) whose scenario is being torn down: their calls are no longer cut short by the run's abort. */
+const tornDown = new WeakSet<object>();
 
 function makeResolver(env: ScenarioEnv, holder: ResolveHolder): (v: ValueSource) => string {
   return (v) => {
@@ -145,6 +151,7 @@ async function closeQuietly(session: { close(): Promise<void> }): Promise<void> 
 /** Fixture cleanups in reverse order, then close the session (§9.7.5). Never throws. */
 export async function teardownSession(env: ScenarioEnv, st: SessionState): Promise<void> {
   const scenarioId = env.target.scenario.id;
+  tornDown.add(st.session);
   for (const cleanup of [...st.cleanups].reverse()) {
     try {
       await cleanup.run();

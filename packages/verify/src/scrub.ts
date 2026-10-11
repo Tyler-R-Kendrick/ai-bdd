@@ -28,7 +28,8 @@ export function replace(pattern: RegExp, replacement: string): Scrubber {
   return (text) => text.replace(new RegExp(pattern.source, flags), replacement);
 }
 
-const GUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+// not preceded or followed by another hex digit (a `\b` would miss ids glued to `_` or a letter, as in `run_<uuid>`)
+const GUID = /(?<![0-9a-f])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![0-9a-f])/gi;
 const ISO_INSTANT = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})\b/g;
 const SHA256 = /\b[0-9a-f]{64}\b/g;
 const DURATION_MS = /\b\d+(?:\.\d+)?ms\b/g;

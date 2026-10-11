@@ -221,6 +221,7 @@ export function chaosDriver(factory: DriverFactory, plan: DriverFaultPlan, optio
           throw lost();
         }
         const fired = strike('observe', { ordinal, sessionId: sid });
+        const observeNo = calls.observe; // read before any await: a concurrent observe must not change this one's seeded damage
         const terminal = await delay('observe', fired, sid);
         await raise('observe', terminal, sid);
         if (terminal?.fault.kind === 'drop-session') drop(terminal, 'observe');
@@ -233,7 +234,7 @@ export function chaosDriver(factory: DriverFactory, plan: DriverFaultPlan, optio
             const real = await inner.observe(opts);
             lastObservation = real;
             note('observe', terminal, sid, mode);
-            return garbleObservation(real, mode, rng.fork(`observe-${calls.observe}`));
+            return garbleObservation(real, mode, rng.fork(`observe-${observeNo}`));
           }
         }
         const real = await inner.observe(opts);

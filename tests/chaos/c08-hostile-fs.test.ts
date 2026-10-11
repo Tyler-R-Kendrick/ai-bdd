@@ -1,7 +1,7 @@
 // Chaos 8: hostile file system. Output directories turned into files, symlink loops and symlinks that lead out of the project:
 // the tool must refuse before it spends model calls, with exit 2 and a message that names the directory; nothing outside the
 // project may be written or deleted; and once the hostility is removed the very same command works again.
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, type TestContext } from 'vitest';
 import {
@@ -243,6 +243,24 @@ describe('chaos 8: the disk fills up, or is read-only, or refuses writes', () =>
         expect(readFakeLog(project.logPath), 'no model call was spent').toEqual([]);
         // reading is still fine
         expect((await runCli(project, ['compile', '--check'], { overrides: OPTIONS })).code).toBe(4);
+      } finally {
+        mount.unmount();
+      }
+    });
+  });
+
+  it.concurrent('a read-only plans directory is fine when every plan is fresh: compile has nothing to write and exits 0 without a model call', async (ctx) => {
+    await withSetup(['login'], true, async (project, outside) => {
+      const saved = join(outside, 'plans');
+      cpSync(project.plansDir, saved, { recursive: true });
+      const mount = tinyDiskOrSkip(ctx, project.plansDir, 64);
+      try {
+        cpSync(saved, project.plansDir, { recursive: true });
+        mount.remountReadOnly();
+        const callsBefore = readFakeLog(project.logPath).length;
+        const r = await runCli(project, ['compile'], { overrides: OPTIONS });
+        expect(r.code, cliOutput(r)).toBe(0);
+        expect(readFakeLog(project.logPath).length, 'no model call was spent').toBe(callsBefore);
       } finally {
         mount.unmount();
       }

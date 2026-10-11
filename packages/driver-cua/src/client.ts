@@ -80,7 +80,7 @@ export function normalizeResult(raw: unknown): CuaToolResult {
   const refusal = isRecord(structured['refusal']) ? structured['refusal'] : undefined;
   const refused = structured['status'] === 'refused';
   const failed = res['isError'] === true || refused;
-  const codeCandidate = refusal?.['code'] ?? structured['code'];
+  const codeCandidate = typeof refusal?.['code'] === 'string' ? refusal['code'] : structured['code'];
   const text = texts.join('\n');
   const message = typeof refusal?.['message'] === 'string' ? refusal['message'] : typeof structured['detail'] === 'string' ? structured['detail'] : undefined;
   return {

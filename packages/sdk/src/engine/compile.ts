@@ -13,6 +13,7 @@ import {
   type FixtureDescriptor,
   type JsonValue,
   type PlanStatus,
+  type ResolvedConfig,
   type Section,
 } from '../contracts/index.ts';
 import { stableJson } from '../util/index.ts';
@@ -121,6 +122,11 @@ async function extractTask(
   return { task, result };
 }
 
+/** A plans directory must accept writes when this compile is going to write (`writes` extractions or removals), and only then. */
+async function assertPlansWritableForWrites(config: ResolvedConfig, dryRun: boolean, writes: number): Promise<void> {
+  if (!dryRun && writes > 0) await assertOutputDirs(config, ['plans'], ['plans']);
+}
+
 /**
  * Compile (§7, §8): discover -> chunk -> dirty sections -> extract (concurrently) -> merge -> save.
  * `check` writes nothing and never calls a model; `dryRun` extracts but writes nothing.
@@ -133,7 +139,7 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   const full = opts.full === true;
   const before = core.meter.snapshot();
   throwIfAborted(opts.signal);
-  if (!check && !dryRun) await assertOutputDirs(config, ['plans'], ['plans']); // before any model call is spent
+  if (!check && !dryRun) await assertOutputDirs(config, ['plans']); // the directory must be usable before anything else happens
 
   const { chunked, discoveredUris, plans, status } = await analyze(core, opts.docs);
   const planByUri = new Map(plans.map((p) => [p.docUri, p]));
@@ -176,6 +182,9 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
       else core.emit({ type: 'compile-section', docUri: doc.doc.uri, sectionId: section.id, status: 'reused' });
     }
   }
+
+  // Writing is only required when something will be written (a read-only checkout of fresh plans compiles to a no-op); check it before any model call is spent.
+  await assertPlansWritableForWrites(config, dryRun, tasks.length + orphanPlans.length);
 
   const fixtures = fixtureDescriptors(core);
   const secretNames = Object.keys(config.secrets).sort(cmp);

@@ -7,7 +7,8 @@
 //   node scripts/crap.mjs                    print the worst functions
 //   node scripts/crap.mjs --check            fail when a function is over the limit and not in scripts/crap-baseline.json,
 //                                            or when a baselined function got worse
-//   node scripts/crap.mjs --update-baseline  rewrite scripts/crap-baseline.json (reviewable ratchet: it should only shrink)
+//   node scripts/crap.mjs --update-baseline  lower or drop entries of scripts/crap-baseline.json (never raises one; a new function
+//                                            enters only with --allow-new, which a reviewer should question)
 //
 // Plain Node ESM; needs the repository's `typescript` dev dependency.
 import fs from 'node:fs';
@@ -150,14 +151,17 @@ export function analyze(root, final) {
   return rows.sort((a, b) => b.crap - a.crap);
 }
 
-/** Disambiguate repeated ids (overloads, several anonymous functions) with their order of appearance. */
+/** Disambiguate repeated ids (overloads, several anonymous functions) with their order of appearance in the source (not their rank). */
 export function withUniqueIds(rows) {
+  const order = rows.map((_, i) => i).sort((i, j) => (rows[i].file ?? '').localeCompare(rows[j].file ?? '') || (rows[i].line ?? 0) - (rows[j].line ?? 0) || i - j);
   const seen = new Map();
-  return rows.map((r) => {
-    const n = (seen.get(r.id) ?? 0) + 1;
-    seen.set(r.id, n);
-    return n === 1 ? r : { ...r, id: `${r.id}~${n}` };
-  });
+  const ids = [];
+  for (const i of order) {
+    const n = (seen.get(rows[i].id) ?? 0) + 1;
+    seen.set(rows[i].id, n);
+    ids[i] = n === 1 ? rows[i].id : `${rows[i].id}~${n}`;
+  }
+  return rows.map((r, i) => (ids[i] === r.id ? r : { ...r, id: ids[i] }));
 }
 
 /** Offenders: over the limit and not baselined, or baselined but worse than recorded. */
@@ -187,11 +191,22 @@ export function main(argv, { log = console } = {}) {
   const rows = withUniqueIds(analyze(root, JSON.parse(fs.readFileSync(finalFile, 'utf8'))));
   const baselineFile = path.join(root, 'scripts', 'crap-baseline.json');
   if (flags.has('--update-baseline')) {
-    const next = Object.fromEntries(rows.filter((r) => r.crap > CRAP_LIMIT).map((r) => [r.id, Math.round(r.crap * 10) / 10]));
+    // The baseline is a ratchet: an entry can be lowered or removed here, never raised, and a new function enters it only on request.
+    const previous = fs.existsSync(baselineFile) ? JSON.parse(fs.readFileSync(baselineFile, 'utf8')) : {};
+    const next = {};
+    const refused = [];
+    for (const r of rows.filter((row) => row.crap > CRAP_LIMIT)) {
+      const now = Math.round(r.crap * 10) / 10;
+      const was = previous[r.id];
+      if (was !== undefined) next[r.id] = Math.min(was, now);
+      else if (flags.has('--allow-new')) next[r.id] = now;
+      else refused.push(r.id);
+    }
     fs.mkdirSync(path.dirname(baselineFile), { recursive: true });
     fs.writeFileSync(baselineFile, `${JSON.stringify(next, null, 2)}\n`);
     log.log(`crap: baseline written with ${Object.keys(next).length} function(s) over ${CRAP_LIMIT}`);
-    return 0;
+    for (const id of refused) log.error(`crap: ${id} is over ${CRAP_LIMIT} and not in the baseline; refactor or test it, or add it on purpose with --update-baseline --allow-new`);
+    return refused.length === 0 ? 0 : 1;
   }
   log.log(renderRows(rows));
   const over = rows.filter((r) => r.crap > CRAP_LIMIT).length;

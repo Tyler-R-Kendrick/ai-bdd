@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const SKIP = new Set(['node_modules', 'dist', '.git', 'coverage', '.ai-bdd', '.work']);
+const SKIP = new Set(['node_modules', 'dist', '.git', 'coverage', '.ai-bdd', '.work', '.stryker-tmp', '.claude', 'reports']);
 
 /** Every `*.received.*` file under `root`. */
 export function findReceived(root: string): string[] {

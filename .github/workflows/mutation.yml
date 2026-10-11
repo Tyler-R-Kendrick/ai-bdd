@@ -1,0 +1,44 @@
+name: mutation
+
+# Mutation testing is too slow for every pull request (minutes to hours per target), so it runs nightly and on demand. A target fails
+# when its mutation score falls below its `break` value in scripts/mutation-targets.json. The reports (JSON) are kept as artifacts.
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'A single target from scripts/mutation-targets.json (empty: all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        # keep in sync with scripts/mutation-targets.json (scripts/test/mutation.test.mjs checks it)
+        target: [cua, verify, sdk-util, sdk-assert, sdk-plan, sdk-recording, sdk-markdown]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: mutation
+        if: ${{ github.event.inputs.target == '' || github.event.inputs.target == matrix.target }}
+        run: node scripts/mutation.mjs ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: mutation-${{ matrix.target }}
+          path: reports/mutation
+          retention-days: 30
+          if-no-files-found: ignore
