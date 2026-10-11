@@ -206,6 +206,7 @@ Exit codes: `0` passed, `1` failed or inconclusive or blocked, `2` usage or conf
 - [CLI reference](docs/cli.md).
 - [Security](docs/security.md): threat model, policy, secrets, evidence integrity limits.
 - [FAQ](docs/faq.md): why not Gherkin, why not pixel snapshots, what "deterministic" means, cost.
+- [Testing ai-bdd](docs/testing.md): the ten kinds of test, how to run them, what each gate guards, measured coverage and mutation scores.
 - [Error codes](docs/errors.md).
 
 ## Known limits
