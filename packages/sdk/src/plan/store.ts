@@ -15,17 +15,20 @@ import { parseDocPlan } from './schema.ts';
 const SUFFIX = '.plan.json';
 
 function cmp(a: string, b: string): number {
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: Array#sort only branches on a negative result (checked with scrambled lists of up to 1000 names) and the compared uris are distinct, so the 0/1 split and the equal case are unobservable
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** Rejects absolute paths, empty or dots-and-blanks-only path segments (`..`, `.`, `....`, `.. `; a name such as `a..b.md` is fine), backslashes, NUL, empty uris and uris too long to be file names (R-PL4). Returns the absolute plan file path. */
 export function planPathFor(dir: string, docUri: string): string {
   if (
+    // Stryker disable next-line ConditionalExpression: an empty uri splits into one empty segment, which the segment check below rejects with the same error
     docUri.length === 0 ||
     idTooLong(docUri) ||
     docUri.includes('\\') ||
     docUri.includes('\0') ||
     docUri.split('/').some((seg) => seg === '' || /^[.\s]+$/.test(seg)) ||
+    // Stryker disable next-line MethodExpression: a leading '/' makes the first segment empty (and the path absolute), both rejected by the checks around it with the same error
     docUri.startsWith('/') ||
     /^[A-Za-z]:/.test(docUri) ||
     isAbsolute(docUri)
@@ -34,6 +37,7 @@ export function planPathFor(dir: string, docUri: string): string {
   }
   const root = resolve(dir);
   const full = resolve(root, `${docUri}${SUFFIX}`);
+  // Stryker disable next-line ConditionalExpression: `full !== root` is always true here (the plan suffix makes the target differ from the root), so forcing it true changes nothing
   if (full !== root && !full.startsWith(root + sep)) {
     throw new AiBddError('POLICY_DENIED', `docUri escapes the plan directory: ${JSON.stringify(docUri)}`, { details: { docUri } });
   }

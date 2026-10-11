@@ -265,6 +265,7 @@ function firstSourceIndex(f: Feature, idx: DocIndex): number {
   const consider = (ref: ChunkRef): void => {
     if (ref.relation !== 'source') return;
     const i = idx.order.get(ref.chunkId);
+    // Stryker disable next-line EqualityOperator: `i <= best` only differs when i === best, and then it reassigns the same value
     if (i !== undefined && i < best) best = i;
   };
   f.sources.forEach(consider);
@@ -359,6 +360,7 @@ export const createPlanner: CreatePlannerRedacting = (_config, redact): Planner 
           diagnostics.push(
             diag('EXTRACT_SECTION_FAILED', 'warning', `section ${s.id} was not extracted; previous features are kept`, docUri, { sectionId: s.id }),
           );
+        // Stryker disable next-line BlockStatement: a section without a mode is handled exactly like 'keep' ('keep' is never compared, only 'extract' and 'failed' are)
         } else {
           modes.set(s.id, 'keep');
         }
@@ -436,6 +438,7 @@ export const createPlanner: CreatePlannerRedacting = (_config, redact): Planner 
       }
 
       // Assign ids. Inherited ids are reserved first so fresh ids never steal them.
+      // Stryker disable next-line ArrayDeclaration: a bogus extra entry in the used set cannot collide with a slugified id
       const usedFeatureIds = new Set<string>([...kept.map((f) => f.id), ...slots.flatMap((s) => (s.prev === undefined ? [] : [s.prev.id]))]);
       const built: Feature[] = [];
       for (const slot of slots) {
@@ -486,6 +489,7 @@ export const createPlanner: CreatePlannerRedacting = (_config, redact): Planner 
 
       const features = [...kept, ...built]
         .map((f) => ({ f, i: firstSourceIndex(f, idx) }))
+        // Stryker disable next-line EqualityOperator: `a.i <= b.i` is only reached when a.i !== b.i (the equal case returns 0 first)
         .sort((a, b) => (a.i === b.i ? 0 : a.i < b.i ? -1 : 1) || cmp(a.f.title, b.f.title) || cmp(a.f.id, b.f.id))
         .map((x) => x.f);
 
@@ -497,6 +501,7 @@ export const createPlanner: CreatePlannerRedacting = (_config, redact): Planner 
         const cur = idx.byId.get(e.chunkId);
         const oldHash = prevChunkHash.get(e.chunkId);
         let target: Chunk | undefined;
+        // Stryker disable next-line ConditionalExpression: forcing `oldHash === undefined` to false is unobservable: with no old hash the fallthrough branches also pick `cur`
         if (cur !== undefined && (oldHash === undefined || cur.hash === oldHash)) target = cur;
         else if (oldHash !== undefined) {
           const cands = idx.contextByHash.get(oldHash) ?? [];
@@ -601,6 +606,7 @@ function statusOf(doc: ChunkedDoc | undefined, plan: DocPlan | undefined, docUri
 }
 
 function aggregateReview(scenarios: readonly Scenario[], fallback: ReviewState): ReviewState {
+  // Stryker disable next-line ConditionalExpression: only called for an owner found through one of its scenario ids, so the list is never empty
   if (scenarios.length === 0) return fallback;
   if (scenarios.every((s) => s.review === 'accepted')) return 'accepted';
   if (scenarios.every((s) => s.review === 'rejected')) return 'rejected';
