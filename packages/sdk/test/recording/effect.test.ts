@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeEffect } from '../../src/recording/index.ts';
 import { isVolatileText } from '../../src/recording/volatile.ts';
 import { node, observation } from './kit.ts';
+import { cpuMs } from '../kit/budget.ts';
 
 describe('computeEffect', () => {
   it('R-CH7: reports appeared, disappeared and route on normalized keys', () => {
@@ -123,9 +124,7 @@ describe('local volatile patterns (SPEC 10.4)', () => {
 
   it('R-AS2: adversarial 100k-char inputs stay linear-time', () => {
     for (const s of ['a'.repeat(100_000), '1'.repeat(100_000), '1:'.repeat(50_000), 'deadbeef'.repeat(12_500), '1 '.repeat(50_000) + 'x']) {
-      const t = performance.now();
-      isVolatileText(s);
-      expect(performance.now() - t).toBeLessThan(1000);
+      expect(cpuMs(() => void isVolatileText(s))).toBeLessThan(1000);
     }
   });
 });

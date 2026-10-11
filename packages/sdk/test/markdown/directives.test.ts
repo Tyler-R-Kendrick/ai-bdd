@@ -12,6 +12,7 @@ import {
   type DirectiveReport,
 } from '../../src/markdown/directives.ts';
 import { chunkText } from './helpers.ts';
+import { cpuMs } from '../kit/budget.ts';
 
 function collect(): { report: DirectiveReport; seen: { code: string; message: string }[] } {
   const seen: { code: string; message: string }[] = [];
@@ -141,15 +142,14 @@ describe('directive grammar', () => {
       `${'a=b '.repeat(20_000)}`,
     ];
     for (const input of inputs) {
-      const t0 = performance.now();
-      tokenizeDirective(input);
-      const html = `<!-- ai-bdd: ${input} -->`;
-      chunkText(`# H\n\n${html}\n\ntext\n`);
-      expect(performance.now() - t0, 'elapsed ms').toBeLessThan(5000);
+      const ms = cpuMs(() => {
+        tokenizeDirective(input);
+        const html = `<!-- ai-bdd: ${input} -->`;
+        chunkText(`# H\n\n${html}\n\ntext\n`);
+      });
+      expect(ms, 'cpu ms').toBeLessThan(5000);
     }
-    const t1 = performance.now();
-    findComments('<!--'.repeat(100_000));
-    expect(performance.now() - t1).toBeLessThan(3000);
+    expect(cpuMs(() => void findComments('<!--'.repeat(100_000)))).toBeLessThan(3000);
   });
 
   it('R-EX4: directive comments beyond the length cap are rejected, not parsed', () => {

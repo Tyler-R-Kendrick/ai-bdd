@@ -8,3 +8,8 @@ test-results/
 playwright-report/
 .determinism-*/
 packages/testing/.quickstart/
+.claude/worktrees/
+.stryker-tmp/
+reports/
+.stryker-tmp/
+reports/

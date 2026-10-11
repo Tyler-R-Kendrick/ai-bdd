@@ -3,6 +3,18 @@ import { fileURLToPath } from 'node:url';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+/** Per-package floors (percent). Measured on the unit suite; see scripts/coverage-report.mjs for the current table. */
+const floor = (lines: number, branches: number, functions: number) => ({ lines, branches, functions });
+const COVERAGE_FLOORS = {
+  'packages/sdk/src/**': floor(98, 90, 98),
+  'packages/cli/src/**': floor(99, 98, 99),
+  'packages/driver-cua/src/**': floor(99, 95, 93),
+  'packages/driver-playwright/src/**': floor(98, 90, 84),
+  'packages/models-ai-sdk/src/**': floor(99, 99, 99),
+  'packages/playwright-test/src/**': floor(99, 99, 99),
+  'packages/testing/src/**': floor(99, 91, 99),
+};
+
 export default defineConfig({
   resolve: {
     alias: [
@@ -16,8 +28,20 @@ export default defineConfig({
     ],
   },
   test: {
+    // `pnpm coverage` (unit tests, V8). Thresholds are floors per package: raise them when coverage rises, never lower them.
+    // packages/cli/src/bin.ts is a five-line entry shim that only subprocess tests execute.
+    coverage: {
+      provider: 'v8',
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['**/*.d.ts', 'packages/cli/src/bin.ts'],
+      reporter: ['text-summary', 'json-summary', 'json', 'lcov'],
+      reportsDirectory: 'coverage',
+      reportOnFailure: true,
+      thresholds: COVERAGE_FLOORS,
+    },
     projects: [
-      { extends: true, test: { name: 'unit', include: ['packages/*/test/**/*.test.ts'] } },
+      // Unit tests launch real browsers and processes: the 5 s default is shorter than a loaded CI runner needs to start one.
+      { extends: true, test: { name: 'unit', include: ['packages/*/test/**/*.test.ts'], testTimeout: 30_000, hookTimeout: 60_000 } },
       { extends: true, test: { name: 'acceptance', include: ['tests/acceptance/**/*.test.ts'], testTimeout: 180_000, hookTimeout: 60_000 } },
       { extends: true, test: { name: 'adversarial', include: ['tests/adversarial/**/*.test.ts'], testTimeout: 180_000 } },
     ],

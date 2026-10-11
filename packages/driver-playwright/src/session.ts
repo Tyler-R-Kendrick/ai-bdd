@@ -65,6 +65,16 @@ function routeOf(url: string): string {
   return url;
 }
 
+/** Resolves when `p` does, or after `ms` (default 2 s) without cancelling it: for cleanup that must never block `close()`. */
+function bounded(p: Promise<unknown>, ms = 2000): Promise<unknown> {
+  return Promise.race([p, new Promise<void>((resolve) => setTimeout(resolve, ms).unref())]);
+}
+
+/** The value of `p`, or undefined when it takes longer than `ms` (default 2 s). */
+function within<T>(p: Promise<T>, ms = 2000): Promise<T | undefined> {
+  return Promise.race([p, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms).unref())]);
+}
+
 function isClosedError(msg: string): boolean {
   return /Target (page, context or browser|closed)|has been closed|Browser has been closed|browser.*disconnected/i.test(msg);
 }
@@ -97,7 +107,11 @@ export class PlaywrightSession implements DriverSession {
   private readonly cdpSessions: CDPSession[] = [];
   private readonly pageCdp = new WeakMap<Page, CDPSession>();
   private readonly closing = new WeakSet<Page>();
+  /** Pages we decided to close. The sweeper keeps closing them until they are gone: `page.close()` can hang on a popup that is mid-navigation. */
+  private readonly condemned = new Set<Page>();
   private sweeper: ReturnType<typeof setInterval> | undefined;
+  /** When a top-level request of a frame that is not the session's page was last denied (a popup's first request). */
+  private popupDenialAt = -Infinity;
 
   constructor(page: Page, opts: SessionOptions, ctx: { policy: Policy; baseURL?: string }, internals: SessionInternals, onClose?: () => void) {
     this.page = page;
@@ -126,6 +140,7 @@ export class PlaywrightSession implements DriverSession {
           const verdict = checkNavigation(req.url(), undefined, this.policy);
           if (!verdict.ok) {
             this.denials.push({ url: req.url(), reason: verdict.reason });
+            if (framePage !== this.page) this.popupDenialAt = performance.now();
             // Answer with a (cancelled) download instead of aborting: the page keeps its current document, whereas an
             // aborted navigation would replace it with Chromium's error page.
             await route.fulfill(BLOCKED_RESPONSE);
@@ -162,7 +177,7 @@ export class PlaywrightSession implements DriverSession {
       if (verdict.ok) return;
       this.denials.push({ url: req.url(), reason: `redirect: ${verdict.reason}` });
       const owner = frame.page();
-      if (owner !== this.page) void owner.close().catch(() => undefined);
+      if (owner !== this.page) void this.forceClose(owner);
       else void this.page.evaluate('window.stop()').catch(() => undefined);
     };
   }
@@ -222,7 +237,7 @@ export class PlaywrightSession implements DriverSession {
   }
 
   private async releasePageGuard(): Promise<void> {
-    for (const frame of this.page.frames()) await frame.evaluate('window.__aiBddGuardOff = true').catch(() => undefined);
+    for (const frame of this.page.frames()) await bounded(frame.evaluate('window.__aiBddGuardOff = true').catch(() => undefined));
   }
 
   async install(): Promise<void> {
@@ -234,6 +249,10 @@ export class PlaywrightSession implements DriverSession {
     this.page.on('framenavigated', this.navHandler);
     // Backstop for popups whose events raced their first commit: no page other than ours may sit on a denied URL.
     this.sweeper = setInterval(() => {
+      for (const p of this.condemned) {
+        if (p.isClosed()) this.condemned.delete(p);
+        else void this.forceClose(p);
+      }
       for (const p of this.context.pages()) {
         if (p === this.page || p.isClosed()) continue;
         const u = p.url();
@@ -258,7 +277,11 @@ export class PlaywrightSession implements DriverSession {
       return;
     }
     // A blocked navigation inside a popup is answered with a cancelled download: the popup has nothing left to show.
+    // The popup's first request can be denied before its `page` event reaches us (the frame has no page yet, so the route
+    // handler cannot close it): a blank popup opened within a couple of seconds of such a denial has nothing left to show.
+    const openedAt = performance.now();
     const deniedAtOpen = this.denials.length;
+    const deniedAround = (): boolean => this.denials.length > deniedAtOpen || this.popupDenialAt >= openedAt - 2000;
     const close = (reason: string): void => {
       this.denials.push({ url: popup.url(), reason });
       void this.forceClose(popup);
@@ -267,7 +290,7 @@ export class PlaywrightSession implements DriverSession {
     const check = (): void => {
       if (popup.isClosed()) return;
       if (!allowed()) close('popup navigated to a disallowed URL');
-      else if (this.denials.length > deniedAtOpen && (popup.url() === 'about:blank' || popup.url() === '')) void this.forceClose(popup);
+      else if (deniedAround() && (popup.url() === 'about:blank' || popup.url() === '')) void this.forceClose(popup);
     };
     popup.on('framenavigated', (f) => {
       if (f === popup.mainFrame()) check();
@@ -286,7 +309,12 @@ export class PlaywrightSession implements DriverSession {
    * short timer and then backed by the page's own CDP `Page.close`. Repeated calls for one page collapse into one.
    */
   private async forceClose(page: Page): Promise<void> {
-    if (page.isClosed() || this.closing.has(page)) return;
+    if (page.isClosed()) {
+      this.condemned.delete(page);
+      return;
+    }
+    this.condemned.add(page);
+    if (this.closing.has(page)) return;
     this.closing.add(page);
     try {
       const closed = await Promise.race([
@@ -294,7 +322,9 @@ export class PlaywrightSession implements DriverSession {
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500).unref()),
       ]);
       if (!closed && !page.isClosed()) {
-        await (this.pageCdp.get(page)?.send('Page.close') ?? Promise.resolve()).catch(() => undefined);
+        // Chromium only: ask the page's own target to close, with a session of its own when the guard has none for it.
+        const cdp = this.pageCdp.get(page) ?? (await within(this.context.newCDPSession(page).catch(() => undefined)));
+        await bounded((cdp?.send('Page.close') ?? Promise.resolve()).catch(() => undefined));
       }
     } finally {
       this.closing.delete(page);
@@ -603,7 +633,8 @@ export class PlaywrightSession implements DriverSession {
           method, headers, ...(data === undefined ? {} : { data }), maxRedirects: 0, timeout: this.navTimeout, failOnStatusCode: false,
         });
         const loc = res.headers()['location'];
-        if ([301, 302, 303, 307, 308].includes(res.status()) && loc !== undefined && hop < 5) {
+        if ([301, 302, 303, 307, 308].includes(res.status()) && loc !== undefined) {
+          if (hop === 5) break; // the sixth redirect: give up instead of handing the caller a 3xx as if it were the answer
           url = new URL(loc, url);
           if (res.status() === 303 || ((res.status() === 301 || res.status() === 302) && method === 'POST')) { method = 'GET'; data = undefined; }
           continue;
@@ -634,11 +665,15 @@ export class PlaywrightSession implements DriverSession {
     this.page.off('framenavigated', this.navHandler);
     this.context.off('page', this.pageHandler);
     this.context.off('request', this.requestHandler);
-    for (const cdp of this.cdpSessions) await cdp.detach().catch(() => undefined);
-    if (!this.internals.ownsContext) await this.releasePageGuard();
+    if (!this.internals.ownsContext) {
+      // detach() and evaluate() can stall behind a navigation that is still pending (for example one that just timed out),
+      // so both are bounded. A context the driver owns needs none of this: closing it below ends its CDP sessions.
+      for (const cdp of this.cdpSessions) await bounded(cdp.detach().catch(() => undefined));
+      await this.releasePageGuard();
+    }
     try {
       if (this.internals.ownsContext) await this.context.close();
-      else await this.context.unroute('**/*', this.routeHandler);
+      else await bounded(this.context.unroute('**/*', this.routeHandler));
     } catch {
       // already closed
     } finally {

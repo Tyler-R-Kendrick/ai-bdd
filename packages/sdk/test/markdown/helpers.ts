@@ -17,3 +17,5 @@ export function lineLengths(text: string): number[] {
   const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   return body.split(/\r\n|\r|\n/).map((l) => l.length);
 }
+
+export { cpuMs } from '../kit/budget.ts';
