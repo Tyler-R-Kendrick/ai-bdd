@@ -105,6 +105,16 @@ test('dist imports are rejected everywhere, including tests', () => {
   for (const line of p) assert.match(line, /dist\//);
 });
 
+test("a third-party package's own dist subpath is not this repository's build output", () => {
+  const p = problemsOf({
+    'packages/sdk/test/a.test.ts': "import { Ajv2020 } from 'ajv/dist/2020.js';",
+    'packages/sdk/src/b.ts': "import x from 'some-lib/dist/x.js';",
+    'tests/acceptance/c.test.ts': "import y from '@ai-bdd/sdk/dist/x';\nimport z from '../../packages/sdk/dist/y.js';",
+  });
+  assert.equal(p.length, 2);
+  for (const line of p) assert.match(line, /c\.test\.ts:\d import '.*dist\//);
+});
+
 test('test files may import internals', () => {
   const p = problemsOf({
     'packages/sdk/test/runner/a.test.ts': "import { internal } from '../../src/judge/impl.ts';\nimport { fake } from '@ai-bdd/testing';",
