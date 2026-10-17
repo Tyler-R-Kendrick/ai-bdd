@@ -9,11 +9,22 @@
 // A target (scripts/mutation-targets.json) names the source files to mutate, the unit tests that exercise them and the mutation
 // score below which the run fails (`break`). Raise `break` as the score improves; it is a ratchet like the coverage floors and the
 // CRAP baseline. Reports land in reports/mutation/<target>.json (and .html when --html is given).
-// Plain Node ESM; needs @stryker-mutator/* from the repository's dev dependencies.
+// Plain Node ESM; needs @stryker-mutator/* and vitest from the repository's dev dependencies, run from node_modules/.bin, so any
+// package manager that installed them will do.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { isMain, parseArgs } from './lib.mjs';
+import { defaultRoot, isMain, parseArgs } from './lib.mjs';
+
+/** An installed binary: `<root>/node_modules/.bin/<name>`, or the `.cmd` shim package managers write there on Windows. */
+export function binPath(root, name, platform = process.platform) {
+  return path.join(root, 'node_modules', '.bin', platform === 'win32' ? `${name}.cmd` : name);
+}
+
+/** Quotes one word for the shell that runs a command line: sh, or cmd.exe on Windows. */
+export function shellQuote(word, platform = process.platform) {
+  return platform === 'win32' ? `"${word}"` : `'${word.replaceAll("'", `'\\''`)}'`;
+}
 
 export function loadTargets(root) {
   return JSON.parse(fs.readFileSync(path.join(root, 'scripts', 'mutation-targets.json'), 'utf8'));
@@ -25,11 +36,12 @@ export function loadTargets(root) {
  * The vitest runner plugin is not used: its per-test filtering ran no tests at all with this vitest version, so every mutant
  * "survived" (a 0 % score that measured nothing).
  */
-export function buildConfig(name, target, { html = false, fcRuns = 40 } = {}) {
+export function buildConfig(name, target, { html = false, fcRuns = 40, root = defaultRoot(import.meta.url), platform = process.platform } = {}) {
+  const vitest = shellQuote(binPath(root, 'vitest', platform), platform);
   return {
     plugins: ['@stryker-mutator/typescript-checker'],
     testRunner: 'command',
-    commandRunner: { command: `MUTATION_TESTS='${target.tests.join(',')}' FC_RUNS=${fcRuns} pnpm exec vitest run -c vitest.mutation.config.ts --bail 1 --reporter=dot` },
+    commandRunner: { command: `MUTATION_TESTS='${target.tests.join(',')}' FC_RUNS=${fcRuns} ${vitest} run -c vitest.mutation.config.ts --bail 1 --reporter=dot` },
     mutate: target.mutate,
     checkers: ['typescript'],
     tsconfigFile: 'tsconfig.json',
@@ -56,7 +68,7 @@ export function scoreOf(report) {
   return { ...counts, total, score: total === 0 ? 100 : (100 * detected) / total };
 }
 
-export function main(argv, { log = console, run = spawnSync } = {}) {
+export function main(argv, { log = console, run = spawnSync, platform = process.platform } = {}) {
   const { root, flags, rest } = parseArgs(argv, import.meta.url);
   const targets = loadTargets(root);
   if (flags.has('--list')) {
@@ -75,8 +87,13 @@ export function main(argv, { log = console, run = spawnSync } = {}) {
     return 2;
   }
   if (configOnly) {
-    for (const n of names) log.log(JSON.stringify(buildConfig(n, targets[n]), null, 2));
+    for (const n of names) log.log(JSON.stringify(buildConfig(n, targets[n], { root, platform }), null, 2));
     return 0;
+  }
+  const stryker = binPath(root, 'stryker', platform);
+  if (!fs.existsSync(stryker)) {
+    log.error(`mutation: ${stryker} not found: install the dependencies first`);
+    return 2;
   }
   let exit = 0;
   for (const name of names) {
@@ -84,12 +101,14 @@ export function main(argv, { log = console, run = spawnSync } = {}) {
     const dir = path.join(root, '.stryker-tmp');
     fs.mkdirSync(dir, { recursive: true });
     const confFile = path.join(dir, `${name}.conf.json`);
-    fs.writeFileSync(confFile, `${JSON.stringify(buildConfig(name, target, { html: flags.has('--html'), fcRuns: process.env.FC_RUNS ?? 40 }), null, 2)}\n`);
+    const config = buildConfig(name, target, { html: flags.has('--html'), fcRuns: process.env.FC_RUNS ?? 40, root, platform });
+    fs.writeFileSync(confFile, `${JSON.stringify(config, null, 2)}\n`);
     log.log(`\nmutation: ${name} (${target.mutate.join(', ')}) against ${target.tests.join(', ')}`);
-    const r = run('pnpm', ['exec', 'stryker', 'run', confFile], {
-      cwd: root,
-      stdio: 'inherit',
-    });
+    // a .cmd shim runs only through the shell (Node refuses to spawn one directly), and the shell needs the paths quoted
+    const r =
+      platform === 'win32'
+        ? run(`${shellQuote(stryker, platform)} run ${shellQuote(confFile, platform)}`, { cwd: root, stdio: 'inherit', shell: true })
+        : run(stryker, ['run', confFile], { cwd: root, stdio: 'inherit' });
     if (r.status !== 0) exit = 1;
     const reportFile = path.join(root, `reports/mutation/${name}.json`);
     if (fs.existsSync(reportFile)) {
