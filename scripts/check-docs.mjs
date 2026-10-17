@@ -30,7 +30,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { isMain, parseArgs, toPosix } from './lib.mjs';
+import { isMain, listPackages, parseArgs, toPosix } from './lib.mjs';
 
 const EXCLUDED_DOCS = new Set(['errors.md', 'verification-log.md', 'adversarial-findings.md']);
 const RUN_TIMEOUT_MS = 240_000;
@@ -141,10 +141,10 @@ export function extractLinks(markdown) {
   return links;
 }
 
-/** Documentation files to scan: README.md and docs/*.md (generated and foreign-owned files excluded). */
+/** Documentation files to scan: README.md, each packages/<name>/README.md and docs/*.md (generated and foreign-owned files excluded). */
 export function docFiles(root) {
-  const files = [];
-  if (fs.existsSync(path.join(root, 'README.md'))) files.push('README.md');
+  const readmes = ['README.md', ...listPackages(root).map((p) => `packages/${p}/README.md`)];
+  const files = readmes.filter((f) => fs.existsSync(path.join(root, f)));
   const docs = path.join(root, 'docs');
   if (fs.existsSync(docs)) {
     for (const name of fs.readdirSync(docs).sort()) {

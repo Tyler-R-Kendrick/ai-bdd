@@ -58,16 +58,22 @@ test('extractLinks skips code spans and fenced code, and reads reference definit
   );
 });
 
-test('docFiles scans README and docs/*.md but not generated or foreign-owned files', () => {
+test('docFiles scans README, the package READMEs and docs/*.md but not generated or foreign-owned files', () => {
   const root = makeRepo({
     'README.md': '# R',
+    'packages/sdk/README.md': '# S',
+    'packages/sdk/docs/deep.md': '# D',
+    'packages/bare/package.json': { name: 'bare' },
     'docs/a.md': '# A',
     'docs/errors.md': '# E',
     'docs/adversarial-findings.md': '# X',
     'docs/integration-notes/n.md': '# N',
   });
   try {
-    assert.deepEqual(docFiles(root), ['README.md', 'docs/a.md']);
+    assert.deepEqual(docFiles(root), ['README.md', 'packages/sdk/README.md', 'docs/a.md']);
+    // a package README's links are checked relative to the package
+    write(root, 'packages/sdk/README.md', '# S\n\n[ok](../../docs/a.md) [gone](../../docs/gone.md) [anchor](../../docs/a.md#nope)\n');
+    assert.deepEqual(checkDocs(root, { ts: false, run: false }).problems.map((p) => p.split(':')[0]), ['packages/sdk/README.md', 'packages/sdk/README.md']);
   } finally {
     cleanup(root);
   }
@@ -262,6 +268,7 @@ test('the repository documentation passes the link check', () => {
   const r = checkDocs(REAL_ROOT, { ts: false, run: false });
   assert.deepEqual(r.problems, []);
   assert.ok(r.stats.files >= 1);
+  assert.ok(docFiles(REAL_ROOT).includes('packages/sdk/README.md'), 'the SDK README and its link to docs/security.md are checked');
 });
 
 test('write helper sanity (fixture files are created below the root)', () => {
