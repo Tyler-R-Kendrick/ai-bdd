@@ -126,7 +126,7 @@ See [Frozen and CI runs](#frozen-and-ci-runs) for `--frozen` and the `CI` defaul
 
 ### Outputs
 
-Each run writes `.ai-bdd/runs/<runId>/` (`artifacts/`, `manifest.json`, `events.jsonl`, `report.json`, `junit.xml`, `summary.md`) and copies the reports to `.ai-bdd/report/`, which is cleared first. A run that ends with exit 2 or 4 writes no report, so `.ai-bdd/report/` then still holds the report of the last run that wrote one, and it leaves no run directory, unless a compile in that same run called a model: its evidence stays in `.ai-bdd/runs/<runId>/`. `summary.md` has totals, failures, healed and fuzzy steps, the unreviewed scenarios that ran, the traceability matrix (doc section, chunk, scenarios, status), uncovered and not-testable chunks, and usage per purpose. `junit.xml` has one suite per feature and one case per scenario.
+Each run writes `.ai-bdd/runs/<runId>/` (`artifacts/`, `manifest.json`, `events.jsonl`, `report.json`, `junit.xml`, `summary.md`) and copies the reports to `.ai-bdd/report/`, replacing each file and removing the report files that run did not produce. A run that ends with exit 2 or 4 writes no report, so `.ai-bdd/report/` then still holds the report of the last run that wrote one, and it leaves no run directory, unless a compile in that same run called a model: its evidence stays in `.ai-bdd/runs/<runId>/`. `summary.md` has totals, failures, healed and fuzzy steps, the unreviewed scenarios that ran, the traceability matrix (doc section, chunk, scenarios, status), uncovered and not-testable chunks, and usage per purpose. `junit.xml` has one suite per feature and one case per scenario.
 
 ## `verify-run <runDir>`
 
@@ -145,7 +145,7 @@ Recomputes every artifact hash and the manifest digest. Exit 0 with `OK`, or exi
 | In this repository | `packages/sdk/schema/run-report.v1.schema.json` |
 | In a project | `@ai-bdd/sdk/schema/run-report.v1.json`, an `exports` entry of `@ai-bdd/sdk` (the file is `node_modules/@ai-bdd/sdk/schema/run-report.v1.schema.json`) |
 
-Every object in the schema is closed (`additionalProperties: false`). A report with a field that version 1 does not define is invalid, and so are `schemaVersion: 2`, a scenario status that is not one of the seven, a negative count, an exit code above 4 and a hash that is not 64 lowercase hex characters. The file is generated from the same zod schema that a compile-time check ties to the contract type (`pnpm gen:report-schema`); a test fails when it is stale. [Ajv](https://ajv.js.org) in strict mode compiles it:
+Every object in the schema is closed (`additionalProperties: false`). A report with a field that version 1 does not define is invalid, and so are `schemaVersion: 2`, a scenario status that is not one of the seven, a negative count, an exit code above 4 and a hash that is not 64 lowercase hex characters. Because version 1 is closed, a new report field means a new `schemaVersion` and a new schema file; the v1 file never changes (a test pins its sha256), so pin the `@ai-bdd/sdk` version you validate with. The file is generated from the same zod schema that a compile-time check ties to the contract type (`pnpm gen:report-schema`); a test fails when it is stale. [Ajv](https://ajv.js.org) in strict mode compiles it:
 
 ```ts check
 import { readFileSync } from 'node:fs';
