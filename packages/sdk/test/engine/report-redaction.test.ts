@@ -1,11 +1,13 @@
 import { readFile, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Engine, RunReport, ScenarioResult } from '../../src/contracts/index.ts';
+import { z } from 'zod';
+import type { Engine, JsonValue, RunReport, ScenarioResult } from '../../src/contracts/index.ts';
 import { createEngine, type EngineModules } from '../../src/engine/index.ts';
 import { REPORT_DATA_FIELDS } from '../../src/engine/report.ts';
 import { createRedactor } from '../../src/evidence/index.ts';
 import { RunReportSchema, runReportJsonSchema } from '../../src/report/schema.ts';
+import { openFieldsOf, unclosedObjectsOf } from './report-schema-guard.ts';
 import { makeFixture, type Fixture } from './fakes.ts';
 
 const open: { fx: Fixture; engine: Engine }[] = [];
@@ -88,17 +90,29 @@ describe('redaction keeps the report schema', () => {
     expect(report.scenarios[0]?.steps[0]?.error?.details).toEqual({ 'session <secret:S>': 'x', list: ['a x'] });
   });
 
-  it('the data fields are exactly the report fields the JSON Schema leaves open (any JSON)', () => {
-    const open = new Set<string>();
-    const visit = (node: unknown): void => {
-      if (Array.isArray(node)) node.forEach(visit);
-      else if (node !== null && typeof node === 'object') {
-        const props = (node as { properties?: Record<string, unknown> }).properties ?? {};
-        for (const [name, schema] of Object.entries(props)) if ((schema as { $ref?: string }).$ref === '#/$defs/JsonValue') open.add(name);
-        Object.values(node).forEach(visit);
-      }
-    };
-    visit(runReportJsonSchema());
-    expect([...open].sort()).toEqual([...REPORT_DATA_FIELDS].sort());
+  it('the data fields are exactly the report fields the JSON Schema leaves open (any JSON), and every other object is closed', () => {
+    const schema = runReportJsonSchema();
+    expect(openFieldsOf(schema)).toEqual([...REPORT_DATA_FIELDS].sort());
+    expect(unclosedObjectsOf(schema)).toEqual([]);
+  });
+
+  it('the guard finds an open field of any shape: a JsonValue in an array, a nullable JsonValue, a record', () => {
+    const jsonValue: z.ZodType<JsonValue> = z
+      .lazy(() => z.union([z.null(), z.boolean(), z.number(), z.string(), z.array(jsonValue), z.record(z.string(), jsonValue)]))
+      .meta({ id: 'JsonValue' });
+    const item = z.object({ name: z.string(), payload: z.array(z.array(jsonValue)).optional() }).strict();
+    const shapes = z
+      .object({
+        details: jsonValue.optional(),
+        list: z.array(jsonValue),
+        maybe: jsonValue.nullable(),
+        map: z.record(z.string(), z.string()),
+        closed: z.object({ a: z.string() }).strict(),
+        items: z.array(item),
+      })
+      .strict();
+    const json = z.toJSONSchema(shapes, { target: 'draft-2020-12', io: 'output' });
+    expect(openFieldsOf(json)).toEqual(['details', 'list', 'map', 'maybe', 'payload']);
+    expect(unclosedObjectsOf(json)).toEqual(['#/properties/map']);
   });
 });
