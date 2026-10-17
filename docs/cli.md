@@ -179,10 +179,10 @@ The exit codes are those of [Exit codes](#exit-codes). For a gate that runs `ai-
 | 0 | Every scenario `passed`, or `healed` without `--strict`. | written |
 | 1 | A scenario `failed`, was `inconclusive` or `blocked`. | written |
 | 2 | Usage or config error: a bad flag, a selector that matches nothing, `-u` with read-only recordings. | not written |
-| 3 | Infrastructure: a scenario ended `error` (a driver or model is unavailable, a secret the scenario uses is not set). | written |
+| 3 | Infrastructure: a scenario ended `error` (a driver or model is unavailable, a secret the scenario uses is not set), or an unexpected internal error. | written when a scenario ended `error` or a model was unavailable; not written after an unexpected internal error once the scenarios were selected (the runner or the report writer failed), which keeps its run directory |
 | 4 | Frozen violation: a plan is `new`, `stale` or `orphaned`. | not written |
 
-"Not written" means the previous `.ai-bdd/report/report.json` is still there. Read the exit code first, or compare `runId` with the run you started.
+"Not written" means the previous `.ai-bdd/report/report.json` is still there. Read the exit code first, or compare `runId` with the run you started: an exit 3 alone does not tell whether this run wrote the report.
 
 ### The replay-only gate
 
