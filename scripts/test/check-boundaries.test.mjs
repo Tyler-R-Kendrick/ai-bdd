@@ -135,6 +135,24 @@ test("the dist rule knows this repository's packages by the names in their packa
   for (const line of p) assert.match(line, /imports from dist\/ are forbidden/);
 });
 
+test('an import from the scope of the workspace packages that names no workspace package is flagged, in tests too', () => {
+  const p = problemsOf({
+    'tests/acceptance/a.test.ts': [
+      "import a from '@ai-bdd/ghost/dist/x.js';",
+      "import b from '@ai-bdd/ghost';",
+      "import c from '@ai-bdd/sdk';",
+      "import d from '@ai-bdd-other/tool/dist/d.js';",
+      "import e from '@other/tool';",
+    ].join('\n'),
+    'packages/cli/test/b.test.ts': "import f from '@ai-bdd/sdkk/contracts';",
+  });
+  assert.deepEqual(p.map((line) => line.replace(/^.*import '([^']+)': (.*)$/, '$1 -> $2')).sort(), [
+    '@ai-bdd/ghost -> @ai-bdd/ghost is not a workspace package',
+    '@ai-bdd/ghost/dist/x.js -> @ai-bdd/ghost is not a workspace package',
+    '@ai-bdd/sdkk/contracts -> @ai-bdd/sdkk is not a workspace package',
+  ]);
+});
+
 test('test files may import internals', () => {
   const p = problemsOf({
     'packages/sdk/test/runner/a.test.ts': "import { internal } from '../../src/judge/impl.ts';\nimport { fake } from '@ai-bdd/testing';",
