@@ -296,3 +296,22 @@ describe('run: engine lifecycle and flags', () => {
     expect((h.engine.run as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toMatchObject({ frozen: true, compile: false });
   });
 });
+
+describe('run summary: the run id is printed as report.json writes it', () => {
+  const RUN_ID = '0199f1a2-2026-7abc-8def-0123456789ab'; // a UUIDv7 whose timestamp digits read 2026
+  const withPin = (report: ReturnType<typeof makeReport>, over: Parameters<typeof runCli>[1] = {}) =>
+    summary(report, { env: { PIN: '2026' }, config: { secrets: { PIN: { env: 'PIN' } } }, ...over });
+
+  it('R-SE1: a secret that occurs in the engine run id does not redact it; the same secret elsewhere on the line and output is scrubbed', async () => {
+    const h = await withPin(makeReport({ runId: RUN_ID, warnings: [{ code: 'PLAN_STALE', severity: 'warning', message: 'card 2026' }] }), {
+      config: { secrets: { PIN: { env: 'PIN' } }, runsDir: '/proj/2026/runs' },
+    });
+    expect(h.lines).toContain(`Run: [redacted]/runs/${RUN_ID}`);
+    expect(h.lines).toContain('warning PLAN_STALE: card [redacted]');
+  });
+
+  it('R-SE1: a run id that is not a UUIDv7 the engine made is scrubbed as before', async () => {
+    const h = await withPin(makeReport({ runId: 'run-2026' }));
+    expect(h.lines).toContain('Run: .ai-bdd/runs/run-[redacted]');
+  });
+});

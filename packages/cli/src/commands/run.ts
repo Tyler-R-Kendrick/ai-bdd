@@ -79,6 +79,9 @@ function stepsByPath(report: RunReport): { fuzzy: Map<string, number>; fuzzyTota
   return { fuzzy, fuzzyTotal, healed, replayed, agent };
 }
 
+/** A run id as the engine generates it, a UUIDv7: hex digits and dashes from its clock and random bytes, never from an input. */
+const ENGINE_RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
 /** `runDir` is the run directory to name, or `undefined` when the run created none (a frozen violation). */
 export function printRunSummary(ctx: Ctx, report: RunReport, runDir: string | undefined): void {
   for (const sc of report.scenarios) {
@@ -125,7 +128,9 @@ export function printRunSummary(ctx: Ctx, report: RunReport, runDir: string | un
   const unreviewed = report.scenarios.filter((x) => x.review === 'unreviewed').length;
   if (unreviewed > 0) ctx.out(`Unreviewed scenarios run: ${unreviewed} (see \`ai-bdd review\`)`);
   for (const w of report.warnings) ctx.out(`warning ${w.code}: ${w.message}`);
-  if (runDir !== undefined) ctx.out(`Run: ${runDir}`);
+  // The run id is printed as report.json writes it (R-SE1 exempts it), so the directory named here is the one on disk; the rest of
+  // the line is scrubbed as usual, and so is a run id that is not the engine's.
+  if (runDir !== undefined) ctx.out(`Run: ${runDir}`, ENGINE_RUN_ID.test(report.runId) ? [report.runId] : []);
   ctx.out(`Exit code: ${report.exitCode}`);
 }
 

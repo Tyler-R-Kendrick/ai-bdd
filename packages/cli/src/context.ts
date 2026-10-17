@@ -17,8 +17,11 @@ export interface Ctx {
   readonly deps: CliDeps;
   /** `--config` value, if given. */
   configPath: string | undefined;
-  /** Print a line to stdout. Secret values known to the CLI are scrubbed. */
-  out(line?: string): void;
+  /**
+   * Print a line to stdout. Secret values known to the CLI are scrubbed, except inside the `keep` strings, which are printed as
+   * they are (the engine's own run id, which report.json also writes unredacted).
+   */
+  out(line?: string, keep?: readonly string[]): void;
   /** Print a line to stderr. Secret values known to the CLI are scrubbed. */
   err(line?: string): void;
   /**
@@ -36,11 +39,16 @@ export function createCtx(io: CliIo, deps: CliDeps): Ctx {
     for (const v of [...secrets].sort((a, b) => b.length - a.length)) r = r.split(v).join('[redacted]');
     return r;
   };
+  /** Scrubs every part of `s` around the `keep` strings, and leaves those as they are. */
+  const scrubKeeping = (s: string, keep: readonly string[]): string => {
+    const [first, ...rest] = keep.filter((k) => k.length > 0);
+    return first === undefined ? scrub(s) : s.split(first).map((part) => scrubKeeping(part, rest)).join(first);
+  };
   return {
     io,
     deps,
     configPath: undefined,
-    out: (line = '') => void io.stdout.write(`${scrub(line)}\n`),
+    out: (line = '', keep = []) => void io.stdout.write(`${scrubKeeping(line, keep)}\n`),
     err: (line = '') => void io.stderr.write(`${scrub(line)}\n`),
     addSecrets(values, expand) {
       for (const v of values) {

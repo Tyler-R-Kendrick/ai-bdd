@@ -55,6 +55,16 @@ describe('createCtx: output and secret scrubbing (R-SE1)', () => {
     expect(buf.stderr).toBe('x [redacted] y [redacted]\n');
   });
 
+  it('out(line, keep) prints the keep strings as they are and scrubs everything around them', () => {
+    const { buf, io } = capture();
+    const ctx = createCtx(io, {});
+    ctx.addSecrets(['2026', 'other-secret']);
+    ctx.out('a 2026 b id-2026-x c other-secret 2026', ['id-2026-x']);
+    ctx.out('id-2026-x and id-2026-x', ['id-2026-x', '', 'nothing-here']);
+    ctx.out('2026', []);
+    expect(buf.stdout).toBe('a [redacted] b id-2026-x c [redacted] [redacted]\nid-2026-x and id-2026-x\n[redacted]\n');
+  });
+
   it('ignores undefined values and values shorter than four characters', () => {
     const { buf, io } = capture();
     const ctx = createCtx(io, {});
