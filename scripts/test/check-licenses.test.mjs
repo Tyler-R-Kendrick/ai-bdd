@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { test } from 'node:test';
 import { checkLicenses, isAllowedExpression, licenseExpression } from '../check-licenses.mjs';
 import { cleanup, makeRepo } from './fixture.mjs';
@@ -22,7 +24,7 @@ const store = (name, version, pkgJson) => ({
   [`node_modules/.pnpm/${name.replace('/', '+')}@${version}/node_modules/${name}/package.json`]: { name, version, ...pkgJson },
 });
 
-test('reports offenders from the pnpm store and honours the exceptions file', () => {
+test('reports offenders from pnpm\'s store layout and honours the exceptions file', () => {
   const files = {
     ...store('good', '1.0.0', { license: 'MIT' }),
     ...store('@scope/dual', '2.0.0', { license: '(MIT OR GPL-3.0)' }),
@@ -46,12 +48,66 @@ test('reports offenders from the pnpm store and honours the exceptions file', ()
   }
 });
 
+// a package.json at `dir`, named after the path below its last node_modules (or packages) directory
+const manifest = (dir, version, pkgJson) => {
+  const name = dir.split(/(?:^|\/)(?:node_modules|packages)\//).at(-1);
+  return { [`${dir}/package.json`]: { name, version, ...pkgJson } };
+};
+const offenders = (r) => r.problems.map((p) => p.split(':')[0]);
+
+test('reads a plain nested layout: every node_modules level, scoped packages included', () => {
+  const root = makeRepo({
+    ...manifest('node_modules/good', '1.0.0', { license: 'MIT' }),
+    ...manifest('node_modules/good/node_modules/bad', '1.0.0', { license: 'GPL-3.0' }),
+    ...manifest('node_modules/@scope/tool', '2.0.0', { license: 'ISC' }),
+    ...manifest('node_modules/@scope/tool/node_modules/nolic', '1.0.0', {}),
+    ...manifest('node_modules/@scope/tool/node_modules/good', '0.9.0', { license: 'MIT' }),
+    'node_modules/.bin/tool': '#!/bin/sh',
+    'node_modules/.package-lock.json': {},
+  });
+  try {
+    const r = checkLicenses(root);
+    assert.deepEqual(offenders(r), ['bad@1.0.0', 'nolic@1.0.0']);
+    assert.equal(r.summary, '5 packages scanned');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('follows symlinks to their targets, reads each real package once, and survives dangling links and cycles', () => {
+  const root = makeRepo({
+    ...manifest('store/weak-3.0.0/node_modules/weak', '3.0.0', { license: 'MPL-2.0' }),
+    ...manifest('store/weak-3.0.0/node_modules/dep', '1.0.0', { license: 'GPL-2.0' }),
+    ...manifest('store/good-1.0.0/node_modules/good', '1.0.0', { license: 'MIT' }),
+    ...manifest('packages/sdk', '0.0.0', { license: 'MIT' }),
+    ...manifest('packages/sdk/node_modules/inner', '1.0.0', { license: 'GPL-3.0' }),
+    'node_modules/.keep': '',
+  });
+  try {
+    const link = (target, at) => {
+      fs.mkdirSync(path.dirname(path.join(root, at)), { recursive: true });
+      fs.symlinkSync(path.relative(path.dirname(path.join(root, at)), path.join(root, target)), path.join(root, at), 'dir');
+    };
+    link('store/weak-3.0.0/node_modules/weak', 'node_modules/weak'); // the dependency `dep` sits beside the target, as pnpm puts it
+    link('store/good-1.0.0/node_modules/good', 'node_modules/good');
+    link('store/good-1.0.0/node_modules/good', 'node_modules/alias'); // a second link to the same package
+    link('packages/sdk', 'node_modules/@ai-bdd/sdk'); // a workspace link: inner is reached only through its target
+    link('store/missing', 'node_modules/dangling');
+    link('node_modules', 'packages/sdk/node_modules/loop/node_modules'); // a cycle back to the root
+    const r = checkLicenses(root);
+    assert.deepEqual(offenders(r), ['dep@1.0.0', 'inner@1.0.0', 'weak@3.0.0']);
+    assert.equal(r.summary, '5 packages scanned', 'good is counted once although two links lead to it');
+  } finally {
+    cleanup(root);
+  }
+});
+
 test('fails clearly when dependencies are not installed', () => {
   const root = makeRepo({});
   try {
     const r = checkLicenses(root);
     assert.equal(r.ok, false);
-    assert.match(r.problems[0], /pnpm install/);
+    assert.equal(r.problems[0], 'node_modules not found: install the dependencies first');
   } finally {
     cleanup(root);
   }

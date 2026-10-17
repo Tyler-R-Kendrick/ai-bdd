@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Scans installed packages (node_modules/.pnpm) and reports licenses outside the allowlist.
+// Scans the installed packages (node_modules, in whatever layout the package manager chose) and reports licenses outside the allowlist.
 // Optional exceptions live in scripts/license-exceptions.json as { "<name>" | "<name>@<version>": "<reason>" }.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -89,63 +89,91 @@ export function licenseExpression(pkg) {
   return undefined;
 }
 
-function listInstalledPackages(root) {
-  const store = path.join(root, 'node_modules', '.pnpm');
-  const found = new Map();
-  let dirs;
+/** Real path of `p`, or undefined when it does not resolve (a dangling symlink, a race with a deletion). */
+function real(p) {
   try {
-    dirs = fs.readdirSync(store, { withFileTypes: true });
+    return fs.realpathSync(p);
   } catch {
-    return null;
+    return undefined;
   }
-  const consider = (dir) => {
-    let st;
-    try {
-      st = fs.lstatSync(dir);
-    } catch {
-      return;
-    }
-    if (st.isSymbolicLink() || !st.isDirectory()) return; // symlinks are other packages' dependencies
-    const file = path.join(dir, 'package.json');
-    if (!fs.existsSync(file)) return;
-    try {
-      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (pkg && typeof pkg.name === 'string') found.set(`${pkg.name}@${pkg.version ?? '0.0.0'}`, pkg);
-    } catch {
-      /* unreadable package.json: skipped, nothing to attribute */
-    }
-  };
-  for (const d of dirs) {
-    if (!d.isDirectory() || d.name === 'node_modules') continue;
-    const nm = path.join(store, d.name, 'node_modules');
-    let entries;
-    try {
-      entries = fs.readdirSync(nm, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const e of entries) {
-      if (e.name.startsWith('.')) continue;
-      if (e.name.startsWith('@')) {
-        let scoped = [];
-        try {
-          scoped = fs.readdirSync(path.join(nm, e.name));
-        } catch {
-          /* not a directory */
-        }
-        for (const s of scoped) consider(path.join(nm, e.name, s));
-      } else {
-        consider(path.join(nm, e.name));
+}
+
+function isDirectory(p) {
+  try {
+    return fs.statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function readDir(dir) {
+  try {
+    return fs.readdirSync(dir).sort();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Every installed package, whatever layout the package manager chose. The walk starts at the root `node_modules` and follows
+ * nested `node_modules` directories and the targets of symlinks (workspace links, pnpm's `.pnpm` store, a hoisted or a nested
+ * tree), and reads each real package directory once, however many links lead to it. A package's dependencies are looked for in
+ * its own `node_modules` and in the `node_modules` that holds it (where pnpm puts them). Returns null when there is no
+ * `node_modules` at all.
+ */
+function listInstalledPackages(root) {
+  const top = path.join(root, 'node_modules');
+  if (!isDirectory(top)) return null;
+  const found = new Map();
+  const scannedDirs = new Set();
+  const visitedPackages = new Set();
+  const queue = [top];
+
+  const visitPackage = (dir) => {
+    const target = real(dir);
+    if (target === undefined || visitedPackages.has(target) || !isDirectory(target)) return;
+    visitedPackages.add(target);
+    const file = path.join(target, 'package.json');
+    if (fs.existsSync(file)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (pkg && typeof pkg.name === 'string') found.set(`${pkg.name}@${pkg.version ?? '0.0.0'}`, pkg);
+      } catch {
+        /* unreadable package.json: skipped, nothing to attribute */
       }
     }
-  }
+    queue.push(path.join(target, 'node_modules'));
+    const holder = path.dirname(target);
+    queue.push(path.basename(holder).startsWith('@') ? path.dirname(holder) : holder);
+  };
+
+  const scanNodeModules = (dir) => {
+    if (path.basename(dir) !== 'node_modules') return;
+    const target = real(dir);
+    if (target === undefined || scannedDirs.has(target) || !isDirectory(target)) return;
+    scannedDirs.add(target);
+    for (const name of readDir(target)) {
+      const entry = path.join(target, name);
+      if (name === '.pnpm') {
+        for (const stored of readDir(entry)) queue.push(path.join(entry, stored, 'node_modules'));
+      } else if (name.startsWith('.')) {
+        continue; // .bin, and the package managers' own state files
+      } else if (name.startsWith('@')) {
+        for (const scoped of readDir(entry)) visitPackage(path.join(entry, scoped));
+      } else {
+        visitPackage(entry);
+      }
+    }
+  };
+
+  while (queue.length > 0) scanNodeModules(queue.shift());
   return found;
 }
 
 export function checkLicenses(root) {
   const installed = listInstalledPackages(root);
   if (installed === null) {
-    return { ok: false, problems: ['node_modules/.pnpm not found: run pnpm install first'] };
+    return { ok: false, problems: ['node_modules not found: install the dependencies first'] };
   }
   let exceptions = {};
   const exFile = path.join(root, 'scripts', 'license-exceptions.json');
