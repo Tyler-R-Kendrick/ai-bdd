@@ -2,8 +2,9 @@ import { readFile, readdir, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { resolveConfig } from '../../src/config/index.ts';
-import { AiBddError, type Engine } from '../../src/contracts/index.ts';
-import { createEngine } from '../../src/engine/index.ts';
+import { AiBddError, type Clock, type Engine, type RunReport, type ScenarioResult } from '../../src/contracts/index.ts';
+import { createEngine, type EngineModules } from '../../src/engine/index.ts';
+import { createRedactor } from '../../src/evidence/index.ts';
 import { makeFixture, totalModelCalls, type Fixture } from './fakes.ts';
 
 const open: { fx: Fixture; engine: Engine }[] = [];
@@ -119,6 +120,39 @@ describe('secrets (R-SE1)', () => {
     expect(JSON.stringify(report)).toContain('<secret:adminPassword>');
     const latest = join(dirname(config.runsDir), 'report', 'report.json');
     expect(await readFile(latest, 'utf8')).not.toContain(SECRET);
+  });
+
+  it("R-SE1: the engine's own runId, startedAt and finishedAt keep their text; the same secret anywhere else is redacted", async () => {
+    const PIN = '2026';
+    // A clock in 2026 whose millisecond count ends in 0x2026: the year is in both timestamps and the uuidv7 runId reads xxxxxxxx-2026-...
+    const now = Math.floor(Date.UTC(2026, 9, 17, 3, 37, 26) / 0x10000) * 0x10000 + 0x2026;
+    const clock: Clock = { now: () => now, sleep: () => Promise.resolve() };
+    const iso = new Date(now).toISOString();
+    const fx = await makeFixture({ user: { secrets: { PIN: { env: 'AI_BDD_PIN' } } } });
+    const modules: EngineModules = {
+      ...fx.modules,
+      createRedactor, // the real redactor, not the fixture's
+      createRunner: (deps) => {
+        const runner = fx.modules.createRunner(deps);
+        // a step whose output carries the secret value, once alone and once inside a timestamp: the exemption is by path, not by shape
+        const message = `card expires ${PIN}, retry at ${iso}`;
+        const withPin = (r: ScenarioResult): ScenarioResult => ({ ...r, steps: r.steps.map((st) => ({ ...st, error: { code: 'CHECK_FAILED', message, retryable: false } })) });
+        return { runScenario: async (t, o) => withPin(await runner.runScenario(t, o)), runAll: async (ts, o) => (await runner.runAll(ts, o)).map(withPin) };
+      },
+    };
+    const engine = await createEngine(fx.config, { modules, clock, env: { AI_BDD_PIN: PIN } });
+    open.push({ fx, engine });
+    const report = await engine.run();
+    const written = JSON.parse(await readFile(join(dirname(fx.config.runsDir), 'report', 'report.json'), 'utf8')) as RunReport;
+    expect(iso.slice(0, 5), 'precondition: the secret occurs in both timestamps').toBe(`${PIN}-`);
+    expect(fx.world.evidences[0]?.runId.split('-')[1], 'precondition: and in the name of the run directory').toBe(PIN);
+
+    for (const r of [report, written]) {
+      expect(await readdir(fx.config.runsDir)).toEqual([r.runId]); // runId is the name of the run directory
+      expect([r.startedAt, r.finishedAt]).toEqual([iso, iso]);
+      const redacted = `card expires <secret:PIN>, retry at <secret:PIN>${iso.slice(4)}`;
+      expect(r.scenarios.map((sc) => sc.steps[0]?.error?.message)).toEqual(r.scenarios.map(() => redacted));
+    }
   });
 
   it('R-SE1: a secret whose env value is shorter than 4 characters is SECRET_TOO_SHORT at engine creation', async () => {

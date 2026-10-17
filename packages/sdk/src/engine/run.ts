@@ -179,8 +179,11 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
       warnings,
       exitCode: computeRunExitCode(results, { strict, modelUnavailable: usage.unavailable > 0, compileFailed }),
     };
-    // Reports are redacted like every other artifact before they touch the disk (R-SE1).
-    const safe = core.redactor().redactJson(report as unknown as JsonValue) as unknown as RunReport;
+    // Reports are redacted like every other artifact before they touch the disk (R-SE1), except the three top-level fields the
+    // engine computes itself from its id generator and clock. No input reaches them, so they hide nothing; redacting a secret that
+    // happens to occur in them (a PIN equal to the year) would only make runId name no run directory and break the timestamps.
+    const redacted = core.redactor().redactJson(report as unknown as JsonValue) as unknown as RunReport;
+    const safe: RunReport = { ...redacted, runId: report.runId, startedAt: report.startedAt, finishedAt: report.finishedAt };
     await writeReports(core, safe, evidence.dir, opts.reporters, plans);
     core.emit({ type: 'run-end', report: safe });
     return safe;
