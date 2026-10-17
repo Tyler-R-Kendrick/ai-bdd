@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { buildOrder, main, readPackages, scriptEnv } from '../build-packages.mjs';
+import { buildOrder, main, readPackages, scriptEnv, workspacePatterns } from '../build-packages.mjs';
 import { cleanup, makeRepo } from './fixture.mjs';
 
 const manifest = (name, build, deps = {}, dev = {}) => ({ name, version: '0.0.0', scripts: build === undefined ? {} : { build }, dependencies: deps, devDependencies: dev });
@@ -24,6 +24,45 @@ test('readPackages lists packages/*/package.json in directory order and ignores 
   } finally {
     cleanup(root);
   }
+});
+
+test('workspacePatterns reads the packages list of pnpm-workspace.yaml, block or flow, and nothing else', () => {
+  const block = ['# the workspace', 'packages:', "  - 'apps/*'   # apps", '  - "tools/x"', '', '  - libs/**', "  - '!libs/old'", 'overrides:', '  qs: ">=6"'].join('\n');
+  assert.deepEqual(workspacePatterns(block), ['apps/*', 'tools/x', 'libs/**', '!libs/old']);
+  assert.deepEqual(workspacePatterns("packages: ['a/*', \"b\"]  # flow\n"), ['a/*', 'b']);
+  assert.deepEqual(workspacePatterns("packages:\r\n  - 'it''s/*'\r\n"), ["it's/*"]);
+  assert.equal(workspacePatterns('overrides:\n  qs: x\n'), undefined);
+});
+
+test('readPackages takes the packages pnpm-workspace.yaml lists, with globs and exclusions, and never the root', () => {
+  const root = makeRepo({
+    'pnpm-workspace.yaml': ['packages:', "  - 'apps/*'", '  - tools/x', '  - libs/**', "  - '!libs/old'", '  - .'].join('\n'),
+    'package.json': manifest('root', 'node scripts/build-packages.mjs'),
+    'apps/web/package.json': manifest('@x/web', 'tsc'),
+    'apps/notes/README.md': 'no manifest',
+    'tools/x/package.json': manifest('@x/tool', 'tsc'),
+    'tools/y/package.json': manifest('@x/not-listed', 'tsc'),
+    'libs/a/b/package.json': manifest('@x/deep', 'tsc'),
+    'libs/old/package.json': manifest('@x/old', 'tsc'),
+    'libs/a/node_modules/dep/package.json': manifest('dep', 'tsc'),
+    'packages/sdk/package.json': manifest('@x/sdk', 'tsc'),
+  });
+  try {
+    assert.deepEqual(readPackages(root).map((p) => [p.name, p.where]), [['@x/web', 'apps/web'], ['@x/deep', 'libs/a/b'], ['@x/tool', 'tools/x']]);
+    fs.writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'overrides:\n  qs: x\n');
+    assert.throws(() => readPackages(root), /^Error: pnpm-workspace\.yaml has no packages list$/);
+    fs.rmSync(path.join(root, 'pnpm-workspace.yaml'));
+    assert.deepEqual(readPackages(root).map((p) => p.where), ['packages/sdk'], 'with no pnpm-workspace.yaml, packages/* is the workspace');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("this repository's workspace is pnpm-workspace.yaml's packages/*: the eight packages", () => {
+  const repo = path.resolve(import.meta.dirname, '..', '..');
+  assert.deepEqual(workspacePatterns(fs.readFileSync(path.join(repo, 'pnpm-workspace.yaml'), 'utf8')), ['packages/*']);
+  const dirs = fs.readdirSync(path.join(repo, 'packages')).filter((d) => fs.existsSync(path.join(repo, 'packages', d, 'package.json'))).sort();
+  assert.deepEqual(readPackages(repo).map((p) => p.where), dirs.map((d) => `packages/${d}`));
 });
 
 test('buildOrder puts every package after the workspace packages it depends on, in any dependency field and with any range', () => {

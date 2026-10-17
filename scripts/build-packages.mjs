@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// Builds every workspace package (packages/*) in dependency order, with no package manager: each package's own `build` script
+// Builds every workspace package in dependency order, with no package manager. The workspace is the `packages` list of
+// pnpm-workspace.yaml (globs, `!` exclusions), or packages/* when there is no such file. Each package's own `build` script
 // runs the way a package manager's `run` runs it, through the shell, in the package's directory, with the `node_modules/.bin`
 // directories from the package up to the repository root first on PATH. The first failure stops the build and names the package.
 //
 //   node scripts/build-packages.mjs [--root <dir>]
 //
 // A package without a `build` script is skipped. A dependency on another workspace package (in any dependency field, whatever the
-// version range says) orders that package first; packages that do not depend on each other build in directory-name order.
+// version range says) orders that package first; packages that do not depend on each other build in path order.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,27 +15,107 @@ import { isMain, parseArgs } from './lib.mjs';
 
 const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
 
-/** The workspace packages: every `packages/<dir>/package.json`, sorted by directory name. */
-export function readPackages(root) {
-  const base = path.join(root, 'packages');
+/** The workspace when there is no pnpm-workspace.yaml. */
+const DEFAULT_PATTERNS = ['packages/*'];
+
+/** A YAML scalar written as a list item: a single- or double-quoted string, or plain text up to a comment. */
+function scalar(raw) {
+  const s = raw.trim();
+  const single = /^'((?:[^']|'')*)'/.exec(s);
+  if (single) return single[1].replaceAll("''", "'");
+  const double = /^"(?:[^"\\]|\\.)*"/.exec(s);
+  if (double) return JSON.parse(double[0]);
+  return s.replace(/(^|\s)#.*$/, '').trim();
+}
+
+/**
+ * The `packages` list of a pnpm-workspace.yaml, as a block list (`  - 'packages/*'`) or a flow list (`['packages/*']`); undefined
+ * when the file has no such key. Nothing else in the file is read.
+ */
+export function workspacePatterns(text) {
+  const lines = text.split(/\r?\n/);
+  const at = lines.findIndex((l) => /^packages\s*:/.test(l));
+  if (at === -1) return undefined;
+  const rest = lines[at].replace(/^packages\s*:\s*/, '').replace(/^#.*$/, '').trim();
+  if (rest.startsWith('[')) {
+    const body = /^\[(.*)\]/.exec(rest)?.[1] ?? '';
+    return body.split(',').map(scalar).filter((x) => x !== '');
+  }
+  const out = [];
+  for (const line of lines.slice(at + 1)) {
+    if (/^\s*(#.*)?$/.test(line)) continue;
+    const item = /^\s+-\s*(.*)$/.exec(line);
+    if (item === null) break;
+    out.push(scalar(item[1]));
+  }
+  return out;
+}
+
+/** Directories below `dir` (relative to `root`, POSIX separators), node_modules and dot directories left out, as `*` does. */
+function subdirs(root, dir) {
   let entries;
   try {
-    entries = fs.readdirSync(base, { withFileTypes: true });
+    entries = fs.readdirSync(path.join(root, dir), { withFileTypes: true });
   } catch {
     return [];
   }
+  return entries.filter((e) => e.isDirectory() && e.name !== 'node_modules' && !e.name.startsWith('.')).map((e) => (dir === '' ? e.name : `${dir}/${e.name}`));
+}
+
+/** The directories a workspace pattern names: `*` and `?` within one segment, `**` for any depth, anything else literally. */
+function expandPattern(root, pattern) {
+  let dirs = [''];
+  for (const seg of pattern.replace(/^\.\//, '').replace(/\/+$/, '').split('/').filter((x) => x !== '' && x !== '.')) {
+    const next = [];
+    for (const d of dirs) {
+      if (seg === '**') {
+        const stack = [d];
+        while (stack.length > 0) {
+          const cur = stack.pop();
+          next.push(cur);
+          stack.push(...subdirs(root, cur));
+        }
+      } else if (/[*?]/.test(seg)) {
+        const re = new RegExp(`^${seg.replace(/[.+^${}()|[\]\\]/g, '\\$&').replaceAll('*', '[^/]*').replaceAll('?', '[^/]')}$`);
+        next.push(...subdirs(root, d).filter((x) => re.test(x.slice(x.lastIndexOf('/') + 1))));
+      } else if (fs.existsSync(path.join(root, d, seg))) {
+        next.push(d === '' ? seg : `${d}/${seg}`);
+      }
+    }
+    dirs = [...new Set(next)];
+  }
+  return dirs;
+}
+
+/** The workspace patterns: pnpm-workspace.yaml's `packages` list, or `packages/*` when there is no such file. */
+function patternsOf(root) {
+  const file = path.join(root, 'pnpm-workspace.yaml');
+  if (!fs.existsSync(file)) return DEFAULT_PATTERNS;
+  const patterns = workspacePatterns(fs.readFileSync(file, 'utf8'));
+  if (patterns === undefined || patterns.length === 0) throw new Error('pnpm-workspace.yaml has no packages list');
+  return patterns;
+}
+
+/**
+ * The workspace packages: each directory with a package.json that the workspace patterns name, `!` patterns taken out, sorted
+ * by path. The repository root is never one of them (its own `build` is this script).
+ */
+export function readPackages(root) {
+  const include = new Set();
+  const exclude = new Set();
+  for (const p of patternsOf(root)) for (const d of expandPattern(root, p.replace(/^!/, ''))) (p.startsWith('!') ? exclude : include).add(d);
   const out = [];
-  for (const e of entries.filter((x) => x.isDirectory()).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
-    const file = path.join(base, e.name, 'package.json');
+  for (const where of [...include].filter((d) => d !== '' && !exclude.has(d)).sort()) {
+    const dir = path.join(root, ...where.split('/'));
+    const file = path.join(dir, 'package.json');
     if (!fs.existsSync(file)) continue;
-    const dir = path.join(base, e.name);
     let manifest;
     try {
       manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (err) {
-      throw new Error(`${path.relative(root, file).split(path.sep).join('/')} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(`${where}/package.json is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
     }
-    out.push({ name: typeof manifest.name === 'string' ? manifest.name : e.name, dir, where: path.relative(root, dir).split(path.sep).join('/'), manifest });
+    out.push({ name: typeof manifest.name === 'string' ? manifest.name : path.basename(dir), dir, where, manifest });
   }
   return out;
 }

@@ -17,7 +17,7 @@ ai-bdd tests itself with ten kinds of test. Each answers a different question, a
 
 The live end to end test (`pnpm test:live`, a real provider model and a real browser) is separate: it costs tokens and is run on demand.
 
-The commands above use pnpm, the repository's documented package manager (`packageManager`, `pnpm-lock.yaml` and CI). No step needs it, though: after the dependencies are installed by any package manager, every root script runs plain Node or a binary from `node_modules/.bin`. `build` is `node scripts/build-packages.mjs`, which runs each package's own `build` script in dependency order.
+The commands above use pnpm, the repository's documented package manager (`packageManager`, `pnpm-lock.yaml` and CI). No step needs it, though: after the dependencies are installed by any package manager, every root script runs plain Node or a binary from `node_modules/.bin`. `build` is `node scripts/build-packages.mjs`, which runs the own `build` script of each package `pnpm-workspace.yaml` lists, in dependency order.
 
 ## Unit tests
 
