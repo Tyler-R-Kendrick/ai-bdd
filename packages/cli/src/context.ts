@@ -39,10 +39,25 @@ export function createCtx(io: CliIo, deps: CliDeps): Ctx {
     for (const v of [...secrets].sort((a, b) => b.length - a.length)) r = r.split(v).join('[redacted]');
     return r;
   };
-  /** Scrubs every part of `s` around the `keep` strings, and leaves those as they are. */
+  /** Every [start, end) at which `needle` occurs in `s`, overlapping occurrences included. */
+  const spansOf = (s: string, needle: string): [number, number][] => {
+    const out: [number, number][] = [];
+    for (let i = s.indexOf(needle); i !== -1; i = s.indexOf(needle, i + 1)) out.push([i, i + needle.length]);
+    return out;
+  };
+  /**
+   * Scrubs `s` but prints the `keep` strings as they are. When a secret crosses the edge of a kept string (it starts before it and
+   * ends inside it, say), keeping the string would print part of the secret beside the rest, so the whole line is scrubbed.
+   */
   const scrubKeeping = (s: string, keep: readonly string[]): string => {
-    const [first, ...rest] = keep.filter((k) => k.length > 0);
-    return first === undefined ? scrub(s) : s.split(first).map((part) => scrubKeeping(part, rest)).join(first);
+    const kept = keep.filter((k) => k.length > 0).flatMap((k) => spansOf(s, k));
+    const crosses = ([a, b]: [number, number]): boolean => kept.some(([x, y]) => a < y && b > x && !(a >= x && b <= y));
+    if (kept.length === 0 || [...secrets].some((v) => spansOf(s, v).some(crosses))) return scrub(s);
+    const split = (part: string, rest: readonly string[]): string => {
+      const [first, ...others] = rest;
+      return first === undefined ? scrub(part) : part.split(first).map((p) => split(p, others)).join(first);
+    };
+    return split(s, keep.filter((k) => k.length > 0));
   };
   return {
     io,
