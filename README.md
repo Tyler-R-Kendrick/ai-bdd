@@ -4,6 +4,19 @@ Turn plain markdown (requirements, READMEs, design docs, runbooks) into executab
 
 You write prose. `ai-bdd` extracts features, user stories and Given/When/Then scenarios from it, binds every one to the exact paragraphs and quotes it came from, and runs them against your app. The first run of a scenario uses an AI agent and an AI judge. Everything that proves deterministic is recorded, and later runs replay it with **zero model calls**. What cannot be made deterministic stays AI-driven and is labelled `fuzzy`, with the reason.
 
+**Status:** Active development. Packages are not yet published to npm.
+
+## AI usage disclosure
+
+Maintainers and contributors may use AI coding tools. Human review is required before a change is merged. See [CONTRIBUTING.md](CONTRIBUTING.md#ai-assisted-contributions).
+
+## Community
+
+- [Contributing](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md) (how to report a vulnerability)
+- [Governance](GOVERNANCE.md)
+
 ## Why
 
 | Problem with "ask an LLM to test my docs" | What ai-bdd does |
