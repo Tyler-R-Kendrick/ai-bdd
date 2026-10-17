@@ -1,7 +1,9 @@
 import type {
   DocPlan,
   ExitCode,
+  JsonValue,
   ModelPurpose,
+  Redactor,
   RunReport,
   ScenarioResult,
   ScenarioStatus,
@@ -79,4 +81,14 @@ export function buildUsage(
     byPurpose,
     ...(costUsd === undefined ? {} : { estimatedCostUsd: Math.round(costUsd * 1e6) / 1e6 }),
   };
+}
+
+/**
+ * The report as it is returned and written: redacted like every other artifact (R-SE1), except the three top-level fields the
+ * engine computes itself from its id generator and clock. No input reaches them, so they hide nothing; redacting a secret that
+ * happens to occur in them (a PIN equal to the year) would only make runId name no run directory and break the timestamps.
+ */
+export function redactReport(redactor: Redactor, report: RunReport): RunReport {
+  const redacted = redactor.redactJson(report as unknown as JsonValue) as unknown as RunReport;
+  return { ...redacted, runId: report.runId, startedAt: report.startedAt, finishedAt: report.finishedAt };
 }
