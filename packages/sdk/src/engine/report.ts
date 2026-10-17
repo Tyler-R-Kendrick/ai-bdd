@@ -84,11 +84,31 @@ export function buildUsage(
 }
 
 /**
- * The report as it is returned and written: redacted like every other artifact (R-SE1), except the three top-level fields the
- * engine computes itself from its id generator and clock. No input reaches them, so they hide nothing; redacting a secret that
- * happens to occur in them (a PIN equal to the year) would only make runId name no run directory and break the timestamps.
+ * The report fields that hold arbitrary JSON (an error's or warning's `details`, a predicate's `actual`). Their keys come from
+ * pages, models and errors, so they are data and can carry a secret. Every other key of the report is fixed by its schema.
+ */
+export const REPORT_DATA_FIELDS: ReadonlySet<string> = new Set(['details', 'actual']);
+
+/**
+ * The report as it is returned and written, redacted like every other artifact (R-SE1):
+ * - every string value is redacted, and inside the data fields (REPORT_DATA_FIELDS) every key too;
+ * - the keys the schema fixes are kept as they are: a secret equal to a field name (`code`) must not rename the field and make the
+ *   report invalid, and the name hides nothing, since the engine writes it whatever the secret is;
+ * - the three top-level fields the engine computes itself from its id generator and clock keep their text. No input reaches them,
+ *   so they hide nothing; redacting a secret that happens to occur in them (a PIN equal to the year) would only make runId name no
+ *   run directory and break the timestamps.
  */
 export function redactReport(redactor: Redactor, report: RunReport): RunReport {
-  const redacted = redactor.redactJson(report as unknown as JsonValue) as unknown as RunReport;
+  const walk = (value: JsonValue): JsonValue => {
+    if (typeof value === 'string') return redactor.redact(value);
+    if (Array.isArray(value)) return value.map(walk);
+    if (value === null || typeof value !== 'object') return value;
+    const entries: [string, JsonValue][] = [];
+    for (const [key, v] of Object.entries(value)) {
+      if (v !== undefined) entries.push([key, REPORT_DATA_FIELDS.has(key) ? redactor.redactJson(v) : walk(v)]);
+    }
+    return Object.fromEntries(entries);
+  };
+  const redacted = walk(report as unknown as JsonValue) as unknown as RunReport;
   return { ...redacted, runId: report.runId, startedAt: report.startedAt, finishedAt: report.finishedAt };
 }
