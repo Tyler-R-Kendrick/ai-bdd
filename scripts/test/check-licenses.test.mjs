@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { test } from 'node:test';
 import { checkLicenses, isAllowedExpression, licenseExpression } from '../check-licenses.mjs';
 import { cleanup, makeRepo } from './fixture.mjs';
@@ -22,7 +24,7 @@ const store = (name, version, pkgJson) => ({
   [`node_modules/.pnpm/${name.replace('/', '+')}@${version}/node_modules/${name}/package.json`]: { name, version, ...pkgJson },
 });
 
-test('reports offenders from the pnpm store and honours the exceptions file', () => {
+test('reports offenders from pnpm\'s store layout and honours the exceptions file', () => {
   const files = {
     ...store('good', '1.0.0', { license: 'MIT' }),
     ...store('@scope/dual', '2.0.0', { license: '(MIT OR GPL-3.0)' }),
@@ -46,12 +48,113 @@ test('reports offenders from the pnpm store and honours the exceptions file', ()
   }
 });
 
+// a package.json at `dir`, named after the path below its last node_modules (or packages) directory
+const manifest = (dir, version, pkgJson) => {
+  const name = dir.split(/(?:^|\/)(?:node_modules|packages)\//).at(-1);
+  return { [`${dir}/package.json`]: { name, version, ...pkgJson } };
+};
+const offenders = (r) => r.problems.map((p) => p.split(':')[0]);
+
+test('reads a plain nested layout: every node_modules level, scoped packages included', () => {
+  const root = makeRepo({
+    ...manifest('node_modules/good', '1.0.0', { license: 'MIT' }),
+    ...manifest('node_modules/good/node_modules/bad', '1.0.0', { license: 'GPL-3.0' }),
+    ...manifest('node_modules/@scope/tool', '2.0.0', { license: 'ISC' }),
+    ...manifest('node_modules/@scope/tool/node_modules/nolic', '1.0.0', {}),
+    ...manifest('node_modules/@scope/tool/node_modules/good', '0.9.0', { license: 'MIT' }),
+    'node_modules/.bin/tool': '#!/bin/sh',
+    'node_modules/.package-lock.json': {},
+  });
+  try {
+    const r = checkLicenses(root);
+    assert.deepEqual(offenders(r), ['bad@1.0.0', 'nolic@1.0.0']);
+    assert.equal(r.summary, '5 packages scanned');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('follows symlinks to their targets, reads each real package once, and survives dangling links and cycles', () => {
+  const root = makeRepo({
+    ...manifest('store/weak-3.0.0/node_modules/weak', '3.0.0', { license: 'MPL-2.0' }),
+    ...manifest('store/weak-3.0.0/node_modules/dep', '1.0.0', { license: 'GPL-2.0' }),
+    ...manifest('store/good-1.0.0/node_modules/good', '1.0.0', { license: 'MIT' }),
+    ...manifest('packages/sdk', '0.0.0', { license: 'MIT' }),
+    ...manifest('packages/sdk/node_modules/inner', '1.0.0', { license: 'GPL-3.0' }),
+    'node_modules/.keep': '',
+  });
+  try {
+    const link = (target, at) => {
+      fs.mkdirSync(path.dirname(path.join(root, at)), { recursive: true });
+      fs.symlinkSync(path.relative(path.dirname(path.join(root, at)), path.join(root, target)), path.join(root, at), 'dir');
+    };
+    link('store/weak-3.0.0/node_modules/weak', 'node_modules/weak'); // the dependency `dep` sits beside the target, as pnpm puts it
+    link('store/good-1.0.0/node_modules/good', 'node_modules/good');
+    link('store/good-1.0.0/node_modules/good', 'node_modules/alias'); // a second link to the same package
+    link('packages/sdk', 'node_modules/@ai-bdd/sdk'); // a workspace link: inner is reached only through its target
+    link('store/missing', 'node_modules/dangling');
+    link('node_modules', 'packages/sdk/node_modules/loop/node_modules'); // a cycle back to the root
+    const r = checkLicenses(root);
+    assert.deepEqual(offenders(r), ['dep@1.0.0', 'inner@1.0.0', 'weak@3.0.0']);
+    assert.equal(r.summary, '5 packages scanned, 1 of them in the workspace', 'good is counted once although two links lead to it');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('workspace packages reached through links are counted as such, and a problem names one as a workspace package', () => {
+  const root = makeRepo({
+    ...manifest('packages/sdk', '0.1.0', { license: 'MIT' }),
+    ...manifest('packages/tool', '0.1.0', {}),
+    ...manifest('node_modules/zod', '4.0.0', { license: 'MIT' }),
+  });
+  try {
+    for (const name of ['sdk', 'tool']) fs.symlinkSync(path.join('..', 'packages', name), path.join(root, 'node_modules', name), 'dir');
+    const r = checkLicenses(root);
+    assert.deepEqual(r.problems, ['tool@0.1.0 (workspace package): no license declared']);
+    assert.equal(r.summary, '3 packages scanned, 2 of them in the workspace');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('a link that leaves the repository is refused by name, and nothing beyond it is read', () => {
+  const root = makeRepo({ ...manifest('node_modules/good', '1.0.0', { license: 'MIT' }) });
+  const outside = makeRepo({
+    ...manifest('global/lib/node_modules/linked', '1.0.0', { license: 'MIT' }),
+    ...manifest('global/lib/node_modules/unrelated-gpl', '1.0.0', { license: 'GPL-3.0' }),
+  });
+  try {
+    fs.symlinkSync(path.join(outside, 'global/lib/node_modules/linked'), path.join(root, 'node_modules/linked'), 'dir');
+    const r = checkLicenses(root);
+    assert.deepEqual(r.problems, [`node_modules/linked: a link to ${fs.realpathSync(path.join(outside, 'global/lib/node_modules/linked'))}, outside the repository; not followed`]);
+    assert.equal(r.summary, '1 packages scanned');
+  } finally {
+    cleanup(root);
+    cleanup(outside);
+  }
+});
+
+test('a root node_modules that is itself a link to another directory is scanned there', () => {
+  const root = makeRepo({});
+  const elsewhere = makeRepo({ ...manifest('node_modules/good', '1.0.0', { license: 'MIT' }), ...manifest('node_modules/bad', '1.0.0', { license: 'GPL-3.0' }) });
+  try {
+    fs.symlinkSync(path.join(elsewhere, 'node_modules'), path.join(root, 'node_modules'), 'dir');
+    const r = checkLicenses(root);
+    assert.deepEqual(offenders(r), ['bad@1.0.0']);
+    assert.equal(r.summary, '2 packages scanned');
+  } finally {
+    cleanup(root);
+    cleanup(elsewhere);
+  }
+});
+
 test('fails clearly when dependencies are not installed', () => {
   const root = makeRepo({});
   try {
     const r = checkLicenses(root);
     assert.equal(r.ok, false);
-    assert.match(r.problems[0], /pnpm install/);
+    assert.equal(r.problems[0], 'node_modules not found: install the dependencies first');
   } finally {
     cleanup(root);
   }

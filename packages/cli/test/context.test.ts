@@ -55,6 +55,25 @@ describe('createCtx: output and secret scrubbing (R-SE1)', () => {
     expect(buf.stderr).toBe('x [redacted] y [redacted]\n');
   });
 
+  it('out(line, keep) prints the keep strings as they are and scrubs everything around them', () => {
+    const { buf, io } = capture();
+    const ctx = createCtx(io, {});
+    ctx.addSecrets(['2026', 'other-secret']);
+    ctx.out('a 2026 b id-2026-x c other-secret 2026', ['id-2026-x']);
+    ctx.out('id-2026-x and id-2026-x', ['id-2026-x', '', 'nothing-here']);
+    ctx.out('2026', []);
+    expect(buf.stdout).toBe('a [redacted] b id-2026-x c [redacted] [redacted]\nid-2026-x and id-2026-x\n[redacted]\n');
+  });
+
+  it('out(line, keep): a secret that crosses the edge of a kept string is scrubbed, kept characters included', () => {
+    const { buf, io } = capture();
+    const ctx = createCtx(io, {});
+    const runId = '0199f1a2-2026-7abc-8def-0123456789ab';
+    ctx.addSecrets(['xy/0199f1a2']); // the tail of the runs dir, the separator and the head of the run id
+    ctx.out(`Run: /proj/xy/${runId}`, [runId]);
+    expect(buf.stdout).toBe('Run: /proj/[redacted]-2026-7abc-8def-0123456789ab\n');
+  });
+
   it('ignores undefined values and values shorter than four characters', () => {
     const { buf, io } = capture();
     const ctx = createCtx(io, {});

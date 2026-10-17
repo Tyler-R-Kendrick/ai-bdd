@@ -4,7 +4,6 @@ import {
   AiBddError,
   type Diagnostic,
   type DocPlan,
-  type JsonValue,
   type ReporterName,
   type RunOptions,
   type RunReport,
@@ -16,7 +15,7 @@ import { assertInsideRealRoot, atomicWriteFile, uuidv7 } from '../util/index.ts'
 import { compile } from './compile.ts';
 import { assertOutputDirs } from './guard.ts';
 import type { Core } from './core.ts';
-import { buildUsage, computeCoverage, computeRunExitCode, countTotals } from './report.ts';
+import { buildUsage, computeCoverage, computeRunExitCode, countTotals, redactReport } from './report.ts';
 import { selectTargets } from './scenarios.ts';
 import { errorMessage, throwIfAborted } from './util.ts';
 
@@ -119,7 +118,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
       for (const d of check.docs.filter((x) => x.state !== 'fresh')) {
         warnings.push({ code: 'PLAN_STALE', severity: 'error', message: `Plan for ${d.docUri} is ${d.state}; run "ai-bdd compile" (frozen mode)`, uri: d.docUri });
       }
-      return emptyReport(uuidv7(core.clock.now()), 4);
+      return redactReport(core.redactor(), emptyReport(uuidv7(core.clock.now()), 4)); // its warnings name docs: redacted like any report
     }
     if (check.exitCode === 2) {
       warnings.push(...check.docs.flatMap((d) => d.diagnostics.filter((x) => x.severity === 'error')));
@@ -179,11 +178,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
       warnings,
       exitCode: computeRunExitCode(results, { strict, modelUnavailable: usage.unavailable > 0, compileFailed }),
     };
-    // Reports are redacted like every other artifact before they touch the disk (R-SE1), except the three top-level fields the
-    // engine computes itself from its id generator and clock. No input reaches them, so they hide nothing; redacting a secret that
-    // happens to occur in them (a PIN equal to the year) would only make runId name no run directory and break the timestamps.
-    const redacted = core.redactor().redactJson(report as unknown as JsonValue) as unknown as RunReport;
-    const safe: RunReport = { ...redacted, runId: report.runId, startedAt: report.startedAt, finishedAt: report.finishedAt };
+    const safe = redactReport(core.redactor(), report);
     await writeReports(core, safe, evidence.dir, opts.reporters, plans);
     core.emit({ type: 'run-end', report: safe });
     return safe;

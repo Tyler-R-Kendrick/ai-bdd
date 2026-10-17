@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Reads the V8 coverage written by `pnpm coverage` (coverage/coverage-summary.json and coverage/coverage-final.json) and prints
+// Reads the V8 coverage written by the root `coverage` script (coverage/coverage-summary.json and coverage/coverage-final.json) and prints
 //   - a per-package table (lines, branches, functions),
 //   - with --gaps, every file below the line or branch floor with its uncovered line ranges.
 // With $GITHUB_STEP_SUMMARY set it also writes the table as Markdown. Plain Node ESM, no dependencies.
@@ -112,7 +112,7 @@ export function main(argv, { log = console } = {}) {
   const dir = path.resolve(root, rest[0] ?? 'coverage');
   const summaryFile = path.join(dir, 'coverage-summary.json');
   if (!fs.existsSync(summaryFile)) {
-    log.error(`coverage-report: ${summaryFile} not found (run "pnpm coverage" first)`);
+    log.error(`coverage-report: ${summaryFile} not found (run the "coverage" script first)`);
     return 2;
   }
   const summary = JSON.parse(fs.readFileSync(summaryFile, 'utf8'));

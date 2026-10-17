@@ -46,6 +46,19 @@ function missingModel(purpose: ModelPurpose): ChatModel {
   };
 }
 
+/**
+ * A token count a model reported, as the run report can hold it (a non-negative integer). A custom model can return anything, so
+ * a count that is not a finite number of 0 or more is refused with MODEL_OUTPUT_INVALID, and a fractional one is rounded up.
+ */
+function tokenCount(purpose: ModelPurpose, modelId: string, field: 'inputTokens' | 'outputTokens', value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > Number.MAX_SAFE_INTEGER) {
+    throw new AiBddError('MODEL_OUTPUT_INVALID', `the ${purpose} model "${modelId}" reported ${field} = ${String(value)}; a token count is a finite number of 0 or more`, {
+      details: { purpose, field, value: String(value) },
+    });
+  }
+  return Math.ceil(value);
+}
+
 /** Wrap a ModelSet with a usage-counting decorator per purpose. Never mutates the inputs. */
 export function createUsageMeter(
   models: ModelSet | undefined,
@@ -62,11 +75,17 @@ export function createUsageMeter(
       u.modelCalls += 1;
       try {
         // A model call that never returns must not outlive an abort (adapters honor `signal`; custom models may not).
-        const res = await raceAbort(inner.generate(req), req.signal, `${purpose} model call`);
-        u.inputTokens += res.usage.inputTokens;
-        u.outputTokens += res.usage.outputTokens;
+        const raw = await raceAbort(inner.generate(req), req.signal, `${purpose} model call`);
+        // The counts reach the run report through this meter and through the callers' own step usage: both get the checked ones.
+        const usage = {
+          inputTokens: tokenCount(purpose, inner.id, 'inputTokens', (raw.usage as Partial<typeof raw.usage> | undefined)?.inputTokens),
+          outputTokens: tokenCount(purpose, inner.id, 'outputTokens', (raw.usage as Partial<typeof raw.usage> | undefined)?.outputTokens),
+        };
+        const res = { ...raw, usage };
+        u.inputTokens += usage.inputTokens;
+        u.outputTokens += usage.outputTokens;
         const price = prices[res.modelId] ?? prices[inner.id];
-        if (price !== undefined) costUsd += (res.usage.inputTokens / 1e6) * price.inputPerMTok + (res.usage.outputTokens / 1e6) * price.outputPerMTok;
+        if (price !== undefined) costUsd += (usage.inputTokens / 1e6) * price.inputPerMTok + (usage.outputTokens / 1e6) * price.outputPerMTok;
         return res;
       } catch (err) {
         if (err instanceof AiBddError && err.code === 'MODEL_UNAVAILABLE') unavailable += 1;

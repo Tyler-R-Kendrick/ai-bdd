@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Installs Playwright's Chromium (with system dependencies) only when it is missing.
-// Run from a package that depends on playwright-core, e.g.:
-//   pnpm --filter @ai-bdd/driver-playwright exec node ../../scripts/ensure-chromium.mjs
+// Run it with the directory of a package that depends on playwright-core as the working directory, e.g.:
+//   cd packages/driver-playwright && node ../../scripts/ensure-chromium.mjs
 // An existing browser is detected through AI_BDD_CHROMIUM_PATH or playwright-core's own executablePath().
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';

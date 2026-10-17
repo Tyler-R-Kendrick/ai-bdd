@@ -20,13 +20,31 @@ const DIST = /(^|\/)dist(\/|$)/;
 /** The package a bare specifier names: `@scope/name` or `name`. */
 const packageNameOf = (spec) => spec.split('/').slice(0, spec.startsWith('@') ? 2 : 1).join('/');
 
+/** The npm scope of a package name (`@ai-bdd`), or undefined for an unscoped name. */
+const scopeOf = (name) => (name.startsWith('@') && name.includes('/') ? name.slice(0, name.indexOf('/')) : undefined);
+
+/**
+ * A bare specifier in the scope of a workspace package that names no workspace package (`@ai-bdd/ghost`): it cannot resolve to
+ * anything of this repository, so it is a typo or a package that was removed. Returns that package name, or undefined.
+ */
+export const unknownOwnScopePackage = (spec, ownNames) => {
+  const scope = scopeOf(spec);
+  if (scope === undefined || ownNames.has(packageNameOf(spec))) return undefined;
+  return [...ownNames].some((n) => scopeOf(n) === scope) ? packageNameOf(spec) : undefined;
+};
+
 /**
  * Whether `spec` reaches this repository's own modules: a relative or absolute path, a file: URL, a package import (`#...`), or
- * a package whose name is in `ownNames` (the root package and every workspace package, as their package.json files name them).
- * A third-party package's `dist` subpath is its own business.
+ * a package whose name is in `ownNames` (the root package and every workspace package, as their package.json files name them)
+ * or in the scope of one of them. A third-party package's `dist` subpath is its own business.
  */
 export const isOwnCode = (spec, ownNames) =>
-  spec.startsWith('.') || path.isAbsolute(spec) || spec.startsWith('file:') || spec.startsWith('#') || ownNames.has(packageNameOf(spec));
+  spec.startsWith('.') ||
+  path.isAbsolute(spec) ||
+  spec.startsWith('file:') ||
+  spec.startsWith('#') ||
+  ownNames.has(packageNameOf(spec)) ||
+  unknownOwnScopePackage(spec, ownNames) !== undefined;
 
 // Files that legitimately load a module chosen at run time. Each one imports the USER's packages (config files, driver
 // and model packages named in the project's config), never an SDK internal. Literal specifiers in them are still checked.
@@ -201,6 +219,11 @@ export function checkBoundaries(root) {
         // The specifier is computed: it cannot be vetted. Test files may do so; sources must use a static string.
         if (test || !pkg || DYNAMIC_ALLOWED.has(rel)) continue;
         problems.push(imp.kind === 'createRequire' ? `${where}: createRequire() can reach any module; load it with a static import()` : `${where}: the specifier is not a static string and cannot be checked (R-SDK2)`);
+        continue;
+      }
+      const unknown = unknownOwnScopePackage(spec, ownNames);
+      if (unknown !== undefined) {
+        problems.push(`${where}: ${unknown} is not a workspace package`);
         continue;
       }
       if (isOwnCode(spec, ownNames) && DIST.test(spec)) {

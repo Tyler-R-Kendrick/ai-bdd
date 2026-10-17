@@ -105,7 +105,9 @@ test('main: analyzes a repository, writes and enforces a baseline', () => {
     assert.equal(main(['--root', root, '--check'], { log }), 0);
     assert.match(renderRows(analyze(root, JSON.parse(fs.readFileSync(finalFile, 'utf8')))), /42\.0 +6 +0 +packages\/p\/src\/a\.ts#risky/);
     fs.rmSync(finalFile);
+    out.length = 0;
     assert.equal(main(['--root', root], { log }), 2);
+    assert.match(out.join('\n'), /coverage-final\.json not found \(run the "coverage" script first\)/);
   } finally {
     cleanup(root);
   }

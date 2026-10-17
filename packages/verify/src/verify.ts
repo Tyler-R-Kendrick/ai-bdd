@@ -125,10 +125,10 @@ export function verifyValue(ctx: VerifyContext, value: unknown, opts: VerifyOpti
   write(files.received, received);
   const rel = (f: string): string => path.relative(process.cwd(), f);
   if (!hasVerified) {
-    throw new VerifyError(`No verified snapshot yet: ${rel(files.verified)}\nReceived output written to ${rel(files.received)}.\nReview it, then approve with "pnpm verify:accept" (or VERIFY_ACCEPT=1 when running the test locally).`, files);
+    throw new VerifyError(`No verified snapshot yet: ${rel(files.verified)}\nReceived output written to ${rel(files.received)}.\nReview it, then approve it with the "verify:accept" script or "ai-bdd-verify accept" (or VERIFY_ACCEPT=1 when running the test locally).`, files);
   }
   const detail = typeof received === 'string'
     ? unifiedDiff(normalizeText(fs.readFileSync(files.verified, 'utf8')), received)
     : `binary snapshot differs (${(fs.statSync(files.verified).size)} -> ${received.length} bytes)`;
-  throw new VerifyError(`Snapshot mismatch: ${rel(files.verified)}\n${detail}\nReceived output written to ${rel(files.received)}.\nIf the change is intended, approve it with "pnpm verify:accept".`, files);
+  throw new VerifyError(`Snapshot mismatch: ${rel(files.verified)}\n${detail}\nReceived output written to ${rel(files.received)}.\nIf the change is intended, approve it with the "verify:accept" script or "ai-bdd-verify accept".`, files);
 }

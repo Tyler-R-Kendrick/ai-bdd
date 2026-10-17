@@ -14,6 +14,8 @@ import {
   renderRunReportJsonSchema,
   runReportJsonSchema,
   type RunReportSchema,
+  type At,
+  type SameKeys,
   type SchemaMatchesContract,
 } from '../../src/report/schema.ts';
 import { REGENERATE_SCHEMA, SCHEMA_PATH, readJson, runReportValidator } from './schema-kit.ts';
@@ -46,9 +48,14 @@ type _AssertionFails = Expect<SchemaMatchesContract<Report, RunReport & { added?
 type _Required = Expect<Equal<SchemaMatchesContract<Report, RunReport & { added: string }>, { propertyNamesDiffer: 'RunReport' }>>;
 type _SchemaOnly = Expect<Equal<SchemaMatchesContract<Report & { added?: string }, RunReport>, { propertyNamesDiffer: 'RunReport' }>>;
 type _Retyped = Expect<Equal<SchemaMatchesContract<Report, Omit<RunReport, 'runId'> & { runId: number }>, { notMutuallyAssignable: true }>>;
+// a row of the check that names a property the report does not have (a typo) is false, not a vacuous `never` vs `never` pass
+type ReportScenario = Report['scenarios'][number];
+type _RowTypo = Expect<Equal<SameKeys<At<ReportScenario, 'confrim'>, At<ScenarioResult, 'confrim'>>, false>>;
+type _RowTypoOneSide = Expect<Equal<SameKeys<At<ReportScenario, 'confirm'>, At<ScenarioResult, 'confrim'>>, false>>;
+type _RowReal = Expect<Equal<SameKeys<At<ReportScenario, 'confirm'>, At<ScenarioResult, 'confirm'>>, true>>;
 export type _TypeAssertions = [
   _Matches, _OptionalTop, _OptionalScenario, _OptionalStep, _OptionalJudge, _OptionalPredicate, _OptionalByPurpose, _AssertionFails,
-  _Required, _SchemaOnly, _Retyped,
+  _Required, _SchemaOnly, _Retyped, _RowTypo, _RowTypoOneSide, _RowReal,
 ];
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
@@ -126,6 +133,18 @@ describe('run report JSON Schema: the committed file', () => {
     const totals = props['totals'] as { required: string[]; properties: Record<string, Json> };
     expect([...totals.required].sort()).toEqual([...statuses].sort());
     expect(Object.keys(totals.properties).sort()).toEqual([...totals.required].sort());
+  });
+
+  it('docs/cli.md states the timestamp pattern and the years toISOString() writes it for (0000 to 9999), and both hold', () => {
+    const timestamp = (committed()['properties'] as Record<string, Record<string, Json>>)['startedAt']?.['pattern'] as string;
+    const docs = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'docs', 'cli.md'), 'utf8');
+    expect(docs).toContain(`\`${timestamp}\``);
+    expect(docs).toContain('as `Date.prototype.toISOString()` writes them for the years 0000 to 9999');
+    const iso = (year: number): string => new Date(new Date('2000-01-01T00:00:00.000Z').setUTCFullYear(year)).toISOString();
+    const matches = (year: number): boolean => new RegExp(timestamp, 'u').test(iso(year));
+    expect([0, 1970, 9999].map(matches)).toEqual([true, true, true]);
+    expect([iso(-1), iso(10000)]).toEqual(['-000001-01-01T00:00:00.000Z', '+010000-01-01T00:00:00.000Z']);
+    expect([-1, 10000].map(matches)).toEqual([false, false]);
   });
 
   it('lists exactly the contract error codes', () => {

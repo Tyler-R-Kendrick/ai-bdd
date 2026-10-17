@@ -51,7 +51,8 @@ describe('approval flow', () => {
     const e = fail(() => verifyValue(ctx(), 'hello'));
     expect(e).toBeInstanceOf(VerifyError);
     expect(e.message).toContain('No verified snapshot yet');
-    expect(e.message).toContain('pnpm verify:accept');
+    expect(e.message).toContain('then approve it with the "verify:accept" script or "ai-bdd-verify accept" (or VERIFY_ACCEPT=1 when running the test locally)');
+    expect(e.message).not.toMatch(/\b(pnpm|npm|npx|yarn)\b/);
     expect(fs.readFileSync(files().received, 'utf8')).toBe('hello\n');
     expect(fs.existsSync(files().verified)).toBe(false);
   });
@@ -80,6 +81,7 @@ describe('approval flow', () => {
     fs.writeFileSync(files().verified, 'one\ntwo\nthree\n');
     const e = fail(() => verifyValue(ctx(), 'one\n2\nthree'));
     expect(e.message).toContain('Snapshot mismatch');
+    expect(e.message).toContain('If the change is intended, approve it with the "verify:accept" script or "ai-bdd-verify accept".');
     expect(e.message).toContain('-two\n+2');
     expect(fs.readFileSync(files().verified, 'utf8')).toBe('one\ntwo\nthree\n');
     expect(fs.readFileSync(files().received, 'utf8')).toBe('one\n2\nthree\n');

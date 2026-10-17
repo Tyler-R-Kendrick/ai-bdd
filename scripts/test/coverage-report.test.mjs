@@ -71,7 +71,7 @@ test('main reads a coverage directory and fails clearly when it is missing', () 
     const out = [];
     const log = { log: (m) => out.push(String(m)), error: (m) => out.push(String(m)) };
     assert.equal(main(['--root', root], { log }), 2);
-    assert.match(out.join('\n'), /run "pnpm coverage" first/);
+    assert.match(out.join('\n'), /coverage-summary\.json not found \(run the "coverage" script first\)/);
     fs.mkdirSync(path.join(root, 'coverage'));
     fs.writeFileSync(path.join(root, 'coverage', 'coverage-summary.json'), JSON.stringify(SUMMARY));
     out.length = 0;

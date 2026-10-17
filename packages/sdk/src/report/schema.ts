@@ -250,15 +250,19 @@ export const RunReportSchema = z
 type Mutual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Obj<T> = NonNullable<T>;
 /** Property `K` of `T`, optional or not; `never` when `T` has no `K`. */
-type At<T, K extends PropertyKey> = K extends keyof Obj<T> ? Obj<T>[K] : never;
+export type At<T, K extends PropertyKey> = K extends keyof Obj<T> ? Obj<T>[K] : never;
 /** The element type of an array. */
 type Item<T> = Obj<T> extends readonly (infer E)[] ? E : never;
 /** The variant of a union discriminated by `op` (a predicate). */
 type Variant<T, Op> = Extract<Obj<T>, { op: Op }>;
 /** The member of a union that has a required `K` (a text value: `literal` or `param`). */
 type Having<T, K extends PropertyKey> = Extract<Obj<T>, Record<K, unknown>>;
-/** Same property names, optional ones included: assignability cannot see an optional property that only one side declares. */
-type SameKeys<A, B> = Mutual<keyof Obj<A>, keyof Obj<B>>;
+/**
+ * Same property names, optional ones included: assignability cannot see an optional property that only one side declares.
+ * A side that is `never` is `false`: a row that names a property one side does not have (a typo such as `At<S, 'confrim'>`) must
+ * fail rather than compare `never` with `never` and pass.
+ */
+export type SameKeys<A, B> = [Obj<A>] extends [never] ? false : [Obj<B>] extends [never] ? false : Mutual<keyof Obj<A>, keyof Obj<B>>;
 
 type Scenario<T> = Item<At<T, 'scenarios'>>;
 type Step<T> = Item<At<Scenario<T>, 'steps'>>;
@@ -300,9 +304,13 @@ type ObjectKeySets<S, C> = {
 } & {
   [O in At<Pred<C>, 'op'> as `Predicate(op: ${O & string})`]: SameKeys<Variant<Pred<S>, O>, Variant<Pred<C>, O>>;
 } & {
-  [O in At<Pred<C>, 'op'> as `Predicate(op: ${O & string}).query`]: SameKeys<At<Variant<Pred<S>, O>, 'query'>, At<Variant<Pred<C>, O>, 'query'>>;
+  // only the predicates that have a query (`route` has none)
+  [O in At<Pred<C>, 'op'> as 'query' extends keyof Variant<Pred<C>, O> ? `Predicate(op: ${O & string}).query` : never]: SameKeys<
+    At<Variant<Pred<S>, O>, 'query'>,
+    At<Variant<Pred<C>, O>, 'query'>
+  >;
 } & {
-  [O in At<Pred<C>, 'op'> as `Predicate(op: ${O & string}).query.within`]: SameKeys<
+  [O in At<Pred<C>, 'op'> as 'query' extends keyof Variant<Pred<C>, O> ? `Predicate(op: ${O & string}).query.within` : never]: SameKeys<
     At<At<Variant<Pred<S>, O>, 'query'>, 'within'>,
     At<At<Variant<Pred<C>, O>, 'query'>, 'within'>
   >;

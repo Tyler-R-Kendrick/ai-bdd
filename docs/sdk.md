@@ -198,7 +198,7 @@ The engine wires these public factories; you can use them alone: `createChunker(
 
 ## Models
 
-A model adapter implements `ChatModel { id, generate(request) → response }` and a `ModelSet` is one per purpose: `{ extract, act, checkgen, judge }`. Requests carry tool calls and structured output. `request.context` is structured metadata for logs and test doubles and is never sent to a provider. Errors: provider failures are `MODEL_UNAVAILABLE` (retryable), unparsable or schema-invalid output is `MODEL_OUTPUT_INVALID`.
+A model adapter implements `ChatModel { id, generate(request) → response }` and a `ModelSet` is one per purpose: `{ extract, act, checkgen, judge }`. Requests carry tool calls and structured output. `request.context` is structured metadata for logs and test doubles and is never sent to a provider. Errors: provider failures are `MODEL_UNAVAILABLE` (retryable), unparsable or schema-invalid output is `MODEL_OUTPUT_INVALID`. The response's `usage` token counts go into the run report: a count that is not a finite number of 0 or more fails the call with `MODEL_OUTPUT_INVALID`, and a fractional one is rounded up.
 
 Models are real models: ai-bdd needs an `act` model that can drive a driver through tool calls and a `judge` that reads evidence, and there is no built-in stand-in. You plug them in through `models`, the same way as drivers.
 
