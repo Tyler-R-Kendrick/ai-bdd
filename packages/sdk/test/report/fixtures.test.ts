@@ -119,6 +119,9 @@ describe('a report the schema must reject', () => {
     { name: 'a judge score above 1', from: 'failed', path: [...judged, 'score'], to: 1.2, at: '/scenarios/4/steps/1/judge/score', keyword: 'maximum' },
     { name: 'a negative judge spread', from: 'failed', path: [...judged, 'spread'], to: -0.1, at: '/scenarios/4/steps/1/judge/spread', keyword: 'minimum' },
     { name: 'a sample probability above 1', from: 'failed', path: [...judged, 'samples', 0, 'probability'], to: 1.5, at: '/scenarios/4/steps/1/judge/samples/0/probability', keyword: 'maximum' },
+    { name: 'a start time without milliseconds', from: 'passed', path: ['startedAt'], to: '2026-10-17T01:14:10Z', at: '/startedAt', keyword: 'pattern' },
+    { name: 'a finish time with an offset instead of Z', from: 'passed', path: ['finishedAt'], to: '2026-10-17T03:14:10.915+02:00', at: '/finishedAt', keyword: 'pattern' },
+    { name: 'a start time that is a date only', from: 'failed', path: ['startedAt'], to: '2026-10-17', at: '/startedAt', keyword: 'pattern' },
   ];
 
   it.each(cases)('$name', ({ from, path, to, at, keyword }) => {

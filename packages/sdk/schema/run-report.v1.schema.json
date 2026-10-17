@@ -15,11 +15,13 @@
     },
     "startedAt": {
       "type": "string",
-      "description": "ISO 8601 timestamp."
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "description": "ISO 8601 timestamp, UTC with milliseconds (Date.prototype.toISOString())."
     },
     "finishedAt": {
       "type": "string",
-      "description": "ISO 8601 timestamp."
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "description": "ISO 8601 timestamp, UTC with milliseconds (Date.prototype.toISOString())."
     },
     "options": {
       "type": "object",

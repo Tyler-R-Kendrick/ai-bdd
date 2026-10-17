@@ -25,6 +25,8 @@ const count = z.number().int().min(0);
 const duration = z.number().min(0);
 /** A probability or an aggregate of probabilities: the judge clamps every sample to 0..1. */
 const unit = z.number().min(0).max(1);
+/** UTC with milliseconds, as `Date.prototype.toISOString()` writes it; the engine writes both timestamps that way and never redacts them. */
+const isoTimestamp = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/).meta({ id: 'Sha256', description: '64 lowercase hex characters' });
 const jsonValue: z.ZodType<JsonValue> = z
   .lazy(() => z.union([z.null(), z.boolean(), z.number(), z.string(), z.array(jsonValue), z.record(z.string(), jsonValue)]))
@@ -203,8 +205,8 @@ export const RunReportSchema = z
   .object({
     schemaVersion: z.literal(1),
     runId: z.string().describe('Also the name of the run directory under .ai-bdd/runs/.'),
-    startedAt: z.string().describe('ISO 8601 timestamp.'),
-    finishedAt: z.string().describe('ISO 8601 timestamp.'),
+    startedAt: isoTimestamp.describe('ISO 8601 timestamp, UTC with milliseconds (Date.prototype.toISOString()).'),
+    finishedAt: isoTimestamp.describe('ISO 8601 timestamp, UTC with milliseconds (Date.prototype.toISOString()).'),
     options: z
       .object({
         frozen: z.boolean(),
