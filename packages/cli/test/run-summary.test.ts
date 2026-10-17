@@ -238,6 +238,15 @@ describe('run summary: step statistics, usage and notes', () => {
     expect(none.stdout).not.toContain('warning ');
   });
 
+  it('R-RN3: a frozen violation (exit 4) creates no run directory, so the summary names none', async () => {
+    const h = await summary(makeReport({ exitCode: 4, warnings: [{ code: 'PLAN_STALE', severity: 'error', message: 'Plan for docs/a.md is stale', uri: 'docs/a.md' }] }));
+    expect(h.code).toBe(4);
+    expect(h.lines.filter((l) => l.startsWith('Run:'))).toEqual([]);
+    expect(h.lines).toContain('warning PLAN_STALE: Plan for docs/a.md is stale');
+    expect(h.lines.at(-2)).toBe('Exit code: 4');
+    for (const exitCode of [0, 1, 3] as const) expect((await summary(makeReport({ exitCode }))).lines).toContain('Run: .ai-bdd/runs/run-1');
+  });
+
   it('prints the run directory relative to the cwd, and falls back to the run id when that is empty', async () => {
     const rel = await summary(makeReport({ runId: 'abc' }), { cwd: '/proj', config: { runsDir: '/proj/.ai-bdd/runs' } });
     expect(rel.lines).toContain('Run: .ai-bdd/runs/abc');

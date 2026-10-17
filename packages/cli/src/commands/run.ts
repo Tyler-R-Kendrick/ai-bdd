@@ -79,7 +79,8 @@ function stepsByPath(report: RunReport): { fuzzy: Map<string, number>; fuzzyTota
   return { fuzzy, fuzzyTotal, healed, replayed, agent };
 }
 
-export function printRunSummary(ctx: Ctx, report: RunReport, runDir: string): void {
+/** `runDir` is the run directory to name, or `undefined` when the run created none (a frozen violation). */
+export function printRunSummary(ctx: Ctx, report: RunReport, runDir: string | undefined): void {
   for (const sc of report.scenarios) {
     const healedSteps = sc.steps.filter((st) => st.status === 'healed').length;
     const extra = [sc.mode, healedSteps > 0 ? `${healedSteps} healed` : undefined, sc.recording !== 'none' ? `recording ${sc.recording}` : undefined, seconds(sc.durationMs)]
@@ -124,7 +125,7 @@ export function printRunSummary(ctx: Ctx, report: RunReport, runDir: string): vo
   const unreviewed = report.scenarios.filter((x) => x.review === 'unreviewed').length;
   if (unreviewed > 0) ctx.out(`Unreviewed scenarios run: ${unreviewed} (see \`ai-bdd review\`)`);
   for (const w of report.warnings) ctx.out(`warning ${w.code}: ${w.message}`);
-  ctx.out(`Run: ${runDir}`);
+  if (runDir !== undefined) ctx.out(`Run: ${runDir}`);
   ctx.out(`Exit code: ${report.exitCode}`);
 }
 
@@ -141,7 +142,9 @@ export async function runRun(ctx: Ctx, flags: RunFlags): Promise<ExitCode> {
     }
 
     const report = await engine.run(opts);
-    printRunSummary(ctx, report, relative(ctx.io.cwd, join(config.runsDir, report.runId)) || report.runId);
+    // A frozen violation (exit 4) is decided before the run directory is created, like a usage error (exit 2): name no directory.
+    const runDir = report.exitCode === 4 ? undefined : relative(ctx.io.cwd, join(config.runsDir, report.runId)) || report.runId;
+    printRunSummary(ctx, report, runDir);
     return report.exitCode;
   });
 }

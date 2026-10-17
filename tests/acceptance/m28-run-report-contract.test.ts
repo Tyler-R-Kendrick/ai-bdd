@@ -151,6 +151,7 @@ describe('M28 the run report contract (fake driver, fake models, real CLI)', () 
     expectExit(await runCli(p, ['compile', '--check']), 4);
     const frozen = expectExit(await runCli(p, ['run', '--frozen']), 4);
     expect(frozen.stdout).toContain('PLAN_STALE');
+    expect(frozen.stdout, 'no run directory is created, so none is named').not.toContain('Run: ');
 
     expect(readFileSync(p.path('.ai-bdd', 'report', 'report.json'), 'utf8'), 'exit 2 and 4 leave the earlier report alone').toBe(earlier);
     // an unknown selector is found only after the run directory exists, so it leaves one without a report; exit 4, a bad flag and -u leave none

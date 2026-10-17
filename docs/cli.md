@@ -102,7 +102,7 @@ ai-bdd run docs-billing--upgrade-to-pro
 ai-bdd run docs-billing--upgrade-to-pro
 ```
 
-The first command characterizes (`characterize, recording created`); the second replays with zero model calls. Output per scenario: a status label (`PASS`, `HEAL`, `FAIL`, `ERROR`, ...), mode, recording result and duration; failing steps with their error code; then totals, step paths (`replayed`, `by agent`, `healed`, `fuzzy`), fuzzy reasons, model calls, recording results, unreviewed scenarios that ran, the run directory and the exit code.
+The first command characterizes (`characterize, recording created`); the second replays with zero model calls. Output per scenario: a status label (`PASS`, `HEAL`, `FAIL`, `ERROR`, ...), mode, recording result and duration; failing steps with their error code; then totals, step paths (`replayed`, `by agent`, `healed`, `fuzzy`), fuzzy reasons, model calls, recording results, unreviewed scenarios that ran, the run directory (not after a frozen violation, which creates none) and the exit code.
 
 **Selectors** are scenario ids, feature ids, id prefixes ending in `/` or `--`, or doc globs. A selector that matches nothing is `SCENARIO_NOT_FOUND` (exit 2). `docs-billing--` selects every scenario of `docs/billing.md`; `docs-billing--upgrade-to-pro/` one feature. Rejected scenarios never run.
 
