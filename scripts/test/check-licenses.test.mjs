@@ -102,6 +102,37 @@ test('follows symlinks to their targets, reads each real package once, and survi
   }
 });
 
+test('a link that leaves the repository is refused by name, and nothing beyond it is read', () => {
+  const root = makeRepo({ ...manifest('node_modules/good', '1.0.0', { license: 'MIT' }) });
+  const outside = makeRepo({
+    ...manifest('global/lib/node_modules/linked', '1.0.0', { license: 'MIT' }),
+    ...manifest('global/lib/node_modules/unrelated-gpl', '1.0.0', { license: 'GPL-3.0' }),
+  });
+  try {
+    fs.symlinkSync(path.join(outside, 'global/lib/node_modules/linked'), path.join(root, 'node_modules/linked'), 'dir');
+    const r = checkLicenses(root);
+    assert.deepEqual(r.problems, [`node_modules/linked: a link to ${fs.realpathSync(path.join(outside, 'global/lib/node_modules/linked'))}, outside the repository; not followed`]);
+    assert.equal(r.summary, '1 packages scanned');
+  } finally {
+    cleanup(root);
+    cleanup(outside);
+  }
+});
+
+test('a root node_modules that is itself a link to another directory is scanned there', () => {
+  const root = makeRepo({});
+  const elsewhere = makeRepo({ ...manifest('node_modules/good', '1.0.0', { license: 'MIT' }), ...manifest('node_modules/bad', '1.0.0', { license: 'GPL-3.0' }) });
+  try {
+    fs.symlinkSync(path.join(elsewhere, 'node_modules'), path.join(root, 'node_modules'), 'dir');
+    const r = checkLicenses(root);
+    assert.deepEqual(offenders(r), ['bad@1.0.0']);
+    assert.equal(r.summary, '2 packages scanned');
+  } finally {
+    cleanup(root);
+    cleanup(elsewhere);
+  }
+});
+
 test('fails clearly when dependencies are not installed', () => {
   const root = makeRepo({});
   try {

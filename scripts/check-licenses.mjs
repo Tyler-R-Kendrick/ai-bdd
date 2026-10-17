@@ -3,7 +3,7 @@
 // Optional exceptions live in scripts/license-exceptions.json as { "<name>" | "<name>@<version>": "<reason>" }.
 import fs from 'node:fs';
 import path from 'node:path';
-import { finish, isMain, parseArgs } from './lib.mjs';
+import { finish, isMain, parseArgs, toPosix } from './lib.mjs';
 
 export const ALLOWED_LICENSES = [
   'MIT',
@@ -118,20 +118,27 @@ function readDir(dir) {
  * Every installed package, whatever layout the package manager chose. The walk starts at the root `node_modules` and follows
  * nested `node_modules` directories and the targets of symlinks (workspace links, pnpm's `.pnpm` store, a hoisted or a nested
  * tree), and reads each real package directory once, however many links lead to it. A package's dependencies are looked for in
- * its own `node_modules` and in the `node_modules` that holds it (where pnpm puts them). Returns null when there is no
- * `node_modules` at all.
+ * its own `node_modules` and in the `node_modules` that holds it (where pnpm puts them). The walk stays in the repository (and
+ * in the directory the root `node_modules` resolves to): a link that leads anywhere else, a package in a global `node_modules`
+ * for instance, is not followed and is returned in `refused`, so that a whole foreign directory is never read in its place.
+ * Returns null when there is no `node_modules` at all.
  */
 function listInstalledPackages(root) {
   const top = path.join(root, 'node_modules');
   if (!isDirectory(top)) return null;
+  const trees = [real(root), real(top)].filter((t) => t !== undefined);
+  const inside = (target) => trees.some((t) => target === t || target.startsWith(`${t}${path.sep}`));
   const found = new Map();
+  const refused = new Map();
   const scannedDirs = new Set();
   const visitedPackages = new Set();
   const queue = [top];
+  const refuse = (link, target) => refused.set(toPosix(path.relative(root, link)), target);
 
   const visitPackage = (dir) => {
     const target = real(dir);
     if (target === undefined || visitedPackages.has(target) || !isDirectory(target)) return;
+    if (!inside(target)) return void refuse(dir, target);
     visitedPackages.add(target);
     const file = path.join(target, 'package.json');
     if (fs.existsSync(file)) {
@@ -151,6 +158,7 @@ function listInstalledPackages(root) {
     if (path.basename(dir) !== 'node_modules') return;
     const target = real(dir);
     if (target === undefined || scannedDirs.has(target) || !isDirectory(target)) return;
+    if (!inside(target)) return void refuse(dir, target);
     scannedDirs.add(target);
     for (const name of readDir(target)) {
       const entry = path.join(target, name);
@@ -167,18 +175,19 @@ function listInstalledPackages(root) {
   };
 
   while (queue.length > 0) scanNodeModules(queue.shift());
-  return found;
+  return { found, refused };
 }
 
 export function checkLicenses(root) {
-  const installed = listInstalledPackages(root);
-  if (installed === null) {
+  const listed = listInstalledPackages(root);
+  if (listed === null) {
     return { ok: false, problems: ['node_modules not found: install the dependencies first'] };
   }
+  const { found: installed, refused } = listed;
   let exceptions = {};
   const exFile = path.join(root, 'scripts', 'license-exceptions.json');
   if (fs.existsSync(exFile)) exceptions = JSON.parse(fs.readFileSync(exFile, 'utf8'));
-  const problems = [];
+  const problems = [...refused].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([link, target]) => `${link}: a link to ${target}, outside the repository; not followed`);
   const keys = [...installed.keys()].sort();
   for (const key of keys) {
     const pkg = installed.get(key);
