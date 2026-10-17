@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { binPath, buildConfig, loadTargets, main, scoreOf, shellQuote } from '../mutation.mjs';
+import { binPath, buildConfig, loadTargets, main, scoreOf, shellQuote, strykerEnv } from '../mutation.mjs';
 import { cleanup, makeRepo, write } from './fixture.mjs';
 
 const TARGETS = {
@@ -48,15 +48,20 @@ test('buildConfig names the report after the target and breaks below its thresho
   assert.ok(c.ignorePatterns.includes('.stryker-tmp'), 'the sandbox never copies earlier sandboxes');
   assert.equal(c.testRunner, 'command');
   assert.equal(c.coverageAnalysis, 'off', 'the command runner has no per-test coverage');
-  // vitest runs from the repository's node_modules/.bin, through no package manager
+  // vitest runs from the repository's node_modules/.bin, through no package manager, with a command line that sh and cmd.exe
+  // both read: the target's tests and the run count travel in the environment (strykerEnv), not as a `VAR=value` prefix
   const repo = path.resolve(import.meta.dirname, '..', '..');
   const vitest = path.join(repo, 'node_modules', '.bin', 'vitest');
+  assert.equal(buildConfig('one', TARGETS.one, { platform: 'linux' }).commandRunner.command, `'${vitest}' run -c vitest.mutation.config.ts --bail 1 --reporter=dot`);
   assert.equal(
-    buildConfig('one', TARGETS.one, { platform: 'linux' }).commandRunner.command,
-    `MUTATION_TESTS='packages/a/test/**/*.test.ts' FC_RUNS=40 '${vitest}' run -c vitest.mutation.config.ts --bail 1 --reporter=dot`,
+    buildConfig('one', TARGETS.one, { root: '/r o', platform: 'win32' }).commandRunner.command,
+    `"${path.join('/r o', 'node_modules', '.bin', 'vitest.cmd')}" run -c vitest.mutation.config.ts --bail 1 --reporter=dot`,
   );
-  assert.match(buildConfig('one', TARGETS.two, { fcRuns: 7 }).commandRunner.command, /MUTATION_TESTS='packages\/b\/test\/x\.test\.ts,packages\/b\/test\/y\.test\.ts' FC_RUNS=7 /);
-  assert.equal(buildConfig('one', TARGETS.one, { root: '/r o', platform: 'win32' }).commandRunner.command.split(' FC_RUNS=40 ')[1].split(' run ')[0], `"${path.join('/r o', 'node_modules', '.bin', 'vitest.cmd')}"`);
+});
+
+test('strykerEnv hands every mutant run the target tests and the run count, on top of the inherited environment', () => {
+  const env = strykerEnv(TARGETS.two, 7, { PATH: '/bin', MUTATION_TESTS: 'stale' });
+  assert.deepEqual(env, { PATH: '/bin', MUTATION_TESTS: 'packages/b/test/x.test.ts,packages/b/test/y.test.ts', FC_RUNS: '7' });
 });
 
 test('binPath names the binary in node_modules/.bin, and its .cmd shim on Windows; shellQuote quotes for sh and for cmd.exe', () => {
@@ -114,16 +119,24 @@ test('main runs Stryker per target with only that target tests, reports the scor
   const root = makeRepo({ 'scripts/mutation-targets.json': TARGETS, 'node_modules/.bin/stryker': '#!/bin/sh' });
   try {
     const calls = [];
-    const run = (cmd, args) => {
-      calls.push({ cmd, args });
+    const run = (cmd, args, opts) => {
+      calls.push({ cmd, args, env: opts.env });
       const name = path.basename(args[1], '.conf.json');
       write(root, `reports/mutation/${name}.json`, { files: { 'x.ts': { mutants: [{ status: 'Killed' }, { status: 'Survived' }] } } });
       return { status: name === 'two' ? 1 : 0 };
     };
     const c = capture();
-    assert.equal(main(['--root', root, 'all'], { log: c.log, run, platform: 'linux' }), 1);
+    assert.equal(main(['--root', root, 'all'], { log: c.log, run, platform: 'linux', env: { PATH: '/bin' } }), 1);
     assert.equal(calls[0].cmd, path.join(root, 'node_modules', '.bin', 'stryker'));
     assert.deepEqual(calls[0].args, ['run', path.join(root, '.stryker-tmp', 'one.conf.json')]);
+    assert.deepEqual(calls.map((x) => x.env), [
+      { PATH: '/bin', MUTATION_TESTS: 'packages/a/test/**/*.test.ts', FC_RUNS: '40' },
+      { PATH: '/bin', MUTATION_TESTS: 'packages/b/test/x.test.ts,packages/b/test/y.test.ts', FC_RUNS: '40' },
+    ]);
+    // FC_RUNS from the caller's environment sets the count
+    calls.length = 0;
+    main(['--root', root, 'one'], { log: capture().log, run, platform: 'linux', env: { FC_RUNS: '5' } });
+    assert.equal(calls[0].env.FC_RUNS, '5');
     assert.match(c.out.join('\n'), /one: score 50\.0% \(1 killed, 0 timeout, 1 survived, 0 no coverage; break at 55%\)/);
     assert.ok(JSON.parse(fs.readFileSync(path.join(root, '.stryker-tmp/one.conf.json'), 'utf8')).mutate);
   } finally {
@@ -139,9 +152,10 @@ test('main on Windows runs the stryker.cmd shim through the shell, quoted; and w
       calls.push({ cmd, opts });
       return { status: 0 };
     };
-    assert.equal(main(['--root', root, 'one'], { log: capture().log, run, platform: 'win32' }), 0);
+    assert.equal(main(['--root', root, 'one'], { log: capture().log, run, platform: 'win32', env: { Path: 'C:\\Windows' } }), 0);
     assert.equal(calls[0].cmd, `"${path.join(root, 'node_modules', '.bin', 'stryker.cmd')}" run "${path.join(root, '.stryker-tmp', 'one.conf.json')}"`);
     assert.equal(calls[0].opts.shell, true);
+    assert.deepEqual(calls[0].opts.env, { Path: 'C:\\Windows', MUTATION_TESTS: 'packages/a/test/**/*.test.ts', FC_RUNS: '40' });
     const c = capture();
     assert.equal(main(['--root', root, 'one'], { log: c.log, run: () => assert.fail('nothing runs'), platform: 'linux' }), 2);
     assert.match(c.out.join('\n'), /node_modules\/\.bin\/stryker not found: install the dependencies first/);

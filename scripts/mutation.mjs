@@ -5,6 +5,7 @@
 //   node scripts/mutation.mjs <target> [<target>...]  mutate the target's sources and run only its tests against every mutant
 //   node scripts/mutation.mjs all                     every target, one after the other
 //   node scripts/mutation.mjs --config <target>       print the Stryker configuration that would be used
+//                                                     (to run it by hand, set MUTATION_TESTS and FC_RUNS as strykerEnv does)
 //
 // A target (scripts/mutation-targets.json) names the source files to mutate, the unit tests that exercise them and the mutation
 // score below which the run fails (`break`). Raise `break` as the score improves; it is a ratchet like the coverage floors and the
@@ -21,7 +22,10 @@ export function binPath(root, name, platform = process.platform) {
   return path.join(root, 'node_modules', '.bin', platform === 'win32' ? `${name}.cmd` : name);
 }
 
-/** Quotes one word for the shell that runs a command line: sh, or cmd.exe on Windows. */
+/**
+ * Quotes one word for the shell that runs a command line: sh, or cmd.exe on Windows. cmd.exe still expands `%NAME%` inside double
+ * quotes, so a Windows path that contains `%` is not protected.
+ */
 export function shellQuote(word, platform = process.platform) {
   return platform === 'win32' ? `"${word}"` : `'${word.replaceAll("'", `'\\''`)}'`;
 }
@@ -31,17 +35,26 @@ export function loadTargets(root) {
 }
 
 /**
- * The Stryker configuration for one target. Every mutant runs `vitest run` over the target's own test files in a fresh process
- * (Stryker's `command` runner, the active mutant is passed through the environment), stopping at the first failing test.
- * The vitest runner plugin is not used: its per-test filtering ran no tests at all with this vitest version, so every mutant
- * "survived" (a 0 % score that measured nothing).
+ * The environment Stryker runs in for one target. Its command runner starts every mutant's `vitest run` with `exec`, which inherits
+ * this environment, so vitest.mutation.config.ts reads the target's test files from MUTATION_TESTS and the fuzz tests their case
+ * count from FC_RUNS. They travel here rather than as a `VAR=value` prefix on the command, which cmd.exe cannot run.
  */
-export function buildConfig(name, target, { html = false, fcRuns = 40, root = defaultRoot(import.meta.url), platform = process.platform } = {}) {
+export function strykerEnv(target, fcRuns, env = process.env) {
+  return { ...env, MUTATION_TESTS: target.tests.join(','), FC_RUNS: String(fcRuns) };
+}
+
+/**
+ * The Stryker configuration for one target. Every mutant runs `vitest run` over the target's own test files (named by
+ * MUTATION_TESTS, see strykerEnv) in a fresh process (Stryker's `command` runner, the active mutant is passed through the
+ * environment), stopping at the first failing test. The vitest runner plugin is not used: its per-test filtering ran no tests at
+ * all with this vitest version, so every mutant "survived" (a 0 % score that measured nothing).
+ */
+export function buildConfig(name, target, { html = false, root = defaultRoot(import.meta.url), platform = process.platform } = {}) {
   const vitest = shellQuote(binPath(root, 'vitest', platform), platform);
   return {
     plugins: ['@stryker-mutator/typescript-checker'],
     testRunner: 'command',
-    commandRunner: { command: `MUTATION_TESTS='${target.tests.join(',')}' FC_RUNS=${fcRuns} ${vitest} run -c vitest.mutation.config.ts --bail 1 --reporter=dot` },
+    commandRunner: { command: `${vitest} run -c vitest.mutation.config.ts --bail 1 --reporter=dot` },
     mutate: target.mutate,
     checkers: ['typescript'],
     tsconfigFile: 'tsconfig.json',
@@ -68,7 +81,7 @@ export function scoreOf(report) {
   return { ...counts, total, score: total === 0 ? 100 : (100 * detected) / total };
 }
 
-export function main(argv, { log = console, run = spawnSync, platform = process.platform } = {}) {
+export function main(argv, { log = console, run = spawnSync, platform = process.platform, env = process.env } = {}) {
   const { root, flags, rest } = parseArgs(argv, import.meta.url);
   const targets = loadTargets(root);
   if (flags.has('--list')) {
@@ -101,14 +114,15 @@ export function main(argv, { log = console, run = spawnSync, platform = process.
     const dir = path.join(root, '.stryker-tmp');
     fs.mkdirSync(dir, { recursive: true });
     const confFile = path.join(dir, `${name}.conf.json`);
-    const config = buildConfig(name, target, { html: flags.has('--html'), fcRuns: process.env.FC_RUNS ?? 40, root, platform });
+    const config = buildConfig(name, target, { html: flags.has('--html'), root, platform });
     fs.writeFileSync(confFile, `${JSON.stringify(config, null, 2)}\n`);
     log.log(`\nmutation: ${name} (${target.mutate.join(', ')}) against ${target.tests.join(', ')}`);
+    const options = { cwd: root, stdio: 'inherit', env: strykerEnv(target, env.FC_RUNS ?? 40, env) };
     // a .cmd shim runs only through the shell (Node refuses to spawn one directly), and the shell needs the paths quoted
     const r =
       platform === 'win32'
-        ? run(`${shellQuote(stryker, platform)} run ${shellQuote(confFile, platform)}`, { cwd: root, stdio: 'inherit', shell: true })
-        : run(stryker, ['run', confFile], { cwd: root, stdio: 'inherit' });
+        ? run(`${shellQuote(stryker, platform)} run ${shellQuote(confFile, platform)}`, { ...options, shell: true })
+        : run(stryker, ['run', confFile], options);
     if (r.status !== 0) exit = 1;
     const reportFile = path.join(root, `reports/mutation/${name}.json`);
     if (fs.existsSync(reportFile)) {
