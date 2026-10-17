@@ -22,6 +22,7 @@
     "test:chaos": "vitest run --passWithNoTests --project chaos",
     "mutation": "node scripts/mutation.mjs",
     "check": "node scripts/check-all.mjs",
+    "gen:report-schema": "node scripts/gen-run-report-schema.mjs",
     "test:live": "vitest run -c tests/live/vitest.live.config.ts"
   },
   "devDependencies": {
@@ -37,6 +38,7 @@
     "@stryker-mutator/typescript-checker": "10.0.0",
     "@types/node": "^22.18.0",
     "@vitest/coverage-v8": "^5.0.3",
+    "ajv": "^8.20.0",
     "fast-check": "^4.10.2",
     "oxlint": "^1.87.0",
     "typescript": "~5.9.3",

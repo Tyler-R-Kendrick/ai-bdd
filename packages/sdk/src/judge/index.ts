@@ -208,7 +208,8 @@ async function readCache(path: string, expectedSamples: number): Promise<{ model
   try {
     const parsed = CachedSchema.safeParse(JSON.parse(text));
     if (!parsed.success || parsed.data.samples.length !== expectedSamples) return null;
-    return { modelId: parsed.data.modelId, samples: parsed.data.samples };
+    // The score counts each probability clamped to 0..1 (samplePassProbability); report the same value a fresh sample would.
+    return { modelId: parsed.data.modelId, samples: parsed.data.samples.map((s) => ({ ...s, probability: clamp01(s.probability) })) };
   } catch {
     return null;
   }

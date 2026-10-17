@@ -12,6 +12,7 @@ import { isMain, parseArgs } from './lib.mjs';
 /** Each step: script file, extra args, and whether `--allow-incomplete` tolerates its failure. */
 export const STEPS = [
   { name: 'gen-errors-doc --check', script: 'gen-errors-doc.mjs', args: ['--check'], tolerable: true },
+  { name: 'gen-run-report-schema --check', script: 'gen-run-report-schema.mjs', args: ['--check'], tolerable: false },
   { name: 'check-requirements', script: 'check-requirements.mjs', args: [], tolerable: true },
   { name: 'check-boundaries', script: 'check-boundaries.mjs', args: [], tolerable: false },
   { name: 'check-stubs', script: 'check-stubs.mjs', args: [], tolerable: true },

@@ -117,7 +117,7 @@
   },
   {
     "id": "R-SE1",
-    "text": "Redaction everywhere; secret values never in config/reports; minimum length."
+    "text": "Redaction everywhere; secret values never in config/reports; minimum length. Exempt: the run report's top-level runId, startedAt and finishedAt, which the engine computes from its id generator and clock (no input reaches them; redacting them would only corrupt them, see docs/security.md#secrets)."
   },
   {
     "id": "R-SE2",

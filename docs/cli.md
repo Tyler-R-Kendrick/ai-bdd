@@ -102,7 +102,7 @@ ai-bdd run docs-billing--upgrade-to-pro
 ai-bdd run docs-billing--upgrade-to-pro
 ```
 
-The first command characterizes (`characterize, recording created`); the second replays with zero model calls. Output per scenario: a status label (`PASS`, `HEAL`, `FAIL`, `ERROR`, ...), mode, recording result and duration; failing steps with their error code; then totals, step paths (`replayed`, `by agent`, `healed`, `fuzzy`), fuzzy reasons, model calls, recording results, unreviewed scenarios that ran, the run directory and the exit code.
+The first command characterizes (`characterize, recording created`); the second replays with zero model calls. Output per scenario: a status label (`PASS`, `HEAL`, `FAIL`, `ERROR`, ...), mode, recording result and duration; failing steps with their error code; then totals, step paths (`replayed`, `by agent`, `healed`, `fuzzy`), fuzzy reasons, model calls, recording results, unreviewed scenarios that ran, the run directory (not after a frozen violation, which creates none) and the exit code.
 
 **Selectors** are scenario ids, feature ids, id prefixes ending in `/` or `--`, or doc globs. A selector that matches nothing is `SCENARIO_NOT_FOUND` (exit 2). `docs-billing--` selects every scenario of `docs/billing.md`; `docs-billing--upgrade-to-pro/` one feature. Rejected scenarios never run.
 
@@ -117,7 +117,7 @@ Without `--frozen` and `--no-compile`, `run` first compiles stale docs (and then
 | `--no-compile` | Do not compile stale docs first. |
 | `--strict` | A `healed` step fails with `REPLAY_DIVERGED`, without calling the agent. |
 | `-u`, `--update-recordings` | Ignore existing recordings and characterize again; overwrite them if the scenario passes. |
-| `--no-agent` | Any step that needs the agent fails with `ACT_NO_AGENT`. Use it to prove a suite replays purely. |
+| `--no-agent` | Any step that needs the agent fails with `ACT_NO_AGENT`. Use it to prove that no step falls back to the agent. It does not stop the judge: a subjective step is still judged, see [Run report and release gates](#run-report-and-release-gates). |
 | `--audit` | Also run the judge next to every deterministic check; a disagreement fails with `CHECK_JUDGE_DISAGREEMENT`. Costs judge calls. |
 | `--workers <n>` | Scenarios in parallel (default 4). Sessions are isolated; `exclusiveResource` drivers serialize. |
 | `--reporter <names>` | Subset of `json`, `junit`, `markdown` (comma-separated or repeated). Default: all three. |
@@ -126,7 +126,7 @@ See [Frozen and CI runs](#frozen-and-ci-runs) for `--frozen` and the `CI` defaul
 
 ### Outputs
 
-Each run writes `.ai-bdd/runs/<runId>/` (`artifacts/`, `manifest.json`, `events.jsonl`, `report.json`, `junit.xml`, `summary.md`) and copies the reports to `.ai-bdd/report/`. `summary.md` has totals, failures, healed and fuzzy steps, the unreviewed scenarios that ran, the traceability matrix (doc section, chunk, scenarios, status), uncovered and not-testable chunks, and usage per purpose. `junit.xml` has one suite per feature and one case per scenario.
+Each run writes `.ai-bdd/runs/<runId>/` (`artifacts/`, `manifest.json`, `events.jsonl`, `report.json`, `junit.xml`, `summary.md`) and copies the reports to `.ai-bdd/report/`, replacing each file and removing the report files that run did not produce. A run that ends with exit 2 or 4 writes no report, so `.ai-bdd/report/` then still holds the report of the last run that wrote one, and it leaves no run directory, unless a compile in that same run called a model: its evidence stays in `.ai-bdd/runs/<runId>/`. `summary.md` has totals, failures, healed and fuzzy steps, the unreviewed scenarios that ran, the traceability matrix (doc section, chunk, scenarios, status), uncovered and not-testable chunks, and usage per purpose. `junit.xml` has one suite per feature and one case per scenario.
 
 ## `verify-run <runDir>`
 
@@ -135,6 +135,70 @@ ai-bdd verify-run "$(ls -d .ai-bdd/runs/* | tail -1)"
 ```
 
 Recomputes every artifact hash and the manifest digest. Exit 0 with `OK`, or exit 1 listing `missing`, `modified`, `extra` or `digest mismatch` problems. Run ids sort by time, so `ls | tail -1` is the latest. It works outside a project (no config needed). It detects corruption and naive edits, not a malicious host ([security.md](security.md#evidence-integrity)).
+
+## Run report and release gates
+
+`report.json` is the result of `ai-bdd run` for scripts and for the release gates of other repositories: the `RunReport` of `@ai-bdd/sdk/contracts`, `schemaVersion` 1. Its JSON Schema (draft 2020-12) ships with the SDK.
+
+| Where | Path |
+|---|---|
+| In this repository | `packages/sdk/schema/run-report.v1.schema.json` |
+| In a project | `@ai-bdd/sdk/schema/run-report.v1.json`, an `exports` entry of `@ai-bdd/sdk` (the file is `node_modules/@ai-bdd/sdk/schema/run-report.v1.schema.json`) |
+
+Every object in the schema is closed (`additionalProperties: false`). A report with a field that version 1 does not define is invalid, and so are `schemaVersion: 2`, a scenario status that is not one of the seven, a negative count, duration or estimated cost, a judge `score`, `spread` or sample `probability` outside 0 to 1, an exit code above 4 and a hash that is not 64 lowercase hex characters. `startedAt` and `finishedAt` match `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`, UTC with milliseconds as `Date.prototype.toISOString()` writes them; the engine never redacts them or `runId` ([security.md](security.md#secrets)). The schema uses that `pattern` rather than `format: date-time`, which Ajv in strict mode refuses unless `ajv-formats` is added. The file is generated from the same zod schema that a compile-time check ties to the contract type, object by object (`pnpm gen:report-schema`); a test fails when it is stale.
+
+The v1 file is frozen once released: a test pins its sha256, and it never changes. Adding a field, optional or not, or an enum value (a new error code, scenario status or fuzzy reason, for instance) means `schemaVersion` 2 and a new file, `run-report.v2.schema.json`, next to v1. Pin the `@ai-bdd/sdk` version you validate with. [Ajv](https://ajv.js.org) in strict mode compiles it:
+
+```ts check
+import { readFileSync } from 'node:fs';
+import { Ajv2020 } from 'ajv/dist/2020.js';
+import schema from '@ai-bdd/sdk/schema/run-report.v1.json' with { type: 'json' };
+
+const validate = new Ajv2020({ strict: true }).compile(schema);
+const report: unknown = JSON.parse(readFileSync('.ai-bdd/report/report.json', 'utf8'));
+if (!validate(report)) throw new Error(`invalid run report: ${JSON.stringify(validate.errors)}`);
+```
+
+What a gate reads:
+
+| Field | Meaning |
+|---|---|
+| `exitCode` | The exit code of `ai-bdd run`, table below. |
+| `totals` | Scenarios per status; all seven statuses are present: `passed`, `failed`, `healed`, `blocked`, `skipped`, `inconclusive`, `error`. |
+| `scenarios[]` | Per scenario: `status`, `mode` (`characterize`, `replay`, `mixed`), `recording`, `error` (`code`, `message`) and `steps[]` with their own `status`, `path`, `error`, `check` and `judge`. |
+| `usage` | Model calls and tokens, also `byPurpose` (`extract`, `act`, `checkgen`, `judge`). |
+| `coverage`, `warnings` | Uncovered and not-testable chunks per doc; diagnostics such as `PLAN_STALE`. |
+| `runId` | Also the name of the run directory, `.ai-bdd/runs/<runId>/`. |
+
+### Exit codes of a gate
+
+The exit codes are those of [Exit codes](#exit-codes). For a gate that runs `ai-bdd run`:
+
+| Exit | Meaning | `report.json` |
+|---|---|---|
+| 0 | Every scenario `passed`, or `healed` without `--strict`. | written |
+| 1 | A scenario `failed`, was `inconclusive` or `blocked`. | written |
+| 2 | Usage or config error: a bad flag, a selector that matches nothing, `-u` with read-only recordings. | not written |
+| 3 | Infrastructure: a scenario ended `error` (a driver or model is unavailable, a secret the scenario uses is not set), or an unexpected internal error. | written when a scenario ended `error` or a model was unavailable; not written after an unexpected internal error once the scenarios were selected (the runner or the report writer failed), which keeps its run directory |
+| 4 | Frozen violation: a plan is `new`, `stale` or `orphaned`. | not written |
+
+"Not written" means the previous `.ai-bdd/report/report.json` is still there. Read the exit code first, or compare `runId` with the run you started: an exit 3 alone does not tell whether this run wrote the report.
+
+### The replay-only gate
+
+Three commands check a project against its committed plans and recordings, with no compile and no agent:
+
+```sh run in=project
+ai-bdd compile --check
+ai-bdd run --frozen --no-agent --reporter json,junit docs-billing--upgrade-to-pro
+ai-bdd verify-run ".ai-bdd/runs/$(node -p "require('./.ai-bdd/report/report.json').runId")"
+```
+
+- `ai-bdd compile --check` writes nothing and calls no model. It exits 4 when a doc is `new`, `stale` or `orphaned`: the committed plans do not describe the docs.
+- `ai-bdd run --frozen --no-agent --reporter json,junit` does not compile (a stale plan is exit 4), replays the recordings and writes `.ai-bdd/report/report.json` and `junit.xml`. A step that would need the agent, because it has no usable recording, fails with `ACT_NO_AGENT` and the run exits 1. Add selectors to run part of the suite; scenarios that were never characterized, or whose recording was discarded, need the agent.
+- `ai-bdd verify-run <runDir>` recomputes the hashes of the run's evidence: exit 0 with `OK`, exit 1 listing what differs.
+
+`--no-agent` stops the agent, not the judge. A subjective step is judged on every run, from the verdict cache in `.ai-bdd/cache/` when it holds the verdict and by a model call when it does not. The cache is not committed, so a fresh checkout calls the judge: `usage.byPurpose.judge.modelCalls` is above 0 and `usage.byPurpose.act.modelCalls` is 0. `usage.modelCalls` is 0 only when no step needs the judge or the cache is warm.
 
 ## `prune`
 

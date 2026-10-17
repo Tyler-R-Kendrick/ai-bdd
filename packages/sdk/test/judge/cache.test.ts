@@ -107,6 +107,22 @@ describe('judge reuse and judgments log', () => {
     expect(again.cached).toBe(true);
   });
 
+  it('R-JU2: a cached probability outside 0..1 is reported clamped, the value the score counts', async () => {
+    const model = new ScriptedJudgeModel('judge-model', [holds()]);
+    const judge = createJudge({ model, config: makeConfig(), cacheDir: dir });
+    await judge.judge(makeRequest());
+    const [file] = await readdir(join(dir, 'judge'));
+    const path = join(dir, 'judge', file as string);
+    const entry = JSON.parse(await readFile(path, 'utf8')) as { samples: { probability: number }[] };
+    entry.samples[0]!.probability = 1.7;
+    entry.samples[1]!.probability = -0.4;
+    await writeFile(path, JSON.stringify(entry));
+    const v = await judge.judge(makeRequest());
+    expect(v.cached).toBe(true);
+    expect(v.samples.map((s) => s.probability)).toEqual([1, 0, 0.95]);
+    expect(v.score).toBe(0.816666666667); // (1 + 0.5 + 0.95) / 3: a `holds` sample below 0.5 counts 0.5
+  });
+
   it('R-JU2: inconclusive verdicts are not reused', async () => {
     const model = new ScriptedJudgeModel('judge-model', [holds(0.6)]);
     const judge = createJudge({ model, config: makeConfig(), cacheDir: dir });

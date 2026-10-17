@@ -5,9 +5,9 @@
 //  - packages/cli reaches '@ai-bdd/testing', '@ai-bdd/driver-playwright' and '@ai-bdd/models-ai-sdk' only through
 //    dynamic import() (type-only static imports are erased and therefore allowed);
 //  - sdk modules import sibling modules only through '../<module>/index.ts' (contracts and util are open);
-//  - nothing imports from a 'dist' directory;
+//  - nothing imports from a 'dist' directory of this repository (a third-party package's own `dist` subpath, such as `ajv/dist/2020`, is allowed);
 //  - relative imports never leave their package.
-// Test files (packages/*/test, tests/, *.test.ts) may import more, but never from 'dist'.
+// Test files (packages/*/test, tests/, *.test.ts) may import more, but never from this repository's 'dist'.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,16 @@ import { finish, isMain, listPackages, parseArgs, readJson, toPosix, walk } from
 const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
 const OPEN_SDK_MODULES = new Set(['contracts', 'util']);
 const DIST = /(^|\/)dist(\/|$)/;
+/** The package a bare specifier names: `@scope/name` or `name`. */
+const packageNameOf = (spec) => spec.split('/').slice(0, spec.startsWith('@') ? 2 : 1).join('/');
+
+/**
+ * Whether `spec` reaches this repository's own modules: a relative or absolute path, a file: URL, a package import (`#...`), or
+ * a package whose name is in `ownNames` (the root package and every workspace package, as their package.json files name them).
+ * A third-party package's `dist` subpath is its own business.
+ */
+export const isOwnCode = (spec, ownNames) =>
+  spec.startsWith('.') || path.isAbsolute(spec) || spec.startsWith('file:') || spec.startsWith('#') || ownNames.has(packageNameOf(spec));
 
 // Files that legitimately load a module chosen at run time. Each one imports the USER's packages (config files, driver
 // and model packages named in the project's config), never an SDK internal. Literal specifiers in them are still checked.
@@ -162,6 +172,14 @@ export function checkBoundaries(root) {
       pkgJsons.set(pkg, null);
     }
   }
+  const ownNames = new Set();
+  let rootJson = null;
+  try {
+    rootJson = readJson(path.join(root, 'package.json'));
+  } catch {
+    /* no root manifest: only the workspace packages are named */
+  }
+  for (const json of [rootJson, ...pkgJsons.values()]) if (typeof json?.name === 'string') ownNames.add(json.name);
   let scanned = 0;
 
   const scanFile = (abs, pkg) => {
@@ -185,7 +203,7 @@ export function checkBoundaries(root) {
         problems.push(imp.kind === 'createRequire' ? `${where}: createRequire() can reach any module; load it with a static import()` : `${where}: the specifier is not a static string and cannot be checked (R-SDK2)`);
         continue;
       }
-      if (DIST.test(spec)) {
+      if (isOwnCode(spec, ownNames) && DIST.test(spec)) {
         problems.push(`${where}: imports from dist/ are forbidden`);
         continue;
       }

@@ -309,7 +309,7 @@ export async function executeScenario(
     steps: stepResults,
     recording: recordingOutcome,
     usage,
-    durationMs: clock.now() - t0,
+    durationMs: Math.max(0, clock.now() - t0), // a wall clock that steps back gives 0, never a negative duration
   };
   if (confirm !== undefined) result.confirm = confirm;
   const error = scenarioError ?? firstStepError;

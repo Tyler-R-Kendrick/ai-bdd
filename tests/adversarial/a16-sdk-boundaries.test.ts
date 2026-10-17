@@ -163,9 +163,11 @@ describe('A16 R-SDK2 runtime package boundaries', () => {
     return execFileSync(process.execPath, ['--conditions=source', '--no-warnings', '--input-type=module', '-e', code], { cwd, encoding: 'utf8', timeout: 60_000 }).trim();
   };
 
-  it('A16 R-SDK2: the SDK export map exposes only "." and "./contracts"', () => {
+  it('A16 R-SDK2: the SDK export map exposes only ".", "./contracts" and the run report JSON Schema', () => {
     const json = JSON.parse(readFileSync(join(REPO_ROOT, 'packages', 'sdk', 'package.json'), 'utf8')) as { exports: Record<string, unknown> };
-    expect(Object.keys(json.exports).sort()).toEqual(['.', './contracts']);
+    expect(Object.keys(json.exports).sort()).toEqual(['.', './contracts', './schema/run-report.v1.json']);
+    // The schema entry is data, not code: one plain target, a .json file in the package's schema directory.
+    expect(json.exports['./schema/run-report.v1.json']).toBe('./schema/run-report.v1.schema.json');
   });
 
   const deep = ['@ai-bdd/sdk/src/runner/index.ts', '@ai-bdd/sdk/src/runner/steps.ts', '@ai-bdd/sdk/dist/index.js', '@ai-bdd/sdk/package.json', '@ai-bdd/sdk/src/contracts/index.ts'];
