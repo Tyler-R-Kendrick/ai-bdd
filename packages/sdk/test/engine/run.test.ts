@@ -65,6 +65,20 @@ describe('run pipeline', () => {
     await expect(engine.run({ selectors: ['nope--'] })).rejects.toMatchObject({ code: 'SCENARIO_NOT_FOUND' });
   });
 
+  it('R-RN3: a selector that matches nothing leaves no run directory, whether or not the run compiles before it selects', async () => {
+    const { engine, config } = await setup();
+    await engine.compile();
+    const runDirs = async (): Promise<string[]> => (await readdir(config.runsDir).catch(() => [] as string[])).sort();
+    const before = await runDirs();
+    await expect(engine.run({ selectors: ['nope--'] })).rejects.toMatchObject({ code: 'SCENARIO_NOT_FOUND' });
+    await expect(engine.run({ compile: false, selectors: ['nope--'] })).rejects.toMatchObject({ code: 'SCENARIO_NOT_FOUND' });
+    await expect(engine.run({ frozen: true, selectors: ['nope--'] })).rejects.toMatchObject({ code: 'SCENARIO_NOT_FOUND' });
+    expect(await runDirs()).toEqual(before);
+    // control: a selector that matches gets its run directory
+    const ok = await engine.run({ compile: false, selectors: [SCENARIO_BILLING] });
+    expect(await runDirs()).toEqual([...before, ok.runId].sort());
+  });
+
   it('passes options to the runner and defaults workers from config.concurrency.scenarios', async () => {
     const { engine, world } = await setup({ user: { concurrency: { scenarios: 2 } } });
     await engine.run({ strict: true, audit: true, noAgent: true, driver: 'fake', workers: 7 });

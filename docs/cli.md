@@ -126,7 +126,7 @@ See [Frozen and CI runs](#frozen-and-ci-runs) for `--frozen` and the `CI` defaul
 
 ### Outputs
 
-Each run writes `.ai-bdd/runs/<runId>/` (`artifacts/`, `manifest.json`, `events.jsonl`, `report.json`, `junit.xml`, `summary.md`) and copies the reports to `.ai-bdd/report/`, which is cleared first. A run that ends with exit 2 or 4 writes no report, so `.ai-bdd/report/` then still holds the report of the last run that wrote one. `summary.md` has totals, failures, healed and fuzzy steps, the unreviewed scenarios that ran, the traceability matrix (doc section, chunk, scenarios, status), uncovered and not-testable chunks, and usage per purpose. `junit.xml` has one suite per feature and one case per scenario.
+Each run writes `.ai-bdd/runs/<runId>/` (`artifacts/`, `manifest.json`, `events.jsonl`, `report.json`, `junit.xml`, `summary.md`) and copies the reports to `.ai-bdd/report/`, which is cleared first. A run that ends with exit 2 or 4 writes no report, so `.ai-bdd/report/` then still holds the report of the last run that wrote one, and it leaves no run directory, unless a compile in that same run called a model: its evidence stays in `.ai-bdd/runs/<runId>/`. `summary.md` has totals, failures, healed and fuzzy steps, the unreviewed scenarios that ran, the traceability matrix (doc section, chunk, scenarios, status), uncovered and not-testable chunks, and usage per purpose. `junit.xml` has one suite per feature and one case per scenario.
 
 ## `verify-run <runDir>`
 

@@ -154,7 +154,12 @@ describe('M28 the run report contract (fake driver, fake models, real CLI)', () 
     expect(frozen.stdout, 'no run directory is created, so none is named').not.toContain('Run: ');
 
     expect(readFileSync(p.path('.ai-bdd', 'report', 'report.json'), 'utf8'), 'exit 2 and 4 leave the earlier report alone').toBe(earlier);
-    // an unknown selector is found only after the run directory exists, so it leaves one without a report; exit 4, a bad flag and -u leave none
+    expect(runDirCount(p), 'none of these leaves a run directory').toBe(runs);
+
+    // a compile in the same run that called the model is evidence, so that run directory stays (without a report)
+    const compiledThenUnknown = expectExit(await runCli(p, ['run', 'no-such-scenario']), 2);
+    expect(compiledThenUnknown.stderr).toContain('SCENARIO_NOT_FOUND');
     expect(runDirCount(p)).toBe(runs + 1);
+    expect((await ok(p, ['verify-run', latestRunDir(p)])).stdout).toContain('OK');
   });
 });

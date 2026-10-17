@@ -129,6 +129,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
 
   const evidence = await core.newEvidence();
   let compileFailed = false;
+  let started = false;
   try {
     // 2. Optional compile (default unless frozen / --no-compile).
     if (shouldCompile) {
@@ -146,6 +147,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
       ...(opts.grep === undefined ? {} : { grep: opts.grep }),
     };
     const targets = selectTargets(plans, selection, { strictSelectors: true });
+    started = true;
     core.emit({ type: 'run-start', runId: evidence.runId, scenarios: targets.length });
 
     // 4. Run.
@@ -183,6 +185,10 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
     core.emit({ type: 'run-end', report: safe });
     return safe;
   } finally {
-    await evidence.finalize();
+    const sealed = await evidence.finalize();
+    // A run that stopped before its first scenario (a selector that matches nothing, unreadable docs: exit 2) and recorded
+    // nothing leaves no run directory, like a frozen violation. Evidence of a compile that called a model is kept.
+    // Best effort: a cleanup failure must not replace the error that stopped the run.
+    if (!started && sealed.artifacts.length === 0) await rm(evidence.dir, { recursive: true, force: true }).catch(() => undefined);
   }
 }
