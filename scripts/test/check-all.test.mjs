@@ -22,6 +22,7 @@ function fixture(exitCodes) {
 test('STEPS covers every check script in order', () => {
   assert.deepEqual(STEPS.map((s) => s.script), [
     'gen-errors-doc.mjs',
+    'gen-run-report-schema.mjs',
     'check-requirements.mjs',
     'check-boundaries.mjs',
     'check-stubs.mjs',
