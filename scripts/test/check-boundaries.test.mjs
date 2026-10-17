@@ -115,6 +115,26 @@ test("a third-party package's own dist subpath is not this repository's build ou
   for (const line of p) assert.match(line, /c\.test\.ts:\d import '.*dist\//);
 });
 
+test("the dist rule knows this repository's packages by the names in their package.json files, not by a scope prefix", () => {
+  const p = problemsOf({
+    'package.json': { name: 'ai-bdd-monorepo', private: true },
+    'packages/extra/package.json': { name: 'plain-tool', version: '0.0.0' },
+    'tests/acceptance/a.test.ts': [
+      "import a from 'ai-bdd-monorepo/dist/a.js';",
+      "import b from 'plain-tool/dist/b.js';",
+      "import c from '#internal/dist/c.js';",
+      "import d from '@ai-bdd/testing/dist/d.js';",
+      "import e from 'plain-tool-ext/dist/e.js';",
+      "import f from 'ajv/dist/2020.js';",
+    ].join('\n'),
+  });
+  assert.deepEqual(
+    p.map((line) => line.replace(/^.*import '([^']+)'.*$/, '$1')),
+    ['ai-bdd-monorepo/dist/a.js', 'plain-tool/dist/b.js', '#internal/dist/c.js', '@ai-bdd/testing/dist/d.js'],
+  );
+  for (const line of p) assert.match(line, /imports from dist\/ are forbidden/);
+});
+
 test('test files may import internals', () => {
   const p = problemsOf({
     'packages/sdk/test/runner/a.test.ts': "import { internal } from '../../src/judge/impl.ts';\nimport { fake } from '@ai-bdd/testing';",
