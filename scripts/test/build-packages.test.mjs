@@ -66,6 +66,17 @@ test('two packages with the same name are refused, naming both directories, befo
   }
 });
 
+test('a malformed package.json is reported with its path', () => {
+  const root = makeRepo({ 'packages/a/package.json': '{ "name": "a", }' });
+  try {
+    const c = capture();
+    assert.equal(main(['--root', root], { log: c.log, run: () => assert.fail('nothing runs'), env: {} }), 1);
+    assert.match(c.out.join('\n'), /^build-packages: packages\/a\/package\.json is not valid JSON: /m);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test('scriptEnv puts each node_modules/.bin from the package up to the root first on PATH', () => {
   const root = path.resolve('/repo');
   const dir = path.join(root, 'packages', 'sdk');

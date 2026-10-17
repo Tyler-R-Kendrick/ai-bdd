@@ -27,8 +27,13 @@ export function readPackages(root) {
   for (const e of entries.filter((x) => x.isDirectory()).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
     const file = path.join(base, e.name, 'package.json');
     if (!fs.existsSync(file)) continue;
-    const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
     const dir = path.join(base, e.name);
+    let manifest;
+    try {
+      manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (err) {
+      throw new Error(`${path.relative(root, file).split(path.sep).join('/')} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+    }
     out.push({ name: typeof manifest.name === 'string' ? manifest.name : e.name, dir, where: path.relative(root, dir).split(path.sep).join('/'), manifest });
   }
   return out;
