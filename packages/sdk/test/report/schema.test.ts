@@ -14,6 +14,8 @@ import {
   renderRunReportJsonSchema,
   runReportJsonSchema,
   type RunReportSchema,
+  type At,
+  type SameKeys,
   type SchemaMatchesContract,
 } from '../../src/report/schema.ts';
 import { REGENERATE_SCHEMA, SCHEMA_PATH, readJson, runReportValidator } from './schema-kit.ts';
@@ -46,9 +48,14 @@ type _AssertionFails = Expect<SchemaMatchesContract<Report, RunReport & { added?
 type _Required = Expect<Equal<SchemaMatchesContract<Report, RunReport & { added: string }>, { propertyNamesDiffer: 'RunReport' }>>;
 type _SchemaOnly = Expect<Equal<SchemaMatchesContract<Report & { added?: string }, RunReport>, { propertyNamesDiffer: 'RunReport' }>>;
 type _Retyped = Expect<Equal<SchemaMatchesContract<Report, Omit<RunReport, 'runId'> & { runId: number }>, { notMutuallyAssignable: true }>>;
+// a row of the check that names a property the report does not have (a typo) is false, not a vacuous `never` vs `never` pass
+type ReportScenario = Report['scenarios'][number];
+type _RowTypo = Expect<Equal<SameKeys<At<ReportScenario, 'confrim'>, At<ScenarioResult, 'confrim'>>, false>>;
+type _RowTypoOneSide = Expect<Equal<SameKeys<At<ReportScenario, 'confirm'>, At<ScenarioResult, 'confrim'>>, false>>;
+type _RowReal = Expect<Equal<SameKeys<At<ReportScenario, 'confirm'>, At<ScenarioResult, 'confirm'>>, true>>;
 export type _TypeAssertions = [
   _Matches, _OptionalTop, _OptionalScenario, _OptionalStep, _OptionalJudge, _OptionalPredicate, _OptionalByPurpose, _AssertionFails,
-  _Required, _SchemaOnly, _Retyped,
+  _Required, _SchemaOnly, _Retyped, _RowTypo, _RowTypoOneSide, _RowReal,
 ];
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
