@@ -96,7 +96,23 @@ test('follows symlinks to their targets, reads each real package once, and survi
     link('node_modules', 'packages/sdk/node_modules/loop/node_modules'); // a cycle back to the root
     const r = checkLicenses(root);
     assert.deepEqual(offenders(r), ['dep@1.0.0', 'inner@1.0.0', 'weak@3.0.0']);
-    assert.equal(r.summary, '5 packages scanned', 'good is counted once although two links lead to it');
+    assert.equal(r.summary, '5 packages scanned, 1 of them in the workspace', 'good is counted once although two links lead to it');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('workspace packages reached through links are counted as such, and a problem names one as a workspace package', () => {
+  const root = makeRepo({
+    ...manifest('packages/sdk', '0.1.0', { license: 'MIT' }),
+    ...manifest('packages/tool', '0.1.0', {}),
+    ...manifest('node_modules/zod', '4.0.0', { license: 'MIT' }),
+  });
+  try {
+    for (const name of ['sdk', 'tool']) fs.symlinkSync(path.join('..', 'packages', name), path.join(root, 'node_modules', name), 'dir');
+    const r = checkLicenses(root);
+    assert.deepEqual(r.problems, ['tool@0.1.0 (workspace package): no license declared']);
+    assert.equal(r.summary, '3 packages scanned, 2 of them in the workspace');
   } finally {
     cleanup(root);
   }

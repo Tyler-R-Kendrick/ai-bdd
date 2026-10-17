@@ -121,6 +121,8 @@ function readDir(dir) {
  * its own `node_modules` and in the `node_modules` that holds it (where pnpm puts them). The walk stays in the repository (and
  * in the directory the root `node_modules` resolves to): a link that leads anywhere else, a package in a global `node_modules`
  * for instance, is not followed and is returned in `refused`, so that a whole foreign directory is never read in its place.
+ * A package whose real directory is in the repository but in no `node_modules` (a workspace package reached through its link)
+ * is listed in `workspace` too: it is checked like any other, and counted and named as one of ours.
  * Returns null when there is no `node_modules` at all.
  */
 function listInstalledPackages(root) {
@@ -129,6 +131,7 @@ function listInstalledPackages(root) {
   const trees = [real(root), real(top)].filter((t) => t !== undefined);
   const inside = (target) => trees.some((t) => target === t || target.startsWith(`${t}${path.sep}`));
   const found = new Map();
+  const workspace = new Set();
   const refused = new Map();
   const scannedDirs = new Set();
   const visitedPackages = new Set();
@@ -144,7 +147,11 @@ function listInstalledPackages(root) {
     if (fs.existsSync(file)) {
       try {
         const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
-        if (pkg && typeof pkg.name === 'string') found.set(`${pkg.name}@${pkg.version ?? '0.0.0'}`, pkg);
+        if (pkg && typeof pkg.name === 'string') {
+          const key = `${pkg.name}@${pkg.version ?? '0.0.0'}`;
+          found.set(key, pkg);
+          if (!path.relative(trees[0], target).split(path.sep).includes('node_modules')) workspace.add(key);
+        }
       } catch {
         /* unreadable package.json: skipped, nothing to attribute */
       }
@@ -175,7 +182,7 @@ function listInstalledPackages(root) {
   };
 
   while (queue.length > 0) scanNodeModules(queue.shift());
-  return { found, refused };
+  return { found, refused, workspace };
 }
 
 export function checkLicenses(root) {
@@ -183,7 +190,7 @@ export function checkLicenses(root) {
   if (listed === null) {
     return { ok: false, problems: ['node_modules not found: install the dependencies first'] };
   }
-  const { found: installed, refused } = listed;
+  const { found: installed, refused, workspace } = listed;
   let exceptions = {};
   const exFile = path.join(root, 'scripts', 'license-exceptions.json');
   if (fs.existsSync(exFile)) exceptions = JSON.parse(fs.readFileSync(exFile, 'utf8'));
@@ -195,10 +202,12 @@ export function checkLicenses(root) {
     if (exceptions[key] || exceptions[name]) continue;
     if (pkg.private === true && !pkg.license) continue;
     const expr = licenseExpression(pkg);
-    if (expr === undefined) problems.push(`${key}: no license declared`);
-    else if (!isAllowedExpression(expr)) problems.push(`${key}: license '${expr}' is not on the allowlist`);
+    const what = workspace.has(key) ? `${key} (workspace package)` : key;
+    if (expr === undefined) problems.push(`${what}: no license declared`);
+    else if (!isAllowedExpression(expr)) problems.push(`${what}: license '${expr}' is not on the allowlist`);
   }
-  return { ok: problems.length === 0, problems, summary: `${keys.length} packages scanned` };
+  const ours = keys.filter((k) => workspace.has(k)).length;
+  return { ok: problems.length === 0, problems, summary: `${keys.length} packages scanned${ours > 0 ? `, ${ours} of them in the workspace` : ''}` };
 }
 
 if (isMain(import.meta.url)) {
