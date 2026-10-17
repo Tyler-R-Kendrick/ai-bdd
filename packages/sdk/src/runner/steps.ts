@@ -67,7 +67,7 @@ export async function runStep(
     fuzzyReasons: body.fuzzyReasons,
     actions: acc.actions,
     usage: acc.usage,
-    durationMs: deps.clock.now() - t0,
+    durationMs: Math.max(0, deps.clock.now() - t0), // the clock is a wall clock: a step back (an NTP correction) is not negative time
     evidence: acc.evidence,
     sources: step.sources,
   };

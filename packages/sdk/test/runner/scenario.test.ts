@@ -117,6 +117,19 @@ describe('skipped after failure, events and bookkeeping', () => {
     expect(r.durationMs).toBe(500);
   });
 
+  it('R-RN1: a clock that steps back (a wall-clock correction) gives a duration of 0, never a negative one', async () => {
+    const h = createHarness({ steps: [when(GO)], config: { characterize: { confirmRuns: 0, probeMs: 500, healThreshold: 2 } } });
+    h.clock.sleep = (ms: number): Promise<void> => {
+      h.clock.sleeps.push(ms);
+      h.clock.t -= 60_000;
+      return Promise.resolve();
+    };
+    const r = await h.run();
+    expect(h.clock.sleeps).toEqual([500]);
+    expect(r.steps[0]?.durationMs).toBe(0);
+    expect(r.durationMs).toBe(0);
+  });
+
   it('R-CH1: usage aggregates step usage (actor, judge, checkgen) into the scenario', async () => {
     const h = createHarness({ steps: [when(GO), thenStep(SEES)], config: { characterize: { confirmRuns: 0, probeMs: 0, healThreshold: 2 } } });
     h.effectShows(GO, SEES);
