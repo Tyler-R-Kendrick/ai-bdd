@@ -249,6 +249,15 @@ test('ts check blocks are typechecked with the repository settings and errors ma
   }
 });
 
+test('a ts check block with no typescript installed says to install the dependencies', () => {
+  const root = makeRepo({ 'docs/ts.md': '# Types\n\n```ts check\nconst n: number = 1;\n```\n' });
+  try {
+    assert.deepEqual(checkDocs(root, { run: false, links: false }).problems, ['typescript is not installed (node_modules/typescript): install the dependencies first']);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test('the repository documentation passes the link check', () => {
   const r = checkDocs(REAL_ROOT, { ts: false, run: false });
   assert.deepEqual(r.problems, []);

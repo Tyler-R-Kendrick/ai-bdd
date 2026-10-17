@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CRAP (Change Risk Anti-Patterns) score per function: complexity^2 * (1 - coverage)^3 + complexity.
 //   complexity: cyclomatic complexity from the TypeScript AST (1 + branch points; nested functions are scored on their own),
-//   coverage:   share of the function's own statements executed, from coverage/coverage-final.json (`pnpm coverage`).
+//   coverage:   share of the function's own statements executed, from coverage/coverage-final.json (the root `coverage` script).
 // A fully covered function scores its complexity; an untested one scores complexity^2 + complexity.
 //
 //   node scripts/crap.mjs                    print the worst functions
@@ -185,7 +185,7 @@ export function main(argv, { log = console } = {}) {
   const { root, flags, rest } = parseArgs(argv, import.meta.url);
   const finalFile = path.resolve(root, rest[0] ?? 'coverage/coverage-final.json');
   if (!fs.existsSync(finalFile)) {
-    log.error(`crap: ${finalFile} not found (run "pnpm coverage" first)`);
+    log.error(`crap: ${finalFile} not found (run the "coverage" script first)`);
     return 2;
   }
   const rows = withUniqueIds(analyze(root, JSON.parse(fs.readFileSync(finalFile, 'utf8'))));

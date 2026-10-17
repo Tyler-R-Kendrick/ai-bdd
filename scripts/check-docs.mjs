@@ -346,7 +346,7 @@ function checkTypeScript(root, entries, log) {
     };
     fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2));
     const tsc = path.join(root, 'node_modules', 'typescript', 'bin', 'tsc');
-    if (!fs.existsSync(tsc)) return ['typescript is not installed (node_modules/typescript); run pnpm install'];
+    if (!fs.existsSync(tsc)) return ['typescript is not installed (node_modules/typescript): install the dependencies first'];
     log(`  tsc ${entries.length} block(s)`);
     const r = spawnSync(process.execPath, [tsc, '-p', path.join(dir, 'tsconfig.json'), '--pretty', 'false'], { cwd: repo, env: cleanEnv({}), encoding: 'utf8', timeout: TSC_TIMEOUT_MS });
     if (r.status === 0) return [];
