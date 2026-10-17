@@ -50,6 +50,22 @@ test('buildOrder refuses a dependency cycle and names its members', () => {
   assert.throws(() => buildOrder(pkgs), /dependency cycle among a, b, c$/);
 });
 
+test('two packages with the same name are refused, naming both directories, before anything is built', () => {
+  const root = makeRepo({
+    'packages/dup-a/package.json': manifest('@x/dup', 'tsc', { '@x/lib': 'workspace:*' }),
+    'packages/dup-b/package.json': manifest('@x/dup', 'tsc'),
+    'packages/lib/package.json': manifest('@x/lib', 'tsc'),
+  });
+  try {
+    assert.throws(() => buildOrder(readPackages(root)), /^Error: two workspace packages are named @x\/dup: packages\/dup-a and packages\/dup-b$/);
+    const c = capture();
+    assert.equal(main(['--root', root], { log: c.log, run: () => assert.fail('nothing runs'), env: {} }), 1);
+    assert.match(c.out.join('\n'), /build-packages: two workspace packages are named @x\/dup: packages\/dup-a and packages\/dup-b/);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test('scriptEnv puts each node_modules/.bin from the package up to the root first on PATH', () => {
   const root = path.resolve('/repo');
   const dir = path.join(root, 'packages', 'sdk');

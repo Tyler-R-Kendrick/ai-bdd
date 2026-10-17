@@ -28,7 +28,8 @@ export function readPackages(root) {
     const file = path.join(base, e.name, 'package.json');
     if (!fs.existsSync(file)) continue;
     const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
-    out.push({ name: typeof manifest.name === 'string' ? manifest.name : e.name, dir: path.join(base, e.name), manifest });
+    const dir = path.join(base, e.name);
+    out.push({ name: typeof manifest.name === 'string' ? manifest.name : e.name, dir, where: path.relative(root, dir).split(path.sep).join('/'), manifest });
   }
   return out;
 }
@@ -42,9 +43,18 @@ function workspaceDeps(manifest, names) {
   return deps;
 }
 
-/** Orders packages so that each one comes after the workspace packages it depends on; throws on a cycle, naming its members. */
+/**
+ * Orders packages so that each one comes after the workspace packages it depends on. Throws on a cycle, naming its members, and on
+ * two packages with one name, naming both (dependencies are matched by name, so either could be built before what it needs).
+ */
 export function buildOrder(packages) {
-  const names = new Set(packages.map((p) => p.name));
+  const byName = new Map();
+  for (const p of packages) {
+    const other = byName.get(p.name);
+    if (other !== undefined) throw new Error(`two workspace packages are named ${p.name}: ${other.where ?? other.dir} and ${p.where ?? p.dir}`);
+    byName.set(p.name, p);
+  }
+  const names = new Set(byName.keys());
   const pending = new Map(packages.map((p) => [p.name, workspaceDeps(p.manifest, names)]));
   const order = [];
   while (pending.size > 0) {
