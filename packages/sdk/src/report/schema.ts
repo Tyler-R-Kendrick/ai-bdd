@@ -21,6 +21,10 @@ import { ERROR_CODES, type JsonValue, type RunReport } from '../contracts/index.
  */
 
 const count = z.number().int().min(0);
+/** Milliseconds; the engine clamps a wall clock that steps back to 0. */
+const duration = z.number().min(0);
+/** A probability or an aggregate of probabilities: the judge clamps every sample to 0..1. */
+const unit = z.number().min(0).max(1);
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/).meta({ id: 'Sha256', description: '64 lowercase hex characters' });
 const jsonValue: z.ZodType<JsonValue> = z
   .lazy(() => z.union([z.null(), z.boolean(), z.number(), z.string(), z.array(jsonValue), z.record(z.string(), jsonValue)]))
@@ -128,12 +132,12 @@ const checkEvaluation = z
 const judgeVerdict = z
   .object({
     verdict: z.enum(['pass', 'fail', 'inconclusive']),
-    score: z.number(),
-    spread: z.number(),
+    score: unit,
+    spread: unit,
     samples: z.array(
       z
         .object({
-          probability: z.number(),
+          probability: unit,
           verdict: z.enum(['holds', 'fails', 'cannot_tell']),
           explanation: z.string(),
           observed: z.string(),
@@ -163,7 +167,7 @@ const stepResult = z
     judge: judgeVerdict.exactOptional(),
     actions: count,
     usage,
-    durationMs: z.number(),
+    durationMs: duration,
     evidence: z.array(artifactRef),
     sources: z.array(chunkRef),
   })
@@ -185,14 +189,14 @@ const scenarioResult = z
     confirm: z.object({ runs: count, reclassified: z.array(z.string()), failed: z.boolean() }).strict().exactOptional(),
     error: errorPayload.exactOptional(),
     usage,
-    durationMs: z.number(),
+    durationMs: duration,
   })
   .strict()
   .meta({ id: 'ScenarioResult' });
 
 const runUsage = usage.extend({
   byPurpose: z.object({ extract: usage, act: usage, checkgen: usage, judge: usage }).strict(),
-  estimatedCostUsd: z.number().exactOptional(),
+  estimatedCostUsd: z.number().min(0).exactOptional(),
 });
 
 export const RunReportSchema = z

@@ -87,6 +87,7 @@ describe('a report the schema must reject', () => {
   }
   const failedScenario0 = ['scenarios', 0];
   const failedStep0 = ['scenarios', 0, 'steps', 0];
+  const judged = ['scenarios', 4, 'steps', 1, 'judge'];
   const cases: Case[] = [
     { name: 'schemaVersion 2', from: 'passed', path: ['schemaVersion'], to: 2, at: '/schemaVersion', keyword: 'const' },
     { name: 'an unknown scenario status', from: 'passed', path: [...failedScenario0, 'status'], to: 'flaky', at: '/scenarios/0/status', keyword: 'enum' },
@@ -112,6 +113,12 @@ describe('a report the schema must reject', () => {
     { name: 'an unknown recordings mode', from: 'passed', path: ['options', 'recordingsMode'], to: 'readonly', at: '/options/recordingsMode', keyword: 'enum' },
     { name: 'a predicate the checker does not know', from: 'passed', path: [...failedScenario0, 'steps', 1, 'check', 'results', 0, 'predicate', 'op'], to: 'regex', at: '/scenarios/0/steps/1/check/results/0/predicate', keyword: 'oneOf' },
     { name: 'a warning with an unknown severity', from: 'passed', path: ['warnings'], to: [{ code: 'PLAN_STALE', severity: 'fatal', message: 'x' }], at: '/warnings/0/severity', keyword: 'enum' },
+    { name: 'a negative step duration', from: 'passed', path: [...failedStep0, 'durationMs'], to: -1, at: '/scenarios/0/steps/0/durationMs', keyword: 'minimum' },
+    { name: 'a negative scenario duration', from: 'passed', path: [...failedScenario0, 'durationMs'], to: -0.5, at: '/scenarios/0/durationMs', keyword: 'minimum' },
+    { name: 'a negative estimated cost', from: 'passed', path: ['usage', 'estimatedCostUsd'], to: -0.01, at: '/usage/estimatedCostUsd', keyword: 'minimum' },
+    { name: 'a judge score above 1', from: 'failed', path: [...judged, 'score'], to: 1.2, at: '/scenarios/4/steps/1/judge/score', keyword: 'maximum' },
+    { name: 'a negative judge spread', from: 'failed', path: [...judged, 'spread'], to: -0.1, at: '/scenarios/4/steps/1/judge/spread', keyword: 'minimum' },
+    { name: 'a sample probability above 1', from: 'failed', path: [...judged, 'samples', 0, 'probability'], to: 1.5, at: '/scenarios/4/steps/1/judge/samples/0/probability', keyword: 'maximum' },
   ];
 
   it.each(cases)('$name', ({ from, path, to, at, keyword }) => {

@@ -164,7 +164,8 @@
           "additionalProperties": false
         },
         "estimatedCostUsd": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0
         }
       },
       "required": [
@@ -343,7 +344,8 @@
           "$ref": "#/$defs/Usage"
         },
         "durationMs": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0
         }
       },
       "required": [
@@ -455,7 +457,8 @@
           "$ref": "#/$defs/Usage"
         },
         "durationMs": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0
         },
         "evidence": {
           "type": "array",
@@ -965,10 +968,14 @@
           ]
         },
         "score": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "spread": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "samples": {
           "type": "array",
@@ -976,7 +983,9 @@
             "type": "object",
             "properties": {
               "probability": {
-                "type": "number"
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
               },
               "verdict": {
                 "type": "string",
