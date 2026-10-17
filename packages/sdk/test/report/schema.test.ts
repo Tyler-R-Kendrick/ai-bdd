@@ -5,9 +5,51 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
 import { ERROR_CODES } from '../../src/contracts/index.ts';
-import { RUN_REPORT_SCHEMA_COMMAND, RUN_REPORT_SCHEMA_FILE, renderRunReportJsonSchema, runReportJsonSchema } from '../../src/report/schema.ts';
+import type { JudgeVerdict, Predicate, PredicateResult, RunReport, ScenarioResult, StepResult, Usage } from '../../src/contracts/index.ts';
+import {
+  RUN_REPORT_SCHEMA_COMMAND,
+  RUN_REPORT_SCHEMA_FILE,
+  renderRunReportJsonSchema,
+  runReportJsonSchema,
+  type RunReportSchema,
+  type SchemaMatchesContract,
+} from '../../src/report/schema.ts';
 import { REGENERATE_SCHEMA, SCHEMA_PATH, readJson, runReportValidator } from './schema-kit.ts';
+
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Expect<T extends true> = T;
+
+// Compile-time controls of the drift check in schema.ts (`pnpm typecheck`). Each mutation is a copy of the contract type with one
+// change; the check must pass for the contract type itself and fail, naming the object, for every mutation.
+type Report = z.infer<typeof RunReportSchema>;
+type WithScenario<T> = Omit<RunReport, 'scenarios'> & { scenarios: T[] };
+type WithStep<T> = WithScenario<Omit<ScenarioResult, 'steps'> & { steps: T[] }>;
+type WithJudge<T> = WithStep<Omit<StepResult, 'judge'> & { judge?: T }>;
+type WithPredicate<T> = WithStep<Omit<StepResult, 'check'> & { check?: { passed: boolean; results: (Omit<PredicateResult, 'predicate'> & { predicate: T })[] } }>;
+type WithJudgeUsage<T> = Omit<RunReport, 'usage'> & { usage: Omit<RunReport['usage'], 'byPurpose'> & { byPurpose: Omit<RunReport['usage']['byPurpose'], 'judge'> & { judge: T } } };
+type CountWith<T> = Exclude<Predicate, { op: 'count' }> | (Extract<Predicate, { op: 'count' }> & T);
+
+type _Matches = Expect<Equal<SchemaMatchesContract<Report, RunReport>, true>>;
+// a new OPTIONAL field on the contract type: invisible to mutual assignability, caught by the key sets, at every depth
+type _OptionalTop = Expect<Equal<SchemaMatchesContract<Report, RunReport & { added?: string }>, { propertyNamesDiffer: 'RunReport' }>>;
+type _OptionalScenario = Expect<Equal<SchemaMatchesContract<Report, WithScenario<ScenarioResult & { added?: number }>>, { propertyNamesDiffer: 'ScenarioResult' }>>;
+type _OptionalStep = Expect<Equal<SchemaMatchesContract<Report, WithStep<StepResult & { added?: boolean }>>, { propertyNamesDiffer: 'StepResult' }>>;
+type _OptionalJudge = Expect<Equal<SchemaMatchesContract<Report, WithJudge<JudgeVerdict & { added?: string }>>, { propertyNamesDiffer: 'JudgeVerdict' }>>;
+type _OptionalPredicate = Expect<Equal<SchemaMatchesContract<Report, WithPredicate<CountWith<{ added?: string }>>>, { propertyNamesDiffer: 'Predicate(op: count)' }>>;
+type _OptionalByPurpose = Expect<Equal<SchemaMatchesContract<Report, WithJudgeUsage<Usage & { added?: number }>>, { propertyNamesDiffer: 'RunReport.usage.byPurpose.judge' }>>;
+// the same mutation written the way schema.ts asserts its check: the assertion does not compile
+// @ts-expect-error a new optional field on the contract type is drift
+type _AssertionFails = Expect<SchemaMatchesContract<Report, RunReport & { added?: string }>>;
+// a new required field, an optional field only the schema declares, and a changed type of an existing field
+type _Required = Expect<Equal<SchemaMatchesContract<Report, RunReport & { added: string }>, { propertyNamesDiffer: 'RunReport' }>>;
+type _SchemaOnly = Expect<Equal<SchemaMatchesContract<Report & { added?: string }, RunReport>, { propertyNamesDiffer: 'RunReport' }>>;
+type _Retyped = Expect<Equal<SchemaMatchesContract<Report, Omit<RunReport, 'runId'> & { runId: number }>, { notMutuallyAssignable: true }>>;
+export type _TypeAssertions = [
+  _Matches, _OptionalTop, _OptionalScenario, _OptionalStep, _OptionalJudge, _OptionalPredicate, _OptionalByPurpose, _AssertionFails,
+  _Required, _SchemaOnly, _Retyped,
+];
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 const committed = (): Record<string, Json> => readJson(SCHEMA_PATH) as Record<string, Json>;

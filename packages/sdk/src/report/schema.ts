@@ -8,9 +8,13 @@ import { ERROR_CODES, type JsonValue, type RunReport } from '../contracts/index.
  * consumer (another repository's release gate) can check `.ai-bdd/report/report.json` with any JSON Schema validator. Two things
  * keep the restatement honest:
  *   - `_RUN_REPORT_SCHEMA_MATCHES_TYPE` below does not compile unless the schema's inferred type and `RunReport` are assignable to
- *     each other (optional properties use `exactOptional`, which is what `exactOptionalPropertyTypes` means). That catches a
- *     missing, mistyped or wrongly required property and a different enum or literal; it cannot see an optional property that only
- *     the schema declares, so adding a property here without adding it to the contract type is a review matter;
+ *     each other (optional properties use `exactOptional`, which is what `exactOptionalPropertyTypes` means) and every object of
+ *     the report has the same property names on both sides (`SchemaMatchesContract`). Assignability catches a missing, mistyped or
+ *     wrongly required property and a different enum or literal, but not an optional property that only one side declares, in
+ *     either direction: a field added to the contract type as optional would pass it while this closed schema rejects every report
+ *     that carries the field. The property-name check per object closes that gap. It is shallow and lists the report's objects by
+ *     name (`ObjectKeySets`), so a new nested object type needs a row there; `JsonValue` fields (`details`, `actual`) are open by
+ *     design. test/report/schema.test.ts holds the controls: copies of the contract type with one change each, which must fail;
  *   - the unit tests validate reports captured from real runs against the generated file and reject hand-broken copies.
  * Every object is closed (`additionalProperties: false`): version 1 has exactly the fields of the contract type, and a new field
  * is a new `schemaVersion`.
@@ -236,9 +240,83 @@ export const RunReportSchema = z
   })
   .strict();
 
-type Mutual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-/** Compile-time check: the schema and the contract type `RunReport` accept the same values. A mismatch makes this line a type error. */
-export const _RUN_REPORT_SCHEMA_MATCHES_TYPE: Mutual<z.infer<typeof RunReportSchema>, RunReport> = true;
+// ───────────────────────── compile-time drift check: schema vs contract type
+type Mutual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Obj<T> = NonNullable<T>;
+/** Property `K` of `T`, optional or not; `never` when `T` has no `K`. */
+type At<T, K extends PropertyKey> = K extends keyof Obj<T> ? Obj<T>[K] : never;
+/** The element type of an array. */
+type Item<T> = Obj<T> extends readonly (infer E)[] ? E : never;
+/** The variant of a union discriminated by `op` (a predicate). */
+type Variant<T, Op> = Extract<Obj<T>, { op: Op }>;
+/** The member of a union that has a required `K` (a text value: `literal` or `param`). */
+type Having<T, K extends PropertyKey> = Extract<Obj<T>, Record<K, unknown>>;
+/** Same property names, optional ones included: assignability cannot see an optional property that only one side declares. */
+type SameKeys<A, B> = Mutual<keyof Obj<A>, keyof Obj<B>>;
+
+type Scenario<T> = Item<At<T, 'scenarios'>>;
+type Step<T> = Item<At<Scenario<T>, 'steps'>>;
+type Judge<T> = At<Step<T>, 'judge'>;
+type PredicateResult<T> = Item<At<At<Step<T>, 'check'>, 'results'>>;
+type Pred<T> = At<PredicateResult<T>, 'predicate'>;
+type ByPurpose<T> = At<At<T, 'usage'>, 'byPurpose'>;
+type Warning<T> = Item<At<T, 'warnings'>>;
+
+/** Every object type of the report, by name, and whether the schema `S` and the contract type `C` give it the same property names. */
+type ObjectKeySets<S, C> = {
+  RunReport: SameKeys<S, C>;
+  'RunReport.options': SameKeys<At<S, 'options'>, At<C, 'options'>>;
+  'RunReport.totals': SameKeys<At<S, 'totals'>, At<C, 'totals'>>;
+  'RunReport.usage': SameKeys<At<S, 'usage'>, At<C, 'usage'>>;
+  'RunReport.usage.byPurpose': SameKeys<ByPurpose<S>, ByPurpose<C>>;
+  'RunReport.coverage': SameKeys<At<S, 'coverage'>, At<C, 'coverage'>>;
+  'RunReport.coverage.docs[]': SameKeys<Item<At<At<S, 'coverage'>, 'docs'>>, Item<At<At<C, 'coverage'>, 'docs'>>>;
+  Diagnostic: SameKeys<Warning<S>, Warning<C>>;
+  'Diagnostic.range': SameKeys<At<Warning<S>, 'range'>, At<Warning<C>, 'range'>>;
+  ScenarioResult: SameKeys<Scenario<S>, Scenario<C>>;
+  'ScenarioResult.confirm': SameKeys<At<Scenario<S>, 'confirm'>, At<Scenario<C>, 'confirm'>>;
+  'ScenarioResult.error': SameKeys<At<Scenario<S>, 'error'>, At<Scenario<C>, 'error'>>;
+  'ScenarioResult.usage': SameKeys<At<Scenario<S>, 'usage'>, At<Scenario<C>, 'usage'>>;
+  StepResult: SameKeys<Step<S>, Step<C>>;
+  'StepResult.error': SameKeys<At<Step<S>, 'error'>, At<Step<C>, 'error'>>;
+  'StepResult.usage': SameKeys<At<Step<S>, 'usage'>, At<Step<C>, 'usage'>>;
+  'StepResult.evidence[]': SameKeys<Item<At<Step<S>, 'evidence'>>, Item<At<Step<C>, 'evidence'>>>;
+  'StepResult.sources[]': SameKeys<Item<At<Step<S>, 'sources'>>, Item<At<Step<C>, 'sources'>>>;
+  CheckEvaluation: SameKeys<At<Step<S>, 'check'>, At<Step<C>, 'check'>>;
+  'CheckEvaluation.results[]': SameKeys<PredicateResult<S>, PredicateResult<C>>;
+  JudgeVerdict: SameKeys<Judge<S>, Judge<C>>;
+  'JudgeVerdict.samples[]': SameKeys<Item<At<Judge<S>, 'samples'>>, Item<At<Judge<C>, 'samples'>>>;
+  'JudgeVerdict.usage': SameKeys<At<Judge<S>, 'usage'>, At<Judge<C>, 'usage'>>;
+  'Predicate(op: text).value(literal)': SameKeys<Having<At<Variant<Pred<S>, 'text'>, 'value'>, 'literal'>, Having<At<Variant<Pred<C>, 'text'>, 'value'>, 'literal'>>;
+  'Predicate(op: text).value(param)': SameKeys<Having<At<Variant<Pred<S>, 'text'>, 'value'>, 'param'>, Having<At<Variant<Pred<C>, 'text'>, 'value'>, 'param'>>;
+} & {
+  [P in keyof Obj<ByPurpose<C>> as `RunReport.usage.byPurpose.${P & string}`]: SameKeys<At<ByPurpose<S>, P>, At<ByPurpose<C>, P>>;
+} & {
+  [O in At<Pred<C>, 'op'> as `Predicate(op: ${O & string})`]: SameKeys<Variant<Pred<S>, O>, Variant<Pred<C>, O>>;
+} & {
+  [O in At<Pred<C>, 'op'> as `Predicate(op: ${O & string}).query`]: SameKeys<At<Variant<Pred<S>, O>, 'query'>, At<Variant<Pred<C>, O>, 'query'>>;
+} & {
+  [O in At<Pred<C>, 'op'> as `Predicate(op: ${O & string}).query.within`]: SameKeys<
+    At<At<Variant<Pred<S>, O>, 'query'>, 'within'>,
+    At<At<Variant<Pred<C>, O>, 'query'>, 'within'>
+  >;
+};
+
+/** The names of the objects whose property names differ; `never` when there are none. */
+type KeyDrift<S, C> = { [K in keyof ObjectKeySets<S, C>]: ObjectKeySets<S, C>[K] extends true ? never : K }[keyof ObjectKeySets<S, C>];
+
+/**
+ * `true` when the schema `S` and the contract type `C` accept the same values and every object of the report has the same
+ * property names on both sides. Otherwise a type that says what differs, so assigning `true` to it fails with that in the message.
+ */
+export type SchemaMatchesContract<S, C> = [KeyDrift<S, C>] extends [never]
+  ? Mutual<S, C> extends true
+    ? true
+    : { notMutuallyAssignable: true }
+  : { propertyNamesDiffer: KeyDrift<S, C> };
+
+/** Compile-time check: the schema and the contract type `RunReport` agree (see `SchemaMatchesContract`). Drift makes this line a type error. */
+export const _RUN_REPORT_SCHEMA_MATCHES_TYPE: SchemaMatchesContract<z.infer<typeof RunReportSchema>, RunReport> = true;
 
 export const RUN_REPORT_SCHEMA_ID = 'urn:ai-bdd:schema:run-report:1';
 export const RUN_REPORT_SCHEMA_FILE = 'packages/sdk/schema/run-report.v1.schema.json';
