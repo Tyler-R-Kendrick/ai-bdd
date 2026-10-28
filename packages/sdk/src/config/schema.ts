@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ChatModel, DriverFactory, FixtureDefinition, ModelSet, Verb } from '../contracts/index.ts';
+import type { ArtifactKind, BinaryType, ChatModel, DocumentExtension, DriverFactory, FixtureDefinition, ModelSet, RiskLevel, Verb } from '../contracts/index.ts';
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isFn = (v: unknown): boolean => typeof v === 'function';
@@ -22,6 +22,30 @@ const modelSet = z.custom<ModelSet>(
   (v) => isRecord(v) && PURPOSES.every((p) => isChatModel(v[p])),
   { message: 'expected a ModelSet with ChatModel entries for extract, act, checkgen and judge' },
 );
+
+const documentExtension = z.custom<DocumentExtension>(
+  (v) =>
+    isRecord(v) &&
+    typeof v['id'] === 'string' && v['id'].length > 0 &&
+    Array.isArray(v['suffixes']) && v['suffixes'].every((s) => typeof s === 'string' && s.startsWith('.')) &&
+    isRecord(v['chunker']) && isFn(v['chunker']['chunk']) &&
+    isRecord(v['extractor']) && isFn(v['extractor']['extractSection']),
+  { message: 'expected a DocumentExtension ({ id, suffixes, chunker, extractor })' },
+);
+
+const BINARY_TYPES = ['web', 'cli', 'library', 'api', 'mobile', 'desktop', 'other'] as const;
+const RISK_LEVELS = ['low', 'medium', 'high', 'critical'] as const;
+const ARTIFACT_KINDS = [
+  'screenshot', 'observation', 'act-transcript', 'action-log', 'judge-request', 'judge-response',
+  'checkgen', 'extract-request', 'extract-response', 'report', 'test-report', 'formal-proof', 'log',
+] as const;
+const evidenceMap = z.strictObject({
+  web: z.array(z.enum(ARTIFACT_KINDS)).min(1), cli: z.array(z.enum(ARTIFACT_KINDS)).min(1),
+  library: z.array(z.enum(ARTIFACT_KINDS)).min(1), api: z.array(z.enum(ARTIFACT_KINDS)).min(1),
+  mobile: z.array(z.enum(ARTIFACT_KINDS)).min(1), desktop: z.array(z.enum(ARTIFACT_KINDS)).min(1),
+  other: z.array(z.enum(ARTIFACT_KINDS)).min(1),
+}).partial();
+const formalMap = z.strictObject({ low: z.boolean(), medium: z.boolean(), high: z.boolean(), critical: z.boolean() }).partial();
 
 const fixtureDefinition = z.custom<FixtureDefinition>(
   (v) =>
@@ -63,6 +87,10 @@ export const userConfigSchema = z.strictObject({
   fixtures: z.array(fixtureDefinition),
   secrets: z.record(z.string().regex(/^[A-Za-z0-9_.-]+$/, 'secret names may contain letters, digits, ".", "_" and "-"'), z.strictObject({ env: nonEmpty })),
   context: z.string(),
+  extensions: z.array(documentExtension),
+  verification: z.strictObject({
+    target: z.enum(BINARY_TYPES), risk: z.enum(RISK_LEVELS), evidence: evidenceMap, formalVerification: formalMap,
+  }).partial(),
   extract: z.strictObject({ sectionDepth: z.number().int().min(1).max(6), maxSectionChars: posInt, minQuoteChars: posInt, concurrency: posInt }).partial(),
   characterize: z.strictObject({ confirmRuns: nonNegInt, probeMs: nonNegInt, healThreshold: posInt }).partial(),
   judge: z

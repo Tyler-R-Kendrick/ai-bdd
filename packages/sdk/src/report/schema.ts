@@ -73,7 +73,7 @@ const artifactRef = z
     path: z.string(),
     kind: z.enum([
       'screenshot', 'observation', 'act-transcript', 'action-log', 'judge-request', 'judge-response',
-      'checkgen', 'extract-request', 'extract-response', 'report',
+      'checkgen', 'extract-request', 'extract-response', 'report', 'test-report', 'formal-proof', 'log',
     ]),
     bytes: count,
   })
@@ -196,6 +196,18 @@ const scenarioResult = z
   .strict()
   .meta({ id: 'ScenarioResult' });
 
+export const FeatureResultSchema = z
+  .object({
+    featureId: z.string(), docUri: z.string(), title: z.string(), status, selected: z.boolean(),
+    target: z.enum(['web', 'cli', 'library', 'api', 'mobile', 'desktop', 'other']),
+    risk: z.enum(['low', 'medium', 'high', 'critical']),
+    requiredEvidence: z.array(artifactRef.shape.kind), formalVerificationRequired: z.boolean(),
+    tests: z.array(z.object({ scenarioId: z.string(), status }).strict()), evidence: z.array(artifactRef), problems: z.array(diagnostic),
+    runId: z.string().exactOptional(), lastRunAt: isoTimestamp.exactOptional(),
+  })
+  .strict()
+  .meta({ id: 'FeatureResult' });
+
 const runUsage = usage.extend({
   byPurpose: z.object({ extract: usage, act: usage, checkgen: usage, judge: usage }).strict(),
   estimatedCostUsd: z.number().min(0).exactOptional(),
@@ -219,6 +231,7 @@ export const RunReportSchema = z
       })
       .strict(),
     scenarios: z.array(scenarioResult),
+    features: z.array(FeatureResultSchema).exactOptional(),
     totals: z
       .object({ passed: count, failed: count, healed: count, blocked: count, skipped: count, inconclusive: count, error: count })
       .strict()

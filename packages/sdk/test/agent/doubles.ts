@@ -160,6 +160,12 @@ export function makeConfig(over: Partial<Pick<ResolvedConfig, 'agent' | 'policy'
     projectRoot: '/tmp/project', ci: false, docs: [], exclude: [], planDir: '', recordingsDir: '', runsDir: '', cacheDir: '',
     baseURL: 'http://localhost:3000',
     drivers: {}, fixtures: [], secrets: {}, context: '',
+    extensions: [],
+    verification: {
+      target: 'web', risk: 'medium',
+      evidence: { web: ['screenshot', 'observation', 'test-report'], cli: ['observation', 'test-report'], library: ['observation', 'test-report'], api: ['observation', 'test-report'], mobile: ['screenshot', 'observation', 'test-report'], desktop: ['screenshot', 'observation', 'test-report'], other: ['observation', 'test-report'] },
+      formalVerification: { low: false, medium: false, high: false, critical: true },
+    },
     extract: { sectionDepth: 2, maxSectionChars: 12000, minQuoteChars: 12, concurrency: 4 },
     characterize: { confirmRuns: 1, probeMs: 500, healThreshold: 2 },
     judge: { passThreshold: 0.8, failThreshold: 0.3, samples: 3, maxSpread: 0.5, vision: true, maxTreeChars: 20000 },

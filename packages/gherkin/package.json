@@ -1,0 +1,27 @@
+{
+  "name": "@ai-bdd/gherkin",
+  "version": "0.1.0",
+  "description": "Formal Gherkin document extension for ai-bdd, built on the official Cucumber parser",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@ai-bdd/sdk": "workspace:*",
+    "@cucumber/gherkin": "^42.0.1",
+    "@cucumber/messages": "^34.2.1"
+  }
+}

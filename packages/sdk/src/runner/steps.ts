@@ -166,7 +166,7 @@ async function captureEvidence(sc: StepCtx, body: StepBody): Promise<ArtifactRef
   return storeObservation(sc.env.deps.evidence, obs, {
     redactor: sc.env.deps.redactor,
     maskingProven: sc.st.session.capabilities.maskingProven,
-    screenshot: sc.acc.judged || body.status !== 'passed',
+    screenshot: true,
   });
 }
 
@@ -456,7 +456,7 @@ async function runThen(sc: StepCtx): Promise<StepBody> {
   const subjective = step.nature === 'subjective';
   const program = rec !== undefined && rec.determinism === 'deterministic' && !subjective && !env.fuzzyTagged ? rec.check : undefined;
   const auditing = program !== undefined && phase === 'main' && opts.audit;
-  const pixels = (program === undefined || auditing) && wantsPixels(env, st);
+  const pixels = wantsPixels(env, st);
 
   // D.1 settle `after`; an unsettled screen is never judged or checked (R-RN1).
   const cached = st.ring.take(pixels);

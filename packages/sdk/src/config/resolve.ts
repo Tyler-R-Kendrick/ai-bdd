@@ -11,6 +11,7 @@ import {
   type ResolveConfig,
   type ResolvedConfig,
   type SettleOptions,
+  type VerificationConfig,
 } from '../contracts/index.ts';
 import { userConfigSchema } from './schema.ts';
 import type { ParsedUserConfig } from './schema.ts';
@@ -32,6 +33,16 @@ const DEFAULTS = {
   checks: { maxAttempts: 3, maxPredicates: 8, requireDeterministic: false } satisfies ChecksConfig,
   settle: { quietMs: 300, intervalMs: 100, timeoutMs: 5000, requireSettled: true } satisfies SettleOptions & { requireSettled: boolean },
   scenarios: 4,
+  verification: {
+    target: 'web', risk: 'medium',
+    evidence: {
+      web: ['screenshot', 'observation', 'test-report'],
+      cli: ['observation', 'test-report'], library: ['observation', 'test-report'],
+      api: ['observation', 'test-report'], mobile: ['screenshot', 'observation', 'test-report'],
+      desktop: ['screenshot', 'observation', 'test-report'], other: ['observation', 'test-report'],
+    },
+    formalVerification: { low: false, medium: false, high: false, critical: true },
+  } satisfies VerificationConfig,
   reporters: ['json', 'junit', 'markdown'] as ReporterName[],
 } as const;
 
@@ -125,6 +136,30 @@ export const resolveConfig: ResolveConfig = (user, opts) => {
   const agent: AgentConfig = { ...DEFAULTS.agent, ...defined(u.agent) };
   const checks: ChecksConfig = { ...DEFAULTS.checks, ...defined(u.checks) };
   const settle: SettleOptions & { requireSettled: boolean } = { ...DEFAULTS.settle, ...defined(u.settle) };
+  const verification: VerificationConfig = {
+    target: u.verification?.target ?? DEFAULTS.verification.target,
+    risk: u.verification?.risk ?? DEFAULTS.verification.risk,
+    evidence: {
+      web: [...(u.verification?.evidence?.web ?? DEFAULTS.verification.evidence.web)],
+      cli: [...(u.verification?.evidence?.cli ?? DEFAULTS.verification.evidence.cli)],
+      library: [...(u.verification?.evidence?.library ?? DEFAULTS.verification.evidence.library)],
+      api: [...(u.verification?.evidence?.api ?? DEFAULTS.verification.evidence.api)],
+      mobile: [...(u.verification?.evidence?.mobile ?? DEFAULTS.verification.evidence.mobile)],
+      desktop: [...(u.verification?.evidence?.desktop ?? DEFAULTS.verification.evidence.desktop)],
+      other: [...(u.verification?.evidence?.other ?? DEFAULTS.verification.evidence.other)],
+    },
+    formalVerification: { ...DEFAULTS.verification.formalVerification, ...defined(u.verification?.formalVerification) },
+  };
+  const extensions = [...(u.extensions ?? [])];
+  const suffixOwners = new Map<string, string>();
+  for (const extension of extensions) {
+    for (const raw of extension.suffixes) {
+      const suffix = raw.toLowerCase();
+      const owner = suffixOwners.get(suffix);
+      if (owner !== undefined) throw invalid(`Invalid ai-bdd config: document suffix "${suffix}" is claimed by both "${owner}" and "${extension.id}"`);
+      suffixOwners.set(suffix, extension.id);
+    }
+  }
 
   if (!(judge.failThreshold < judge.passThreshold)) {
     throw invalid(
@@ -156,6 +191,8 @@ export const resolveConfig: ResolveConfig = (user, opts) => {
     fixtures: [...(u.fixtures ?? [])],
     secrets,
     context: u.context ?? '',
+    extensions,
+    verification,
     extract,
     characterize,
     judge,

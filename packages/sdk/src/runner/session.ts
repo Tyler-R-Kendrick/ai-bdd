@@ -8,11 +8,13 @@ import {
 } from '../contracts/index.ts';
 import { checkNavigation, raceAbort } from '../util/index.ts';
 import type { ResolveHolder, ScenarioEnv, SessionState } from './types.ts';
+import { featurePolicy } from '../verification/policy.ts';
 import { ObservationRing } from './support.ts';
 
-/** Wants a screenshot with the settled observation: only when a judge could use it. */
+/** Capture pixels when the judge can use them or this feature requires visual evidence. */
 export function wantsPixels(env: ScenarioEnv, st: SessionState): boolean {
-  return env.deps.config.judge.vision && st.session.capabilities.pixels;
+  const required = featurePolicy(env.target.feature, env.deps.config).requiredEvidence.includes('screenshot');
+  return (env.deps.config.judge.vision || required) && st.session.capabilities.pixels;
 }
 
 export async function settleState(

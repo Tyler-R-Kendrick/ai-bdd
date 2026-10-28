@@ -17,6 +17,7 @@ import { assertOutputDirs } from './guard.ts';
 import type { Core } from './core.ts';
 import { buildUsage, computeCoverage, computeRunExitCode, countTotals, redactReport } from './report.ts';
 import { selectTargets } from './scenarios.ts';
+import { buildFeatureResults, loadFeatureResults, saveFeatureResults, selectedFeatureFailures } from '../verification/index.ts';
 import { errorMessage, throwIfAborted } from './util.ts';
 
 type RunnerOpts = ScenarioRunOptions;
@@ -165,20 +166,29 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
 
     // 5. Report.
     const usage = core.meter.since(before);
+    const finishedAt = new Date(core.clock.now()).toISOString();
+    const previousFeatures = await loadFeatureResults(config);
+    const features = await buildFeatureResults({
+      config, plans, results, previous: previousFeatures, evidence, runId: evidence.runId, lastRunAt: finishedAt,
+      selective: opts.selectors !== undefined || opts.tags !== undefined || opts.grep !== undefined,
+    });
+    const scenarioExitCode = computeRunExitCode(results, { strict, modelUnavailable: usage.unavailable > 0, compileFailed });
     const report: RunReport = {
       schemaVersion: 1,
       runId: evidence.runId,
       startedAt,
-      finishedAt: new Date(core.clock.now()).toISOString(),
+      finishedAt,
       options: reportOptions,
       scenarios: results,
+      features,
       totals: countTotals(results),
       usage: buildUsage(usage.byPurpose, core.meter.pricesConfigured ? usage.costUsd : undefined),
       coverage: computeCoverage(plans),
       warnings,
-      exitCode: computeRunExitCode(results, { strict, modelUnavailable: usage.unavailable > 0, compileFailed }),
+      exitCode: scenarioExitCode === 3 || !selectedFeatureFailures(features) ? scenarioExitCode : 1,
     };
     const safe = redactReport(core.redactor(), report);
+    await saveFeatureResults(config, safe.features ?? []);
     await writeReports(core, safe, evidence.dir, opts.reporters, plans);
     core.emit({ type: 'run-end', report: safe });
     return safe;

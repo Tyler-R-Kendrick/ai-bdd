@@ -10,5 +10,6 @@ export { createJudge, toJudgeEvidence, JUDGE_PROMPT_VERSION } from './judge/inde
 export { createEvidenceStore, createRedactor, secretVariants, createSettler, verifyRun, systemClock } from './evidence/index.ts';
 export { createRunner } from './runner/index.ts';
 export { createReporters } from './report/index.ts';
+export { featurePolicy, buildFeatureResults, featureStatePath, loadFeatureResults, saveFeatureResults } from './verification/index.ts';
 export { defineConfig, loadConfig, resolveConfig } from './config/index.ts';
 export { createEngine } from './engine/index.ts';

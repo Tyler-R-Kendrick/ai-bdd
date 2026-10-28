@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { extname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { AiBddError, type DriverFactory, type LoadConfig, type ModelSet, type UserConfig } from '../contracts/index.ts';
+import { AiBddError, type DocumentExtension, type DriverFactory, type LoadConfig, type ModelSet, type UserConfig } from '../contracts/index.ts';
 import { resolveConfig } from './resolve.ts';
 
 /** Candidate config files, in precedence order. */
@@ -101,6 +101,30 @@ async function resolveUses(raw: Record<string, unknown>, projectRoot: string, im
       }
     }
     out['drivers'] = drivers;
+  }
+
+  if (Array.isArray(out['extensions'])) {
+    const extensions: unknown[] = [];
+    for (const [index, value] of out['extensions'].entries()) {
+      const where = `extensions.${index}`;
+      const extensionUse = parseUse(value, where);
+      if (extensionUse === null) {
+        extensions.push(value);
+        continue;
+      }
+      const mod = await importUse(extensionUse.use, projectRoot, where, importer);
+      const factory = mod['createDocumentExtension'];
+      if (typeof factory !== 'function') {
+        throw new AiBddError('CONFIG_INVALID', `${where}: package "${extensionUse.use}" does not export createDocumentExtension(options)`);
+      }
+      try {
+        extensions.push(await (factory as (o: unknown) => DocumentExtension | Promise<DocumentExtension>)(extensionUse.options));
+      } catch (err) {
+        if (err instanceof AiBddError) throw err;
+        throw new AiBddError('CONFIG_INVALID', `${where}: createDocumentExtension failed: ${errMessage(err)}`, { cause: err });
+      }
+    }
+    out['extensions'] = extensions;
   }
 
   const use = parseUse(out['models'], 'models');

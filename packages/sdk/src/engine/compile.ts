@@ -5,6 +5,7 @@ import {
   type CompileResult,
   type Diagnostic,
   type DocPlan,
+  type DocumentExtension,
   type DocStatus,
   type EvidenceStore,
   type ExitCode,
@@ -22,6 +23,11 @@ import { zeroUsage } from './usage.ts';
 import { assertOutputDirs } from './guard.ts';
 import { cmp, errorMessage, mapPool, matchesAnyGlob, throwIfAborted } from './util.ts';
 
+export function documentExtension(config: ResolvedConfig, uri: string): DocumentExtension | undefined {
+  const lower = uri.toLowerCase();
+  return config.extensions.find((extension) => extension.suffixes.some((suffix) => lower.endsWith(suffix.toLowerCase())));
+}
+
 export interface DocAnalysis {
   chunked: ChunkedDoc[];
   /** Every doc discovered on disk (before the `docs` filter). */
@@ -38,7 +44,7 @@ export async function analyze(core: Core, docFilter?: readonly string[]): Promis
   const sources = await modules.discoverDocs(config);
   const selected = filter === undefined ? sources : sources.filter((s) => matchesAnyGlob(filter, s.uri));
   const chunker = modules.createChunker();
-  const chunked = selected.map((s) => chunker.chunk(s, { sectionDepth: config.extract.sectionDepth, maxSectionChars: config.extract.maxSectionChars }));
+  const chunked = selected.map((s) => (documentExtension(config, s.uri)?.chunker ?? chunker).chunk(s, { sectionDepth: config.extract.sectionDepth, maxSectionChars: config.extract.maxSectionChars }));
   const existing = await core.planStore().loadAll();
   const plans = filter === undefined ? existing : existing.filter((p) => matchesAnyGlob(filter, p.docUri));
   const status = core.planner().status(chunked, plans);
@@ -52,9 +58,10 @@ interface Task {
   doc: ChunkedDoc;
   section: Section;
   previous: DocPlan | null;
+  extension: DocumentExtension | undefined;
 }
 
-function failedResult(core: Core, section: Section, err: unknown): ExtractionResult {
+function failedResult(core: Core, section: Section, err: unknown, extension: DocumentExtension | undefined): ExtractionResult {
   const code = err instanceof AiBddError ? err.code : 'INTERNAL';
   return {
     sectionId: section.id,
@@ -71,18 +78,20 @@ function failedResult(core: Core, section: Section, err: unknown): ExtractionRes
       },
     ],
     usage: zeroUsage(),
-    modelId: core.models.extract.id,
-    promptVersion: core.modules.extractPromptVersion,
+    modelId: extension?.id ?? core.models.extract.id,
+    promptVersion: extension?.id ?? core.modules.extractPromptVersion,
   };
 }
 
 const isReadError = (d: Diagnostic): boolean => d.code === 'DOC_READ_FAILED' && d.severity === 'error';
 
 /** Which model and prompt produced the plan: this run's extraction if any section was extracted, else what the previous plan recorded. */
-function extractorMeta(core: Core, previous: DocPlan | null, extracted: ReadonlyMap<string, ExtractionResult>): { extractor: { modelId: string; promptVersion: string } } {
+function extractorMeta(core: Core, previous: DocPlan | null, extracted: ReadonlyMap<string, ExtractionResult>, extension: DocumentExtension | undefined): { extractor: { modelId: string; promptVersion: string } } {
   const first = [...extracted.values()].find((r) => r.modelId !== '');
   if (first) return { extractor: { modelId: first.modelId, promptVersion: first.promptVersion } };
-  return { extractor: previous?.extractor ?? { modelId: core.models.extract.id, promptVersion: core.modules.extractPromptVersion } };
+  return { extractor: previous?.extractor ?? (extension === undefined
+    ? { modelId: core.models.extract.id, promptVersion: core.modules.extractPromptVersion }
+    : { modelId: extension.id, promptVersion: extension.id }) };
 }
 
 /** Sort a document's extracted sections into the entry's extracted and failed lists and collect their diagnostics. */
@@ -98,13 +107,18 @@ function recordSections(entry: CompileResult['docs'][number], doc: ChunkedDoc, e
 /** Extract one dirty section. A model failure (anything but an abort) becomes a failed result, so one bad section never loses the others. */
 async function extractTask(
   core: Core,
-  extractor: Extractor,
   task: Task,
-  shared: { fixtures: ReturnType<typeof fixtureDescriptors>; secretNames: string[]; signal: AbortSignal | undefined },
+  shared: { fixtures: ReturnType<typeof fixtureDescriptors>; secretNames: string[]; signal: AbortSignal | undefined; evidence: EvidenceStore | undefined },
 ): Promise<{ task: Task; result: ExtractionResult }> {
   throwIfAborted(shared.signal);
   let result: ExtractionResult;
   try {
+    const extractor = task.extension?.extractor ?? core.modules.createExtractor({
+      model: core.models.extract,
+      redactor: core.redactor(),
+      config: core.config,
+      ...(shared.evidence === undefined ? {} : { evidence: shared.evidence }),
+    });
     result = await extractor.extractSection({
       doc: task.doc,
       section: task.section,
@@ -116,7 +130,7 @@ async function extractTask(
     });
   } catch (err) {
     if (err instanceof AiBddError && err.code === 'ABORTED') throw err;
-    result = failedResult(core, task.section, err);
+    result = failedResult(core, task.section, err, task.extension);
   }
   core.emit({ type: 'compile-section', docUri: task.doc.doc.uri, sectionId: task.section.id, status: result.failed ? 'failed' : 'extracted' });
   return { task, result };
@@ -172,13 +186,12 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   }
 
   // Plan which sections are dirty; unchanged sections are "reused" without any model call.
-  const extractor = modules.createExtractor({ model: core.models.extract, redactor: core.redactor(), config, ...(evidence === undefined ? {} : { evidence }) });
   const tasks: Task[] = [];
   for (const doc of chunked) {
     const previous = planByUri.get(doc.doc.uri) ?? null;
     const dirty = new Set(core.planner().dirtySections(doc, previous, { full }));
     for (const section of doc.sections) {
-      if (dirty.has(section.id)) tasks.push({ doc, section, previous });
+      if (dirty.has(section.id)) tasks.push({ doc, section, previous, extension: documentExtension(config, doc.doc.uri) });
       else core.emit({ type: 'compile-section', docUri: doc.doc.uri, sectionId: section.id, status: 'reused' });
     }
   }
@@ -189,7 +202,7 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
   const fixtures = fixtureDescriptors(core);
   const secretNames = Object.keys(config.secrets).sort(cmp);
   const results = new Map<string, Map<string, ExtractionResult>>();
-  const extractedDocs = await mapPool(tasks, config.extract.concurrency, (task) => extractTask(core, extractor, task, { fixtures, secretNames, signal: opts.signal }));
+  const extractedDocs = await mapPool(tasks, config.extract.concurrency, (task) => extractTask(core, task, { fixtures, secretNames, signal: opts.signal, evidence }));
   for (const { task, result } of extractedDocs) {
     let perDoc = results.get(task.doc.doc.uri);
     if (perDoc === undefined) results.set(task.doc.doc.uri, (perDoc = new Map()));
@@ -203,7 +216,7 @@ export async function compile(core: Core, opts: CompileOptions = {}, evidence?: 
     const uri = doc.doc.uri;
     const previous = planByUri.get(uri) ?? null;
     const extracted = results.get(uri) ?? new Map<string, ExtractionResult>();
-    const merged = core.planner().merge(doc, previous, extracted, extractorMeta(core, previous, extracted));
+    const merged = core.planner().merge(doc, previous, extracted, extractorMeta(core, previous, extracted, documentExtension(config, uri)));
     const entry = entryFor(uri, statusByUri.get(uri)?.state ?? (previous === null ? 'new' : 'fresh'));
     recordSections(entry, doc, extracted);
     entry.diagnostics.push(...merged.diagnostics);

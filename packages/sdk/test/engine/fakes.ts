@@ -309,7 +309,10 @@ function stepResult(kind: 'given' | 'when' | 'then', text: string, status: Scena
     actions: 0,
     usage,
     durationMs: 0,
-    evidence: [],
+    evidence: [
+      { kind: 'observation', sha256: '1'.repeat(64), path: `artifacts/${'1'.repeat(64)}.json`, bytes: 1 },
+      { kind: 'screenshot', sha256: '2'.repeat(64), path: `artifacts/${'2'.repeat(64)}.png`, bytes: 1 },
+    ],
     sources: [],
   };
 }

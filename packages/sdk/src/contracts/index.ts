@@ -24,7 +24,7 @@ export const ERROR_CODES = [
   'JUDGE_FAILED', 'JUDGE_INCONCLUSIVE', 'JUDGE_SAME_AS_ACTOR', 'SCREEN_NOT_SETTLED',
   'DRIVER_UNAVAILABLE', 'DRIVER_ERROR', 'STALE_REF', 'TARGET_NOT_FOUND', 'POLICY_DENIED', 'PIXEL_TAINTED', 'SESSION_LIMIT', 'VERB_UNSUPPORTED',
   'MODEL_UNAVAILABLE', 'MODEL_OUTPUT_INVALID', 'MODEL_NO_RULE',
-  'RECORDING_CORRUPT', 'RECORDING_READ_ONLY', 'EVIDENCE_CORRUPT',
+  'RECORDING_CORRUPT', 'RECORDING_READ_ONLY', 'EVIDENCE_CORRUPT', 'EVIDENCE_REQUIRED', 'TEST_REQUIRED', 'FORMAL_VERIFICATION_REQUIRED',
   'NOT_IMPLEMENTED', 'INTERNAL', 'ABORTED',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -127,6 +127,14 @@ export interface ExtractionResult {
 }
 export interface Extractor { extractSection(input: ExtractionInput): Promise<ExtractionResult> }
 
+/** A deterministic document format plugged into the core compile pipeline. Matching is by case-insensitive URI suffix. */
+export interface DocumentExtension {
+  readonly id: string;
+  readonly suffixes: readonly string[];
+  readonly chunker: Chunker;
+  readonly extractor: Extractor;
+}
+
 export interface Planner {
   dirtySections(doc: ChunkedDoc, previous: DocPlan | null, opts: { full: boolean }): string[];
   merge(doc: ChunkedDoc, previous: DocPlan | null, extracted: ReadonlyMap<string, ExtractionResult>, meta: { extractor: { modelId: string; promptVersion: string } }): { plan: DocPlan; diagnostics: Diagnostic[]; added: string[]; updated: string[]; removed: string[] };
@@ -225,7 +233,7 @@ export interface Settler { settle(session: DriverSession, opts: SettleOptions, e
 export interface Redactor { redact(text: string): string; redactJson<T extends JsonValue>(value: T): T; readonly secretNames: string[] }
 export type ArtifactKind =
   | 'screenshot' | 'observation' | 'act-transcript' | 'action-log' | 'judge-request' | 'judge-response'
-  | 'checkgen' | 'extract-request' | 'extract-response' | 'report';
+  | 'checkgen' | 'extract-request' | 'extract-response' | 'report' | 'test-report' | 'formal-proof' | 'log';
 export interface ArtifactRef { sha256: Sha256; path: string; kind: ArtifactKind; bytes: number }
 export interface EvidenceStore {
   readonly runId: string; readonly dir: string;
@@ -345,10 +353,27 @@ export interface RunOptions {
   frozen?: boolean; compile?: boolean; strict?: boolean; updateRecordings?: boolean; noAgent?: boolean; audit?: boolean;
   workers?: number; reporters?: ReporterName[]; signal?: AbortSignal;
 }
+export type BinaryType = 'web' | 'cli' | 'library' | 'api' | 'mobile' | 'desktop' | 'other';
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export interface VerificationConfig {
+  target: BinaryType;
+  risk: RiskLevel;
+  evidence: Record<BinaryType, ArtifactKind[]>;
+  formalVerification: Record<RiskLevel, boolean>;
+}
+export interface FeatureTestState { scenarioId: string; status: ScenarioStatus }
+export interface FeatureResult {
+  featureId: string; docUri: string; title: string; status: ScenarioStatus; selected: boolean;
+  target: BinaryType; risk: RiskLevel; requiredEvidence: ArtifactKind[]; formalVerificationRequired: boolean;
+  tests: FeatureTestState[]; evidence: ArtifactRef[]; problems: Diagnostic[];
+  runId?: string; lastRunAt?: string;
+}
 export interface RunReport {
   schemaVersion: 1; runId: string; startedAt: string; finishedAt: string;
   options: { frozen: boolean; strict: boolean; audit: boolean; noAgent: boolean; updateRecordings: boolean; recordingsMode: RecordingsMode; workers: number };
   scenarios: ScenarioResult[];
+  /** Latest state of every documented feature. Optional only for reading reports produced before feature verification. */
+  features?: FeatureResult[];
   totals: Record<ScenarioStatus, number>;
   usage: Usage & { byPurpose: Record<ModelPurpose, Usage>; estimatedCostUsd?: number };
   coverage: { docs: { docUri: string; chunks: number; covered: number; uncovered: string[]; notTestable: string[] }[] };
@@ -384,6 +409,12 @@ export interface UserConfig {
   fixtures?: FixtureDefinition[];
   secrets?: Record<string, { env: string }>;
   context?: string;
+  extensions?: DocumentExtension[];
+  verification?: {
+    target?: BinaryType; risk?: RiskLevel;
+    evidence?: Partial<Record<BinaryType, ArtifactKind[]>>;
+    formalVerification?: Partial<Record<RiskLevel, boolean>>;
+  };
   extract?: Partial<ExtractConfig>;
   characterize?: Partial<CharacterizeConfig>;
   judge?: Partial<JudgeConfig>;
@@ -406,6 +437,8 @@ export interface ResolvedConfig {
   fixtures: FixtureDefinition[];
   secrets: Record<string, { env: string }>;
   context: string;
+  extensions: DocumentExtension[];
+  verification: VerificationConfig;
   extract: ExtractConfig; characterize: CharacterizeConfig; judge: JudgeConfig; agent: AgentConfig; checks: ChecksConfig;
   settle: SettleOptions & { requireSettled: boolean };
   policy: Policy;
