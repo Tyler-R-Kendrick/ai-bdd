@@ -1,10 +1,12 @@
 # FAQ
 
-## Why not Gherkin or Gauge?
+## Why Gherkin now, and why prose still matters?
 
-Because the documents already exist and are written as prose. Requirements, READMEs and runbooks do not come as `.feature` files, and keeping a second copy in sync is the maintenance problem ai-bdd removes: the plan cites the exact paragraph and quote behind every step, so the prose stays the source of truth. Gherkin also needs step definitions, which are code someone writes and maintains; here the recording is the executable artifact, produced and verified by the engine.
+Requirements, READMEs and runbooks usually exist as prose; turning them into a second hand-maintained `.feature` copy is the drift problem ai-bdd removes. That remains the default. When a team already owns formal `.feature` files, `@ai-bdd/gherkin` makes them PDDs directly through the pluggable `DocumentExtension` seam. The official Cucumber parser and Pickle compiler handle Background, Rule, tags, dialects and Scenario Outlines, and produce the same grounded plans, review state, recordings, runner, report and evidence checks as prose.
 
-Nothing stops structured input: the `Extractor` interface is a seam where a deterministic `.feature` or Gauge reader could be added later, producing the same plan format.
+Gherkin steps do not require hand-written step definitions here: ai-bdd records how a step was performed and verifies deterministic replay, with the document as oracle. If a repository also runs Cucumber's runtime or Gauge, those remain separate suites; ai-bdd does not pretend their step definitions ran.
+
+Every feature, from either input format, must have associated tests and evidence for its binary/risk policy. See [verification.md](verification.md) and [gherkin.md](gherkin.md).
 
 ## Why not snapshot the screen (pixels or DOM)?
 
@@ -96,6 +98,10 @@ Scenarios run in isolated sessions, `--workers` at a time. A driver's `maxSessio
 ## Why Node 22.18 or newer?
 
 The config and workspace sources are TypeScript run with Node's native type stripping, and the toolchain (commander 15, vitest 5) requires it. Use `.mjs` or `.json` config if your runtime cannot import `.ts` (`CONFIG_TS_UNSUPPORTED`).
+
+## What exactly is "evidence", and can I opt out?
+
+Evidence is a content-addressed artifact required by the feature's binary and risk policy: screenshots and accessibility observations for web apps, structured observations for CLI/API/library targets, a generated test report for every feature, and a checked-in formal proof when `@formal` or the risk policy requires one. You choose the policy; you cannot silently run a green feature without it. Missing evidence blocks the feature and `verify-run` independently checks every reference against the manifest. See [verification.md](verification.md).
 
 ## Why does a first run take longer than a replay?
 

@@ -2,7 +2,9 @@
 
 Turn plain markdown (requirements, READMEs, design docs, runbooks) into executable acceptance tests.
 
-You write prose. `ai-bdd` extracts features, user stories and Given/When/Then scenarios from it, binds every one to the exact paragraphs and quotes it came from, and runs them against your app. The first run of a scenario uses an AI agent and an AI judge. Everything that proves deterministic is recorded, and later runs replay it with **zero model calls**. What cannot be made deterministic stays AI-driven and is labelled `fuzzy`, with the reason.
+You write prose or formal Gherkin. `ai-bdd` turns product design documents (PDDs) into features, user stories and Given/When/Then scenarios, binds every one to the exact paragraphs and quotes it came from, and runs them against your app. The first run of a scenario uses an AI agent and an AI judge. Everything that proves deterministic is recorded, and later runs replay it with **zero model calls**. What cannot be made deterministic stays AI-driven and is labelled `fuzzy`, with the reason.
+
+Every documented feature is a release-gated unit: it must have associated test results, and its latest result must carry evidence appropriate to the binary and risk level. `ai-bdd run` writes that state into the [run report](docs/verification.md#the-feature-verification-report); `ai-bdd verify-run` checks the attachments against the evidence manifest. Gherkin is supported by the official Cucumber parser through the pluggable [`@ai-bdd/gherkin`](packages/gherkin/README.md) document extension, not as a second, unsynchronised test suite.
 
 ## Why
 
@@ -13,6 +15,8 @@ You write prose. `ai-bdd` extracts features, user stories and Given/When/Then sc
 | Snapshotting the app bakes in its bugs | The **document** is the oracle. A recording is saved only if a judge confirms the doc's criterion on the first run. |
 | AI tests are slow, costly and flaky | Deterministic steps replay from recordings with no model. A check must be false before, true after, and true again on a delayed probe. A confirm run in a fresh session proves it. |
 | Nobody can review what the AI did | Plans and recordings are small, sorted, reviewable JSON. `ai-bdd show` prints Gherkin with a `# source:` quote under every step. |
+| A green suite still has no auditable feature state | Every feature result lists its tests, policy, required evidence, attached artifact hashes and problems. Missing tests, screenshots, command output or formal proofs make the run fail. |
+| Gherkin suites drift from the requirements | `.feature` files are first-class deterministic PDDs through `@ai-bdd/gherkin`. Backgrounds, Rules, tags and Scenario Outlines compile with Cucumber's parser into the same plans, recordings and evidence model as prose. |
 
 ## How it works
 
@@ -23,7 +27,9 @@ docs/*.md ──compile──► .ai-bdd/plans/*.plan.json     (committed, revie
                               │  later runs: replay + generated checks, no model; fuzzy steps still use agent / judge
                               ▼
               .ai-bdd/recordings/<driver>/*.json     (committed, reviewed)
-              .ai-bdd/runs/<id>/, .ai-bdd/report/    (not committed: evidence, report.json, junit.xml, summary.md)
+              .ai-bdd/runs/<id>/, .ai-bdd/report/    (not committed: artifacts, report.json v2, junit.xml, summary.md)
+              .ai-bdd/state/features.json             (latest feature test/evidence state)
+              .ai-bdd/evidence/<feature-id>/          (committed supplemental proof, log or test output)
 ```
 
 Read [docs/concepts.md](docs/concepts.md) for the full model.
@@ -193,12 +199,15 @@ Exit codes: `0` passed, `1` failed or inconclusive or blocked, `2` usage or conf
 | `@ai-bdd/cli` | The `ai-bdd` command, a thin layer over the SDK. |
 | `@ai-bdd/driver-playwright` | Playwright driver, plus `sessionFromPage` for embedding. |
 | `@ai-bdd/models-ai-sdk` | Vercel AI SDK adapter for the four model purposes. |
-| `@ai-bdd/playwright-test` | Runs scenarios as `@playwright/test` tests. |
+| `@ai-bdd/playwright-test` | Runs scenarios as `@playwright/test` tests, attaching feature state and every required artifact. |
+| `@ai-bdd/gherkin` | Official Cucumber Gherkin parser extension for `.feature` PDDs (Background, Rule, tags, dialect, Scenario Outline). |
 | `@ai-bdd/testing` | Acme demo app, demo corpus, and deterministic test doubles (`fakeDriver`, `createFakeModels`, `writeTestConfig`) for ai-bdd's own tests and for offline tests of integrations. Not a product mode, not needed by users. |
 
 ## Documentation
 
 - [Concepts](docs/concepts.md): compile, plan, run, characterize, fuzzy.
+- [Verification and PDDs](docs/verification.md): required tests and evidence, binary/risk profiles, formal verification, state and release gates.
+- [Gherkin](docs/gherkin.md): the pluggable `.feature` extension, official AST/Pickles, tags and examples.
 - [Authoring docs](docs/authoring-docs.md): directives and writing testable prose.
 - [Review guide](docs/review-guide.md): reviewing plan diffs and recordings.
 - [Drivers](docs/drivers.md): the Playwright driver, the Cua Driver package, plugging in other drivers (browser-use) and writing your own.
@@ -214,6 +223,8 @@ Exit codes: `0` passed, `1` failed or inconclusive or blocked, `2` usage or conf
 - The judge is an LLM. A wrong verdict on the first run can become a recording; review recordings, and use `--audit` to compare judge and checks later ([docs/faq.md](docs/faq.md)).
 - Settle detection sees ARIA busy signals, not CSS-only animations.
 - Web apps out of the box (Playwright), native apps and browsers through `@ai-bdd/driver-cua` (Cua Driver; tested on Linux/X11 with Chromium only). Other engines (browser-use, mobile) plug in through the `Driver` interface ([docs/drivers.md](docs/drivers.md#plugging-in-a-driver)).
+- Formal verification is an evidence gate, not a bundled theorem prover. A feature marked `@formal` must attach a `formal-proof` artifact (for example `.smt2`, TLA+ or Lean output) from your verifier; ai-bdd proves the artifact is present, content-addressed and unchanged, not that the external proof is sound.
+- Gherkin support uses Cucumber's official parser and pickle compiler. Step definitions are not required: ai-bdd records and replays natural-language steps. Cucumber's runtime/glue is not embedded, so a project that wants both suites must run them separately against the same application.
 
 ## License
 

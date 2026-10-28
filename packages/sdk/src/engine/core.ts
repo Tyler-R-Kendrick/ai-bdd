@@ -13,6 +13,7 @@ import {
   type ResolvedConfig,
   type RunEvent,
   type Runner,
+  type ScenarioResult,
 } from '../contracts/index.ts';
 import { MIN_SECRET_LENGTH } from '../config/index.ts';
 import { uuidv7 } from '../util/index.ts';
@@ -46,6 +47,7 @@ export class Core {
   readonly meter: UsageMeter;
   readonly driverMap = new Map<string, Driver>();
   readonly warnings: Diagnostic[] = [];
+  readonly scenarioResults = new Map<string, ScenarioResult>();
   closed = false;
 
   private readonly listeners = new Set<(event: RunEvent) => void>();

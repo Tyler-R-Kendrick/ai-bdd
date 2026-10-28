@@ -60,12 +60,13 @@ export function emptyTotals(over: Partial<Record<ScenarioStatus, number>> = {}):
 
 export function makeReport(over: Partial<RunReport> = {}): RunReport {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     runId: 'run-1',
     startedAt: '2026-01-01T00:00:00.000Z',
     finishedAt: '2026-01-01T00:00:01.000Z',
     options: { frozen: false, strict: false, audit: false, noAgent: false, updateRecordings: false, recordingsMode: 'read-write', workers: 1 },
     scenarios: [],
+    features: [],
     totals: emptyTotals(),
     usage: { ...ZERO_USAGE, byPurpose: { extract: ZERO_USAGE, act: ZERO_USAGE, checkgen: ZERO_USAGE, judge: ZERO_USAGE } },
     coverage: { docs: [] },
@@ -91,6 +92,9 @@ export function makeEngine(config: ResolvedConfig, over: Partial<Engine> = {}): 
     review: vi.fn(async () => undefined),
     runScenario: vi.fn(async () => {
       throw new Error('runScenario is not used by the CLI');
+    }),
+    featureResult: vi.fn(async () => {
+      throw new Error('featureResult is not used by the CLI');
     }),
     run: vi.fn(async () => makeReport()),
     verifyRun: vi.fn(async () => ({ ok: true, problems: [] })),

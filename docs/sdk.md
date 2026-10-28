@@ -4,7 +4,7 @@
 
 | Entry | Contents |
 |---|---|
-| `@ai-bdd/sdk` | `defineConfig`, `loadConfig`, `resolveConfig`, `createEngine`, `loadPlansSync`, building blocks (`createChunker`, `discoverDocs`, `createPlanner`, `createRecordingStore`, ...), utilities (`stableJson`, `sha256Hex`, `checkNavigation`, `renderTree`, `treeHash`, ...) and everything from `contracts`. |
+| `@ai-bdd/sdk` | `defineConfig`, `loadConfig`, `resolveConfig`, `createEngine`, `loadPlansSync`, building blocks (`createChunker`, `discoverDocs`, `createPlanner`, `createRecordingStore`, ...), utilities (`stableJson`, `sha256Hex`, `checkNavigation`, `renderTree`, `treeHash`, ...) and everything from `contracts`, plus feature verification helpers (`featurePolicy`, `buildFeatureResults`, `loadFeatureResults`, `saveFeatureResults`). |
 | `@ai-bdd/sdk/contracts` | Types and `AiBddError`/`ERROR_CODES` only. Import from here when writing a driver or model adapter. |
 
 ## The integration contract
@@ -182,7 +182,9 @@ resolveConfig(userConfig, { projectRoot, configPath?, env })   // pure; validate
 
 ### Results
 
-A `ScenarioResult` has `status`, `mode` (`characterize | replay | mixed`), `recording` (`created | updated | unchanged | discarded | none`), `steps`, `confirm`, `error`, `usage`, `durationMs`. Each `StepResult` has `status`, `path` (`fixture | replay | heal | agent | check | judge | check+judge`), `determinism`, `fuzzyReasons`, an `error` payload `{ code, message, retryable, details }`, the `check` evaluation or `judge` verdict, and `sources` (chunk refs with quotes) for tracing back to the doc.
+A `ScenarioResult` has `status`, `mode` (`characterize | replay | mixed`), `recording` (`created | updated | unchanged | discarded | none`), `steps`, `confirm`, `error`, `usage`, `durationMs`. Each `StepResult` has `status`, `path` (`fixture | replay | heal | agent | check | judge | check+judge`), `determinism`, `fuzzyReasons`, an `error` payload `{ code, message, retryable, details }`, the `check` evaluation or `judge` verdict, `evidence` artifact refs, and `sources` (chunk refs with quotes) for tracing back to the doc.
+
+`engine.featureResult(featureId)` aggregates the `runScenario` calls made by this engine into the same `FeatureResult` used by `run()`: tests, selected state, binary/risk policy, required evidence, formal-proof obligation, artifacts, problems and persistent last-run state. Framework integrations should call it after a scenario, attach every referenced artifact, and fail on non-empty `problems`; `@ai-bdd/playwright-test` does. A referenced file that cannot be read is `EVIDENCE_REQUIRED`, never silently omitted.
 
 ### Events
 

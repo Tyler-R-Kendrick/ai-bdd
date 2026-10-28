@@ -1,11 +1,13 @@
 import { resolve } from 'node:path';
-import type { CompileOptions, Engine, ResolvedConfig } from '../contracts/index.ts';
+import { AiBddError, type CompileOptions, type Engine, type ResolvedConfig } from '../contracts/index.ts';
 import { compile, analyze } from './compile.ts';
 import { Core } from './core.ts';
 import { doctor, prune, review } from './maintenance.ts';
 import { defaultModules, systemClock, type EngineOverrides } from './modules.ts';
 import { guardRecordingsMode, run, runTarget } from './run.ts';
 import { findTarget, selectTargets } from './scenarios.ts';
+import { redactFeatureResults } from './report.ts';
+import { buildFeatureResults, loadFeatureResults, saveFeatureResults } from '../verification/index.ts';
 
 /** One engine per config object (idempotent) unless overrides are given. */
 const cache = new WeakMap<ResolvedConfig, Engine>();
@@ -49,7 +51,25 @@ export async function createEngine(config: ResolvedConfig, overrides?: EngineOve
       core.assertOpen();
       guardRecordingsMode(core, opts?.updateRecordings === true);
       const target = findTarget(await core.planStore().loadAll(), scenarioId);
-      return runTarget(core, target, opts);
+      const result = await runTarget(core, target, opts);
+      core.scenarioResults.set(result.scenarioId, result);
+      return result;
+    },
+    async featureResult(featureId) {
+      core.assertOpen();
+      const plans = await core.planStore().loadAll();
+      const feature = plans.flatMap((plan) => plan.features).find((candidate) => candidate.id === featureId);
+      if (feature === undefined) throw new AiBddError('SCENARIO_NOT_FOUND', `no feature with id ${JSON.stringify(featureId)}`, { details: { id: featureId } });
+      const evidence = await core.sharedEvidence();
+      const features = await buildFeatureResults({
+        config, plans, results: [...core.scenarioResults.values()], previous: await loadFeatureResults(config), evidence,
+        runId: evidence.runId, lastRunAt: new Date(core.clock.now()).toISOString(), selective: true,
+      });
+      const safe = redactFeatureResults(core.redactor(), features);
+      await saveFeatureResults(config, safe);
+      const result = safe.find((candidate) => candidate.featureId === featureId);
+      if (result === undefined) throw new AiBddError('INTERNAL', `feature result was not created for ${featureId}`);
+      return result;
     },
     run: (opts) => run(core, opts),
     verifyRun(runDir) {

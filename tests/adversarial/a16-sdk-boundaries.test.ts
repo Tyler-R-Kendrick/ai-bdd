@@ -165,9 +165,10 @@ describe('A16 R-SDK2 runtime package boundaries', () => {
 
   it('A16 R-SDK2: the SDK export map exposes only ".", "./contracts" and the run report JSON Schema', () => {
     const json = JSON.parse(readFileSync(join(REPO_ROOT, 'packages', 'sdk', 'package.json'), 'utf8')) as { exports: Record<string, unknown> };
-    expect(Object.keys(json.exports).sort()).toEqual(['.', './contracts', './schema/run-report.v1.json']);
+    expect(Object.keys(json.exports).sort()).toEqual(['.', './contracts', './schema/run-report.v1.json', './schema/run-report.v2.json']);
     // The schema entry is data, not code: one plain target, a .json file in the package's schema directory.
     expect(json.exports['./schema/run-report.v1.json']).toBe('./schema/run-report.v1.schema.json');
+    expect(json.exports['./schema/run-report.v2.json']).toBe('./schema/run-report.v2.schema.json');
   });
 
   const deep = ['@ai-bdd/sdk/src/runner/index.ts', '@ai-bdd/sdk/src/runner/steps.ts', '@ai-bdd/sdk/dist/index.js', '@ai-bdd/sdk/package.json', '@ai-bdd/sdk/src/contracts/index.ts'];

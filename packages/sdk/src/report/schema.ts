@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ERROR_CODES, type JsonValue, type RunReport } from '../contracts/index.ts';
 
 /**
- * Zod mirror of the contract type `RunReport` (schemaVersion 1), and the JSON Schema generated from it.
+ * Zod mirror of the contract type `RunReport` (schemaVersion 2), and the JSON Schema generated from it.
  *
  * The contract type in `contracts/index.ts` is frozen and stays the source of truth. This file restates it as a schema so that a
  * consumer (another repository's release gate) can check `.ai-bdd/report/report.json` with any JSON Schema validator. Two things
@@ -16,8 +16,8 @@ import { ERROR_CODES, type JsonValue, type RunReport } from '../contracts/index.
  *     name (`ObjectKeySets`), so a new nested object type needs a row there; `JsonValue` fields (`details`, `actual`) are open by
  *     design. test/report/schema.test.ts holds the controls: copies of the contract type with one change each, which must fail;
  *   - the unit tests validate reports captured from real runs against the generated file and reject hand-broken copies.
- * Every object is closed (`additionalProperties: false`): version 1 has exactly the fields of the contract type, and a new field
- * is a new `schemaVersion`.
+ * Every object is closed (`additionalProperties: false`): version 2 has exactly the fields of the contract type, and a new field
+ * is a new `schemaVersion`. Version 1 remains committed and frozen for existing consumers.
  */
 
 const count = z.number().int().min(0);
@@ -215,7 +215,7 @@ const runUsage = usage.extend({
 
 export const RunReportSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     runId: z.string().describe('Also the name of the run directory under .ai-bdd/runs/.'),
     startedAt: isoTimestamp.describe('ISO 8601 timestamp, UTC with milliseconds (Date.prototype.toISOString()).'),
     finishedAt: isoTimestamp.describe('ISO 8601 timestamp, UTC with milliseconds (Date.prototype.toISOString()).'),
@@ -231,7 +231,7 @@ export const RunReportSchema = z
       })
       .strict(),
     scenarios: z.array(scenarioResult),
-    features: z.array(FeatureResultSchema).exactOptional(),
+    features: z.array(FeatureResultSchema),
     totals: z
       .object({ passed: count, failed: count, healed: count, blocked: count, skipped: count, inconclusive: count, error: count })
       .strict()
@@ -284,6 +284,9 @@ type PredicateResult<T> = Item<At<At<Step<T>, 'check'>, 'results'>>;
 type Pred<T> = At<PredicateResult<T>, 'predicate'>;
 type ByPurpose<T> = At<At<T, 'usage'>, 'byPurpose'>;
 type Warning<T> = Item<At<T, 'warnings'>>;
+type Feature<T> = Item<At<T, 'features'>>;
+type FeatureTest<T> = Item<At<Feature<T>, 'tests'>>;
+type FeatureEvidence<T> = Item<At<Feature<T>, 'evidence'>>;
 
 /** Every object type of the report, by name, and whether the schema `S` and the contract type `C` give it the same property names. */
 type ObjectKeySets<S, C> = {
@@ -294,6 +297,10 @@ type ObjectKeySets<S, C> = {
   'RunReport.usage.byPurpose': SameKeys<ByPurpose<S>, ByPurpose<C>>;
   'RunReport.coverage': SameKeys<At<S, 'coverage'>, At<C, 'coverage'>>;
   'RunReport.coverage.docs[]': SameKeys<Item<At<At<S, 'coverage'>, 'docs'>>, Item<At<At<C, 'coverage'>, 'docs'>>>;
+  'RunReport.features[]': SameKeys<Feature<S>, Feature<C>>;
+  'RunReport.features[].tests[]': SameKeys<FeatureTest<S>, FeatureTest<C>>;
+  'RunReport.features[].evidence[]': SameKeys<FeatureEvidence<S>, FeatureEvidence<C>>;
+  'RunReport.features[].problems[]': SameKeys<Item<At<Feature<S>, 'problems'>>, Item<At<Feature<C>, 'problems'>>>;
   Diagnostic: SameKeys<Warning<S>, Warning<C>>;
   'Diagnostic.range': SameKeys<At<Warning<S>, 'range'>, At<Warning<C>, 'range'>>;
   ScenarioResult: SameKeys<Scenario<S>, Scenario<C>>;
@@ -345,18 +352,18 @@ export type SchemaMatchesContract<S, C> = [KeyDrift<S, C>] extends [never]
 /** Compile-time check: the schema and the contract type `RunReport` agree (see `SchemaMatchesContract`). Drift makes this line a type error. */
 export const _RUN_REPORT_SCHEMA_MATCHES_TYPE: SchemaMatchesContract<z.infer<typeof RunReportSchema>, RunReport> = true;
 
-export const RUN_REPORT_SCHEMA_ID = 'urn:ai-bdd:schema:run-report:1';
-export const RUN_REPORT_SCHEMA_FILE = 'packages/sdk/schema/run-report.v1.schema.json';
+export const RUN_REPORT_SCHEMA_ID = 'urn:ai-bdd:schema:run-report:2';
+export const RUN_REPORT_SCHEMA_FILE = 'packages/sdk/schema/run-report.v2.schema.json';
 export const RUN_REPORT_SCHEMA_COMMAND = 'node scripts/gen-run-report-schema.mjs';
 
-/** The JSON Schema (draft 2020-12) of `RunReport` v1 as an object, key order fixed. */
+/** The JSON Schema (draft 2020-12) of `RunReport` v2 as an object, key order fixed. */
 export function runReportJsonSchema(): Record<string, unknown> {
   const { $schema, ...rest } = z.toJSONSchema(RunReportSchema, { target: 'draft-2020-12', io: 'output' }) as Record<string, unknown>;
   return {
     $schema,
     $id: RUN_REPORT_SCHEMA_ID,
     title: 'ai-bdd run report',
-    description: 'The report.json written by `ai-bdd run` (.ai-bdd/report/report.json), schemaVersion 1.',
+    description: 'The report.json written by `ai-bdd run` (.ai-bdd/report/report.json), schemaVersion 2.',
     ...rest,
   };
 }

@@ -1,6 +1,7 @@
 import type {
   DocPlan,
   ExitCode,
+  FeatureResult,
   JsonValue,
   ModelPurpose,
   Redactor,
@@ -88,6 +89,16 @@ export function buildUsage(
  * pages, models and errors, so they are data and can carry a secret. Every other key of the report is fixed by its schema.
  */
 export const REPORT_DATA_FIELDS: ReadonlySet<string> = new Set(['details', 'actual']);
+
+export function redactFeatureResults(redactor: Redactor, features: readonly FeatureResult[]): FeatureResult[] {
+  const walk = (value: JsonValue): JsonValue => {
+    if (typeof value === 'string') return redactor.redact(value);
+    if (Array.isArray(value)) return value.map(walk);
+    if (value === null || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, REPORT_DATA_FIELDS.has(key) ? redactor.redactJson(child) : walk(child)]));
+  };
+  return walk(features as unknown as JsonValue) as unknown as FeatureResult[];
+}
 
 /**
  * The report as it is returned and written, redacted like every other artifact (R-SE1):

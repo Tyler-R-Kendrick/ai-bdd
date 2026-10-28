@@ -30,6 +30,71 @@ async function rewriteManifest(dir: string, edit: (m: { runId: string; artifacts
   await writeFile(join(dir, 'manifest.json'), stableJson(m as unknown as JsonValue));
 }
 
+async function writeRunReport(dir: string, runId: string, features: unknown[], scenarios: unknown[] = []): Promise<void> {
+  await writeFile(join(dir, 'report.json'), stableJson({ schemaVersion: 2, runId, features, scenarios } as unknown as JsonValue));
+}
+
+function verifiedFeature(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    featureId: 'docs-a--login', docUri: 'docs/a.md', title: 'Login', status: 'passed', selected: true,
+    target: 'web', risk: 'medium', requiredEvidence: ['observation', 'screenshot'], formalVerificationRequired: false,
+    tests: [{ scenarioId: 'docs-a--login/works', status: 'passed' }],
+    evidence: [
+      { kind: 'observation', sha256: '1'.repeat(64), path: '', bytes: 1 },
+      { kind: 'screenshot', sha256: '2'.repeat(64), path: '', bytes: 1 },
+    ],
+    problems: [], runId: 'run-v', lastRunAt: '2026-01-01T00:00:00.000Z',
+    ...over,
+  };
+}
+
+describe('verifyRun feature verification (v2)', () => {
+  it('accepts a selected feature whose tests and required evidence are in the run manifest', async () => {
+    const { dir, a, c } = await makeRun();
+    await writeRunReport(dir, 'run-v', [verifiedFeature({
+      evidence: [
+        { kind: 'observation', sha256: a.sha256, path: a.path, bytes: a.bytes },
+        { kind: 'screenshot', sha256: c.sha256, path: c.path, bytes: c.bytes },
+      ],
+    })]);
+    expect(await verifyRun(dir)).toEqual({ ok: true, problems: [] });
+  });
+
+  it('reports missing tests, required evidence, formal proof and feature rows', async () => {
+    const { dir, a } = await makeRun();
+    await writeRunReport(dir, 'run-v', [verifiedFeature({
+      requiredEvidence: ['observation', 'screenshot', 'formal-proof'],
+      formalVerificationRequired: true, tests: [],
+      evidence: [{ kind: 'observation', sha256: a.sha256, path: a.path, bytes: a.bytes }],
+    })], [{ featureId: 'docs-a--login' }, { featureId: 'docs-b--missing' }]);
+    const result = await verifyRun(dir);
+    expect(result.ok).toBe(false);
+    expect(result.problems).toEqual(expect.arrayContaining([
+      'feature docs-a--login: TEST_REQUIRED (no associated test result)',
+      'feature docs-a--login: EVIDENCE_REQUIRED (screenshot)',
+      'feature docs-a--login: EVIDENCE_REQUIRED (formal-proof)',
+      'feature docs-a--login: FORMAL_VERIFICATION_REQUIRED',
+      'feature docs-b--missing: missing from report features',
+    ]));
+  });
+
+  it('rejects evidence that is not in this run manifest, while carried-forward features may name an older run', async () => {
+    const { dir } = await makeRun();
+    const fake = { kind: 'observation', sha256: 'f'.repeat(64), path: 'artifacts/f.json', bytes: 1 };
+    await writeRunReport(dir, 'run-v', [
+      verifiedFeature({ evidence: [fake] }),
+      verifiedFeature({ featureId: 'docs-a--old', selected: false, runId: 'run-old', evidence: [fake] }),
+    ]);
+    const result = await verifyRun(dir);
+    expect(result.problems).toEqual(expect.arrayContaining([
+      `feature docs-a--login: evidence observation ${'f'.repeat(64)} is not in this run's manifest`,
+      'feature docs-a--login: EVIDENCE_REQUIRED (observation)',
+      'feature docs-a--login: EVIDENCE_REQUIRED (screenshot)',
+    ]));
+    expect(result.problems.some((problem) => problem.includes('docs-a--old'))).toBe(false);
+  });
+});
+
 describe('verifyRun (R-EV1)', () => {
   it('R-EV1 an untouched run verifies clean (exit 0 semantics)', async () => {
     const { dir } = await makeRun();

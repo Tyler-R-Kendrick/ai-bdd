@@ -4,7 +4,7 @@
 //
 //   UPDATE_REPORT_FIXTURES=1 pnpm exec vitest run --project acceptance tests/acceptance/m28-run-report-contract.test.ts
 //
-// rewrites packages/sdk/test/report/fixtures/report.v1.{passed,failed}.json from the first two tests, byte for byte as the
+// rewrites packages/sdk/test/report/fixtures/report.v2.{passed,failed}.json from the first two tests, byte for byte as the
 // reporter wrote them.
 import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -47,7 +47,7 @@ async function ok(p: Project, args: string[], opts: CliOptions = {}): Promise<Cl
 function readReport(p: Project): { text: string; report: RunReport } {
   const text = readFileSync(p.path('.ai-bdd', 'report', 'report.json'), 'utf8');
   const verdict = validateWithSchema(validate, JSON.parse(text));
-  expect(verdict.valid, `report.json is not valid against run-report.v1.schema.json: ${describeErrors(verdict.errors)}`).toBe(true);
+  expect(verdict.valid, `report.json is not valid against run-report.v2.schema.json: ${describeErrors(verdict.errors)}`).toBe(true);
   return { text, report: JSON.parse(text) as RunReport };
 }
 

@@ -5,15 +5,15 @@ import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** The committed JSON Schema of the run report (`@ai-bdd/sdk/schema/run-report.v1.json`). */
-export const SCHEMA_PATH = join(here, '..', '..', 'schema', 'run-report.v1.schema.json');
+/** The committed JSON Schema of the run report (`@ai-bdd/sdk/schema/run-report.v2.json`). */
+export const SCHEMA_PATH = join(here, '..', '..', 'schema', 'run-report.v2.schema.json');
 /** Regenerate it with this command; the freshness test names it in its failure message. */
 export const REGENERATE_SCHEMA = 'node scripts/gen-run-report-schema.mjs';
 
-/** Reports captured from real runs of the offline test project (see fixtures/README.md). */
+/** Reports captured from real runs of the offline test project (see fixtures/README.md). Version 1 fixtures remain available for legacy consumers. */
 export const FIXTURE_DIR = join(here, 'fixtures');
 export type FixtureName = 'passed' | 'failed';
-export const fixturePath = (name: FixtureName): string => join(FIXTURE_DIR, `report.v1.${name}.json`);
+export const fixturePath = (name: FixtureName): string => join(FIXTURE_DIR, `report.v2.${name}.json`);
 export const REGENERATE_FIXTURES = 'UPDATE_REPORT_FIXTURES=1 pnpm exec vitest run --project acceptance tests/acceptance/m28-run-report-contract.test.ts';
 
 export function readJson(path: string): unknown {

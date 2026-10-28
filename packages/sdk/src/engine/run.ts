@@ -98,12 +98,13 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
   const emptyReport = (runId: string, exitCode: RunReport['exitCode']): RunReport => {
     const usage = core.meter.since(before);
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       runId,
       startedAt,
       finishedAt: new Date(core.clock.now()).toISOString(),
       options: reportOptions,
       scenarios: [],
+      features: [],
       totals: countTotals([]),
       usage: buildUsage(usage.byPurpose, core.meter.pricesConfigured ? usage.costUsd : undefined),
       coverage: { docs: [] },
@@ -174,7 +175,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
     });
     const scenarioExitCode = computeRunExitCode(results, { strict, modelUnavailable: usage.unavailable > 0, compileFailed });
     const report: RunReport = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       runId: evidence.runId,
       startedAt,
       finishedAt,
@@ -188,7 +189,7 @@ export async function run(core: Core, opts: RunOptions = {}): Promise<RunReport>
       exitCode: scenarioExitCode === 3 || !selectedFeatureFailures(features) ? scenarioExitCode : 1,
     };
     const safe = redactReport(core.redactor(), report);
-    await saveFeatureResults(config, safe.features ?? []);
+    await saveFeatureResults(config, safe.features);
     await writeReports(core, safe, evidence.dir, opts.reporters, plans);
     core.emit({ type: 'run-end', report: safe });
     return safe;

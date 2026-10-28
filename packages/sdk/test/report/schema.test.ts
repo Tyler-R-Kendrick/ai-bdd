@@ -73,8 +73,8 @@ function objectSchemas(node: Json, path = '#'): { path: string; schema: Record<s
 const V1_SHA256 = '7e907a6232b9b8de41e14154243d11612be07d8bba4e831085cf828f4ca3d423';
 
 describe('run report JSON Schema: the committed file', () => {
-  it('is version 1 as released: its sha256 is pinned, because a change needs schemaVersion 2 and a new file', () => {
-    const sha = createHash('sha256').update(readFileSync(SCHEMA_PATH)).digest('hex');
+  it('keeps version 1 byte-for-byte closed and publishes version 2 in a new file', () => {
+    const sha = createHash('sha256').update(readFileSync(join(dirname(SCHEMA_PATH), 'run-report.v1.schema.json'))).digest('hex');
     expect(
       sha,
       'run-report.v1.schema.json changed. Version 1 is closed and consumers validate against it: a new or changed report field needs schemaVersion 2 and a new file (run-report.v2.schema.json), never an edit of v1',
@@ -105,7 +105,7 @@ describe('run report JSON Schema: the committed file', () => {
   it('declares draft 2020-12, an id and a title', () => {
     const schema = committed();
     expect(schema['$schema']).toBe('https://json-schema.org/draft/2020-12/schema');
-    expect(schema['$id']).toBe('urn:ai-bdd:schema:run-report:1');
+    expect(schema['$id']).toBe('urn:ai-bdd:schema:run-report:2');
     expect(schema['title']).toBe('ai-bdd run report');
   });
 
@@ -115,17 +115,18 @@ describe('run report JSON Schema: the committed file', () => {
     expect(() => runReportValidator()).not.toThrow();
   });
 
-  it('closes every object: version 1 has exactly the fields of the contract type', () => {
+  it('closes every object: version 2 has exactly the fields of the contract type', () => {
     const objects = objectSchemas(committed());
     expect(objects.length).toBeGreaterThan(20);
     const open = objects.filter((o) => o.schema['additionalProperties'] !== false).map((o) => o.path);
     expect(open).toEqual([]);
   });
 
-  it('pins version 1, the exit codes and the exhaustive totals', () => {
+  it('pins version 2, mandatory feature results, the exit codes and the exhaustive totals', () => {
     const schema = committed();
     const props = schema['properties'] as Record<string, Record<string, Json>>;
-    expect(props['schemaVersion']).toEqual({ type: 'number', const: 1 });
+    expect(props['schemaVersion']).toEqual({ type: 'number', const: 2 });
+    expect(schema['required']).toContain('features');
     expect(schema['required']).toEqual(Object.keys(props));
     expect(props['exitCode']?.['enum']).toEqual([0, 1, 2, 3, 4]);
     const statuses = ['passed', 'failed', 'healed', 'blocked', 'skipped', 'inconclusive', 'error'];
@@ -157,14 +158,14 @@ describe('run report JSON Schema: how a consumer reaches it', () => {
   const sdkDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const manifest = readJson(join(sdkDir, 'package.json')) as { exports: Record<string, unknown>; files: string[] };
 
-  it('is exported from @ai-bdd/sdk as schema/run-report.v1.json and shipped in the package', () => {
-    expect(manifest.exports['./schema/run-report.v1.json']).toBe('./schema/run-report.v1.schema.json');
+  it('is exported from @ai-bdd/sdk as schema/run-report.v2.json and shipped in the package', () => {
+    expect(manifest.exports['./schema/run-report.v2.json']).toBe('./schema/run-report.v2.schema.json');
     expect(manifest.files).toContain('schema');
   });
 
   it('resolves through the package export to the committed file', () => {
     const require = createRequire(import.meta.url);
-    const resolved = require.resolve('@ai-bdd/sdk/schema/run-report.v1.json');
+    const resolved = require.resolve('@ai-bdd/sdk/schema/run-report.v2.json');
     expect(readFileSync(resolved, 'utf8')).toBe(readFileSync(SCHEMA_PATH, 'utf8'));
   });
 });

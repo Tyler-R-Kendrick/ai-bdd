@@ -416,7 +416,7 @@ describe('outcome, annotations and evidence (M22)', () => {
     await expect(runFirst(rec)).rejects.toThrow(new RegExp(`ended ${status}`));
   });
 
-  it('M22 attaches screenshot artifacts read from the run directory and ignores missing or unsafe ones', async () => {
+  it('M22 attaches and deduplicates screenshot artifacts read from the run directory', async () => {
     const root = mkdtempSync(join(tmpdir(), 'pwtest-evidence-'));
     try {
       const sha = 'ab'.repeat(32);
@@ -433,8 +433,8 @@ describe('outcome, annotations and evidence (M22)', () => {
           Promise.resolve(
             result({
               steps: [
-                step({ evidence: [ref(sha, `artifacts/${sha}.png`), ref(sha, `artifacts/${sha}.png`), ref(sha, 'artifacts/obs.json', 'observation')] }),
-                step({ evidence: [ref(other, `artifacts/${other}.png`), ref('ee'.repeat(32), 'artifacts/missing.png'), ref('ff'.repeat(32), '../secret.png'), ref('11'.repeat(32), '/etc/hostname')] }),
+                step({ evidence: [ref(sha, `artifacts/${sha}.png`), ref(sha, `artifacts/${sha}.png`)] }),
+                step({ evidence: [ref(other, `artifacts/${other}.png`)] }),
               ],
             }),
           ),
@@ -446,21 +446,20 @@ describe('outcome, annotations and evidence (M22)', () => {
       registerAiBddScenarios({ test: rec.test });
       const info = await runFirst(rec);
       const shots = info.attachments.filter((a) => a.contentType === 'image/png');
-      expect(shots.map((s) => s.name)).toEqual([`step-1-screenshot-${sha.slice(0, 8)}.png`, `step-2-screenshot-${other.slice(0, 8)}.png`]);
+      expect(shots.map((s) => s.name)).toEqual([`screenshot-${sha.slice(0, 12)}.png`, `screenshot-${other.slice(0, 12)}.png`]);
       expect(shots.map((s) => [...(s.body as Buffer)])).toEqual([[1, 2, 3], [9]]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it('M22 a missing runs directory never fails the test', async () => {
+  it('M22 missing required evidence fails instead of silently omitting the attachment', async () => {
     const config = fakeConfig({ runsDir: join(tmpdir(), 'pwtest-does-not-exist') });
     const shot = { sha256: 'ab'.repeat(32), path: `artifacts/${'ab'.repeat(32)}.png`, kind: 'screenshot' as const, bytes: 1 };
     engine = fakeEngine(() => Promise.resolve(result({ steps: [step({ evidence: [shot] })] })), config);
     makeEngine.mockResolvedValue(engine);
     const rec = recordingTest();
     registerAiBddScenarios({ test: rec.test });
-    const info = await runFirst(rec);
-    expect(info.attachments.map((a) => a.name)).toEqual(['ai-bdd-result.json', 'ai-bdd-steps.txt']);
+    await expect(runFirst(rec)).rejects.toThrow('EVIDENCE_REQUIRED');
   });
 });

@@ -33,6 +33,71 @@ function parseManifest(text: string): { runId: string; artifacts: ManifestArtifa
   return { runId: m['runId'], artifacts, digest: m['digest'] };
 }
 
+const EVIDENCE_KINDS = new Set([
+  'screenshot', 'observation', 'act-transcript', 'action-log', 'judge-request', 'judge-response',
+  'checkgen', 'extract-request', 'extract-response', 'report', 'test-report', 'formal-proof', 'log',
+]);
+
+function stringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+}
+
+/** Validate the feature-level obligations of a v2 report: tests, required evidence and manifest membership. */
+function verifyFeatureReport(report: unknown, manifest: { runId: string; artifacts: ManifestArtifact[] }): string[] {
+  if (report === null || typeof report !== 'object' || Array.isArray(report)) return ['report.json is not an object'];
+  const r = report as Record<string, unknown>;
+  if (r['schemaVersion'] !== 2) return [];
+  const features = r['features'];
+  if (!Array.isArray(features)) return ['report.json schemaVersion 2 has no features array'];
+  const problems: string[] = [];
+  const reported = new Set<string>();
+  const artifacts = new Set(manifest.artifacts.map((artifact) => `${artifact.kind}\0${artifact.sha256}`));
+  for (const value of features) {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      problems.push('feature result is not an object');
+      continue;
+    }
+    const f = value as Record<string, unknown>;
+    const id = typeof f['featureId'] === 'string' ? f['featureId'] : '(unknown)';
+    if (typeof f['featureId'] === 'string') reported.add(f['featureId']);
+    if (f['selected'] !== true) continue;
+    if (!Array.isArray(f['tests']) || f['tests'].length === 0) problems.push(`feature ${id}: TEST_REQUIRED (no associated test result)`);
+    if (!stringArray(f['requiredEvidence'])) {
+      problems.push(`feature ${id}: requiredEvidence is not a string array`);
+      continue;
+    }
+    const evidence = Array.isArray(f['evidence']) ? f['evidence'] : [];
+    const kinds = new Set<string>();
+    for (const raw of evidence) {
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+        problems.push(`feature ${id}: malformed evidence reference`);
+        continue;
+      }
+      const ref = raw as Record<string, unknown>;
+      if (typeof ref['kind'] !== 'string' || !EVIDENCE_KINDS.has(ref['kind']) || typeof ref['sha256'] !== 'string') {
+        problems.push(`feature ${id}: malformed evidence reference`);
+        continue;
+      }
+      if (f['runId'] !== manifest.runId || !artifacts.has(`${ref['kind']}\0${ref['sha256']}`)) {
+        problems.push(`feature ${id}: evidence ${ref['kind']} ${ref['sha256']} is not in this run's manifest`);
+      } else {
+        kinds.add(ref['kind']);
+      }
+    }
+    for (const kind of f['requiredEvidence']) {
+      if (!kinds.has(kind)) problems.push(`feature ${id}: EVIDENCE_REQUIRED (${kind})`);
+    }
+    if (f['formalVerificationRequired'] === true && !kinds.has('formal-proof')) problems.push(`feature ${id}: FORMAL_VERIFICATION_REQUIRED`);
+  }
+  const scenarios = Array.isArray(r['scenarios']) ? r['scenarios'] : [];
+  for (const scenario of scenarios) {
+    if (scenario === null || typeof scenario !== 'object') continue;
+    const featureId = (scenario as Record<string, unknown>)['featureId'];
+    if (typeof featureId === 'string' && !reported.has(featureId)) problems.push(`feature ${featureId}: missing from report features`);
+  }
+  return problems;
+}
+
 async function listFiles(root: string, prefix: string): Promise<string[]> {
   let entries;
   try {
@@ -101,6 +166,12 @@ export const verifyRun: VerifyRun = async (runDir) => {
 
   for (const f of (await listFiles(root, ARTIFACTS_DIR)).sort()) {
     if (!listed.has(f)) problems.push(`extra: ${f}`);
+  }
+  try {
+    const report = JSON.parse(await readFile(join(root, 'report.json'), 'utf8')) as unknown;
+    problems.push(...verifyFeatureReport(report, manifest));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') problems.push(`report.json cannot be verified: ${error instanceof Error ? error.message : String(error)}`);
   }
   return { ok: problems.length === 0, problems };
 };

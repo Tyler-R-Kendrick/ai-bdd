@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createEngine, createPlanner, type Engine } from '@ai-bdd/sdk';
-import { gherkin, GHERKIN_EXTENSION_ID } from '../src/index.ts';
+import { gherkin, GHERKIN_EXTENSION_ID, parseGherkin } from '../src/index.ts';
 import { makeFixture, type Fixture } from '../../sdk/test/engine/fakes.ts';
 
 const DOCUMENT = `@web
@@ -43,6 +43,22 @@ async function setup(text = DOCUMENT) {
 }
 
 describe('official Cucumber Gherkin document extension', () => {
+  it('exposes the official AST and Pickles, including a non-English dialect', () => {
+    const french = `# language: fr\nFonctionnalité: Paiement\n  Contexte:\n    Soit un client\n  Scénario: Payer\n    Quand le client paie\n    Alors le paiement réussit`;
+    const { ast, pickles } = parseGherkin(french, 'docs/paiement.feature');
+    expect(ast.feature).toMatchObject({ language: 'fr', name: 'Paiement' });
+    expect(pickles).toHaveLength(1);
+    expect(pickles[0]?.steps.map((step) => step.text)).toEqual(['un client', 'le client paie', 'le paiement réussit']);
+    expect(pickles[0]?.steps.map((step) => step.type)).toEqual(['Context', 'Action', 'Outcome']);
+  });
+
+  it('claims only configured suffixes and defaults to en', () => {
+    const extension = gherkin({ suffixes: ['.gherkin'] });
+    expect(extension.suffixes).toEqual(['.gherkin']);
+    expect(gherkin().suffixes).toEqual(['.feature']);
+    expect(parseGherkin('Feature: English\n  Scenario: Works\n    Given ok').pickles).toHaveLength(1);
+  });
+
   it('compiles Background, Rules and Scenario Outlines to grounded plans without an extraction model', async () => {
     const { fx, engine } = await setup();
     const compiled = await engine.compile();

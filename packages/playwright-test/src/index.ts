@@ -1,9 +1,9 @@
 import { dirname, resolve } from 'node:path';
 import { loadPlansSync } from '@ai-bdd/sdk';
-import type { Engine, ScenarioResult, Feature, Scenario, DocPlan } from '@ai-bdd/sdk/contracts';
+import type { Engine, ScenarioResult, Feature, FeatureResult, Scenario, DocPlan } from '@ai-bdd/sdk/contracts';
 import { sessionFromPage } from '@ai-bdd/driver-playwright';
 import { getEngine, closeAiBddEngines } from './engine.ts';
-import { collectScreenshots } from './evidence.ts';
+import { collectFeatureArtifacts } from './evidence.ts';
 import { failureMessage, formatSteps } from './format.ts';
 import { normalizeTag, selectScenarios } from './select.ts';
 import type { PageLike, RegisterOptions, TestInfoLike } from './types.ts';
@@ -39,14 +39,15 @@ function uniqueTitle(used: Set<string>, title: string, ...qualifiers: string[]):
   return candidate;
 }
 
-async function attachEvidence(testInfo: TestInfoLike, engine: Engine, result: ScenarioResult): Promise<void> {
-  await testInfo.attach('ai-bdd-result.json', {
-    body: `${JSON.stringify(result, null, 2)}\n`,
-    contentType: 'application/json',
-  });
+async function attachEvidence(testInfo: TestInfoLike, engine: Engine, result: ScenarioResult, feature: FeatureResult): Promise<void> {
+  await testInfo.attach('ai-bdd-result.json', { body: `${JSON.stringify(result, null, 2)}\n`, contentType: 'application/json' });
+  await testInfo.attach('ai-bdd-feature-result.json', { body: `${JSON.stringify(feature, null, 2)}\n`, contentType: 'application/json' });
   await testInfo.attach('ai-bdd-steps.txt', { body: formatSteps(result), contentType: 'text/plain' });
-  for (const shot of await collectScreenshots(engine.config.runsDir, result.steps)) {
-    await testInfo.attach(shot.name, { body: shot.body, contentType: 'image/png' });
+  for (const artifact of await collectFeatureArtifacts(engine.config.runsDir, feature.evidence)) {
+    if (artifact.body === null) {
+      throw new Error(`EVIDENCE_REQUIRED: ${feature.featureId} references unreadable ${artifact.ref.kind} evidence at ${artifact.ref.path}`);
+    }
+    await testInfo.attach(artifact.name, { body: artifact.body, contentType: artifact.contentType });
   }
 }
 
@@ -117,7 +118,12 @@ async function runScenarioTest(
   }
 
   annotate(testInfo, plan, scenario, result);
-  await attachEvidence(testInfo, engine, result);
+  const featureResult = await engine.featureResult(feature.id);
+  testInfo.annotations.push({ type: 'ai-bdd:feature-status', description: `${featureResult.status} (${featureResult.tests.length} tests)` });
+  await attachEvidence(testInfo, engine, result, featureResult);
+  if (featureResult.problems.length > 0) {
+    throw new Error(featureResult.problems.map((problem) => `${problem.code}: ${problem.message}`).join('\n'));
+  }
 
   const message = failureMessage(`${feature.title} > ${scenario.title}`, result, opts.failOnHealed === true);
   if (message !== null) throw new Error(message);

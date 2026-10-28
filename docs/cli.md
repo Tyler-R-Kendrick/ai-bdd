@@ -134,25 +134,26 @@ Each run writes `.ai-bdd/runs/<runId>/` (`artifacts/`, `manifest.json`, `events.
 ai-bdd verify-run "$(ls -d .ai-bdd/runs/* | tail -1)"
 ```
 
-Recomputes every artifact hash and the manifest digest. Exit 0 with `OK`, or exit 1 listing `missing`, `modified`, `extra` or `digest mismatch` problems. Run ids sort by time, so `ls | tail -1` is the latest. It works outside a project (no config needed). It detects corruption and naive edits, not a malicious host ([security.md](security.md#evidence-integrity)).
+Recomputes every artifact hash and the manifest digest. Exit 0 with `OK`, or exit 1 listing `missing`, `modified`, `extra` or `digest mismatch` problems. It also checks a v2 report's feature obligations: selected features need tests, required evidence kinds (including formal proof) must be in this run's manifest, carried-forward evidence must name its own run, and every scenario's feature must be present. Run ids sort by time, so `ls | tail -1` is the latest. It works outside a project (no config needed). It detects corruption and naive edits, not a malicious host ([security.md](security.md#evidence-integrity)).
 
 ## Run report and release gates
 
-`report.json` is the result of `ai-bdd run` for scripts and for the release gates of other repositories: the `RunReport` of `@ai-bdd/sdk/contracts`, `schemaVersion` 1. Its JSON Schema (draft 2020-12) ships with the SDK.
+`report.json` is the result of `ai-bdd run` for scripts and for the release gates of other repositories: the `RunReport` of `@ai-bdd/sdk/contracts`, `schemaVersion` 2. Its JSON Schema (draft 2020-12) ships with the SDK.
 
 | Where | Path |
 |---|---|
-| In this repository | `packages/sdk/schema/run-report.v1.schema.json` |
-| In a project | `@ai-bdd/sdk/schema/run-report.v1.json`, an `exports` entry of `@ai-bdd/sdk` (the file is `node_modules/@ai-bdd/sdk/schema/run-report.v1.schema.json`) |
+| In this repository | `packages/sdk/schema/run-report.v2.schema.json` |
+| In a project | `@ai-bdd/sdk/schema/run-report.v2.json`, an `exports` entry of `@ai-bdd/sdk` (the file is `node_modules/@ai-bdd/sdk/schema/run-report.v2.schema.json`) |
+| Legacy reports | `@ai-bdd/sdk/schema/run-report.v1.json` remains exported and frozen |
 
-Every object in the schema is closed (`additionalProperties: false`). A report with a field that version 1 does not define is invalid, and so are `schemaVersion: 2`, a scenario status that is not one of the seven, a negative count, duration or estimated cost, a judge `score`, `spread` or sample `probability` outside 0 to 1, an exit code above 4 and a hash that is not 64 lowercase hex characters. `startedAt` and `finishedAt` match `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`, UTC with milliseconds as `Date.prototype.toISOString()` writes them for the years 0000 to 9999 (outside that range it writes a signed six-digit year, which the pattern rejects); the engine never redacts them or `runId` ([security.md](security.md#secrets)). The schema uses that `pattern` rather than `format: date-time`, which Ajv in strict mode refuses unless `ajv-formats` is added. The file is generated from the same zod schema that a compile-time check ties to the contract type, object by object (`pnpm gen:report-schema`); a test fails when it is stale.
+Every object in the schema is closed (`additionalProperties: false`). For version 2, `features` is required (it is `[]` for a report with no planned features, such as a frozen violation). A report with a field that version 2 does not define is invalid, and so are a scenario status that is not one of the seven, a negative count, duration or estimated cost, a judge `score`, `spread` or sample `probability` outside 0 to 1, an exit code above 4 and a hash that is not 64 lowercase hex characters. `startedAt` and `finishedAt` match `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`, UTC with milliseconds as `Date.prototype.toISOString()` writes them for the years 0000 to 9999 (outside that range it writes a signed six-digit year, which the pattern rejects); the engine never redacts them or `runId` ([security.md](security.md#secrets)). The schema uses that `pattern` rather than `format: date-time`, which Ajv in strict mode refuses unless `ajv-formats` is added. The file is generated from the same zod schema that a compile-time check ties to the contract type, object by object (`pnpm gen:report-schema`); a test fails when it is stale.
 
-The v1 file is frozen once released: a test pins its sha256, and it never changes. Adding a field, optional or not, or an enum value (a new error code, scenario status or fuzzy reason, for instance) means `schemaVersion` 2 and a new file, `run-report.v2.schema.json`, next to v1. Pin the `@ai-bdd/sdk` version you validate with. [Ajv](https://ajv.js.org) in strict mode compiles it:
+The v1 file is frozen once released: a test pins its sha256, and it never changes. Version 2 adds feature verification and a new artifact/error surface in a new file, `run-report.v2.schema.json`, next to v1. Pin the `@ai-bdd/sdk` version you validate with. [Ajv](https://ajv.js.org) in strict mode compiles it:
 
 ```ts check
 import { readFileSync } from 'node:fs';
 import { Ajv2020 } from 'ajv/dist/2020.js';
-import schema from '@ai-bdd/sdk/schema/run-report.v1.json' with { type: 'json' };
+import schema from '@ai-bdd/sdk/schema/run-report.v2.json' with { type: 'json' };
 
 const validate = new Ajv2020({ strict: true }).compile(schema);
 const report: unknown = JSON.parse(readFileSync('.ai-bdd/report/report.json', 'utf8'));
@@ -167,6 +168,7 @@ What a gate reads:
 | `totals` | Scenarios per status; all seven statuses are present: `passed`, `failed`, `healed`, `blocked`, `skipped`, `inconclusive`, `error`. |
 | `scenarios[]` | Per scenario: `status`, `mode` (`characterize`, `replay`, `mixed`), `recording`, `error` (`code`, `message`) and `steps[]` with their own `status`, `path`, `error`, `check` and `judge`. |
 | `usage` | Model calls and tokens, also `byPurpose` (`extract`, `act`, `checkgen`, `judge`). |
+| `features[]` | Per documented feature: latest `status`, whether it was `selected`, binary `target`, `risk`, `requiredEvidence`, `formalVerificationRequired`, associated `tests`, content-addressed `evidence`, verification `problems`, `runId` and `lastRunAt`. See [verification.md](verification.md). |
 | `coverage`, `warnings` | Uncovered and not-testable chunks per doc; diagnostics such as `PLAN_STALE`. |
 | `runId` | Also the name of the run directory, `.ai-bdd/runs/<runId>/`. |
 
@@ -177,7 +179,7 @@ The exit codes are those of [Exit codes](#exit-codes). For a gate that runs `ai-
 | Exit | Meaning | `report.json` |
 |---|---|---|
 | 0 | Every scenario `passed`, or `healed` without `--strict`. | written |
-| 1 | A scenario `failed`, was `inconclusive` or `blocked`. | written |
+| 1 | A scenario `failed`, was `inconclusive` or `blocked`; or a selected feature lacked tests or evidence (including formal proof). | written |
 | 2 | Usage or config error: a bad flag, a selector that matches nothing, `-u` with read-only recordings. | not written |
 | 3 | Infrastructure: a scenario ended `error` (a driver or model is unavailable, a secret the scenario uses is not set), or an unexpected internal error. | written when a scenario ended `error` or a model was unavailable; not written after an unexpected internal error once the scenarios were selected (the runner or the report writer failed), which keeps its run directory |
 | 4 | Frozen violation: a plan is `new`, `stale` or `orphaned`. | not written |

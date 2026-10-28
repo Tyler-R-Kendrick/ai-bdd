@@ -369,11 +369,11 @@ export interface FeatureResult {
   runId?: string; lastRunAt?: string;
 }
 export interface RunReport {
-  schemaVersion: 1; runId: string; startedAt: string; finishedAt: string;
+  schemaVersion: 2; runId: string; startedAt: string; finishedAt: string;
   options: { frozen: boolean; strict: boolean; audit: boolean; noAgent: boolean; updateRecordings: boolean; recordingsMode: RecordingsMode; workers: number };
   scenarios: ScenarioResult[];
-  /** Latest state of every documented feature. Optional only for reading reports produced before feature verification. */
-  features?: FeatureResult[];
+  /** Latest state and required evidence of every documented feature. */
+  features: FeatureResult[];
   totals: Record<ScenarioStatus, number>;
   usage: Usage & { byPurpose: Record<ModelPurpose, Usage>; estimatedCostUsd?: number };
   coverage: { docs: { docUri: string; chunks: number; covered: number; uncovered: string[]; notTestable: string[] }[] };
@@ -479,6 +479,8 @@ export interface Engine {
   listScenarios(filter?: ScenarioFilter): Promise<ScenarioTarget[]>;
   review(id: string, action: 'accept' | 'reject' | 'pin' | 'unpin'): Promise<void>;
   runScenario(scenarioId: string, opts?: Partial<ScenarioRunOptions>): Promise<ScenarioResult>;
+  /** Aggregate the latest runScenario calls into feature test state and enforce its evidence policy. */
+  featureResult(featureId: string): Promise<FeatureResult>;
   run(opts?: RunOptions): Promise<RunReport>;
   verifyRun(runDir: string): Promise<{ ok: boolean; problems: string[] }>;
   prune(opts?: { dryRun?: boolean }): Promise<{ removed: string[] }>;

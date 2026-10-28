@@ -58,6 +58,9 @@ Every `ERROR_CODES` entry of `@ai-bdd/sdk/contracts`. A code is `reserved` when 
 | `RECORDING_CORRUPT` | no | recording | Recording corrupt. | referenced |
 | `RECORDING_READ_ONLY` | no | recording | Recording read only. | referenced |
 | `EVIDENCE_CORRUPT` | no | evidence | Evidence corrupt. | referenced |
+| `EVIDENCE_REQUIRED` | no | evidence | Evidence required. | referenced |
+| `TEST_REQUIRED` | no | test | Test required. | referenced |
+| `FORMAL_VERIFICATION_REQUIRED` | no | formal | Formal verification required. | referenced |
 | `NOT_IMPLEMENTED` | no | not | Not implemented. | reserved |
 | `INTERNAL` | no | general | Internal. | referenced |
 | `ABORTED` | no | general | Aborted. | referenced |

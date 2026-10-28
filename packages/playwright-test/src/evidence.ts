@@ -44,6 +44,31 @@ export async function readArtifact(runDirs: readonly string[], ref: ArtifactRef)
   return null;
 }
 
+export interface FeatureArtifact {
+  ref: ArtifactRef;
+  name: string;
+  body: Buffer | null;
+  contentType: string;
+}
+
+/** Every artifact referenced by a feature result. A null body is a verification failure, never a silent omission. */
+export async function collectFeatureArtifacts(runsDir: string, refs: readonly ArtifactRef[]): Promise<FeatureArtifact[]> {
+  const runDirs = await runDirsNewestFirst(runsDir);
+  const seen = new Set<string>();
+  const out: FeatureArtifact[] = [];
+  for (const ref of refs) {
+    const key = `${ref.kind}\0${ref.sha256}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const extension = ref.path.split('.').at(-1) ?? 'bin';
+    out.push({
+      ref, name: `${ref.kind}-${ref.sha256.slice(0, 12)}.${extension}`, body: await readArtifact(runDirs, ref),
+      contentType: ref.kind === 'screenshot' ? 'image/png' : extension === 'json' ? 'application/json' : 'text/plain',
+    });
+  }
+  return out;
+}
+
 /** Screenshot artifacts referenced by the step results, deduplicated by content hash and bounded in number. */
 export async function collectScreenshots(runsDir: string, steps: readonly StepResult[]): Promise<ScreenshotAttachment[]> {
   const wanted: { stepIndex: number; ref: ArtifactRef }[] = [];

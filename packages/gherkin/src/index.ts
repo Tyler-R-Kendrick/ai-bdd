@@ -7,8 +7,26 @@ import type {
 } from '@ai-bdd/sdk/contracts';
 import { sha256Hex } from '@ai-bdd/sdk';
 
+export type { GherkinDocument, Pickle } from '@cucumber/messages';
+
 export const GHERKIN_EXTENSION_ID = '@ai-bdd/gherkin';
 export const GHERKIN_PROMPT_VERSION = 'cucumber-gherkin-42';
+
+export interface GherkinOptions {
+  /** A Cucumber language code, e.g. `en`, `fr` or `pt`. A `# language:` header still overrides it. */
+  defaultDialect?: string;
+  /** URI suffixes claimed by the extension. Default `['.feature']`. */
+  suffixes?: readonly string[];
+}
+
+/** Parse with the official Cucumber parser and compile pickles (background and example expansion included). */
+export function parseGherkin(text: string, uri = 'memory.feature', opts: GherkinOptions = {}): {
+  ast: GherkinDocument;
+  pickles: readonly Pickle[];
+} {
+  const ast = new Parser(new AstBuilder(IdGenerator.incrementing()), new GherkinClassicTokenMatcher(opts.defaultDialect)).parse(text);
+  return { ast, pickles: compilePickles(ast, uri, IdGenerator.incrementing()) };
+}
 const ZERO_USAGE: Usage = { modelCalls: 0, inputTokens: 0, outputTokens: 0 };
 
 interface ParsedDocument {
@@ -31,10 +49,13 @@ function empty(doc: SourceDoc, diagnostics: Diagnostic[]): ChunkedDoc {
   return { doc: { uri: doc.uri, sha256: doc.sha256, title: doc.uri }, chunks: [], sections: [], contextChunkIds: [], diagnostics };
 }
 
-function parse(doc: SourceDoc): { chunked: ChunkedDoc; parsed?: ParsedDocument } {
+function parse(doc: SourceDoc, opts: GherkinOptions): { chunked: ChunkedDoc; parsed?: ParsedDocument } {
   let ast: GherkinDocument;
+  let pickles: readonly Pickle[];
   try {
-    ast = new Parser(new AstBuilder(IdGenerator.incrementing()), new GherkinClassicTokenMatcher()).parse(doc.text);
+    const compiled = parseGherkin(doc.text, doc.uri, opts);
+    ast = compiled.ast;
+    pickles = compiled.pickles;
   } catch (error) {
     return {
       chunked: empty(doc, [{
@@ -109,7 +130,7 @@ function parse(doc: SourceDoc): { chunked: ChunkedDoc; parsed?: ParsedDocument }
     chunks, sections: [section], contextChunkIds: [], diagnostics: [],
   };
   const parsed: ParsedDocument = {
-    ast, pickles: compilePickles(ast, doc.uri, IdGenerator.incrementing()),
+    ast, pickles,
     featureChunkId, scenarioChunks, stepChunks, steps,
   };
   cache.set(chunked, parsed);
@@ -157,11 +178,11 @@ function drafts(input: ExtractionInput, parsed: ParsedDocument): DraftFeature[] 
 }
 
 /** Create the pluggable `.feature` document extension. No AI extraction model is used. */
-export function gherkin(): DocumentExtension {
+export function gherkin(options: GherkinOptions = {}): DocumentExtension {
   return {
     id: GHERKIN_EXTENSION_ID,
-    suffixes: ['.feature'],
-    chunker: { chunk(doc) { return parse(doc).chunked; } },
+    suffixes: options.suffixes === undefined || options.suffixes.length === 0 ? ['.feature'] : [...options.suffixes],
+    chunker: { chunk(doc) { return parse(doc, options).chunked; } },
     extractor: {
       async extractSection(input: ExtractionInput): Promise<ExtractionResult> {
         const parsed = cache.get(input.doc);

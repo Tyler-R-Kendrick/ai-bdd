@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates packages/sdk/schema/run-report.v1.schema.json, the JSON Schema (draft 2020-12) of the run report, from the zod schema
+// Generates packages/sdk/schema/run-report.v2.schema.json, the JSON Schema (draft 2020-12) of the run report, from the zod schema
 // in packages/sdk/src/report/schema.ts (which a compile-time check ties to the `RunReport` contract type).
 //   node scripts/gen-run-report-schema.mjs           write the file
 //   node scripts/gen-run-report-schema.mjs --check   fail when the file differs from what would be generated
@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { isMain, parseArgs } from './lib.mjs';
 
 const SOURCE = 'packages/sdk/src/report/schema.ts';
-export const OUTPUT = 'packages/sdk/schema/run-report.v1.schema.json';
+export const OUTPUT = 'packages/sdk/schema/run-report.v2.schema.json';
 export const COMMAND = 'node scripts/gen-run-report-schema.mjs';
 
 /** The text the committed file must have, from the schema module under `root`. */

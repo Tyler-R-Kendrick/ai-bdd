@@ -33,7 +33,7 @@ function paths(value: Json, base: Path = []): Path[] {
   return entries.flatMap(([key, child]) => [[...base, key], ...paths(child, [...base, key])]);
 }
 
-describe.each(NAMES)('report.v1.%s.json, captured from a real run', (name) => {
+describe.each(NAMES)('report.v2.%s.json, captured from a real run', (name) => {
   const report = fixture(name) as Record<string, Json>;
 
   it(`is valid against the committed schema (Ajv 2020, strict) and against the zod schema; if a fixture is stale: ${REGENERATE_FIXTURES}`, () => {
@@ -89,7 +89,7 @@ describe('a report the schema must reject', () => {
   const failedStep0 = ['scenarios', 0, 'steps', 0];
   const judged = ['scenarios', 4, 'steps', 1, 'judge'];
   const cases: Case[] = [
-    { name: 'schemaVersion 2', from: 'passed', path: ['schemaVersion'], to: 2, at: '/schemaVersion', keyword: 'const' },
+    { name: 'schemaVersion 1 from the legacy report format', from: 'passed', path: ['schemaVersion'], to: 1, at: '/schemaVersion', keyword: 'const' },
     { name: 'an unknown scenario status', from: 'passed', path: [...failedScenario0, 'status'], to: 'flaky', at: '/scenarios/0/status', keyword: 'enum' },
     { name: 'an unknown step status', from: 'passed', path: [...failedStep0, 'status'], to: 'ok', at: '/scenarios/0/steps/0/status', keyword: 'enum' },
     { name: 'an unknown status counted in totals', from: 'passed', path: ['totals', 'flaky'], to: 1, at: '/totals', keyword: 'additionalProperties' },
@@ -149,7 +149,7 @@ describe('a report the schema must reject', () => {
 describe('the committed JSON Schema and the zod schema it is generated from agree', () => {
   const wrong: Json[] = [null, 'wrong', -1, {}, []];
 
-  it.each(NAMES)('on every deletion and every wrong-typed replacement of every node of report.v1.%s.json', (name) => {
+  it.each(NAMES)('on every deletion and every wrong-typed replacement of every node of report.v2.%s.json', (name) => {
     const base = fixture(name);
     const disagreements: string[] = [];
     let tried = 0;

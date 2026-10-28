@@ -134,9 +134,13 @@ It takes `judge.samples` (3) votes at temperature 0.7. A vote is a probability; 
 | `.ai-bdd/recordings/<driverId>/<scenarioId>.json` | yes | `run` (read-write mode only) |
 | `.ai-bdd/cache/` (judge cache, `judgments.jsonl`) | no | `run` |
 | `.ai-bdd/runs/<runId>/` (artifacts, `manifest.json`, `events.jsonl`, reports) | no | `run` |
-| `.ai-bdd/report/` (latest `report.json`, `junit.xml`, `summary.md`) | no | `run` |
+| `.ai-bdd/report/` (latest v2 `report.json`, `junit.xml`, `summary.md`) | no | `run` |
+| `.ai-bdd/state/features.json` (latest feature tests, evidence and policy) | yes | `run` |
+| `.ai-bdd/evidence/<feature-id>/` (supplemental proofs, logs, test output) | yes | you |
 
 Recordings are per driver: switching driver means characterizing again.
+
+Every documented feature also has verification state. A selected feature must have test results and the evidence required by its binary/risk policy; see [verification.md](verification.md). Formal Gherkin files are compiled by the pluggable [`@ai-bdd/gherkin`](gherkin.md) extension through the same plan and run model.
 
 ## Residual risks
 

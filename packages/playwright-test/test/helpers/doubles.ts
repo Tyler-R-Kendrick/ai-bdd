@@ -195,13 +195,24 @@ export function fakeEngine(
   const unused = (): never => {
     throw new Error('not used by the integration');
   };
+  let latest: ScenarioResult | undefined;
   const engine: FakeEngine = {
     config,
     runCalls: [],
     closed: 0,
-    runScenario(id, opts) {
+    async runScenario(id, opts) {
       engine.runCalls.push({ id, opts });
-      return run(id, opts);
+      latest = await run(id, opts);
+      return latest;
+    },
+    async featureResult(featureId) {
+      return {
+        featureId, docUri: 'docs/billing.md', title: featureId, status: latest?.status ?? 'skipped', selected: true,
+        target: 'web', risk: 'medium', requiredEvidence: [], formalVerificationRequired: false,
+        tests: latest === undefined ? [] : [{ scenarioId: latest.scenarioId, status: latest.status }],
+        evidence: latest?.steps.flatMap((stepResult) => stepResult.evidence) ?? [], problems: [],
+        runId: 'run-1', lastRunAt: '2026-01-01T00:00:00.000Z',
+      };
     },
     close() {
       engine.closed += 1;

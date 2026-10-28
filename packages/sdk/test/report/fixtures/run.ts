@@ -213,7 +213,8 @@ const inv = (slug: string): string => `${FEATURE_INVOICES}/${slug}`;
 const login = (slug: string): string => `${FEATURE_LOGIN}/${slug}`;
 
 export const fixtureReport: RunReport = {
-  schemaVersion: 1,
+  schemaVersion: 2,
+  features: [],
   runId: '01900000-0000-7000-8000-000000000001',
   startedAt: '2026-10-09T10:00:00.000Z',
   finishedAt: '2026-10-09T10:00:42.500Z',

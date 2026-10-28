@@ -35,10 +35,15 @@ export async function attachSupplementalEvidence(
   evidenceDir: string,
   store: EvidenceStore,
 ): Promise<{ refs: ArtifactRef[]; problems: Diagnostic[] }> {
-  const root = resolve(evidenceDir, ...feature.id.split('/'));
+  const evidenceRoot = resolve(evidenceDir);
+  const root = resolve(evidenceRoot, ...feature.id.split('/'));
+  if (!root.startsWith(evidenceRoot + sep)) {
+    return { refs: [], problems: [{ code: 'EVIDENCE_CORRUPT', severity: 'error', uri: feature.docUri, message: `unsafe feature id for supplemental evidence: ${feature.id}` }] };
+  }
   const manifestPath = join(root, 'manifest.json');
   let text: string;
   try {
+    await assertInsideRealRoot(manifestPath, root);
     text = await readFile(manifestPath, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { refs: [], problems: [] };
