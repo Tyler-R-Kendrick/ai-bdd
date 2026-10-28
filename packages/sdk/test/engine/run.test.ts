@@ -32,7 +32,7 @@ describe('run pipeline', () => {
     expect(report.scenarios.map((s) => s.scenarioId)).toEqual([SCENARIO_BILLING, SCENARIO_DOWNGRADE, SCENARIO_TASKS]);
     expect(report.totals).toEqual({ passed: 3, failed: 0, healed: 0, blocked: 0, skipped: 0, inconclusive: 0, error: 0 });
     expect(modelUsage(world).extract).toBe(3);
-    expect(report.schemaVersion).toBe(1);
+    expect(report.schemaVersion).toBe(2);
     expect(report.options).toMatchObject({ frozen: false, strict: false, audit: false, noAgent: false, updateRecordings: false, recordingsMode: 'read-write', workers: 4 });
     expect(new Date(report.startedAt).toString()).not.toBe('Invalid Date');
   });

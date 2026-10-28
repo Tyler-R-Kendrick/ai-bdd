@@ -280,14 +280,14 @@ describe('judge input (R-JU1, R-JU3)', () => {
     expect(h.settler.calls.some((c) => c.pixels)).toBe(true);
   });
 
-  it('R-JU3: judge.vision=false never sends a screenshot nor requests pixels', async () => {
+  it('R-JU3: judge.vision=false never sends a screenshot to the judge; pixels may still be captured as feature evidence', async () => {
     const h = createHarness({
       steps: [thenStep('Anything', { nature: 'subjective' })],
       config: { judge: { passThreshold: 0.8, failThreshold: 0.3, samples: 3, maxSpread: 0.5, vision: false, maxTreeChars: 20000 } },
     });
     await h.run();
     expect(h.judge.requests[0]!.after.screenshot).toBeUndefined();
-    expect(h.settler.calls.every((c) => !c.pixels)).toBe(true);
+    expect(h.settler.calls.some((c) => c.pixels)).toBe(true); // required web evidence, independent of judge vision
   });
 
   it('R-JU3: a driver without pixels never gets a pixel request', async () => {
@@ -351,13 +351,13 @@ describe('judge input (R-JU1, R-JU3)', () => {
 });
 
 describe('evidence and usage on assertion steps', () => {
-  it('R-EV1: then steps store an observation artifact and failures add a screenshot', async () => {
+  it('R-EV1: then steps store observation and screenshot evidence for a web feature', async () => {
     const h = createHarness({ steps: [when(ACT), thenStep(CHECK)] });
     h.effect(ACT, () => undefined);
     seeded(h);
     const r = await h.run();
     const kinds = r.steps[1]!.evidence.map((e) => e.kind);
-    expect(kinds).toEqual(['observation']); // deterministic checks request no pixels, so there is no screenshot
+    expect(kinds).toEqual(['observation', 'screenshot']); // web evidence policy requests pixels even for a replay check
   });
 
   it('R-EV1: a failing evidence store never changes the step outcome', async () => {

@@ -10,7 +10,6 @@ import {
   type EvidenceStore,
   type ExitCode,
   type ExtractionResult,
-  type Extractor,
   type FixtureDescriptor,
   type JsonValue,
   type PlanStatus,
@@ -147,7 +146,7 @@ async function assertPlansWritableForWrites(config: ResolvedConfig, dryRun: bool
  */
 export async function compile(core: Core, opts: CompileOptions = {}, evidence?: EvidenceStore): Promise<CompileResult> {
   core.assertOpen();
-  const { config, modules } = core;
+  const { config } = core;
   const check = opts.check === true;
   const dryRun = opts.dryRun === true;
   const full = opts.full === true;

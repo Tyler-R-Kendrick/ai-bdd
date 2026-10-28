@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ArtifactKind, BinaryType, ChatModel, DocumentExtension, DriverFactory, FixtureDefinition, ModelSet, RiskLevel, Verb } from '../contracts/index.ts';
+import type { ChatModel, DocumentExtension, DriverFactory, FixtureDefinition, ModelSet, Verb } from '../contracts/index.ts';
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isFn = (v: unknown): boolean => typeof v === 'function';
