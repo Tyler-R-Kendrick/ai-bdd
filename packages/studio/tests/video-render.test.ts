@@ -54,6 +54,20 @@ describe('Deterministic video encoder', () => {
         mediaStart: 0.5,
         sourceDuration: 2,
         volume: 0.3,
+        keyframes: [
+          {
+            property: 'volume' as const,
+            at: 0,
+            value: 0,
+            easing: 'linear' as const,
+          },
+          {
+            property: 'volume' as const,
+            at: 1,
+            value: 1,
+            easing: 'linear' as const,
+          },
+        ],
       };
       const content: TimelineContent = {
         width: 320,
@@ -103,6 +117,39 @@ describe('Deterministic video encoder', () => {
       ).toMatchObject({ codec_name: 'aac' });
       expect(Number(probe.format.duration)).toBeCloseTo(1, 1);
       expect(bytes.length).toBeGreaterThan(2000);
+      const rms = async (start: string) => {
+        const decoded = await execute(
+          'ffmpeg',
+          [
+            '-v',
+            'error',
+            '-ss',
+            start,
+            '-i',
+            output,
+            '-t',
+            '0.1',
+            '-vn',
+            '-ac',
+            '1',
+            '-ar',
+            '48000',
+            '-f',
+            'f32le',
+            'pipe:1',
+          ],
+          { encoding: 'buffer' },
+        );
+        const samples = decoded.stdout as Buffer;
+        let power = 0;
+        for (let index = 0; index + 4 <= samples.length; index += 4)
+          power += samples.readFloatLE(index) ** 2;
+        return Math.sqrt(power / (samples.length / 4));
+      };
+      const quiet = await rms('0.15'),
+        loud = await rms('0.75');
+      expect(loud / quiet).toBeGreaterThan(2.5);
+      expect(loud / quiet).toBeLessThan(6.5);
     } finally {
       await rm(folder, { recursive: true, force: true });
     }
