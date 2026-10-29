@@ -9,7 +9,7 @@ export class RepositoryReader {
   constructor(
     repositoryUrl: string,
     readonly settings: Settings,
-    readonly authorize: () => void,
+    readonly authorize: () => unknown | Promise<unknown>,
     readonly signal: AbortSignal,
     readonly request: typeof fetch = fetch,
   ) {
@@ -24,12 +24,10 @@ export class RepositoryReader {
     this.repository = `${match[1]}/${match[2]}`;
   }
   private async get(path: string) {
-    this.authorize();
+    await this.authorize();
     const authenticated =
       this.settings.githubToken &&
-      this.settings.githubRepositories?.includes(
-        this.repository.toLowerCase(),
-      );
+      this.settings.githubRepositories?.includes(this.repository.toLowerCase());
     const response = await this.request(
       `https://api.github.com/repos/${this.repository}${path}`,
       {
@@ -45,17 +43,14 @@ export class RepositoryReader {
       },
     );
     const data = await boundedJson(response, this.signal);
-    this.authorize();
+    await this.authorize();
     return data;
   }
   async revision() {
     if (!this.ref) {
       const data = await this.get('/commits?per_page=1');
       if (!Array.isArray(data) || !/^[0-9a-f]{40,64}$/.test(data[0]?.sha))
-        throw new HttpError(
-          502,
-          'GitHub did not return a repository revision',
-        );
+        throw new HttpError(502, 'GitHub did not return a repository revision');
       this.ref = data[0].sha;
     }
     return this.ref!;
@@ -67,13 +62,11 @@ export class RepositoryReader {
       repository: this.repository,
       revision: sha,
       truncated: !!data.truncated || (data.tree?.length ?? 0) > 1000,
-      entries: (data.tree ?? [])
-        .slice(0, 1000)
-        .map((entry: any) => ({
-          path: entry.path,
-          type: entry.type,
-          size: entry.size,
-        })),
+      entries: (data.tree ?? []).slice(0, 1000).map((entry: any) => ({
+        path: entry.path,
+        type: entry.type,
+        size: entry.size,
+      })),
     };
   }
   async file(path: string) {
