@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { existsSync } from 'node:fs';
 import {
   mkdtemp,
@@ -16,6 +16,9 @@ import { client, project, setup, testSettings } from './helpers.ts';
 
 describe('Trusted acceptance runner adapter', () => {
   it('compiles grounded requirements, reviews, drives real Chromium, serves evidence and replays without model calls', async () => {
+    // This fixture deliberately characterizes once, then replays. Production CI
+    // remains read-only by default; only this test's recording store is writable.
+    vi.stubEnv('AI_BDD_RECORDINGS', 'read-write');
     const work = resolve(import.meta.dirname, '../../../work');
     await mkdir(work, { recursive: true });
     const dir = await mkdtemp(join(work, 'studio-runner-'));
@@ -244,6 +247,7 @@ describe('Trusted acceptance runner adapter', () => {
       expect(empty.status).not.toBe('passed');
       expect(empty.error).toBeTruthy();
     } finally {
+      vi.unstubAllEnvs();
       await studio?.app.close();
       await app.close();
       await rm(dir, { recursive: true, force: true });
