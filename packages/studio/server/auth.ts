@@ -1,3 +1,6 @@
+import { DurableChallenges } from './identity/challenges.ts';
+import { repositoryIdentitySettingsFromEnv } from './identity/settings.ts';
+import type { RepositoryIdentitySettings } from './identity/ports.ts';
 import {
   integrationSettingsFromEnv,
   type IntegrationSettings,
@@ -33,6 +36,8 @@ export type Settings = {
   oidcIssuer?: string;
   oidcClientId?: string;
   oidcClientSecret?: string;
+  oidcAllowHttpLoopback?: boolean;
+  repositoryIdentity?: RepositoryIdentitySettings;
   demo: boolean;
   model?: string;
   githubToken?: string;
@@ -66,6 +71,8 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
     );
   if (env.STUDIO_MODEL && !env.AI_GATEWAY_API_KEY)
     throw new Error('STUDIO_MODEL requires AI_GATEWAY_API_KEY');
+  if (production && env.STUDIO_OIDC_ALLOW_HTTP_LOOPBACK === '1')
+    throw new Error('HTTP OIDC test issuers are restricted to development');
   const trustedProxies = env.STUDIO_TRUSTED_PROXIES?.split(',')
     .map((s) => s.trim())
     .filter(Boolean);
@@ -88,6 +95,8 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
       'STUDIO_GITHUB_REPOSITORIES must contain owner/repository names',
     );
   return {
+    repositoryIdentity: repositoryIdentitySettingsFromEnv(env),
+    oidcAllowHttpLoopback: env.STUDIO_OIDC_ALLOW_HTTP_LOOPBACK === '1',
     integrations: integrationSettingsFromEnv(env),
     production,
     origin,
@@ -106,29 +115,44 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
   };
 }
 export class Auth {
+  readonly challenges: DurableChallenges;
   constructor(
     readonly store: Store,
     readonly settings: Settings,
-  ) {}
-  async initialize() {
-    this.store.exec('DELETE FROM sessions WHERE expires<?', Date.now());
-    if (
-      this.settings.adminPassword &&
-      !this.store.userByEmail(this.settings.adminEmail!)
-    )
-      this.store.createUser(
-        this.settings.adminEmail!,
-        'Workspace owner',
-        await passwordHash(this.settings.adminPassword),
-      );
-    if (this.settings.demo && !this.store.userByEmail('demo@localhost'))
-      this.store.createUser('demo@localhost', 'Alex Morgan', null);
+  ) {
+    this.challenges = new DurableChallenges(store);
   }
-  user(req: FastifyRequest): User {
+  async initialize() {
+    await this.store.tx(async () => {
+      await this.store.db.lock('schema:studio.identity');
+      await this.challenges.initialize();
+    });
+    const encoded =
+      this.settings.adminPassword &&
+      !(await this.store.userByEmail(this.settings.adminEmail!))
+        ? await passwordHash(this.settings.adminPassword)
+        : undefined;
+    await this.store.tx(async () => {
+      await this.store.db.lock('identity:bootstrap');
+      await this.store.exec('DELETE FROM sessions WHERE expires<?', Date.now());
+      if (encoded && !(await this.store.userByEmail(this.settings.adminEmail!)))
+        await this.store.createUser(
+          this.settings.adminEmail!,
+          'Workspace owner',
+          encoded,
+        );
+      if (
+        this.settings.demo &&
+        !(await this.store.userByEmail('demo@localhost'))
+      )
+        await this.store.createUser('demo@localhost', 'Alex Morgan', null);
+    });
+  }
+  async user(req: FastifyRequest): Promise<User> {
     const bearer = req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1];
     const token = bearer ?? req.cookies.studio_session;
     if (!token) throw new HttpError(401, 'Sign in to continue');
-    const session = this.store.one(
+    const session = await this.store.one(
       'SELECT user_id FROM sessions WHERE token=? AND expires>? AND kind=?',
       hash(token),
       Date.now(),
@@ -136,21 +160,34 @@ export class Auth {
     );
     if (!session)
       throw new HttpError(401, 'Your session expired. Sign in again.');
-    return this.store.publicUser(session.user_id);
+    return await this.store.publicUser(session.user_id);
   }
   assertOrigin(req: FastifyRequest) {
     if (req.headers.authorization?.match(/^Bearer (\S+)$/)) return;
     if (req.headers.origin !== this.settings.origin)
       throw new HttpError(403, 'Request origin is not allowed');
   }
-  session(user: User, reply: FastifyReply) {
+  async session(user: User, reply: FastifyReply, expectedPassword?: string) {
     const token = randomBytes(32).toString('base64url');
-    this.store.exec(
-      "INSERT INTO sessions VALUES(?,?,?,'session')",
-      hash(token),
-      user.id,
-      Date.now() + 7 * 86400000,
-    );
+    await this.store.tx(async () => {
+      await this.store.db.lock('user:' + user.id);
+      const current = await this.store.one(
+        'SELECT id,password FROM users WHERE id=?',
+        user.id,
+      );
+      if (
+        !current ||
+        (expectedPassword !== undefined &&
+          current.password !== expectedPassword)
+      )
+        throw new HttpError(401, 'Your account changed. Sign in again.');
+      await this.store.exec(
+        "INSERT INTO sessions(token,user_id,expires,kind) VALUES(?,?,?,'session')",
+        hash(token),
+        user.id,
+        Date.now() + 7 * 86400000,
+      );
+    });
     reply.setCookie('studio_session', token, {
       path: '/',
       httpOnly: true,
@@ -161,7 +198,7 @@ export class Auth {
   }
   async routes(app: FastifyInstance) {
     app.get('/api/auth/status', async () => ({
-      setup: !this.store.one('SELECT id FROM users LIMIT 1'),
+      setup: !(await this.store.one('SELECT id FROM users LIMIT 1')),
       demo: this.settings.demo,
       oidc: !!this.settings.oidcIssuer,
     }));
@@ -169,7 +206,7 @@ export class Auth {
       this.assertOrigin(req);
       if (
         this.settings.production ||
-        this.store.one('SELECT id FROM users LIMIT 1')
+        (await this.store.one('SELECT id FROM users LIMIT 1'))
       )
         throw new HttpError(403, 'Setup is unavailable');
       const b = req.body as any;
@@ -190,12 +227,13 @@ export class Auth {
           'Use a valid email, name, and password of 16–256 characters',
         );
       const encoded = await passwordHash(b.password);
-      const user = this.store.tx(() => {
-        if (this.store.one('SELECT id FROM users LIMIT 1'))
+      const user = await this.store.tx(async () => {
+        await this.store.db.lock('identity:bootstrap');
+        if (await this.store.one('SELECT id FROM users LIMIT 1'))
           throw new HttpError(409, 'Setup was completed by another user');
-        return this.store.createUser(b.email, b.name.trim(), encoded);
+        return await this.store.createUser(b.email, b.name.trim(), encoded);
       });
-      this.session(user, reply);
+      await this.session(user, reply);
       return user;
     });
     app.post(
@@ -210,35 +248,33 @@ export class Auth {
           b.password.length > 256
         )
           throw new HttpError(400, 'Enter your email and password');
-        const u = this.store.userByEmail(b.email);
+        const u = await this.store.userByEmail(b.email);
         // Hash even for an unknown account, to avoid a fast username oracle.
         const valid = await passwordValid(
           b.password,
-          u?.password ??
-            '00000000000000000000000000000000:' + '00'.repeat(64),
+          u?.password ?? '00000000000000000000000000000000:' + '00'.repeat(64),
         );
         if (!u || !u.password || !valid)
           throw new HttpError(401, 'Email or password is incorrect');
-        const user = this.store.publicUser(u.id);
-        this.session(user, reply);
+        const user = await this.store.publicUser(u.id);
+        await this.session(user, reply, u.password);
         return user;
       },
     );
     app.post('/api/auth/demo', async (req, reply) => {
       this.assertOrigin(req);
-      if (!this.settings.demo)
-        throw new HttpError(404, 'Demo is unavailable');
-      const u = this.store.publicUser(
-        this.store.userByEmail('demo@localhost').id,
+      if (!this.settings.demo) throw new HttpError(404, 'Demo is unavailable');
+      const u = await this.store.publicUser(
+        (await this.store.userByEmail('demo@localhost')).id,
       );
-      this.session(u, reply);
+      await this.session(u, reply);
       return u;
     });
-    app.get('/api/me', async (req) => this.user(req));
+    app.get('/api/me', async (req) => await this.user(req));
     app.post('/api/auth/logout', async (req, reply) => {
       this.assertOrigin(req);
       if (req.cookies.studio_session)
-        this.store.exec(
+        await this.store.exec(
           'DELETE FROM sessions WHERE token=?',
           hash(req.cookies.studio_session),
         );
@@ -246,25 +282,39 @@ export class Auth {
       return { ok: true };
     });
     if (this.settings.oidcIssuer) {
+      const issuer = new URL(this.settings.oidcIssuer),
+        allowHttp =
+          !this.settings.production &&
+          this.settings.oidcAllowHttpLoopback &&
+          issuer.protocol === 'http:' &&
+          ['127.0.0.1', 'localhost', '[::1]'].includes(issuer.hostname);
+      if (issuer.protocol !== 'https:' && !allowHttp)
+        throw new Error(
+          'OIDC requires HTTPS; explicit development loopback opt-in is needed for an HTTP test issuer',
+        );
       const config = await oidc.discovery(
-        new URL(this.settings.oidcIssuer),
+        issuer,
         this.settings.oidcClientId!,
         this.settings.oidcClientSecret,
+        undefined,
+        allowHttp ? { execute: [oidc.allowInsecureRequests] } : undefined,
       );
-      const pending = new Map<
-        string,
-        { verifier: string; nonce: string; expires: number }
-      >();
       app.get('/api/auth/oidc', async (_req, reply) => {
-        for (const [k, v] of pending)
-          if (v.expires < Date.now()) pending.delete(k);
-        if (pending.size >= 1000)
-          throw new HttpError(429, 'Too many sign-in attempts');
         const state = oidc.randomState(),
           nonce = oidc.randomNonce(),
-          verifier = oidc.randomPKCECodeVerifier();
-        pending.set(state, { verifier, nonce, expires: Date.now() + 300000 });
-        reply.setCookie('studio_oidc', state, {
+          verifier = oidc.randomPKCECodeVerifier(),
+          binding = randomBytes(32).toString('base64url');
+        await this.store.tx(async () => {
+          await this.store.db.lock('identity:oidc-challenges');
+          await this.challenges.put(
+            'oidc',
+            state,
+            binding,
+            { verifier, nonce },
+            Date.now() + 300000,
+          );
+        });
+        reply.setCookie('studio_oidc', binding, {
           path: '/api/auth',
           httpOnly: true,
           sameSite: 'lax',
@@ -285,49 +335,75 @@ export class Auth {
       app.get('/api/auth/callback', async (req, reply) => {
         const url = new URL(req.url, this.settings.origin),
           state = url.searchParams.get('state') ?? '',
-          p = pending.get(state);
-        pending.delete(state);
-        if (!p || p.expires < Date.now() || req.cookies.studio_oidc !== state)
-          throw new HttpError(401, 'Sign-in expired. Try again.');
+          challenge = await this.challenges.consume<{
+            verifier: string;
+            nonce: string;
+          }>('oidc', state, req.cookies.studio_oidc ?? '');
+        reply.clearCookie('studio_oidc', { path: '/api/auth' });
+        if (!challenge) throw new HttpError(401, 'Sign-in expired. Try again.');
         const tokens = await oidc.authorizationCodeGrant(config, url, {
-          pkceCodeVerifier: p.verifier,
+          pkceCodeVerifier: challenge.payload.verifier,
           expectedState: state,
-          expectedNonce: p.nonce,
+          expectedNonce: challenge.payload.nonce,
         });
         const claims = tokens.claims();
+        if (!claims?.sub || claims.email_verified === false)
+          throw new HttpError(403, 'A verified email is required');
+        let profile = claims;
         if (
-          !claims?.sub ||
           typeof claims.email !== 'string' ||
           claims.email_verified !== true
+        ) {
+          if (!tokens.access_token)
+            throw new HttpError(403, 'A verified email is required');
+          const info = await oidc.fetchUserInfo(
+            config,
+            tokens.access_token,
+            claims.sub,
+          );
+          if (
+            info.sub !== claims.sub ||
+            (typeof claims.email === 'string' &&
+              typeof info.email === 'string' &&
+              claims.email.toLowerCase() !== info.email.toLowerCase())
+          )
+            throw new HttpError(403, 'Identity claims do not match');
+          profile = { ...claims, ...info, sub: claims.sub };
+        }
+        if (
+          typeof profile.email !== 'string' ||
+          profile.email_verified !== true
         )
           throw new HttpError(403, 'A verified email is required');
-        const sub = this.settings.oidcIssuer + '|' + claims.sub;
-        // Admission is explicit: an owner must create the account before its first OIDC sign-in.
-        let existing = this.store.userByEmail(claims.email);
-        if (
-          !existing &&
-          claims.email.toLowerCase() ===
-            this.settings.adminEmail!.toLowerCase() &&
-          !this.store.one('SELECT id FROM users LIMIT 1')
-        )
-          existing = this.store.createUser(
-            claims.email,
-            String(claims.name ?? 'Workspace owner').slice(0, 100),
-            null,
+        const email = profile.email,
+          sub = this.settings.oidcIssuer + '|' + claims.sub;
+        const existing = await this.store.tx(async () => {
+          await this.store.db.lock('identity:admission');
+          let current = await this.store.userByEmail(email);
+          if (
+            !current &&
+            email.toLowerCase() === this.settings.adminEmail!.toLowerCase() &&
+            !(await this.store.one('SELECT id FROM users LIMIT 1'))
+          )
+            current = await this.store.createUser(
+              email,
+              String(profile.name ?? 'Workspace owner').slice(0, 100),
+              null,
+              sub,
+            );
+          if (!current || (current.oidc_sub && current.oidc_sub !== sub))
+            throw new HttpError(
+              403,
+              'Ask a workspace owner to add your account',
+            );
+          await this.store.exec(
+            'UPDATE users SET oidc_sub=? WHERE id=?',
             sub,
+            current.id,
           );
-        if (!existing || (existing.oidc_sub && existing.oidc_sub !== sub))
-          throw new HttpError(
-            403,
-            'Ask a workspace owner to add your account',
-          );
-        this.store.exec(
-          'UPDATE users SET oidc_sub=? WHERE id=?',
-          sub,
-          existing.id,
-        );
-        this.session(this.store.publicUser(existing.id), reply);
-        reply.clearCookie('studio_oidc', { path: '/api/auth' });
+          return this.store.publicUser(current.id);
+        });
+        await this.session(existing, reply);
         return reply.redirect('/');
       });
     }

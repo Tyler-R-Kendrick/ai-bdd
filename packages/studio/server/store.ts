@@ -138,7 +138,11 @@ export class Store {
   all(sql: string, ...args: any[]): Promise<any[]> {
     return this.db.all(sql, args);
   }
-  exec(sql: string, ...args: any[]) {
+  async exec(sql: string, ...args: any[]) {
+    if (!args.length && /^\s*(CREATE|ALTER|DROP|PRAGMA)\b/i.test(sql)) {
+      await this.db.exec(sql);
+      return { changes: 0 };
+    }
     return this.db.run(sql, args);
   }
   tx<T>(fn: () => Promise<T> | T): Promise<T> {
