@@ -265,6 +265,7 @@ export async function createApp(
         encoded = await passwordHash(temporaryPassword);
       }
       store.tx(() => {
+        store.role(req.params.id, owner.id, 'admin');
         if (!user) user = store.createUser(b.email, b.name, encoded);
         const owners = store.one(
           "SELECT count(*) AS n FROM memberships WHERE project_id=? AND role='owner'",
@@ -793,6 +794,7 @@ export async function createApp(
           'GitHub could not return this pull request. Use a public repository or an operator-allowlisted private repository.',
         );
       const pr = (await response.json()) as any;
+      store.artifact(a.id, u.id, 'write');
       store.exec(
         'UPDATE links SET state=?,updated_at=? WHERE id=?',
         pr.merged ? 'merged' : pr.state,
@@ -826,6 +828,7 @@ export async function createApp(
         part = await req.file();
       if (!part) throw new HttpError(400, 'Choose a file');
       const bytes = await part.toBuffer();
+      store.artifact(a.id, u.id, 'write');
       let mime = '';
       if (
         bytes
