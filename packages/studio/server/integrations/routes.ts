@@ -190,6 +190,15 @@ export function registerIntegrationRoutes(
         id.parse(request.params.flowId),
       ),
   );
+  app.post<{ Params: { id: string; flowId: string } }>(
+    '/api/artifacts/:id/open-design/:flowId/cancel',
+    async (request) =>
+      design.cancel(
+        auth.user(request),
+        request.params.id,
+        id.parse(request.params.flowId),
+      ),
+  );
   app.post<{ Params: { projectId: string } }>(
     '/api/projects/:projectId/machines/pairing',
     async (request) => {

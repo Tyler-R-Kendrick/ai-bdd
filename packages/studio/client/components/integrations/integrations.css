@@ -1,0 +1,163 @@
+.integration-panel {
+  min-width: 0;
+  padding: 18px 16px 30px;
+  color: #24292e;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.integration-heading,
+.integration-row,
+.integration-machine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.integration-heading {
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+.integration-panel h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.integration-panel h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.integration-heading p,
+.integration-note,
+.integration-empty {
+  color: #626f56;
+  margin: 7px 0;
+}
+.integration-heading p {
+  margin: 0;
+}
+.integration-section {
+  padding: 19px 0;
+  border-top: 1px solid #e5e7e1;
+}
+.integration-section > h4 {
+  margin-bottom: 8px;
+}
+.integration-row > strong {
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.integration-row > .badge {
+  flex-shrink: 0;
+}
+.integration-form,
+.integration-connect {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 11px;
+  margin-top: 13px;
+}
+.integration-form .field,
+.integration-connect .field {
+  margin: 0;
+}
+.integration-form button,
+.integration-connect button {
+  align-self: flex-start;
+}
+.integration-form .integration-note {
+  margin: 0;
+}
+.integration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.integration-record {
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e7e1;
+  overflow-wrap: anywhere;
+}
+.integration-record:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.integration-record p {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+.integration-record > button {
+  margin: 6px 6px 0 0;
+  max-width: 100%;
+}
+.integration-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #626f56;
+  font-variant-numeric: tabular-nums;
+}
+.integration-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 11px 0;
+}
+.integration-check input {
+  margin-top: 3px;
+  accent-color: #555ca8;
+}
+.integration-machine {
+  margin: 12px 0;
+}
+.integration-machine strong,
+.integration-machine span {
+  display: block;
+}
+.integration-machine span {
+  color: #626f56;
+  font-size: 11px;
+}
+.integration-error {
+  padding: 10px 12px;
+  border: 1px solid #e0bcbc;
+  border-radius: 6px;
+  color: #9e3030;
+  background: #fff7f6;
+}
+.integration-panel a {
+  color: #5059a4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.integration-panel a svg {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-left: 3px;
+}
+.integration-panel button {
+  white-space: normal;
+  text-align: center;
+}
+.integration-panel textarea {
+  min-height: 88px;
+}
+.integration-panel input::placeholder,
+.integration-panel textarea::placeholder {
+  color: #687068;
+  opacity: 1;
+}
+@media (max-width: 390px) {
+  .integration-panel {
+    padding-inline: 13px;
+  }
+  .integration-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

@@ -347,24 +347,27 @@ export async function runMachineOnce(
   );
   if (!claimed.work) return { claimed: false };
   if (claimed.work.repository) {
-    const remote = await execute('git', ['remote', 'get-url', 'origin'], {
-      cwd: options.cwd,
-      timeout: 10000,
-      maxBuffer: 4096,
-    });
-    if (
-      normalizeRepository(remote.stdout) !==
-      normalizeRepository(claimed.work.repository)
-    ) {
+    try {
+      const remote = await execute('git', ['remote', 'get-url', 'origin'], {
+        cwd: options.cwd,
+        timeout: 10000,
+        maxBuffer: 4096,
+      });
+      if (
+        normalizeRepository(remote.stdout) !==
+        normalizeRepository(claimed.work.repository)
+      )
+        throw new Error(
+          'The approved repository does not match this machine checkout',
+        );
+    } catch (error) {
       await machineApi(
         credentials.origin,
         `/machines/${credentials.id}/work/${claimed.work.id}/fail`,
         credentials.token,
         { leaseToken: claimed.leaseToken },
       ).catch(() => {});
-      throw new Error(
-        'The approved repository does not match this machine checkout',
-      );
+      throw error;
     }
   }
   const controller = new AbortController();
