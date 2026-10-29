@@ -2,6 +2,7 @@ import { Lexer } from 'marked';
 import { unzipSync, zipSync, strToU8, strFromU8 } from 'fflate';
 import type { RichNode } from './domain.ts';
 import { editorSchema } from './editor.ts';
+import { canonicalDocumentIds } from './document-identity.ts';
 import {
   documentBlockSchemas,
   documentBlockText,
@@ -68,8 +69,9 @@ export type DocumentImport = {
   attachments: { key: string; name: string; mime: string; bytes: Uint8Array }[];
 };
 function checkedDoc(doc: RichNode): RichNode {
-  editorSchema().nodeFromJSON(doc).check();
-  return doc;
+  const normalized = canonicalDocumentIds(doc, () => crypto.randomUUID()).doc;
+  editorSchema().nodeFromJSON(normalized).check();
+  return normalized;
 }
 function text(value: string, marks: RichNode['marks'] = []): RichNode[] {
   return value
@@ -769,8 +771,8 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
       type: 'doc',
       content: content.length ? content : [{ type: 'paragraph' }],
     };
-  checkedDoc(doc);
-  return { doc, warnings: [...warnings], attachments };
+  const normalizedDoc = checkedDoc(doc);
+  return { doc: normalizedDoc, warnings: [...warnings], attachments };
 }
 export type DocxImage = {
   bytes: Uint8Array;

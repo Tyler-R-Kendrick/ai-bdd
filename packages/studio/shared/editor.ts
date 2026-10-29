@@ -4,6 +4,7 @@ import { TableKit } from '@tiptap/extension-table';
 import Mathematics from '@tiptap/extension-mathematics';
 import Image from '@tiptap/extension-image';
 import UniqueID from '@tiptap/extension-unique-id';
+import { documentAnchorTypes } from './document-identity.ts';
 import {
   documentBlockSchemas,
   documentBlockText,
@@ -138,19 +139,7 @@ export const baseExtensions = () => [
   TabsBlock,
   ...DocumentBlocks,
   UniqueID.configure({
-    types: [
-      'heading',
-      'paragraph',
-      'testBlock',
-      'researchBlock',
-      'chartBlock',
-      'diagramBlock',
-      'tabsBlock',
-      'table',
-      'blockquote',
-      'codeBlock',
-      ...Object.keys(documentBlockSchemas),
-    ],
+    types: [...documentAnchorTypes],
   }),
 ];
 export const editorSchema = () => getSchema(baseExtensions());
