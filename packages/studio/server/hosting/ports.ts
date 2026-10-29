@@ -1,3 +1,4 @@
+import type { UploadAdmission } from './uploads.ts';
 /** Provider-neutral contracts; application/domain modules import no Vercel SDK. */
 export type ObjectDescriptor = {
   key: string;
@@ -57,4 +58,5 @@ export type HostingServices = {
   objects: ObjectStore;
   jobs: JobDispatcher;
   workspaces: WorkspaceStore;
+  uploads?: UploadAdmission;
 };
