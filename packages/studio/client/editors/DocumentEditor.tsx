@@ -13,6 +13,8 @@ import { WebsocketProvider } from 'y-websocket';
 import {
   Bold,
   Italic,
+  Underline,
+  Strikethrough,
   List,
   ListOrdered,
   Quote,
@@ -57,6 +59,7 @@ import { DocumentTools, DocumentReviewPane } from './document/Tools.tsx';
 import { exportMarkdown } from '../../shared/document-interchange.ts';
 import { isDocumentBlockKind } from '../../shared/document-blocks.ts';
 import './document/document.css';
+import { DocumentSearch } from './document/Search.tsx';
 const TestContext = createContext<{
   runs: any[];
   version: number;
@@ -307,6 +310,7 @@ function EditorSession({
         LiveChart,
         LiveDiagram,
         LiveTabs,
+        DocumentSearch,
         LiveResearch,
         ...LiveDocumentBlocks,
         Collaboration.configure({ document: doc }),
@@ -406,6 +410,22 @@ function EditorSession({
               onClick={() => editor?.chain().focus().toggleItalic().run()}
             >
               <Italic />
+            </IconButton>
+            <IconButton
+              label="Underline"
+              disabled={readOnly}
+              aria-pressed={editor?.isActive('underline')}
+              onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            >
+              <Underline />
+            </IconButton>
+            <IconButton
+              label="Strikethrough"
+              disabled={readOnly}
+              aria-pressed={editor?.isActive('strike')}
+              onClick={() => editor?.chain().focus().toggleStrike().run()}
+            >
+              <Strikethrough />
             </IconButton>
             <IconButton
               label="Add link"
