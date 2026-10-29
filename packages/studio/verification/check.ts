@@ -109,7 +109,7 @@ export async function check(env: NodeJS.ProcessEnv = process.env) {
             verified: false,
             status: 'not-requested',
             reason:
-              'No Magnetar runtime is bundled; enable only with a real operator-supplied verifier.',
+              'The optional Magnetar research gate requires an explicitly configured real verifier.',
           },
   };
   return report;

@@ -1,0 +1,59 @@
+name: studio-magnetar-research
+
+on:
+  pull_request:
+    paths:
+      - 'packages/studio/verification/magnetar/**'
+      - 'packages/studio/verification/layout.ts'
+      - '.github/workflows/studio-magnetar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-magnetar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-layout-execution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RUSTUP_TOOLCHAIN: 1.90.0
+      CARGO_BUILD_JOBS: '2'
+      RAYON_NUM_THREADS: '2'
+      STUDIO_OPEN_MAGNETAR_SOURCE: work/open-magnetar
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - name: Install public research build tools
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal
+          sudo apt-get update
+          sudo apt-get install -y clang lld make
+      - name: Fetch checksum-pinned independent implementation
+        run: node packages/studio/verification/magnetar/fetch.mjs work/open-magnetar
+      - name: Build actual prover and verifier
+        run: cargo build --release --locked --manifest-path work/open-magnetar/Cargo.toml --package om
+      - name: Generate the public layout guest from shared constants
+        run: node packages/studio/verification/magnetar/experiment.mjs --prepare-only
+      - name: Compile strict RV64I program
+        run: make -C work/open-magnetar/guest A=16 I=4 O=4 STACK_SIZE=4096 CC=clang examples/studio-layout.elf
+      - name: Prove, verify, bind public statements, and reject tampering
+        run: node packages/studio/verification/magnetar/experiment.mjs
+      - name: Preserve reproducible research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-magnetar-public-layout
+          path: |
+            work/review/magnetar
+            work/open-magnetar/guest/examples/studio-layout.c
+            work/open-magnetar/guest/examples/studio-layout.elf
+          if-no-files-found: ignore
+          retention-days: 14

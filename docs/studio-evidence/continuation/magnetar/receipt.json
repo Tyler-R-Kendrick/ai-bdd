@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "system": "magnetar",
+  "programSha256": "f69ce7d67fb85901cde2fe752dceae5962f1082ecb4b8e8b61b03bff1f271309",
+  "inputSha256": "d2be679f91673315580ca7e6d62f50ee22d0e05cbaf4bacbb80bc14f336717a0",
+  "outputSha256": "17bf01420687446d8b460d7b54e2c509f769a8d854f9b3a833a1e388ec2e7fd7",
+  "proofSha256": "0fc167647b00c3aa160cdd400297388c1a224827434f4b40445ea842d8c5a4c1",
+  "proofFile": "execution-proof.json"
+}
