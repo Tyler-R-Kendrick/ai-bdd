@@ -75,10 +75,10 @@ export function DocumentTools() {
     if (!editor) return;
     const update = () => {
       const headings: { id: string; title: string; level: number }[] = [];
-      editor.state.doc.descendants((node) => {
-        if (node.type.name === 'heading' && node.attrs.id)
+      editor.state.doc.descendants((node, position) => {
+        if (node.type.name === 'heading')
           headings.push({
-            id: String(node.attrs.id),
+            id: node.attrs.id ? String(node.attrs.id) : '@' + position,
             title: node.textContent,
             level: Number(node.attrs.level),
           });
@@ -500,9 +500,18 @@ export function DocumentTools() {
           disabled={!outline.length}
           onChange={(event) => {
             let target = -1;
-            editor?.state.doc.descendants((node, position) => {
-              if (node.attrs.id === event.target.value) target = position;
-            });
+            if (event.target.value.startsWith('@')) {
+              const position = Number(event.target.value.slice(1));
+              if (
+                Number.isSafeInteger(position) &&
+                position >= 0 &&
+                editor?.state.doc.nodeAt(position)?.type.name === 'heading'
+              )
+                target = position;
+            } else
+              editor?.state.doc.descendants((node, position) => {
+                if (node.attrs.id === event.target.value) target = position;
+              });
             if (target >= 0)
               editor
                 ?.chain()
