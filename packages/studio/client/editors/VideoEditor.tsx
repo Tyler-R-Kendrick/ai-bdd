@@ -551,6 +551,47 @@ export default function VideoEditor({
       if (captionsInput.current) captionsInput.current.value = '';
     }
   }
+  const pendingDownload = useRef<string | null>(null);
+  const renderIntent = useRef<{
+    key: string;
+    version: number;
+    format: 'mp4' | 'webm';
+  } | null>(null);
+  async function downloadRender(job: RenderJob) {
+    if (!job.downloadUrl)
+      throw new Error('The completed render has no downloadable output.');
+    const response = await fetch(job.downloadUrl, {
+      credentials: 'same-origin',
+      redirect: 'error',
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!response.ok)
+      throw new Error(
+        'The completed video could not be downloaded. Check project access.',
+      );
+    const bytes = await response.blob();
+    download(
+      `${artifact.title}-v${job.artifactVersion}.${job.format}`,
+      bytes,
+      `video/${job.format}`,
+    );
+  }
+  async function finishRender(job: RenderJob) {
+    if (pendingDownload.current !== job.id) return;
+    pendingDownload.current = null;
+    renderIntent.current = null;
+    if (job.status === 'completed') {
+      try {
+        await downloadRender(job);
+      } catch (error) {
+        if (mounted.current) onError((error as Error).message);
+      }
+    } else if (job.status !== 'cancelled')
+      onError(
+        job.error ??
+          'The video render did not finish. Check the render history before retrying.',
+      );
+  }
   async function startRender(format: 'mp4' | 'webm') {
     if (readOnly || conflict || busy || saving) return;
     if (dirty && !(await save())) return;
@@ -558,69 +599,87 @@ export default function VideoEditor({
     setPlaying(false);
     try {
       const bundle = await api(`/artifacts/${artifact.id}`);
+      if (
+        !renderIntent.current ||
+        renderIntent.current.version !== bundle.artifact.version ||
+        renderIntent.current.format !== format
+      )
+        renderIntent.current = {
+          key: crypto.randomUUID(),
+          version: bundle.artifact.version,
+          format,
+        };
       const result: RenderJob = await api(
         `/artifacts/${artifact.id}/video/render`,
         'POST',
-        { version: bundle.artifact.version, format },
+        {
+          version: bundle.artifact.version,
+          format,
+          idempotencyKey: renderIntent.current.key,
+        },
       );
+      pendingDownload.current = result.id;
       setJobs((items) => [
         result,
         ...items.filter((item) => item.id !== result.id),
       ]);
-      const check = async () => {
-        try {
-          const job: RenderJob = await api(
-            `/artifacts/${artifact.id}/video/renders/${result.id}`,
-          );
-          if (!mounted.current) return;
-          setJobs((items) =>
-            items.map((item) => (item.id === job.id ? job : item)),
-          );
-          if (['queued', 'rendering'].includes(job.status)) {
-            poll.current = setTimeout(check, 700);
-            return;
-          }
-          setBusy(false);
-          if (job.status === 'completed' && job.downloadUrl) {
-            const response = await fetch(job.downloadUrl, {
-              credentials: 'same-origin',
-              redirect: 'error',
-            });
-            if (!response.ok)
-              throw new Error(
-                'The completed video could not be downloaded. Check project access.',
-              );
-            const bytes = await response.blob();
-            download(
-              `${artifact.title}-v${job.artifactVersion}.${format}`,
-              bytes,
-              `video/${format}`,
-            );
-          } else if (job.status !== 'cancelled')
-            onError(
-              job.error ??
-                'The video render did not finish. Retry after checking renderer configuration.',
-            );
-        } catch (error) {
-          if (mounted.current) {
-            setBusy(false);
-            report(error);
-          }
-        }
-      };
-      await check();
+      if (!['queued', 'rendering'].includes(result.status)) {
+        setBusy(false);
+        await finishRender(result);
+      }
     } catch (error) {
       report(error);
       setBusy(false);
     }
   }
   useEffect(() => {
+    let stopped = false;
     void api<RenderJob[]>(`/artifacts/${artifact.id}/video/renders`)
       .then((history) => {
-        if (mounted.current) setJobs(history);
+        if (!stopped && mounted.current) {
+          setJobs(history);
+          if (
+            history.some((job) => ['queued', 'rendering'].includes(job.status))
+          )
+            setBusy(true);
+        }
       })
       .catch(() => {});
+    return () => {
+      stopped = true;
+    };
   }, [artifact.id]);
+  useEffect(() => {
+    if (!jobs.some((job) => ['queued', 'rendering'].includes(job.status)))
+      return;
+    let stopped = false;
+    poll.current = setTimeout(() => {
+      void api<RenderJob[]>(`/artifacts/${artifact.id}/video/renders`)
+        .then(async (history) => {
+          if (stopped || !mounted.current) return;
+          setJobs(history);
+          setBusy(
+            history.some((job) => ['queued', 'rendering'].includes(job.status)),
+          );
+          const completed = history.find(
+            (job) =>
+              job.id === pendingDownload.current &&
+              !['queued', 'rendering'].includes(job.status),
+          );
+          if (completed) await finishRender(completed);
+        })
+        .catch((error) => {
+          if (!stopped && mounted.current) {
+            setBusy(false);
+            onError((error as Error).message);
+          }
+        });
+    }, 1000);
+    return () => {
+      stopped = true;
+      if (poll.current) clearTimeout(poll.current);
+    };
+  }, [jobs, artifact.id, onError]);
   useEffect(() => {
     if (clip?.type === 'audio' && keyProperty !== 'volume')
       setKeyProperty('volume');
@@ -1597,18 +1656,67 @@ export default function VideoEditor({
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={readOnly}
                 onClick={() =>
                   void api(
                     `/artifacts/${artifact.id}/video/renders/${running.id}`,
                     'DELETE',
                   )
-                    .then(() => setBusy(false))
+                    .then(() => {
+                      setBusy(false);
+                      setJobs((items) =>
+                        items.map((item) =>
+                          item.id === running.id
+                            ? { ...item, status: 'cancelled' }
+                            : item,
+                        ),
+                      );
+                      pendingDownload.current = null;
+                      renderIntent.current = null;
+                    })
                     .catch(report)
                 }
               >
                 Cancel render
               </Button>
             </div>
+          )}
+          {jobs.some(
+            (job) => !['queued', 'rendering'].includes(job.status),
+          ) && (
+            <details className="video-render-history">
+              <summary>Render history</summary>
+              <ul>
+                {jobs
+                  .filter(
+                    (job) => !['queued', 'rendering'].includes(job.status),
+                  )
+                  .slice(0, 10)
+                  .map((job) => (
+                    <li key={job.id}>
+                      <span>
+                        Revision {job.artifactVersion} ·{' '}
+                        {job.format.toUpperCase()} · {job.status}
+                        {job.artifactVersion !== version
+                          ? ' · earlier revision'
+                          : ''}
+                      </span>
+                      {job.downloadUrl && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => void downloadRender(job).catch(report)}
+                        >
+                          Download
+                        </Button>
+                      )}
+                      {job.error && (
+                        <span className="video-render-error">{job.error}</span>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            </details>
           )}
         </div>
       </div>

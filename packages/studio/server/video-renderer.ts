@@ -13,7 +13,7 @@ export type RenderOptions = {
   assets: Map<string, RenderAsset>;
   format: 'mp4' | 'webm';
   signal: AbortSignal;
-  onProgress?: (progress: number) => void;
+  onProgress?: (progress: number) => void | Promise<void>;
   chromiumPath?: string;
   ffmpegPath?: string;
   interFont?: Buffer;
@@ -279,7 +279,7 @@ export async function renderVideo(options: RenderOptions): Promise<Buffer> {
         '-b:v',
         '0',
       );
-    args.push('-fs', String(256 * 1024 * 1024), output);
+    args.push('-fs', String(100 * 1024 * 1024), output);
     encoder = spawn(ffmpeg, args, {
       stdio: ['pipe', 'ignore', 'pipe'],
       signal,
@@ -347,13 +347,13 @@ export async function renderVideo(options: RenderOptions): Promise<Buffer> {
       });
       if (!encoder.stdin!.write(png))
         await once(encoder.stdin!, 'drain', { signal });
-      if (frame % 10 === 0) options.onProgress?.(frame / frames);
+      if (frame % 10 === 0) await options.onProgress?.(frame / frames);
     }
     encoder.stdin!.end();
     await finished;
     const bytes = await readFile(output);
-    if (bytes.length < 100 || bytes.length >= 256 * 1024 * 1024)
-      throw new Error('Video output is empty or exceeded its 256 MB limit.');
+    if (bytes.length < 100 || bytes.length >= 100 * 1024 * 1024)
+      throw new Error('Video output is empty or exceeded its 100 MB limit.');
     const metadata = JSON.parse(
       await processOutput(
         ffprobe,
@@ -380,7 +380,7 @@ export async function renderVideo(options: RenderOptions): Promise<Buffer> {
       throw new Error(
         'The encoder did not produce the requested complete duration.',
       );
-    options.onProgress?.(1);
+    await options.onProgress?.(1);
     return bytes;
   } finally {
     encoder?.kill('SIGKILL');
