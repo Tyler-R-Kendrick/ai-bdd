@@ -28,3 +28,11 @@ The UI captures below were inspected against the built application and the scope
 | 15-chat-history.png | Earlier-message retrieval in a dedicated artifact thread |
 
 Screenshots do not certify uncaptured states, complete product parity, live providers, arbitrary media compatibility, or whole-system correctness. No AI-provider execution or passing acceptance result is implied by an unconfigured or unlinked state.
+
+## Release-layer evidence
+
+[16-release-verification.png](16-release-verification.png) is a browser-rendered verification **report**, not a product-screen capture. It shows the six exact interval certificates, nine role/action cases, and seven observed production-container smoke checks from [interface-verification.json](interface-verification.json) and [container-smoke.json](container-smoke.json). The [report HTML](release-verification.html) records the same scoped results. The immutable image ID is recorded in the report; it is a tested runtime image, not a source-attestation claim.
+
+The screenshot explicitly shows general-purpose execution proof as unverified. It establishes neither live-provider readiness nor complete reference-product parity. The renderer used the raw local reports; command logs and automated tests provide the separate execution evidence.
+
+The release report was refreshed after the Chromium XDG-path fix in `03dc822`. Its image `3b410b…` passed the same seven local smoke checks, including an explicit writable-path assertion and actual packaged browser launch. Earlier PR comments retain their separately labeled historical captures and image IDs. Hosted CI evidence is recorded independently in the PR conversation.

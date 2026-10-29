@@ -1,0 +1,15 @@
+{
+  "image": "ai-bdd-studio:review",
+  "imageId": "sha256:3b410b07899c039fd360cb1848086474299b2b4542b08e823de8a81dba13a1dc",
+  "checks": [
+    "production starts as non-root with read-only filesystem and dropped capabilities",
+    "demo access is unavailable in production",
+    "password login issues Secure HttpOnly session cookies",
+    "artifact/chat/ADR creation is durable and stale writes fail",
+    "artifact content, session, chat, and accepted ADR survive a real process restart",
+    "packaged Chromium launches under the production container restrictions and loads Studio",
+    "production bootstrap rejects demo mode"
+  ],
+  "passed": true,
+  "scope": "Local container release smoke test with synthetic fixture accounts and data; no live OIDC or model provider validation."
+}

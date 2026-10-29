@@ -1,0 +1,86 @@
+name: studio
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  studio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DO_NOT_TRACK: '1'
+      SCARF_NO_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build existing engine packages and Studio
+        run: pnpm build
+      - name: Studio typecheck
+        run: pnpm --filter @ai-bdd/studio typecheck
+      - name: Install the pinned Chromium used by runner and browser tests
+        run: pnpm --filter @ai-bdd/studio exec playwright install --with-deps chromium
+      - name: API, collaboration, Pact consumer/provider, MCP, and verifier boundary tests
+        run: pnpm --filter @ai-bdd/studio test
+      - name: Exact shell allocation and role policy verification
+        run: pnpm --filter @ai-bdd/studio verify
+      - name: Browser acceptance
+        run: pnpm --filter @ai-bdd/studio test:e2e
+      - name: Preserve failed traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-browser-evidence
+          path: |
+            packages/studio/test-results
+            packages/studio/playwright-report
+            work/review
+          if-no-files-found: ignore
+          retention-days: 14
+
+  image:
+    needs: studio
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the non-root release image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/studio/Dockerfile
+          push: false
+          load: true
+          tags: ai-bdd-studio:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - name: Production startup, durable context, browser driver, and demo refusal
+        run: |
+          mkdir -p work/review
+          STUDIO_SMOKE_IMAGE=ai-bdd-studio:ci STUDIO_SMOKE_REPORT=work/review/container-smoke.json node packages/studio/verification/container-smoke.mjs
+      - name: Preserve container smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-container-evidence
+          path: work/review/container-smoke.json*
+          if-no-files-found: ignore
+          retention-days: 14

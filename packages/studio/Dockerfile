@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1.7
+FROM node:24-bookworm-slim AS build
+WORKDIR /build
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 DO_NOT_TRACK=1 SCARF_NO_ANALYTICS=true NODE_USE_ENV_PROXY=1
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    corepack enable && corepack prepare pnpm@10.28.0 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/sdk/package.json packages/sdk/package.json
+COPY packages/driver-playwright/package.json packages/driver-playwright/package.json
+COPY packages/driver-cua/package.json packages/driver-cua/package.json
+COPY packages/models-ai-sdk/package.json packages/models-ai-sdk/package.json
+COPY packages/cli/package.json packages/cli/package.json
+COPY packages/playwright-test/package.json packages/playwright-test/package.json
+COPY packages/testing/package.json packages/testing/package.json
+COPY packages/verify/package.json packages/verify/package.json
+COPY packages/studio/package.json packages/studio/package.json
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    pnpm install --frozen-lockfile
+COPY . .
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    pnpm --filter @ai-bdd/sdk build \
+ && pnpm --filter @ai-bdd/driver-playwright build \
+ && pnpm --filter @ai-bdd/models-ai-sdk build \
+ && pnpm --filter @ai-bdd/testing build \
+ && pnpm --filter @ai-bdd/studio build \
+ && pnpm --filter @ai-bdd/studio deploy --prod --legacy /release
+
+FROM node:24-bookworm-slim AS runtime
+ENV NODE_ENV=production \
+    STUDIO_HOST=0.0.0.0 \
+    STUDIO_PORT=8787 \
+    STUDIO_DATA_DIR=/data \
+    AI_BDD_CHROMIUM_PATH=/usr/bin/chromium \
+    DO_NOT_TRACK=1 \
+    SCARF_NO_ANALYTICS=true \
+    NODE_USE_ENV_PROXY=1
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends chromium ca-certificates fonts-liberation sqlite3 \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir /data && chown node:node /data
+ENV XDG_CONFIG_HOME=/tmp/studio-config XDG_CACHE_HOME=/tmp/studio-cache
+WORKDIR /app
+COPY --from=build --chown=node:node /release/ ./
+USER node
+VOLUME ["/data"]
+EXPOSE 8787
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:8787/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["node", "dist/server/main.js"]
