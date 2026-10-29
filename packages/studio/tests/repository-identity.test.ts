@@ -310,6 +310,52 @@ describe('actual HTTP GitHub OAuth and per-user repository permissions', () => {
       other.assertRepository(h.users[0]!, repository, 'read'),
     ).rejects.toMatchObject({ statusCode: 403 });
   });
+  it('fences an in-flight old provider response after a signed permission webhook commits', async () => {
+    h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
+    await h.connect();
+    const gate = deferred(),
+      entered = deferred();
+    h.fixture.gateRepository(async () => {
+      entered.resolve();
+      await gate.promise;
+    });
+    const pending = h.identity.assertRepository(
+      h.users[0]!,
+      repository,
+      'write',
+      { fresh: true },
+    );
+    await entered.promise;
+    const body = JSON.stringify({
+        action: 'removed',
+        repository: { full_name: 'acme/private' },
+      }),
+      signature =
+        'sha256=' +
+        createHmac('sha256', h.settings.repositoryIdentity!.webhookSecret!)
+          .update(body)
+          .digest('hex');
+    expect(
+      (
+        await h.app.inject({
+          method: 'POST',
+          url: '/api/auth/repository/github/webhook',
+          headers: {
+            'content-type': 'application/json',
+            'x-github-event': 'member',
+            'x-hub-signature-256': signature,
+          },
+          payload: body,
+        })
+      ).statusCode,
+    ).toBe(202);
+    h.fixture.gateRepository();
+    gate.resolve();
+    await expect(pending).rejects.toMatchObject({ statusCode: 403 });
+    expect(
+      await h.identity.checkLease(h.users[0]!.id, repository, 'write'),
+    ).toBe(false);
+  });
   it('prevents a delayed old permission response granting access after disconnect and reconnect to another GitHub account', async () => {
     h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
     await h.connect();

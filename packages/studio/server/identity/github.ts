@@ -49,6 +49,7 @@ type IdentityRow = {
   refresh_expires: number | string;
   version: number;
   generation: string;
+  permission_version: number;
   refresh_owner: string | null;
   refresh_until: number | string;
   updated_at: number | string;
@@ -183,33 +184,54 @@ export class RepositoryIdentity {
     );
   }
   async initialize() {
+    await this.store.tx(async () => {
+      await this.store.lock('schema:studio.identity');
+      await this.initializeTables();
+    });
+  }
+  private async initializeTables() {
     await this.challenges.initialize();
     await this.store.exec(
-      'CREATE TABLE IF NOT EXISTS repository_identities(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,github_id TEXT UNIQUE NOT NULL,login TEXT NOT NULL,access_cipher TEXT NOT NULL,refresh_cipher TEXT,access_expires BIGINT NOT NULL DEFAULT 0,refresh_expires BIGINT NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,generation TEXT NOT NULL,refresh_owner TEXT,refresh_until BIGINT NOT NULL DEFAULT 0,updated_at BIGINT NOT NULL)',
+      'CREATE TABLE IF NOT EXISTS repository_identities(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,github_id TEXT UNIQUE NOT NULL,login TEXT NOT NULL,access_cipher TEXT NOT NULL,refresh_cipher TEXT,access_expires BIGINT NOT NULL DEFAULT 0,refresh_expires BIGINT NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,generation TEXT NOT NULL,permission_version INTEGER NOT NULL DEFAULT 1,refresh_owner TEXT,refresh_until BIGINT NOT NULL DEFAULT 0,updated_at BIGINT NOT NULL)',
     );
-    for (const [name, definition] of [
+    const additions = [
       ['refresh_owner', 'TEXT'],
       ['refresh_until', 'BIGINT NOT NULL DEFAULT 0'],
-    ]) {
-      try {
-        await this.store.one(
-          `SELECT ${name} FROM repository_identities LIMIT 1`,
+      ['permission_version', 'INTEGER NOT NULL DEFAULT 1'],
+    ];
+    if (this.store.db?.dialect === 'postgres') {
+      for (const [name, definition] of additions)
+        await this.store.exec(
+          `ALTER TABLE repository_identities ADD COLUMN IF NOT EXISTS ${name} ${definition}`,
         );
-      } catch {
-        try {
+    } else {
+      const names = new Set(
+        (await this.store.all('PRAGMA table_info(repository_identities)')).map(
+          (column) => column.name,
+        ),
+      );
+      for (const [name, definition] of additions)
+        if (!names.has(name))
           await this.store.exec(
             `ALTER TABLE repository_identities ADD COLUMN ${name} ${definition}`,
           );
-        } catch {
-          await this.store.one(
-            `SELECT ${name} FROM repository_identities LIMIT 1`,
-          );
-        }
-      }
     }
+
     await this.store.exec(
-      "CREATE TABLE IF NOT EXISTS repository_identity_leases(user_id TEXT NOT NULL REFERENCES repository_identities(user_id) ON DELETE CASCADE,repository TEXT NOT NULL,action TEXT NOT NULL CHECK(action IN ('read','write')),identity_version INTEGER NOT NULL,identity_generation TEXT NOT NULL,expires_at BIGINT NOT NULL,PRIMARY KEY(user_id,repository,action))",
+      "CREATE TABLE IF NOT EXISTS repository_identity_leases(user_id TEXT NOT NULL REFERENCES repository_identities(user_id) ON DELETE CASCADE,repository TEXT NOT NULL,action TEXT NOT NULL CHECK(action IN ('read','write')),identity_version INTEGER NOT NULL,identity_generation TEXT NOT NULL,permission_version INTEGER NOT NULL DEFAULT 1,expires_at BIGINT NOT NULL,PRIMARY KEY(user_id,repository,action))",
     );
+    if (this.store.db?.dialect === 'postgres')
+      await this.store.exec(
+        'ALTER TABLE repository_identity_leases ADD COLUMN IF NOT EXISTS permission_version INTEGER NOT NULL DEFAULT 1',
+      );
+    else if (
+      !(
+        await this.store.all('PRAGMA table_info(repository_identity_leases)')
+      ).some((column) => column.name === 'permission_version')
+    )
+      await this.store.exec(
+        'ALTER TABLE repository_identity_leases ADD COLUMN permission_version INTEGER NOT NULL DEFAULT 1',
+      );
     await this.store.exec(
       'CREATE TABLE IF NOT EXISTS repository_identity_epochs(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,epoch TEXT NOT NULL)',
     );
@@ -344,15 +366,18 @@ export class RepositoryIdentity {
   private async refresh(row: IdentityRow): Promise<IdentityRow> {
     const owner = randomUUID(),
       now = Date.now(),
-      claimed = await this.store.one(
-        'UPDATE repository_identities SET refresh_owner=?,refresh_until=? WHERE user_id=? AND generation=? AND version=? AND (refresh_owner IS NULL OR refresh_until<=?) RETURNING user_id',
-        owner,
-        now + 35000,
-        row.user_id,
-        row.generation,
-        row.version,
-        now,
-      );
+      claimed = await this.store.tx(async () => {
+        await this.store.lock('repository-identity:' + row.user_id);
+        return this.store.one(
+          'UPDATE repository_identities SET refresh_owner=?,refresh_until=? WHERE user_id=? AND generation=? AND version=? AND (refresh_owner IS NULL OR refresh_until<=?) RETURNING user_id',
+          owner,
+          now + 35000,
+          row.user_id,
+          row.generation,
+          row.version,
+          now,
+        );
+      });
     if (!claimed) {
       for (let attempt = 0; attempt < 350; attempt++) {
         const current = await this.identity(row.user_id);
@@ -381,12 +406,15 @@ export class RepositoryIdentity {
     try {
       return await this.refreshUnlocked(row, owner);
     } finally {
-      await this.store.exec(
-        'UPDATE repository_identities SET refresh_owner=NULL,refresh_until=0 WHERE user_id=? AND generation=? AND refresh_owner=?',
-        row.user_id,
-        row.generation,
-        owner,
-      );
+      await this.store.tx(async () => {
+        await this.store.lock('repository-identity:' + row.user_id);
+        await this.store.exec(
+          'UPDATE repository_identities SET refresh_owner=NULL,refresh_until=0 WHERE user_id=? AND generation=? AND refresh_owner=?',
+          row.user_id,
+          row.generation,
+          owner,
+        );
+      });
     }
   }
   private async refreshUnlocked(
@@ -434,8 +462,10 @@ export class RepositoryIdentity {
         'The refreshed GitHub authorization belongs to another account. Reconnect.',
       );
     }
-    const now = Date.now(),
-      updated = await this.store.one(
+    const now = Date.now();
+    return await this.store.tx(async () => {
+      await this.store.lock('repository-identity:' + row.user_id);
+      const updated = await this.store.one(
         'UPDATE repository_identities SET login=?,access_cipher=?,refresh_cipher=?,access_expires=?,refresh_expires=?,version=version+1,refresh_owner=NULL,refresh_until=0,updated_at=? WHERE user_id=? AND version=? AND generation=? AND refresh_owner=? RETURNING user_id',
         profile.login,
         vault.seal(tokens.access_token, row.user_id, 'access'),
@@ -452,15 +482,16 @@ export class RepositoryIdentity {
         row.generation,
         owner,
       );
-    if (updated)
-      await this.store.exec(
-        'DELETE FROM repository_identity_leases WHERE user_id=?',
-        row.user_id,
-      );
-    const current = await this.identity(row.user_id);
-    if (!current)
-      throw new HttpError(403, 'Your GitHub connection was revoked');
-    return current;
+      if (updated)
+        await this.store.exec(
+          'DELETE FROM repository_identity_leases WHERE user_id=?',
+          row.user_id,
+        );
+      const current = await this.identity(row.user_id);
+      if (!current)
+        throw new HttpError(403, 'Your GitHub connection was revoked');
+      return current;
+    });
   }
   async checkLease(
     userId: string,
@@ -477,7 +508,7 @@ export class RepositoryIdentity {
     if (!this.vault) return false;
     const now = Date.now(),
       row = await this.store.one(
-        'SELECT l.expires_at,i.access_expires,i.access_cipher FROM repository_identity_leases l JOIN repository_identities i ON i.user_id=l.user_id AND i.version=l.identity_version AND i.generation=l.identity_generation WHERE l.user_id=? AND l.repository=? AND l.action=? AND l.expires_at>?',
+        'SELECT l.expires_at,i.access_expires,i.access_cipher FROM repository_identity_leases l JOIN repository_identities i ON i.user_id=l.user_id AND i.version=l.identity_version AND i.generation=l.identity_generation AND i.permission_version=l.permission_version WHERE l.user_id=? AND l.repository=? AND l.action=? AND l.expires_at>?',
         userId,
         key,
         action,
@@ -526,13 +557,9 @@ export class RepositoryIdentity {
         262144,
       );
     } catch (error) {
-      await this.store.exec(
-        'DELETE FROM repository_identity_leases WHERE user_id=? AND repository=?',
-        user.id,
-        key,
-      );
       if (error instanceof GithubError && error.upstreamStatus === 401)
         await this.revoke(user.id, false, row.generation);
+      else await this.invalidateUserPermissions(user.id, row.generation);
       throw error;
     }
     if (
@@ -542,11 +569,7 @@ export class RepositoryIdentity {
         ? result?.permissions?.pull
         : result?.permissions?.push) !== true
     ) {
-      await this.store.exec(
-        'DELETE FROM repository_identity_leases WHERE user_id=? AND repository=?',
-        user.id,
-        key,
-      );
+      await this.invalidateUserPermissions(user.id, row.generation);
       throw new HttpError(
         403,
         action === 'read'
@@ -560,23 +583,28 @@ export class RepositoryIdentity {
         Number(row.access_expires) || Number.MAX_SAFE_INTEGER,
       );
     // A disconnect/refresh racing the provider response must prevent the grant.
-    await this.store.one(
-      'INSERT INTO repository_identity_leases(user_id,repository,action,identity_version,identity_generation,expires_at) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM repository_identities WHERE user_id=? AND version=? AND generation=?) ON CONFLICT(user_id,repository,action) DO UPDATE SET identity_version=excluded.identity_version,identity_generation=excluded.identity_generation,expires_at=excluded.expires_at RETURNING user_id',
-      user.id,
-      key,
-      action,
-      row.version,
-      row.generation,
-      expires,
-      user.id,
-      row.version,
-      row.generation,
-    );
-    if (!(await this.checkLease(user.id, repository, action)))
-      throw new HttpError(
-        403,
-        'Your GitHub connection changed. Retry the request.',
+    await this.store.tx(async () => {
+      await this.store.lock('repository-identity:' + user.id);
+      await this.store.one(
+        'INSERT INTO repository_identity_leases(user_id,repository,action,identity_version,identity_generation,permission_version,expires_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM repository_identities WHERE user_id=? AND version=? AND generation=? AND permission_version=?) ON CONFLICT(user_id,repository,action) DO UPDATE SET identity_version=excluded.identity_version,identity_generation=excluded.identity_generation,permission_version=excluded.permission_version,expires_at=excluded.expires_at RETURNING user_id',
+        user.id,
+        key,
+        action,
+        row.version,
+        row.generation,
+        row.permission_version,
+        expires,
+        user.id,
+        row.version,
+        row.generation,
+        row.permission_version,
       );
+      if (!(await this.checkLease(user.id, repository, action)))
+        throw new HttpError(
+          403,
+          'Your GitHub connection changed. Retry the request.',
+        );
+    });
   }
   async filteredProjects(user: User, projects?: Project[]): Promise<Project[]> {
     const candidates = projects ?? (await this.store.projects(user.id)),
@@ -701,6 +729,7 @@ export class RepositoryIdentity {
     expectedGeneration?: string,
   ): Promise<void> {
     const row = await this.store.tx(async () => {
+      await this.store.lock('repository-identity:' + userId);
       const current = await this.identity(userId);
       if (expectedGeneration && current?.generation !== expectedGeneration)
         return null;
@@ -731,6 +760,41 @@ export class RepositoryIdentity {
     }
   }
 
+  private async invalidateUserPermissions(
+    userId: string,
+    expectedGeneration?: string,
+  ) {
+    await this.store.tx(async () => {
+      await this.store.lock('repository-identity:' + userId);
+      const current = await this.identity(userId);
+      if (
+        !current ||
+        (expectedGeneration && current.generation !== expectedGeneration)
+      )
+        return;
+      await this.store.exec(
+        'UPDATE repository_identities SET permission_version=permission_version+1 WHERE user_id=?',
+        userId,
+      );
+      await this.store.exec(
+        'DELETE FROM repository_identity_leases WHERE user_id=?',
+        userId,
+      );
+    });
+  }
+  private async invalidatePermissions() {
+    let cursor = '';
+    for (;;) {
+      const users = await this.store.all(
+        'SELECT user_id FROM repository_identities WHERE user_id>? ORDER BY user_id LIMIT 200',
+        cursor,
+      );
+      if (!users.length) break;
+      for (const user of users)
+        await this.invalidateUserPermissions(user.user_id);
+      cursor = users.at(-1)!.user_id;
+    }
+  }
   async routes(app: FastifyInstance) {
     app.get('/api/identity/repository', async (req) =>
       this.status(await this.auth.user(req)),
@@ -875,6 +939,7 @@ export class RepositoryIdentity {
       const now = Date.now();
       try {
         await this.store.tx(async () => {
+          await this.store.lock('repository-identity:' + userId);
           const currentEpoch = await this.store.one(
             'UPDATE repository_identity_epochs SET epoch=epoch WHERE user_id=? AND epoch=? RETURNING epoch',
             userId,
@@ -989,33 +1054,7 @@ export class RepositoryIdentity {
               'organization',
             ].includes(String(event))
           ) {
-            const names = [
-              payload.repository?.full_name,
-              ...(Array.isArray(payload.repositories_removed)
-                ? payload.repositories_removed
-                    .slice(0, 1000)
-                    .map((r: any) => r?.full_name)
-                : []),
-            ].filter((n: unknown): n is string => typeof n === 'string');
-            for (const name of names) {
-              try {
-                await this.store.exec(
-                  'DELETE FROM repository_identity_leases WHERE repository=?',
-                  repositoryKey('https://github.com/' + name),
-                );
-              } catch {}
-            }
-            const organization =
-              payload.organization?.login ??
-              payload.installation?.account?.login;
-            if (
-              typeof organization === 'string' &&
-              /^[A-Za-z0-9-]{1,39}$/.test(organization)
-            )
-              await this.store.exec(
-                'DELETE FROM repository_identity_leases WHERE repository LIKE ?',
-                organization.toLowerCase() + '/%',
-              );
+            await this.invalidatePermissions();
           }
           return reply.code(202).send({ accepted: true });
         },

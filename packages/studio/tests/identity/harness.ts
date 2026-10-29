@@ -34,6 +34,7 @@ export async function identityHarness() {
     return active.getStore() ? fn() : lock(fn);
   }
   const store: IdentityStore = {
+    lock: async () => {},
     one: (sql, ...args) => run(() => db.prepare(sql).get(...args)),
     all: (sql, ...args) => run(() => db.prepare(sql).all(...args)),
     exec: (sql, ...args) => run(() => db.prepare(sql).run(...args)),

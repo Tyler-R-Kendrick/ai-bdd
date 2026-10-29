@@ -8,6 +8,8 @@ export interface IdentityStore {
   projects(userId: string): Awaitable<Project[]>;
   publicUser(userId: string): Awaitable<User>;
   tx<T>(fn: () => Promise<T>): Promise<T>;
+  lock(key: string): Awaitable<void>;
+  readonly db?: { readonly dialect: 'sqlite' | 'postgres' };
 }
 export interface IdentityAuth {
   user(request: FastifyRequest): Awaitable<User>;
