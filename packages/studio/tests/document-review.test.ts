@@ -53,9 +53,8 @@ async function fixture() {
       ],
     },
   };
-  const initial = (
-    await request('GET', `/api/artifacts/${artifactId}`)
-  ).json().artifact;
+  const initial = (await request('GET', `/api/artifacts/${artifactId}`)).json()
+    .artifact;
   const response = await request('PATCH', `/api/artifacts/${artifactId}`, {
     version: initial.version,
     content,

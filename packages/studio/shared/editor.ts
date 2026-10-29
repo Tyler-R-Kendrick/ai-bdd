@@ -4,7 +4,11 @@ import { TableKit } from '@tiptap/extension-table';
 import Mathematics from '@tiptap/extension-mathematics';
 import Image from '@tiptap/extension-image';
 import UniqueID from '@tiptap/extension-unique-id';
-import { documentBlockSchemas, documentBlockText, type DocumentBlockKind } from './document-blocks.ts';
+import {
+  documentBlockSchemas,
+  documentBlockText,
+  type DocumentBlockKind,
+} from './document-blocks.ts';
 import {
   richVisualDefaults,
   richVisualText,
@@ -39,6 +43,8 @@ export const ResearchBlock = Node.create({
     brief: { default: 'Research question' },
     artifactId: { default: '' },
     status: { default: 'pending' },
+    requestId: { default: '' },
+    error: { default: '' },
   }),
   parseHTML: () => [{ tag: 'div[data-research-block]' }],
   renderHTML: ({ HTMLAttributes }) => [
@@ -90,9 +96,24 @@ export const DocumentBlocks = Object.keys(documentBlockSchemas).map((kind) => {
     group: 'block',
     atom: true,
     draggable: true,
-    addAttributes: () => ({ data: { default: null, validate: (value: unknown) => { documentBlockSchemas[name].parse(value); }, renderHTML: () => ({}) } }),
+    addAttributes: () => ({
+      data: {
+        default: null,
+        validate: (value: unknown) => {
+          documentBlockSchemas[name].parse(value);
+        },
+        renderHTML: () => ({}),
+      },
+    }),
     parseHTML: () => [],
-    renderHTML: ({ node, HTMLAttributes }) => ['section', { 'data-document-component': name, ...(HTMLAttributes.id ? { id: HTMLAttributes.id } : {}) }, ['pre', {}, documentBlockText(name, node.attrs.data)]],
+    renderHTML: ({ node, HTMLAttributes }) => [
+      'section',
+      {
+        'data-document-component': name,
+        ...(HTMLAttributes.id ? { id: HTMLAttributes.id } : {}),
+      },
+      ['pre', {}, documentBlockText(name, node.attrs.data)],
+    ],
   });
 });
 export const baseExtensions = () => [
