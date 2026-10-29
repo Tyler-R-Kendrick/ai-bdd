@@ -78,6 +78,8 @@ Set `STUDIO_TRUSTED_PROXIES` to a comma-separated list of the **actual trusted p
 
 Run **one writer process per SQLite data directory**. Do not share that directory across replicas or perform overlapping rolling deployments. The image runs as the non-root `node` user. The compose service uses a read-only root filesystem, a temporary `/tmp`, a persistent `/data` volume, dropped capabilities, and a healthcheck. SQLite tables include uploaded asset bytes. Runner plans, recordings, and evidence live below `/data/workspaces`.
 
+Chromium's runtime configuration/cache directories are explicitly set to `/tmp/studio-config` and `/tmp/studio-cache` through the standard XDG variables. This lets crashpad initialize under a read-only root filesystem without changing the user's home or granting additional capabilities. Keep `/tmp` writable when running the packaged acceptance driver; the smoke gate checks these settings and launches the actual browser under the same restrictions.
+
 The operator owns HTTPS, DNS, key storage, disk monitoring, backup retention, and access to the trusted runner's target systems. A new deployment still requires its real credentials and a successful restore rehearsal.
 
 ## Accounts and roles

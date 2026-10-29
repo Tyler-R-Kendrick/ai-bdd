@@ -41,6 +41,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends chromium ca-certificates fonts-liberation sqlite3 \
  && rm -rf /var/lib/apt/lists/* \
  && mkdir /data && chown node:node /data
+ENV XDG_CONFIG_HOME=/tmp/studio-config XDG_CACHE_HOME=/tmp/studio-cache
 WORKDIR /app
 COPY --from=build --chown=node:node /release/ ./
 USER node

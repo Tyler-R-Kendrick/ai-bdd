@@ -196,7 +196,7 @@ try {
     'node',
     '--input-type=module',
     '-e',
-    "import{createRequire}from'node:module';const require=createRequire(import.meta.resolve('@ai-bdd/driver-playwright'));const{chromium}=require('playwright-core');const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const page=await browser.newPage();await page.goto('http://127.0.0.1:8787/');if(!(await page.title()).includes('Studio'))process.exitCode=1;await browser.close()",
+    "import{createRequire}from'node:module';if(process.env.XDG_CONFIG_HOME!=='/tmp/studio-config'||process.env.XDG_CACHE_HOME!=='/tmp/studio-cache')throw new Error('Chromium needs writable XDG paths under /tmp');const require=createRequire(import.meta.resolve('@ai-bdd/driver-playwright'));const{chromium}=require('playwright-core');const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});const page=await browser.newPage();await page.goto('http://127.0.0.1:8787/');if(!(await page.title()).includes('Studio'))process.exitCode=1;await browser.close()",
   ]);
   pass(
     'packaged Chromium launches under the production container restrictions and loads Studio',
