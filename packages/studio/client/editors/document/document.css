@@ -488,3 +488,123 @@
     display: none !important;
   }
 }
+@media print {
+  body:has(.document-scroll)
+    :is(
+      #root,
+      .studio,
+      .workspace,
+      .workspace-body,
+      .artifact-content,
+      .document-editor,
+      .document-working-area
+    ) {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    width: auto !important;
+  }
+  body:has(.document-scroll)
+    :is(
+      .sidebar,
+      .topbar,
+      .artifact-header,
+      .document-toolbar,
+      .document-presence,
+      .document-actions,
+      .detail-panel,
+      .document-review-pane,
+      .skip-link
+    ) {
+    display: none !important;
+  }
+  body:has(.document-scroll) .document-scroll {
+    position: static !important;
+  }
+}
+.document-outline-select {
+  background: #fff;
+  border: 0;
+  font-size: 11px;
+  max-width: 110px;
+  height: 29px;
+  color: #30352f;
+  outline-offset: -2px;
+}
+.document-search {
+  flex-shrink: 0;
+  padding: 8px 18px;
+  background: #fafbf8;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.document-search > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+}
+.document-search input[type='text'],
+.document-search input:not([type]) {
+  font-size: 11px;
+  height: 30px;
+  min-width: 0;
+}
+.document-search > div > input {
+  max-width: 320px;
+}
+.document-search button {
+  height: 28px;
+  font-size: 10px;
+  padding: 0 8px;
+}
+.document-search button[data-size='icon'] {
+  padding: 0;
+}
+.document-search-count {
+  white-space: nowrap;
+  color: #626f56;
+  font-size: 10px;
+  min-width: 45px;
+}
+.document-search-case {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.document-search-case input {
+  accent-color: #555ca8;
+}
+.document-find-match {
+  background: #fff1ad;
+  color: #30352f;
+}
+.document-find-match-active {
+  background: #f5d26b;
+  outline: 1px solid #846a24;
+}
+@media (max-width: 600px) {
+  .document-search {
+    padding: 7px 9px;
+  }
+  .document-search > div {
+    flex-wrap: wrap;
+  }
+  .document-search > div > input {
+    flex: 1;
+    min-width: 130px;
+    max-width: none;
+  }
+  .document-outline-select {
+    max-width: 88px;
+    font-size: 10px;
+  }
+}
+@media print {
+  body:has(.document-scroll) .document-search {
+    display: none !important;
+  }
+}

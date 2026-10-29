@@ -179,10 +179,19 @@ export function importMarkdown(
         return text(token.raw, marks);
       }
       if (token.tokens) return inline(token.tokens, marks, depth + 1);
-      return text(
-        decodeMarkdownText(String(token.text ?? token.raw ?? '')),
-        marks,
-      );
+      const value = decodeMarkdownText(String(token.text ?? token.raw ?? ''));
+      const result: RichNode[] = [];
+      let previous = 0;
+      for (const match of value.matchAll(/\$([^$\n]+)\$/g)) {
+        result.push(...text(value.slice(previous, match.index), marks), {
+          type: 'inlineMath',
+          attrs: { latex: match[1] },
+          ...(marks.length ? { marks } : {}),
+        });
+        previous = match.index! + match[0].length;
+      }
+      result.push(...text(value.slice(previous), marks));
+      return result;
     });
   };
   const blocks = (tokens: any[], depth = 0): RichNode[] => {
@@ -196,6 +205,31 @@ export function importMarkdown(
             type: 'heading',
             attrs: { level: token.depth },
             content: inline(token.tokens ?? []),
+          },
+        ];
+      if (
+        (token.type === 'paragraph' || token.type === 'text') &&
+        /^\$\$[\s\S]*\$\$$/.test(token.text?.trim() ?? '')
+      )
+        return [
+          {
+            type: 'blockMath',
+            attrs: { latex: token.text.trim().slice(2, -2).trim() },
+          },
+        ];
+      if (
+        (token.type === 'paragraph' || token.type === 'text') &&
+        token.tokens?.length === 1 &&
+        token.tokens[0].type === 'image' &&
+        /^\/api\/files\/[0-9a-f-]{36}$/.test(token.tokens[0].href)
+      )
+        return [
+          {
+            type: 'image',
+            attrs: {
+              src: token.tokens[0].href,
+              alt: decodeMarkdownText(token.tokens[0].text ?? ''),
+            },
           },
         ];
       if (token.type === 'paragraph' || token.type === 'text')
@@ -415,7 +449,7 @@ export function exportMarkdown(doc: RichNode, restrictedMdx = false): string {
   return render(doc).trimEnd() + '\n';
 }
 /** Reject oversized ZIP declarations before inflating any content. ZIP64/encrypted archives are intentionally unsupported. */
-export function validateDocxArchive(bytes: Uint8Array): void {
+export function validateDocxArchive(bytes: Uint8Array): number {
   if (bytes.length > maxArchive || bytes.length < 22)
     throw new Error('DOCX import requires a ZIP archive smaller than 10 MB');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -430,6 +464,11 @@ export function validateDocxArchive(bytes: Uint8Array): void {
     }
   if (end < 0 || view.getUint16(end + 4, true) || view.getUint16(end + 6, true))
     throw new Error('DOCX archive structure is unsupported');
+  if (
+    (end >= 20 && view.getUint32(end - 20, true) === 0x07064b50) ||
+    view.getUint16(end + 8, true) !== view.getUint16(end + 10, true)
+  )
+    throw new Error('DOCX ZIP64 or inconsistent entry counts are unsupported');
   const entries = view.getUint16(end + 10, true),
     centralSize = view.getUint32(end + 12, true),
     start = view.getUint32(end + 16, true);
@@ -467,10 +506,13 @@ export function validateDocxArchive(bytes: Uint8Array): void {
   }
   if (position !== start + centralSize || !names.has('word/document.xml'))
     throw new Error('DOCX archive is missing its Word document');
+  return end;
 }
 export function importDocx(bytes: Uint8Array): DocumentImport {
-  validateDocxArchive(bytes);
-  const files = unzipSync(bytes, {
+  const directoryEnd = validateDocxArchive(bytes),
+    normalized = bytes.slice(0, directoryEnd + 22);
+  new DataView(normalized.buffer).setUint16(directoryEnd + 20, 0, true);
+  const files = unzipSync(normalized, {
     filter: (file) =>
       /^(word\/(document\.xml|numbering\.xml|_rels\/document\.xml\.rels|media\/[A-Za-z0-9._-]+)|\[Content_Types\]\.xml)$/.test(
         file.name,
@@ -605,6 +647,25 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
     }
     return xmlChildren(element).flatMap((child) => run(child, marks));
   };
+  const listKinds = new Map<string, string>();
+  if (files['word/numbering.xml']) {
+    const numbering = parseSafeXml(strFromU8(files['word/numbering.xml']!)),
+      kinds = new Map<string, string>();
+    for (const definition of xmlChildren(numbering, 'abstractNum'))
+      kinds.set(
+        xmlAttr(definition, 'abstractNumId') ?? '',
+        xmlAttr(xmlDescendants(definition, 'numFmt')[0], 'val') === 'bullet'
+          ? 'bulletList'
+          : 'orderedList',
+      );
+    for (const number of xmlChildren(numbering, 'num'))
+      listKinds.set(
+        xmlAttr(number, 'numId') ?? '',
+        kinds.get(
+          xmlAttr(xmlChildren(number, 'abstractNumId')[0], 'val') ?? '',
+        ) ?? 'orderedList',
+      );
+  }
   const parseBlocks = (container: XmlElement): RichNode[] => {
     const result: RichNode[] = [];
     for (const element of xmlChildren(container)) {
@@ -626,9 +687,16 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
         const numbering = props && xmlChildren(props, 'numPr')[0];
         if (numbering && !heading) {
           const numId = xmlAttr(xmlChildren(numbering, 'numId')[0], 'val'),
-            ordered = numId !== '1',
             previous = result.at(-1),
-            type = ordered ? 'orderedList' : 'bulletList';
+            type =
+              listKinds.get(numId ?? '') ??
+              (numId === '1' ? 'bulletList' : 'orderedList');
+          if (
+            Number(xmlAttr(xmlChildren(numbering, 'ilvl')[0], 'val') ?? 0) > 0
+          )
+            warnings.add(
+              'Nested Word list indentation was flattened; list text and sequence are retained.',
+            );
           if (previous?.type === type)
             previous.content!.push({ type: 'listItem', content: [paragraph] });
           else
@@ -638,26 +706,58 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
             });
         } else result.push(paragraph);
         result.push(...images);
-      } else if (name === 'tbl')
-        result.push({
-          type: 'table',
-          content: xmlChildren(element, 'tr').map((row) => ({
-            type: 'tableRow',
-            content: xmlChildren(row, 'tc').map((cell) => ({
-              type: 'tableCell',
-              attrs: {
-                colspan:
+      } else if (name === 'tbl') {
+        const active = new Map<number, RichNode>(),
+          rows: RichNode[] = [];
+        for (const row of xmlChildren(element, 'tr')) {
+          const cells: RichNode[] = [],
+            header = !!xmlChildren(row, 'trPr').flatMap((value) =>
+              xmlChildren(value, 'tblHeader'),
+            ).length;
+          let column = 0;
+          for (const cell of xmlChildren(row, 'tc')) {
+            const properties = xmlChildren(cell, 'tcPr')[0],
+              span = Math.max(
+                1,
+                Math.min(
+                  100,
                   Number(
-                    xmlAttr(xmlDescendants(cell, 'gridSpan')[0], 'val') ?? 1,
+                    properties &&
+                      xmlAttr(xmlChildren(properties, 'gridSpan')[0], 'val'),
                   ) || 1,
-              },
-              content: parseBlocks(cell).length
-                ? parseBlocks(cell)
-                : [{ type: 'paragraph' }],
-            })),
-          })),
-        });
-      else if (name === 'sdt' || name === 'sdtContent')
+                ),
+              ),
+              merge = properties && xmlChildren(properties, 'vMerge')[0];
+            if (
+              merge &&
+              xmlAttr(merge, 'val') !== 'restart' &&
+              active.has(column)
+            ) {
+              const origin = active.get(column)!;
+              origin.attrs = {
+                ...origin.attrs,
+                rowspan: Number(origin.attrs?.rowspan ?? 1) + 1,
+              };
+            } else {
+              const parsed = parseBlocks(cell),
+                next: RichNode = {
+                  type: header ? 'tableHeader' : 'tableCell',
+                  attrs: { colspan: span, rowspan: 1 },
+                  content: parsed.length ? parsed : [{ type: 'paragraph' }],
+                };
+              cells.push(next);
+              if (merge && xmlAttr(merge, 'val') === 'restart')
+                active.set(column, next);
+              else active.delete(column);
+            }
+            column += span;
+          }
+          if (!cells.length)
+            cells.push({ type: 'tableCell', content: [{ type: 'paragraph' }] });
+          rows.push({ type: 'tableRow', content: cells });
+        }
+        result.push({ type: 'table', content: rows });
+      } else if (name === 'sdt' || name === 'sdtContent')
         result.push(...parseBlocks(element));
     }
     return result;
@@ -672,7 +772,12 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
   checkedDoc(doc);
   return { doc, warnings: [...warnings], attachments };
 }
-export type DocxImage = { bytes: Uint8Array; mime: 'image/png' | 'image/jpeg' };
+export type DocxImage = {
+  bytes: Uint8Array;
+  mime: 'image/png' | 'image/jpeg';
+  width?: number;
+  height?: number;
+};
 export function exportDocx(
   doc: RichNode,
   title: string,
@@ -682,7 +787,8 @@ export function exportDocx(
   const archive: Record<string, Uint8Array> = {},
     relations: string[] = [],
     imageIds = new Map<string, string>();
-  let relation = 0;
+  let relation = 0,
+    drawing = 0;
   const hyperlink = (href: string) => {
     const id = 'rId' + ++relation;
     relations.push(
@@ -751,8 +857,47 @@ export function exportDocx(
           marks: [{ type: 'code' }],
         })),
       });
-    if (node.type === 'table')
-      return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map((s) => `<w:${s} w:val="single" w:sz="4" w:color="D1D5DB"/>`).join('')}</w:tblBorders></w:tblPr>${(node.content ?? []).map((row) => `<w:tr>${(row.content ?? []).map((cell) => `<w:tc><w:tcPr>${Number(cell.attrs?.colspan ?? 1) > 1 ? `<w:gridSpan w:val="${Number(cell.attrs?.colspan)}"/>` : ''}</w:tcPr>${(cell.content ?? []).map((n) => blocks(n)).join('') || '<w:p/>'}</w:tc>`).join('')}</w:tr>`).join('')}</w:tbl>`;
+    if (node.type === 'table') {
+      const active = new Map<number, { remaining: number; span: number }>(),
+        width = Math.max(
+          0,
+          ...(node.content ?? []).map((row) =>
+            (row.content ?? []).reduce(
+              (total, cell) => total + Number(cell.attrs?.colspan ?? 1),
+              0,
+            ),
+          ),
+        );
+      const rows = (node.content ?? [])
+        .map((row) => {
+          const cells = row.content ?? [];
+          let column = 0,
+            index = 0,
+            body = '';
+          while (column < width || index < cells.length) {
+            const continuing = active.get(column);
+            if (continuing) {
+              body += `<w:tc><w:tcPr><w:vMerge/>${continuing.span > 1 ? `<w:gridSpan w:val="${continuing.span}"/>` : ''}</w:tcPr><w:p/></w:tc>`;
+              if (--continuing.remaining <= 0) active.delete(column);
+              column += continuing.span;
+              continue;
+            }
+            const cell = cells[index++];
+            if (!cell) {
+              column++;
+              continue;
+            }
+            const span = Math.max(1, Number(cell.attrs?.colspan ?? 1)),
+              rows = Math.max(1, Number(cell.attrs?.rowspan ?? 1));
+            body += `<w:tc><w:tcPr>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}${rows > 1 ? '<w:vMerge w:val="restart"/>' : ''}</w:tcPr>${(cell.content ?? []).map((n) => blocks(n)).join('') || '<w:p/>'}</w:tc>`;
+            if (rows > 1) active.set(column, { remaining: rows - 1, span });
+            column += span;
+          }
+          return `<w:tr>${cells.every((cell) => cell.type === 'tableHeader') ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}${body}</w:tr>`;
+        })
+        .join('');
+      return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map((side) => `<w:${side} w:val="single" w:sz="4" w:color="D1D5DB"/>`).join('')}</w:tblBorders></w:tblPr>${rows}</w:tbl>`;
+    }
     if (node.type === 'image') {
       const src = String(node.attrs?.src ?? ''),
         image = images[src];
@@ -771,7 +916,19 @@ export function exportDocx(
           `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${name}"/>`,
         );
       }
-      return `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="4572000" cy="2743200"/><wp:docPr id="${imageIds.size}" name="${xmlEscape(String(node.attrs?.alt ?? 'Image'))}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${imageIds.size}" name="Image"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4572000" cy="2743200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+      const naturalWidth =
+          image.width && Number.isFinite(image.width) && image.width > 0
+            ? image.width
+            : 500,
+        naturalHeight =
+          image.height && Number.isFinite(image.height) && image.height > 0
+            ? image.height
+            : 300,
+        scale = Math.min(4572000 / naturalWidth, 6858000 / naturalHeight),
+        cx = Math.round(naturalWidth * scale),
+        cy = Math.round(naturalHeight * scale),
+        drawingId = ++drawing;
+      return `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${drawingId}" name="${xmlEscape(String(node.attrs?.alt ?? 'Image'))}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${drawingId}" name="Image"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
     }
     let prose = '';
     if (isDocumentBlockKind(node.type))
