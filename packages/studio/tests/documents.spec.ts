@@ -393,3 +393,58 @@ test('a fresh viewer can read document review and search without editing questio
     await viewerContext.close();
   }
 });
+
+test('an imported restricted-MDX questionnaire has a durable anchor and accepts an answer and ADR without another edit', async ({
+  page,
+}) => {
+  const { call, project } = await fixture(page),
+    source =
+      '# Imported team decision\n\n<Questionnaire data={' +
+      JSON.stringify(documentBlockDefaults.questionnaireBlock) +
+      '} />\n';
+  await page
+    .getByLabel('Choose document to import')
+    .setInputFiles({
+      name: 'Decision.mdx',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from(source),
+    });
+  await expect(
+    page.getByRole('dialog', { name: 'Review document import' }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Replace document', exact: true })
+    .click();
+  const questionnaire = page.locator(
+    '[data-component-kind="questionnaireBlock"]',
+  );
+  await questionnaire.getByRole('radio', { name: 'Approach A' }).check();
+  await questionnaire
+    .getByRole('textbox', { name: 'Reason for Which approach should we take?' })
+    .fill('The exact imported question is now anchored.');
+  await questionnaire.getByRole('button', { name: 'Save your answer' }).click();
+  await questionnaire
+    .getByRole('button', { name: 'Accept as decision' })
+    .click();
+  await expect(
+    questionnaire.getByRole('button', { name: 'Accepted ADR' }),
+  ).toBeVisible();
+  const bundle = await call(`/artifacts/${project.mainArtifactId}`, 'GET'),
+    block = bundle.artifact.content.doc.content.find(
+      (node: any) => node.type === 'questionnaireBlock',
+    );
+  expect(typeof block.attrs.id).toBe('string');
+  expect(
+    bundle.decisions.some(
+      (decision: any) =>
+        decision.status === 'accepted' &&
+        decision.decision.includes('Approach A'),
+    ),
+  ).toBe(true);
+  await page.reload();
+  await expect(
+    page
+      .locator('[data-component-kind="questionnaireBlock"]')
+      .getByRole('button', { name: 'Accepted ADR' }),
+  ).toBeVisible();
+});

@@ -4,7 +4,10 @@ import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { setImmediate } from 'node:timers/promises';
 import * as Y from 'yjs';
-import { prosemirrorToYXmlFragment } from 'y-prosemirror';
+import {
+  prosemirrorToYXmlFragment,
+  yXmlFragmentToProsemirrorJSON,
+} from 'y-prosemirror';
 import { z } from 'zod';
 import { Store, HttpError, hash } from '../server/store.ts';
 import {
@@ -210,6 +213,85 @@ for (const adapter of ['sqlite', 'postgres'] as const)
   describe.skipIf(adapter === 'postgres' && !postgresUrl)(
     `${adapter} asynchronous document transactions`,
     () => {
+      it('gives agent/MCP-authored blocks canonical IDs shared by source JSON and durable Yjs without a viewer rewrite', async () => {
+        const f = await fixture(adapter),
+          authored = await f.first.createArtifact(
+            f.user,
+            f.project.id,
+            'document',
+            'Agent/MCP source',
+            {
+              doc: {
+                type: 'doc',
+                content: [
+                  {
+                    type: 'heading',
+                    attrs: { level: 1 },
+                    content: [
+                      { type: 'text', text: 'Authored outside the browser' },
+                    ],
+                  },
+                  {
+                    type: 'questionnaireBlock',
+                    attrs: {
+                      data: structuredClone(
+                        documentBlockDefaults.questionnaireBlock,
+                      ),
+                    },
+                  },
+                ],
+              },
+            },
+          );
+        const anchor = authored.content.doc.content[1].attrs.id;
+        expect(typeof anchor).toBe('string');
+        expect(anchor.length).toBeGreaterThan(0);
+        const encoded = await f.first.documentState(authored.id, f.user.id),
+          doc = new Y.Doc();
+        try {
+          Y.applyUpdate(doc, encoded);
+          const json = yXmlFragmentToProsemirrorJSON(
+            doc.getXmlFragment('default'),
+          );
+          expect(json.content[1].attrs.id).toBe(anchor);
+        } finally {
+          doc.destroy();
+        }
+        const viewer = await f.first.createUser(
+          `viewer-${randomUUID()}@example.test`,
+          'Read-only viewer',
+          null,
+        );
+        await f.first.tx(async () => {
+          await f.first.db.lock('project:' + f.project.id);
+          await f.first.exec(
+            'INSERT INTO memberships VALUES(?,?,?)',
+            f.project.id,
+            viewer.id,
+            'viewer',
+          );
+        });
+        const before = await f.first.artifact(authored.id, f.user.id),
+          stateHash = hash((await f.first.state(authored.id))!);
+        await f.second.documentState(authored.id, viewer.id);
+        expect((await f.first.artifact(authored.id, f.user.id)).version).toBe(
+          before.version,
+        );
+        expect(hash((await f.second.state(authored.id))!)).toBe(stateHash);
+        const answer = await f.a.app.inject({
+          method: 'POST',
+          url: `/api/artifacts/${authored.id}/document/questionnaires/${anchor}/answers`,
+          headers: { 'x-test-user': f.user.id },
+          payload: {
+            version: before.version,
+            questionId: 'approach',
+            optionId: 'a',
+            answer:
+              'The anchor is usable without a browser normalization write.',
+          },
+        });
+        expect(answer.statusCode, answer.body).toBe(201);
+      });
       it('persists attributed answers and cursor history, keeps retries idempotent, and exports every superseded record', async () => {
         const f = await fixture(adapter),
           version = (await f.state()).version,
