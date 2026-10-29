@@ -15,7 +15,10 @@ export type VercelBlobOptions = { token?: string; storeId?: string };
 /** Private provider implementation. URLs and provider credentials never enter artifact content. */
 export class VercelBlobObjectStore implements ObjectStore {
   readonly provider = 'vercel-blob';
-  constructor(readonly options: VercelBlobOptions = {}) {}
+  readonly #options: VercelBlobOptions;
+  constructor(options: VercelBlobOptions = {}) {
+    this.#options = { ...options };
+  }
   async put(
     key: string,
     bytes: Uint8Array,
@@ -27,7 +30,7 @@ export class VercelBlobObjectStore implements ObjectStore {
     const expected = describeObject(key, bytes, contentType);
     try {
       const result = await blob.put(key, Buffer.from(bytes), {
-        ...this.options,
+        ...this.#options,
         access: 'private',
         addRandomSuffix: false,
         allowOverwrite: false,
@@ -68,7 +71,7 @@ export class VercelBlobObjectStore implements ObjectStore {
     let metadata: Awaited<ReturnType<typeof blob.head>>;
     try {
       metadata = await blob.head(key, {
-        ...this.options,
+        ...this.#options,
         abortSignal: AbortSignal.timeout(15000),
       });
     } catch (error) {
@@ -80,7 +83,7 @@ export class VercelBlobObjectStore implements ObjectStore {
         'Object provider returned a different key or oversized object.',
       );
     const result = await blob.get(metadata.url, {
-      ...this.options,
+      ...this.#options,
       access: 'private',
       useCache: false,
       abortSignal: AbortSignal.timeout(30000),
@@ -102,7 +105,7 @@ export class VercelBlobObjectStore implements ObjectStore {
   async delete(key: string) {
     assertObjectKey(key);
     await blob.del(key, {
-      ...this.options,
+      ...this.#options,
       abortSignal: AbortSignal.timeout(15000),
     });
   }

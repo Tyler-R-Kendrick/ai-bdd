@@ -27,7 +27,7 @@ export interface JobDispatcher {
   /** Payload is only the durable job identity; source, credentials, and ownership stay in SQL. */
   publish(
     jobId: string,
-    options?: { delaySeconds?: number },
+    options?: { delaySeconds?: number; dispatchId?: string },
   ): Promise<DispatchReceipt>;
 }
 export type JobExecutionContext = {

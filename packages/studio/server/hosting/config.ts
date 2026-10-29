@@ -87,15 +87,17 @@ export function hostingConfigFromEnv(env: NodeJS.ProcessEnv): HostingConfig {
   );
   const port = Number(env.STUDIO_PORT ?? env.PORT ?? (cloud ? '80' : '8787'));
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535)
-    throw new Error('Studio HTTP port must be an integer between 1 and 65,535.');
+    throw new Error(
+      'Studio HTTP port must be an integer between 1 and 65,535.',
+    );
   const maxRequestSeconds = Number(env.STUDIO_REQUEST_SECONDS ?? '300');
   if (
     !Number.isSafeInteger(maxRequestSeconds) ||
     maxRequestSeconds < 30 ||
-    maxRequestSeconds > 1800
+    maxRequestSeconds > 800
   )
     throw new Error(
-      'Studio request budget must be between 30 and 1,800 seconds and supported by the configured plan.',
+      'Studio request budget must be between 30 and 800 seconds and supported by the configured plan.',
     );
   if (cloud) {
     if (env.STUDIO_DEMO === '1')
@@ -112,8 +114,10 @@ export function hostingConfigFromEnv(env: NodeJS.ProcessEnv): HostingConfig {
       throw new Error(
         'Cloud runtime cannot override provider endpoints with development emulators.',
       );
-    if (!env.BLOB_READ_WRITE_TOKEN && !env.BLOB_STORE_ID)
-      throw new Error('Vercel Studio requires a connected private Blob store.');
+    if (!env.BLOB_READ_WRITE_TOKEN)
+      throw new Error(
+        'Vercel Studio requires a connected private Blob store with a read-write secret binding for bounded client uploads.',
+      );
     const region = env.STUDIO_QUEUE_REGION ?? env.VERCEL_REGION ?? 'iad1';
     if (!/^[a-z]{3}[0-9]$/.test(region))
       throw new Error(
