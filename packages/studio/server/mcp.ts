@@ -22,7 +22,9 @@ export function mcpSettings(env: NodeJS.ProcessEnv): StudioMcpSettings {
     );
   }
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) {
-    throw new Error('STUDIO_API_URL requires HTTPS outside the local machine');
+    throw new Error(
+      'STUDIO_API_URL requires HTTPS outside the local machine',
+    );
   }
   const token = env.STUDIO_API_TOKEN;
   if (!token || !/^[A-Za-z0-9_-]{32,256}$/.test(token)) {
@@ -222,7 +224,9 @@ export function createStudioMcpServer(
       annotations: writeAnnotations,
     },
     async ({ artifactId, title }) =>
-      result(await call(`/artifacts/${artifactId}/title`, 'PATCH', { title })),
+      result(
+        await call(`/artifacts/${artifactId}/title`, 'PATCH', { title }),
+      ),
   );
 
   server.registerTool(
@@ -241,7 +245,9 @@ export function createStudioMcpServer(
     },
     async ({ artifactId, threadId, anchor, quote, body }) => {
       if (threadId && anchor !== undefined)
-        throw new Error('Choose an existing thread or a new anchor, not both');
+        throw new Error(
+          'Choose an existing thread or a new anchor, not both',
+        );
       if (anchor !== undefined)
         return result(
           await call(`/artifacts/${artifactId}/threads`, 'POST', {
@@ -273,7 +279,11 @@ export function createStudioMcpServer(
     {
       description:
         'Resolve or reopen an artifact discussion. Decision changes must still be recorded explicitly in its ADR.',
-      inputSchema: { artifactId: uuid, threadId: uuid, resolved: z.boolean() },
+      inputSchema: {
+        artifactId: uuid,
+        threadId: uuid,
+        resolved: z.boolean(),
+      },
       annotations: writeAnnotations,
     },
     async ({ artifactId, threadId, resolved }) =>
@@ -372,6 +382,106 @@ export function createStudioMcpServer(
     },
     async ({ artifactId }) =>
       result(await call(`/artifacts/${artifactId}/history`)),
+  );
+
+  server.registerTool(
+    'studio_integration_context',
+    {
+      description:
+        'Read configured integration capabilities, shared agent policy, durable task history, machine work, and external design workflow state for this artifact. Configured is not a live-provider health claim.',
+      inputSchema: { artifactId: uuid },
+      annotations: readAnnotations,
+    },
+    async ({ artifactId }) =>
+      result(await call(`/artifacts/${artifactId}/integrations`)),
+  );
+  server.registerTool(
+    'studio_set_agent_policy',
+    {
+      description:
+        'Set this artifact’s shared manual/automatic participation mode and pause state. Pausing aborts its active task and suppresses automatic replies.',
+      inputSchema: {
+        artifactId: uuid,
+        mode: z.enum(['manual', 'automatic']),
+        paused: z.boolean(),
+      },
+      annotations: writeAnnotations,
+    },
+    async ({ artifactId, ...body }) =>
+      result(
+        await call(
+          `/artifacts/${artifactId}/integrations/policy`,
+          'PUT',
+          body,
+        ),
+      ),
+  );
+  server.registerTool(
+    'studio_request_agent',
+    {
+      description:
+        'Request one bounded agent turn in an artifact discussion. Edit output remains a reviewed proposal; source-backed research publishes a dedicated child artifact only after successful retrieval and generation. Poll integration context for its actual status.',
+      inputSchema: {
+        artifactId: uuid,
+        threadId: uuid,
+        intent: z.enum(['chat', 'edit', 'research']),
+        brief: z.string().max(2000).optional(),
+      },
+      annotations: { ...writeAnnotations, openWorldHint: true },
+    },
+    async ({ artifactId, ...body }) =>
+      result(await call(`/artifacts/${artifactId}/agent`, 'POST', body)),
+  );
+  server.registerTool(
+    'studio_queue_machine_work',
+    {
+      description:
+        'Approve version-bound implementation or investigation for a paired user-controlled machine. Studio never executes its command. Results are held for review and do not certify tests.',
+      inputSchema: {
+        artifactId: uuid,
+        version: z.number().int().positive(),
+        kind: z.enum(['implementation', 'investigation']),
+        brief: z.string().trim().min(1).max(20000),
+      },
+      annotations: { ...writeAnnotations, openWorldHint: true },
+    },
+    async ({ artifactId, ...body }) =>
+      result(
+        await call(`/artifacts/${artifactId}/machine-work`, 'POST', body),
+      ),
+  );
+  server.registerTool(
+    'studio_review_machine_work',
+    {
+      description:
+        'Accept or reject a completed connected-machine result. Acceptance checks the approved artifact revision and applies proposed content atomically with review state; it never marks a test run passed.',
+      inputSchema: { artifactId: uuid, workId: uuid, accept: z.boolean() },
+      annotations: writeAnnotations,
+    },
+    async ({ artifactId, workId, accept }) =>
+      result(
+        await call(
+          `/artifacts/${artifactId}/machine-work/${workId}/review`,
+          'POST',
+          { accept },
+        ),
+      ),
+  );
+  server.registerTool(
+    'studio_cancel_machine_work',
+    {
+      description:
+        'Cancel queued or running machine work; its lease is revoked and late submissions are rejected.',
+      inputSchema: { artifactId: uuid, workId: uuid },
+      annotations: writeAnnotations,
+    },
+    async ({ artifactId, workId }) =>
+      result(
+        await call(
+          `/artifacts/${artifactId}/machine-work/${workId}/cancel`,
+          'POST',
+        ),
+      ),
   );
 
   return server;
