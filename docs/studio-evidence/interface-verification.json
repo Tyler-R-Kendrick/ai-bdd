@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "scope": "Exact rational proof of shell column allocation on real viewport widths 320–4096, and exhaustive evaluation of the production role predicate. No browser text metrics or whole-system proof.",
+  "layout": [
+    {
+      "detailOpen": false,
+      "lower": 320,
+      "upper": 900,
+      "includeUpper": false,
+      "canvasLowerBound": "320"
+    },
+    {
+      "detailOpen": false,
+      "lower": 900,
+      "upper": 1280,
+      "includeUpper": false,
+      "canvasLowerBound": "668"
+    },
+    {
+      "detailOpen": false,
+      "lower": 1280,
+      "upper": 4096,
+      "includeUpper": true,
+      "canvasLowerBound": "1048"
+    },
+    {
+      "detailOpen": true,
+      "lower": 320,
+      "upper": 900,
+      "includeUpper": false,
+      "canvasLowerBound": "320"
+    },
+    {
+      "detailOpen": true,
+      "lower": 900,
+      "upper": 1280,
+      "includeUpper": false,
+      "canvasLowerBound": "668"
+    },
+    {
+      "detailOpen": true,
+      "lower": 1280,
+      "upper": 4096,
+      "includeUpper": true,
+      "canvasLowerBound": "708"
+    }
+  ],
+  "permissions": {
+    "exhaustiveCases": 9,
+    "roles": [
+      "owner",
+      "editor",
+      "viewer"
+    ],
+    "actions": [
+      "read",
+      "write",
+      "admin"
+    ]
+  },
+  "externalProof": {
+    "verified": false,
+    "status": "not-requested",
+    "reason": "No Magnetar runtime is bundled; enable only with a real operator-supplied verifier."
+  }
+}
