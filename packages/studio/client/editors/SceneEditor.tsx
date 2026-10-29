@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Grid, OrbitControls, TransformControls } from '@react-three/drei';
-import { Mesh, Vector3 } from 'three';
+import { Box3, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import {
@@ -28,6 +28,12 @@ import {
   Scaling,
   Trash2,
   Undo2,
+  Upload,
+  Plus,
+  Eye,
+  EyeOff,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import type { MediaProps } from '../App.tsx';
 import {
@@ -38,8 +44,20 @@ import {
   Select,
   Spinner,
 } from '../components/ui.tsx';
-import { download } from '../lib.ts';
-import type { Solid } from '../../shared/domain.ts';
+import { api, download } from '../lib.ts';
+import {
+  newCadFeature,
+  defaultEnvironment,
+  type CadFeature,
+  type SceneImport,
+} from '../../shared/cad-domain.ts';
+import { FeatureInspector } from './scene/FeatureInspector.tsx';
+import {
+  importObject,
+  inspectGlb,
+  parseStl,
+  MAX_IMPORT_BYTES,
+} from './scene/imports.ts';
 import {
   bounded,
   convertUnits,
@@ -53,6 +71,7 @@ import {
   sceneBounds,
   type SceneContent,
   type TransformMode,
+  type Solid,
 } from './scene/model.ts';
 import './scene/editor.css';
 
@@ -77,18 +96,20 @@ function webGLAvailable() {
 }
 function CameraRig({
   solids,
+  modelBounds,
   view,
   focus,
   controls,
 }: {
   solids: Solid[];
+  modelBounds?: Box3;
   view: View;
   focus: number;
   controls: RefObject<OrbitControlsImpl | null>;
 }) {
   const { camera, size: viewport } = useThree();
   useEffect(() => {
-    const bounds = sceneBounds(solids),
+    const bounds = modelBounds ?? sceneBounds(solids),
       center = bounds.getCenter(new Vector3()),
       size = bounds.getSize(new Vector3()),
       distance =
@@ -112,7 +133,15 @@ function CameraRig({
     camera.lookAt(center);
     controls.current?.target.copy(center);
     controls.current?.update();
-  }, [focus, view, camera, controls, viewport.width, viewport.height]);
+  }, [
+    focus,
+    view,
+    camera,
+    controls,
+    viewport.width,
+    viewport.height,
+    modelBounds,
+  ]);
   return null;
 }
 function Primitive({
@@ -155,8 +184,8 @@ function Primitive({
     >
       <meshStandardMaterial
         color={solid.color}
-        roughness={0.62}
-        metalness={0.04}
+        roughness={solid.roughness ?? 0.62}
+        metalness={solid.metalness ?? 0.04}
         emissive={selected ? '#26263b' : '#000000'}
         emissiveIntensity={selected ? 0.18 : 0}
         wireframe={ghost}
@@ -271,6 +300,223 @@ function NumericVector({
   );
 }
 
+function ImportedGeometry({
+  asset,
+  selected,
+  readOnly,
+  mode,
+  onSelect,
+  onChange,
+  onError,
+  onBounds,
+}: {
+  asset: SceneImport;
+  selected: boolean;
+  readOnly: boolean;
+  mode: TransformMode;
+  onSelect: () => void;
+  onChange: (asset: SceneImport) => void;
+  onError: (message: string) => void;
+  onBounds: (id: string, bounds: Box3) => void;
+}) {
+  const [object, setObject] = useState<Group | null>(null);
+  useEffect(() => {
+    let active = true;
+    let loaded: Group | undefined;
+    void importObject(asset)
+      .then((group) => {
+        loaded = group;
+        if (active) setObject(group);
+        else disposeGroup(group);
+      })
+      .catch((error) => {
+        if (active) onError(`Import failed: ${(error as Error).message}`);
+      });
+    return () => {
+      active = false;
+      if (loaded) disposeGroup(loaded);
+    };
+  }, [asset.src]);
+  useEffect(() => {
+    if (!object) return;
+    object.position.set(...asset.position);
+    object.rotation.set(...asset.rotation);
+    object.scale.setScalar(asset.scale);
+    object.updateMatrixWorld(true);
+    if (asset.format === 'stl')
+      object.traverse((item) => {
+        if (
+          item instanceof Mesh &&
+          item.material instanceof MeshStandardMaterial
+        ) {
+          item.material.color.set(asset.color);
+          item.material.roughness = asset.roughness;
+          item.material.metalness = asset.metalness;
+        }
+      });
+    onBounds(asset.id, new Box3().setFromObject(object));
+  }, [object, JSON.stringify(asset), onBounds]);
+  if (!object) return null;
+  return (
+    <>
+      <primitive
+        object={object}
+        onClick={(event: any) => {
+          event.stopPropagation();
+          onSelect();
+        }}
+      />
+      {selected && !readOnly && (
+        <TransformControls
+          object={object}
+          mode={mode}
+          space="world"
+          size={0.8}
+          onMouseUp={() => {
+            const scale = Math.max(Math.abs(object.scale.x), 0.00001);
+            onChange({
+              ...asset,
+              position: object.position
+                .toArray()
+                .map((value) => bounded(value)) as [number, number, number],
+              rotation: [
+                object.rotation.x,
+                object.rotation.y,
+                object.rotation.z,
+              ].map((value) => bounded(value)) as [number, number, number],
+              scale: bounded(scale, 0.00001),
+            });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function ImportedInspector({
+  asset,
+  disabled,
+  onChange,
+  onRemove,
+}: {
+  asset: SceneImport;
+  disabled: boolean;
+  onChange: (asset: SceneImport) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="scene-import-inspector">
+      <Field label="Imported object name">
+        <input
+          aria-label="Imported object name"
+          value={asset.name}
+          maxLength={120}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange({
+              ...asset,
+              name: event.target.value || 'Imported geometry',
+            })
+          }
+        />
+      </Field>
+      <Badge>{asset.format.toUpperCase()} · project asset</Badge>
+      <NumericVector
+        label="Import position"
+        values={asset.position}
+        readOnly={disabled}
+        onChange={(index, value) => {
+          const position = [...asset.position] as SceneImport['position'];
+          position[index] = value;
+          onChange({ ...asset, position });
+        }}
+      />
+      <NumericVector
+        label="Import rotation"
+        values={asset.rotation.map(degrees)}
+        readOnly={disabled}
+        suffix="degrees"
+        onChange={(index, value) => {
+          const rotation = [...asset.rotation] as SceneImport['rotation'];
+          rotation[index] = radians(value);
+          onChange({ ...asset, rotation });
+        }}
+      />
+      <Field label="Uniform import scale">
+        <input
+          aria-label="Uniform import scale"
+          type="number"
+          min={0.00001}
+          max={100000}
+          step="any"
+          value={asset.scale}
+          disabled={disabled}
+          onChange={(event) => {
+            const scale = event.currentTarget.valueAsNumber;
+            if (Number.isFinite(scale) && scale >= 0.00001 && scale <= 100000)
+              onChange({ ...asset, scale });
+          }}
+        />
+      </Field>
+      <label className="scene-check">
+        <input
+          type="checkbox"
+          checked={asset.visible}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange({ ...asset, visible: event.target.checked })
+          }
+        />
+        Include in model
+      </label>
+      {asset.format === 'stl' ? (
+        <>
+          <Field label="Imported material color">
+            <input
+              type="color"
+              aria-label="Imported material color"
+              value={asset.color}
+              disabled={disabled}
+              onChange={(event) =>
+                onChange({ ...asset, color: event.target.value })
+              }
+            />
+          </Field>
+          <Field label="Imported material roughness">
+            <input
+              type="range"
+              aria-label="Imported material roughness"
+              min="0"
+              max="1"
+              step="0.01"
+              value={asset.roughness}
+              disabled={disabled}
+              onChange={(event) =>
+                onChange({ ...asset, roughness: Number(event.target.value) })
+              }
+            />
+          </Field>
+        </>
+      ) : (
+        <p className="scene-kernel-note">
+          {asset.format === 'glb'
+            ? 'Embedded glTF materials and node hierarchy are retained in the preview and exports.'
+            : 'STEP units are read by OpenCascade and converted to the model coordinate units.'}
+        </p>
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        onClick={onRemove}
+      >
+        <Trash2 />
+        Remove imported object
+      </Button>
+    </div>
+  );
+}
+
 export default function SceneEditor({
   artifact,
   readOnly,
@@ -301,19 +547,42 @@ export default function SceneEditor({
   const [webgl] = useState(webGLAvailable),
     [positions, setPositions] = useState<Float32Array | null>(null),
     [computing, setComputing] = useState(false),
-    [kernelError, setKernelError] = useState('');
+    [kernelError, setKernelError] = useState(''),
+    [kernelStats, setKernelStats] = useState<{
+      volume: number;
+      faces: number;
+      solids: number;
+    } | null>(null),
+    [importing, setImporting] = useState(false),
+    [kernelAttempt, setKernelAttempt] = useState(0);
+  const fileInput = useRef<HTMLInputElement>(null);
   const latest = useRef(draft),
     incoming = useRef(artifact);
   latest.current = draft;
   incoming.current = artifact;
   const controls = useRef<OrbitControlsImpl>(null);
+  const [importedBounds, setImportedBounds] = useState<Record<string, Box3>>(
+    {},
+  );
+  const rememberBounds = useCallback(
+    (id: string, bounds: Box3) =>
+      setImportedBounds((previous) =>
+        previous[id]?.equals(bounds) ? previous : { ...previous, [id]: bounds },
+      ),
+    [],
+  );
   const dirty = !same(draft, base.content),
     remoteChanged =
       artifact.version !== base.version &&
       !same(artifact.content, base.content) &&
       !same(artifact.content, draft);
   const selected = draft.solids.find((s) => s.id === selectedId),
-    editable = !readOnly && !saving;
+    selectedFeature = draft.features?.find(
+      (feature) => feature.id === selectedId,
+    ),
+    selectedImport = draft.imports?.find((asset) => asset.id === selectedId),
+    environment = draft.environment ?? defaultEnvironment,
+    editable = !readOnly && !saving && !importing;
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -330,7 +599,12 @@ export default function SceneEditor({
       setFuture([]);
     }
   }, [artifact.version, base.version, dirty]);
-  const serialized = JSON.stringify(draft.solids);
+  const serialized = JSON.stringify({
+    solids: draft.solids,
+    features: draft.features,
+    imports: draft.imports,
+    unit: draft.unit,
+  });
   useEffect(() => {
     if (!cad) {
       setPositions(null);
@@ -343,19 +617,22 @@ export default function SceneEditor({
     setKernelError('');
     const start = setTimeout(() => {
       try {
-        worker = new Worker(new URL('./scene/csg.worker.ts', import.meta.url), {
-          type: 'module',
-        });
+        worker = new Worker(
+          new URL('./scene/kernel.worker.ts', import.meta.url),
+          {
+            type: 'module',
+          },
+        );
         timeout = setTimeout(() => {
           worker?.terminate();
           if (active) {
             setComputing(false);
             setPositions(null);
             setKernelError(
-              'The solid operation exceeded 20 seconds. Reduce the number of primitives or simplify overlaps.',
+              'The CAD operation exceeded 30 seconds. Simplify the feature history or imported STEP geometry, then retry.',
             );
           }
-        }, 20000);
+        }, 30000);
         worker.onmessage = (event) => {
           if (!active) return;
           clearTimeout(timeout);
@@ -363,7 +640,14 @@ export default function SceneEditor({
           if (event.data.error) {
             setKernelError(event.data.error);
             setPositions(null);
-          } else setPositions(event.data.positions);
+          } else {
+            setPositions(event.data.positions);
+            setKernelStats({
+              volume: event.data.volume,
+              faces: event.data.faces,
+              solids: event.data.solids,
+            });
+          }
           worker?.terminate();
         };
         worker.onerror = () => {
@@ -377,7 +661,7 @@ export default function SceneEditor({
           }
           worker?.terminate();
         };
-        worker.postMessage({ solids: draft.solids });
+        worker.postMessage({ id: 1, content: draft, format: 'mesh' });
       } catch (error) {
         setComputing(false);
         setPositions(null);
@@ -390,7 +674,7 @@ export default function SceneEditor({
       clearTimeout(timeout);
       worker?.terminate();
     };
-  }, [cad, serialized]);
+  }, [cad, serialized, kernelAttempt]);
 
   const edit = useCallback(
     (change: (current: SceneContent) => SceneContent) => {
@@ -410,6 +694,122 @@ export default function SceneEditor({
       ...current,
       solids: current.solids.map((s) => (s.id === next.id ? next : s)),
     }));
+  }
+  function addFeature(profile: CadFeature['profile']) {
+    if ((draft.features?.length ?? 0) >= 40) {
+      onError('A CAD model supports at most 40 sketch features.');
+      return;
+    }
+    const feature = newCadFeature(draft.unit, profile);
+    edit((current) => ({
+      ...current,
+      features: [...(current.features ?? []), feature],
+    }));
+    setSelectedId(feature.id);
+  }
+  function reorderFeature(id: string, direction: number) {
+    edit((current) => {
+      const features = [...(current.features ?? [])];
+      const index = features.findIndex((feature) => feature.id === id);
+      const destination = index + direction;
+      if (index < 0 || destination < 0 || destination >= features.length)
+        return current;
+      [features[index], features[destination]] = [
+        features[destination]!,
+        features[index]!,
+      ];
+      return { ...current, features };
+    });
+  }
+  function reorderSolid(direction: number) {
+    edit((current) => {
+      const solids = [...current.solids];
+      const index = solids.findIndex((solid) => solid.id === selectedId);
+      const destination = index + direction;
+      if (index < 0 || destination < 0 || destination >= solids.length)
+        return current;
+      [solids[index], solids[destination]] = [
+        solids[destination]!,
+        solids[index]!,
+      ];
+      return { ...current, solids };
+    });
+  }
+  async function uploadGeometry(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file || !editable) return;
+    if ((draft.imports?.length ?? 0) >= (cad ? 4 : 30)) {
+      onError(`This model supports at most ${cad ? 4 : 30} imported files.`);
+      return;
+    }
+    if (!file.size || file.size > MAX_IMPORT_BYTES) {
+      onError('Choose a geometry file of 10 MB or smaller.');
+      return;
+    }
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const format =
+      extension === 'step' || extension === 'stp'
+        ? 'step'
+        : extension === 'stl'
+          ? 'stl'
+          : extension === 'glb'
+            ? 'glb'
+            : null;
+    if (!format || (cad ? format !== 'step' : format === 'step')) {
+      onError(
+        cad
+          ? 'Choose a STEP (.step or .stp) solid model.'
+          : 'Choose a self-contained GLB or STL mesh. STEP belongs in a CAD model.',
+      );
+      return;
+    }
+    setImporting(true);
+    try {
+      const bytes = await file.arrayBuffer();
+      if (format === 'glb') inspectGlb(bytes);
+      if (format === 'stl') parseStl(bytes).dispose();
+      if (
+        format === 'step' &&
+        !new TextDecoder().decode(bytes.slice(0, 512)).includes('ISO-10303-21;')
+      )
+        throw new Error(
+          'The selected file is not an ISO 10303-21 STEP exchange file.',
+        );
+      const form = new FormData();
+      form.append('file', file);
+      const uploaded = await api<{ url: string; mime: string }>(
+        `/artifacts/${artifact.id}/files`,
+        'POST',
+        form,
+      );
+      const asset: SceneImport = {
+        id: crypto.randomUUID(),
+        name: file.name.slice(0, 120),
+        format,
+        src: uploaded.url,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: format === 'glb' && draft.unit === 'mm' ? 1000 : 1,
+        visible: true,
+        color: '#6b73d1',
+        roughness: 0.62,
+        metalness: 0.04,
+      };
+      // edit uses the latest draft; it never replaces another change made during upload.
+      const current = latest.current;
+      const next = { ...current, imports: [...(current.imports ?? []), asset] };
+      setHistory((previous) => [...previous.slice(-49), clone(current)]);
+      setFuture([]);
+      setDraft(next);
+      latest.current = next;
+      setSelectedId(asset.id);
+      setFocus((value) => value + 1);
+    } catch (error) {
+      onError(`Import failed: ${(error as Error).message}`);
+    } finally {
+      setImporting(false);
+    }
   }
   function updateVector(
     property: 'position' | 'rotation' | 'dimensions',
@@ -447,6 +847,26 @@ export default function SceneEditor({
     setSelectedId(solid.id);
   }
   function remove() {
+    if (selectedFeature) {
+      edit((current) => ({
+        ...current,
+        features: current.features?.filter(
+          (feature) => feature.id !== selectedFeature.id,
+        ),
+      }));
+      setSelectedId(null);
+      return;
+    }
+    if (selectedImport) {
+      edit((current) => ({
+        ...current,
+        imports: current.imports?.filter(
+          (asset) => asset.id !== selectedImport.id,
+        ),
+      }));
+      setSelectedId(null);
+      return;
+    }
     if (!selected) return;
     edit((current) => ({
       ...current,
@@ -510,18 +930,65 @@ export default function SceneEditor({
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [editable, selectedId, draft, base.version]);
-  async function exportModel(format: 'stl' | 'glb') {
+  async function exportModel(format: 'stl' | 'glb' | 'step') {
     if (cad && (computing || kernelError || positions === null)) {
       onError('Wait for a valid CAD result before exporting.');
       return;
     }
     setExporting(true);
+    if (format === 'step') {
+      let worker: Worker | undefined;
+      try {
+        worker = new Worker(
+          new URL('./scene/kernel.worker.ts', import.meta.url),
+          { type: 'module' },
+        );
+        const data = await new Promise<ArrayBuffer>((resolve, reject) => {
+          const timeout = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  'STEP export exceeded 30 seconds. Simplify the model.',
+                ),
+              ),
+            30000,
+          );
+          worker!.onmessage = (event) => {
+            clearTimeout(timeout);
+            if (event.data.error) reject(new Error(event.data.error));
+            else resolve(event.data.data);
+          };
+          worker!.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('The CAD export worker could not load.'));
+          };
+          worker!.postMessage({ id: 1, content: draft, format: 'step' });
+        });
+        download(`${artifact.title}.step`, data, 'model/step');
+      } catch (error) {
+        onError(`STEP export failed: ${(error as Error).message}`);
+      } finally {
+        worker?.terminate();
+        setExporting(false);
+      }
+      return;
+    }
     const group = exportGroup(
       draft,
       cad ? (positions ?? undefined) : undefined,
       format === 'glb',
     );
     try {
+      if (!cad)
+        for (const asset of draft.imports ?? [])
+          if (asset.visible) group.add(await importObject(asset));
+      // Three normalizes imported names for animation binding, retaining source names in extras.
+      // These exports are static scene snapshots, so restore their source names for interchange.
+      group.traverse((object) => {
+        if (typeof object.userData.name === 'string')
+          object.name = object.userData.name;
+      });
+      group.updateMatrixWorld(true);
       if (format === 'stl') {
         const result = new STLExporter().parse(group, { binary: true });
         download(
@@ -544,7 +1011,27 @@ export default function SceneEditor({
       setExporting(false);
     }
   }
-  const modelBounds = useMemo(() => sceneBounds(draft.solids), [serialized]);
+  const modelBounds = useMemo(() => {
+    const bounds = sceneBounds(draft.solids);
+    if (cad && positions?.length) {
+      bounds.makeEmpty();
+      const point = new Vector3();
+      for (let i = 0; i < positions.length; i += 3)
+        bounds.expandByPoint(
+          point.set(positions[i]!, positions[i + 1]!, positions[i + 2]!),
+        );
+    }
+    if (!cad)
+      for (const asset of draft.imports ?? [])
+        if (asset.visible && importedBounds[asset.id])
+          bounds.union(importedBounds[asset.id]!);
+    return bounds;
+  }, [serialized, positions, importedBounds]);
+  const itemCount =
+    draft.solids.length +
+    (draft.features?.length ?? 0) +
+    (draft.imports?.length ?? 0);
+  const hasGeometry = itemCount > 0;
   const extent = Math.max(modelBounds.getSize(new Vector3()).length(), 1),
     gridCell = draft.unit === 'mm' ? 1 : 0.1;
   return (
@@ -581,6 +1068,41 @@ export default function SceneEditor({
           </IconButton>
         </div>
         <span className="toolbar-divider" />
+        {cad && (
+          <>
+            <IconButton
+              label="Add rectangle sketch extrusion"
+              disabled={!editable}
+              onClick={() => addFeature('rectangle')}
+            >
+              <Plus />
+            </IconButton>
+            <IconButton
+              label="Add circular sketch extrusion"
+              disabled={!editable}
+              onClick={() => addFeature('circle')}
+            >
+              <Circle />
+            </IconButton>
+            <span className="toolbar-divider" />
+          </>
+        )}
+        <IconButton
+          label={cad ? 'Import STEP solid' : 'Import GLB or STL'}
+          disabled={!editable}
+          onClick={() => fileInput.current?.click()}
+        >
+          <Upload />
+        </IconButton>
+        <input
+          ref={fileInput}
+          type="file"
+          hidden
+          disabled={!editable}
+          accept={cad ? '.step,.stp' : '.glb,.stl'}
+          aria-label={cad ? 'STEP file' : 'GLB or STL file'}
+          onChange={(event) => void uploadGeometry(event)}
+        />
         <div className="scene-toolbar-group">
           <IconButton
             label="Move · W"
@@ -639,7 +1161,7 @@ export default function SceneEditor({
         <Button
           size="sm"
           variant="outline"
-          disabled={exporting || !draft.solids.length}
+          disabled={exporting || !hasGeometry}
           onClick={() => void exportModel('stl')}
         >
           <Download />
@@ -648,12 +1170,23 @@ export default function SceneEditor({
         <Button
           size="sm"
           variant="outline"
-          disabled={exporting || !draft.solids.length}
+          disabled={exporting || !hasGeometry}
           onClick={() => void exportModel('glb')}
         >
           <Download />
           GLB
         </Button>
+        {cad && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={exporting || !hasGeometry || computing || !!kernelError}
+            onClick={() => void exportModel('step')}
+          >
+            <Download />
+            STEP
+          </Button>
+        )}
         <Button
           size="sm"
           disabled={!editable || !dirty}
@@ -686,6 +1219,9 @@ export default function SceneEditor({
             <Boxes size={14} />
             <span>{cad ? 'Solid modeling' : 'Perspective scene'}</span>
             <Badge>{draft.unit}</Badge>
+            {cad && kernelStats && !computing && !kernelError && (
+              <Badge>B-rep · {kernelStats.faces} faces</Badge>
+            )}
           </div>
           <div className="scene-view-controls" aria-label="Camera views">
             {(['perspective', 'front', 'top', 'right'] as View[]).map((v) => (
@@ -712,7 +1248,7 @@ export default function SceneEditor({
                 near: 0.001,
                 far: 1000000,
               }}
-              shadows
+              shadows={environment.shadows}
               dpr={[1, 1.8]}
               onPointerMissed={() => setSelectedId(null)}
               fallback={
@@ -725,12 +1261,12 @@ export default function SceneEditor({
                 </div>
               }
             >
-              <color attach="background" args={['#eef0ed']} />
-              <ambientLight intensity={1.35} />
+              <color attach="background" args={[environment.background]} />
+              <ambientLight intensity={environment.ambient} />
               <directionalLight
                 position={[extent * 2, extent * 3, extent * 2]}
-                intensity={2.8}
-                castShadow
+                intensity={environment.key}
+                castShadow={environment.shadows}
               />
               <directionalLight
                 position={[-extent, extent, -extent]}
@@ -744,10 +1280,34 @@ export default function SceneEditor({
               />
               <CameraRig
                 solids={draft.solids}
+                modelBounds={modelBounds}
                 view={view}
                 focus={focus}
                 controls={controls}
               />
+              {!cad &&
+                draft.imports
+                  ?.filter((asset) => asset.visible)
+                  .map((asset) => (
+                    <ImportedGeometry
+                      key={asset.id}
+                      asset={asset}
+                      selected={asset.id === selectedId}
+                      readOnly={!editable}
+                      mode={mode}
+                      onSelect={() => setSelectedId(asset.id)}
+                      onChange={(next) =>
+                        edit((current) => ({
+                          ...current,
+                          imports: current.imports?.map((item) =>
+                            item.id === next.id ? next : item,
+                          ),
+                        }))
+                      }
+                      onError={onError}
+                      onBounds={rememberBounds}
+                    />
+                  ))}
               {draft.grid && (
                 <Grid
                   args={[10, 10]}
@@ -757,7 +1317,11 @@ export default function SceneEditor({
                   sectionColor="#b4bdb0"
                   fadeDistance={extent * 10}
                   infiniteGrid
-                  position={[0, -0.001, 0]}
+                  position={[
+                    0,
+                    Math.min(0, modelBounds.min.y) - gridCell * 0.01,
+                    0,
+                  ]}
                 />
               )}
               {cad && positions && (
@@ -768,20 +1332,22 @@ export default function SceneEditor({
                 />
               )}
               {(!cad || showPrimitives || kernelError || positions === null) &&
-                draft.solids.map((solid) => (
-                  <Primitive
-                    key={solid.id}
-                    solid={solid}
-                    selected={solid.id === selectedId}
-                    readOnly={!editable}
-                    mode={mode}
-                    snap={snap}
-                    unit={draft.unit}
-                    ghost={cad && positions !== null}
-                    onSelect={() => setSelectedId(solid.id)}
-                    onTransform={patchSolid}
-                  />
-                ))}
+                draft.solids
+                  .filter((solid) => solid.visible !== false)
+                  .map((solid) => (
+                    <Primitive
+                      key={solid.id}
+                      solid={solid}
+                      selected={solid.id === selectedId}
+                      readOnly={!editable}
+                      mode={mode}
+                      snap={snap}
+                      unit={draft.unit}
+                      ghost={cad && positions !== null}
+                      onSelect={() => setSelectedId(solid.id)}
+                      onTransform={patchSolid}
+                    />
+                  ))}
             </Canvas>
           ) : (
             <div className="scene-fallback">
@@ -801,6 +1367,15 @@ export default function SceneEditor({
                 kernelError ||
                 'The current boolean expression produces an empty solid.'
               )}
+              {kernelError && !computing && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setKernelAttempt((value) => value + 1)}
+                >
+                  Retry CAD evaluation
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -818,8 +1393,9 @@ export default function SceneEditor({
                 >
                   <Icon size={14} />
                   <span>
-                    {solid.shape.charAt(0).toUpperCase() + solid.shape.slice(1)}{' '}
-                    {index + 1}
+                    {solid.name ??
+                      `${solid.shape.charAt(0).toUpperCase() + solid.shape.slice(1)} ${index + 1}`}
+                    {solid.visible === false && <EyeOff size={11} />}
                   </span>
                   {cad && (
                     <small>
@@ -829,12 +1405,83 @@ export default function SceneEditor({
                 </button>
               );
             })}
-            {!draft.solids.length && (
-              <p className="scene-empty">
-                Add a primitive to start your model.
-              </p>
-            )}
+            {!draft.solids.length &&
+              !draft.features?.length &&
+              !draft.imports?.length && (
+                <p className="scene-empty">
+                  Add a primitive to start your model.
+                </p>
+              )}
           </div>
+          {cad && (
+            <div className="cad-feature-list" aria-label="CAD feature history">
+              <h3>Sketch feature history</h3>
+              {(draft.features ?? []).map((feature, index) => (
+                <div className="cad-feature-row" key={feature.id}>
+                  <button
+                    className="scene-solid-item"
+                    aria-pressed={selectedId === feature.id}
+                    onClick={() => setSelectedId(feature.id)}
+                  >
+                    <span>{feature.name}</span>
+                    <small>
+                      {feature.enabled ? feature.operation : 'suppressed'}
+                    </small>
+                  </button>
+                  <IconButton
+                    label={`Move ${feature.name} earlier`}
+                    disabled={!editable || index === 0}
+                    onClick={() => reorderFeature(feature.id, -1)}
+                  >
+                    <ArrowUp />
+                  </IconButton>
+                  <IconButton
+                    label={`Move ${feature.name} later`}
+                    disabled={
+                      !editable || index === (draft.features?.length ?? 0) - 1
+                    }
+                    onClick={() => reorderFeature(feature.id, 1)}
+                  >
+                    <ArrowDown />
+                  </IconButton>
+                </div>
+              ))}
+              {!draft.features?.length && (
+                <p className="scene-empty">
+                  Add a dimensioned rectangle or circle, then extrude it into a
+                  solid.
+                </p>
+              )}
+              {selectedFeature && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!editable}
+                  onClick={remove}
+                >
+                  <Trash2 />
+                  Delete feature
+                </Button>
+              )}
+            </div>
+          )}
+          {!!draft.imports?.length && (
+            <div className="scene-import-list" aria-label="Imported geometry">
+              <h3>Imported geometry</h3>
+              {draft.imports.map((asset) => (
+                <button
+                  className="scene-solid-item"
+                  key={asset.id}
+                  aria-pressed={selectedId === asset.id}
+                  onClick={() => setSelectedId(asset.id)}
+                >
+                  {asset.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                  <span>{asset.name}</span>
+                  <small>{asset.format.toUpperCase()}</small>
+                </button>
+              ))}
+            </div>
+          )}
           {selected ? (
             <>
               <div className="scene-toolbar-group">
@@ -854,7 +1501,50 @@ export default function SceneEditor({
                 >
                   <Trash2 />
                 </IconButton>
+                {cad && (
+                  <>
+                    <IconButton
+                      label="Move selected solid earlier"
+                      disabled={!editable || draft.solids[0]?.id === selectedId}
+                      onClick={() => reorderSolid(-1)}
+                    >
+                      <ArrowUp />
+                    </IconButton>
+                    <IconButton
+                      label="Move selected solid later"
+                      disabled={
+                        !editable ||
+                        draft.solids[draft.solids.length - 1]?.id === selectedId
+                      }
+                      onClick={() => reorderSolid(1)}
+                    >
+                      <ArrowDown />
+                    </IconButton>
+                  </>
+                )}
               </div>
+              <Field label="Object name">
+                <input
+                  aria-label="Object name"
+                  value={selected.name ?? selected.shape}
+                  maxLength={120}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    patchSolid({ ...selected, name: event.target.value })
+                  }
+                />
+              </Field>
+              <label className="scene-check">
+                <input
+                  type="checkbox"
+                  checked={selected.visible !== false}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    patchSolid({ ...selected, visible: event.target.checked })
+                  }
+                />
+                Include in model
+              </label>
               <Field label="Shape">
                 <Select
                   disabled={!editable}
@@ -907,6 +1597,40 @@ export default function SceneEditor({
                 />
                 <span>{selected.color.toUpperCase()}</span>
               </label>
+              <Field label="Roughness">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  aria-label="Material roughness"
+                  value={selected.roughness ?? 0.62}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    patchSolid({
+                      ...selected,
+                      roughness: Number(event.target.value),
+                    })
+                  }
+                />
+              </Field>
+              <Field label="Metalness">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  aria-label="Material metalness"
+                  value={selected.metalness ?? 0.04}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    patchSolid({
+                      ...selected,
+                      metalness: Number(event.target.value),
+                    })
+                  }
+                />
+              </Field>
               {cad && draft.solids[0]?.id !== selected.id && (
                 <Field label="Operation with previous result">
                   <Select
@@ -926,6 +1650,42 @@ export default function SceneEditor({
                 </Field>
               )}
             </>
+          ) : selectedFeature ? (
+            <FeatureInspector
+              feature={selectedFeature}
+              disabled={!editable}
+              unit={draft.unit}
+              onChange={(next) =>
+                edit((current) => ({
+                  ...current,
+                  features: current.features?.map((feature) =>
+                    feature.id === next.id ? next : feature,
+                  ),
+                }))
+              }
+            />
+          ) : selectedImport ? (
+            <ImportedInspector
+              asset={selectedImport}
+              disabled={!editable}
+              onChange={(next) =>
+                edit((current) => ({
+                  ...current,
+                  imports: current.imports?.map((asset) =>
+                    asset.id === next.id ? next : asset,
+                  ),
+                }))
+              }
+              onRemove={() => {
+                edit((current) => ({
+                  ...current,
+                  imports: current.imports?.filter(
+                    (asset) => asset.id !== selectedImport.id,
+                  ),
+                }));
+                setSelectedId(null);
+              }}
+            />
           ) : (
             <p className="scene-empty">
               Select a solid to edit its position, rotation, dimensions, and
@@ -968,18 +1728,95 @@ export default function SceneEditor({
               Show editable primitives
             </label>
           )}
+          <div className="scene-lighting" aria-label="Scene lighting">
+            <h3>Lighting and background</h3>
+            <Field label="Viewport background">
+              <input
+                aria-label="Viewport background"
+                type="color"
+                value={environment.background}
+                disabled={!editable}
+                onChange={(event) =>
+                  edit((current) => ({
+                    ...current,
+                    environment: {
+                      ...(current.environment ?? defaultEnvironment),
+                      background: event.target.value,
+                    },
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Ambient light">
+              <input
+                aria-label="Ambient light"
+                type="range"
+                min="0"
+                max="5"
+                step="0.05"
+                value={environment.ambient}
+                disabled={!editable}
+                onChange={(event) =>
+                  edit((current) => ({
+                    ...current,
+                    environment: {
+                      ...(current.environment ?? defaultEnvironment),
+                      ambient: Number(event.target.value),
+                    },
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Key light">
+              <input
+                aria-label="Key light"
+                type="range"
+                min="0"
+                max="10"
+                step="0.05"
+                value={environment.key}
+                disabled={!editable}
+                onChange={(event) =>
+                  edit((current) => ({
+                    ...current,
+                    environment: {
+                      ...(current.environment ?? defaultEnvironment),
+                      key: Number(event.target.value),
+                    },
+                  }))
+                }
+              />
+            </Field>
+            <label className="scene-check">
+              <input
+                type="checkbox"
+                checked={environment.shadows}
+                disabled={!editable}
+                onChange={(event) =>
+                  edit((current) => ({
+                    ...current,
+                    environment: {
+                      ...(current.environment ?? defaultEnvironment),
+                      shadows: event.target.checked,
+                    },
+                  }))
+                }
+              />
+              Cast shadows
+            </label>
+          </div>
           <p className="scene-kernel-note">
             {cad
-              ? 'Boolean operations use the JSCAD solid kernel in a cancellable worker. Results are tessellated meshes; STEP/BREP and feature-history constraints are not supported.'
+              ? 'OpenCascade evaluates B-rep solids and dimension-driven sketch extrusions in a cancellable worker. STEP preserves analytic geometry; STL/GLB use the displayed tessellation.'
               : 'Meshes retain their individual transforms and materials in GLB exports. Orbit with drag, pan with right-drag, zoom with the wheel.'}
           </p>
         </aside>
       </div>
       <footer className="scene-statusbar">
         <span>
-          {draft.solids.length} {draft.solids.length === 1 ? 'solid' : 'solids'}
-          {cad && positions
-            ? ` · ${(positions.length / 9).toLocaleString()} triangles`
+          {itemCount} model {itemCount === 1 ? 'item' : 'items'}
+          {cad && positions && !computing && !kernelError
+            ? ` · ${(positions.length / 9).toLocaleString()} triangles${kernelStats ? ` · ${Number(kernelStats.volume.toFixed(3)).toLocaleString()} ${draft.unit}³` : ''}`
             : ''}{' '}
           · {dirty ? 'Unsaved changes' : `Saved · v${base.version}`}
         </span>
