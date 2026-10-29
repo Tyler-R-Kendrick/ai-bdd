@@ -36,13 +36,14 @@ describe('Video composition timeline', () => {
     expect(videoContentSchema.safeParse({ ...content, clips: [{ ...content.clips[0], type: 'audio', src: '/api/files/00000000-0000-4000-8000-000000000002', sourceDuration: 2 }] }).success).toBe(false);
     expect(nextTrack(content)).toBe(1);
   });
-  it('exports actual HyperFrames attributes and registered paused GSAP timelines', () => {
+  it('exports actual HyperFrames attributes and a native registered timeline adapter', () => {
     const content = fixture(); content.clips[0]!.text = '</script><img src=x onerror=alert(1)>';
     const source = videoHTML(content, 'A < title', { assets: {} });
     expect(source).toContain('data-composition-id="studio-composition"');
     expect(source).toContain('data-track-index="0"');
-    expect(source).toContain('gsap.timeline({paused:true})');
-    expect(source).toContain('window.__timelines["studio-composition"]=tl');
+    expect(source).toContain('registerTimeline');
+    expect(source).toMatch(/__timelines[\s\S]*studio-composition/);
+    expect(source).not.toContain('gsap');
     expect(source).toContain('&lt;/script&gt;');
     expect(source).not.toContain('<img src=x');
     expect(source).not.toContain('data-layer');

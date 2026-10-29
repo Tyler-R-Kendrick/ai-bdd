@@ -1,3 +1,4 @@
+import { checkCodeProject } from './code-project.ts';
 import { z } from 'zod';
 import {
   layerAppearanceSchema,
@@ -378,7 +379,12 @@ export function validateContent(
     if (token === '}' || token === ']') depth--;
   }
   if (maxDepth > 40) throw new Error('Artifact exceeds the nesting limit');
-  return contentSchema(kind).parse(value) as Record<string, any>;
+  const parsed = contentSchema(kind).parse(value) as Record<string, any>;
+  if (kind === 'code')
+    checkCodeProject(
+      parsed as { files: Record<string, string>; entry: string },
+    );
+  return parsed;
 }
 export const paragraph = (text: string): RichNode => ({
   type: 'paragraph',

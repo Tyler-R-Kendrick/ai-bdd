@@ -44,10 +44,10 @@ export function registerVideoRoutes(app: FastifyInstance, dependencies: { store:
       controller.signal.throwIfAborted();
       const current = store.artifact(job.artifactId, job.userId, 'write');
       if (current.version !== job.artifactVersion) throw new HttpError(409, 'Artifact changed during rendering. Save and render the current revision.');
-      const used = store.one('SELECT coalesce(sum(length(bytes)),0) AS n FROM files WHERE project_id=?', current.projectId).n;
-      if (used + bytes.length > 512 * 1024 * 1024) throw new HttpError(413, 'The rendered video would exceed this project’s 512 MB asset quota.');
       const fileId = randomUUID(), now = new Date().toISOString();
       store.tx(() => {
+        const used = store.one('SELECT coalesce(sum(length(bytes)),0) AS n FROM files WHERE project_id=?', current.projectId).n;
+        if (used + bytes.length > 512 * 1024 * 1024) throw new HttpError(413, 'The rendered video would exceed this project’s 512 MB asset quota.');
         store.exec('INSERT INTO files VALUES(?,?,?,?,?,?,?,?)', fileId, current.projectId, current.id, `${current.title.slice(0, 160)}-v${job.artifactVersion}.${job.format}`, `video/${job.format}`, hash(bytes), bytes, now);
         store.exec("UPDATE video_render_jobs SET status='completed',progress=1,file_id=?,finished_at=? WHERE id=?", fileId, now, job.id);
         store.audit(current.projectId, current.id, store.publicUser(job.userId).name, 'video.rendered', `revision ${job.artifactVersion}; ${job.format}; sha256 ${hash(bytes)}`);

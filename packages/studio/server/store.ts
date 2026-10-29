@@ -466,6 +466,7 @@ export class Store {
     version: number,
     content: unknown,
     title?: string,
+    onPersist?: () => void,
   ): Artifact {
     const a = this.artifact(id, user.id, 'write');
     const c = JSON.stringify(
@@ -506,6 +507,7 @@ export class Store {
         'artifact.updated',
         `version ${version + 1}`,
       );
+      onPersist?.();
       return this.artifact(id, user.id);
     });
   }

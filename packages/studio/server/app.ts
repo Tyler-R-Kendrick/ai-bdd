@@ -1,3 +1,14 @@
+import {
+  compileCodePreview,
+  codePreviewDependencies,
+  CodeBuildError,
+} from './code-bundler.ts';
+import {
+  registerDocumentReview,
+  documentReviewExportPage,
+  documentReviewExportTables,
+} from './document-review.ts';
+import { registerVideoRoutes } from './video.ts';
 import { uploadedMediaType } from './media-files.ts';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
@@ -60,6 +71,7 @@ export async function createApp(
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {
+        mediaSrc: ["'self'", 'blob:'],
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
@@ -120,11 +132,18 @@ export async function createApp(
     )
       auth.assertOrigin(req);
   });
-  app.addHook('onSend', async (_req, reply, payload) => {
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (/^\/assets\/kernel\.worker-[A-Za-z0-9_-]+\.js$/.test(req.url))
+      reply.header(
+        'Content-Security-Policy',
+        "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; object-src 'none'",
+      );
     reply.header('Cache-Control', 'no-store');
     return payload;
   });
   await auth.routes(app);
+  registerDocumentReview(app, { store, auth, collab });
+  const video = registerVideoRoutes(app, { store, auth, settings });
   app.get('/api/health', async () => {
     store.one('SELECT 1');
     return { ok: true };
@@ -153,10 +172,41 @@ export async function createApp(
         artifact = store.artifact(req.params.id, user.id);
       if (artifact.kind !== 'code')
         throw new HttpError(400, 'Code previews require a code artifact');
-      const { html } = parse(
-        z.object({ html: z.string().max(2_000_000) }).strict(),
+      const source = parse(
+        z.union([
+          z.object({ html: z.string().max(2_000_000) }).strict(),
+          z
+            .object({
+              files: z.record(z.string().max(200), z.string().max(500000)),
+              entry: z.string().max(200),
+              channel: z.string().uuid(),
+            })
+            .strict(),
+        ]),
         req.body,
       );
+      let html: string,
+        build: Record<string, unknown> = {};
+      if ('html' in source) html = source.html;
+      else {
+        try {
+          const compiled = await compileCodePreview(source);
+          html = compiled.html;
+          build = {
+            diagnostics: compiled.diagnostics,
+            dependencies: compiled.dependencies,
+            modules: compiled.modules,
+            availableDependencies: codePreviewDependencies(),
+          };
+        } catch (error) {
+          if (error instanceof CodeBuildError)
+            return reply
+              .code(400)
+              .send({ error: error.message, diagnostics: error.diagnostics });
+          throw error;
+        }
+        store.artifact(artifact.id, user.id);
+      }
       for (const [key, value] of previews)
         if (value.expires < Date.now()) previews.delete(key);
       // Replacing a user's old draft bounds memory independently of typing frequency.
@@ -175,7 +225,9 @@ export async function createApp(
         html,
         expires: Date.now() + 120000,
       });
-      return reply.code(201).send({ url: '/api/previews/' + token });
+      return reply
+        .code(201)
+        .send({ url: '/api/previews/' + token, ...build });
     },
   );
   app.get<{ Params: { token: string } }>(
@@ -637,6 +689,7 @@ export async function createApp(
           req.body,
         );
       const m = store.message(u, a.id, b.threadId, b.body);
+      agent.observeMessage(u, a.id, b.threadId, b.body);
       collab.notify(a.projectId, a.id);
       return reply.code(201).send(m);
     },
@@ -895,14 +948,12 @@ export async function createApp(
         'file.uploaded',
         part.filename.slice(0, 200),
       );
-      return reply
-        .code(201)
-        .send({
-          id: fid,
-          url: `/api/files/${fid}`,
-          mime,
-          sha256: hash(bytes),
-        });
+      return reply.code(201).send({
+        id: fid,
+        url: `/api/files/${fid}`,
+        mime,
+        sha256: hash(bytes),
+      });
     },
   );
   app.get<{ Params: { id: string } }>(
@@ -951,7 +1002,63 @@ export async function createApp(
           }
           yield ']';
         }
-        yield '}';
+        yield ',"documentReview":{';
+        for (
+          let index = 0;
+          index < documentReviewExportTables.length;
+          index++
+        ) {
+          const table = documentReviewExportTables[index]!;
+          const cutoff = store.one(
+            `SELECT coalesce(max(rowid),0) AS last FROM ${table} WHERE artifact_id=?`,
+            a.id,
+          ).last;
+          yield (index ? ',' : '') + JSON.stringify(table) + ':[';
+          let cursor = 0,
+            first = true;
+          while (cursor < cutoff) {
+            checkAccess();
+            const page = documentReviewExportPage(
+              store,
+              a.id,
+              table,
+              cursor,
+              100,
+            );
+            if (!page.rows.length) break;
+            for (const row of page.rows) {
+              if (row.sequence > cutoff) break;
+              yield (first ? '' : ',') + JSON.stringify(row);
+              first = false;
+              cursor = row.sequence;
+            }
+            if (page.nextCursor === null || cursor >= cutoff) break;
+          }
+          yield ']';
+        }
+        yield '},"videoRenders":[';
+        const renderCutoff = store.one(
+          'SELECT coalesce(max(rowid),0) AS last FROM video_render_jobs WHERE artifact_id=?',
+          a.id,
+        ).last;
+        let renderCursor = 0,
+          firstRender = true;
+        while (renderCursor < renderCutoff) {
+          checkAccess();
+          const rows = store.all(
+            'SELECT rowid AS sequence,id,artifact_version AS artifactVersion,format,status,progress,file_id AS fileId,error,created_at AS createdAt,finished_at AS finishedAt FROM video_render_jobs WHERE artifact_id=? AND rowid>? AND rowid<=? ORDER BY rowid LIMIT 100',
+            a.id,
+            renderCursor,
+            renderCutoff,
+          );
+          if (!rows.length) break;
+          for (const row of rows) {
+            yield (firstRender ? '' : ',') + JSON.stringify(row);
+            firstRender = false;
+            renderCursor = row.sequence;
+          }
+        }
+        yield ']}';
       }
       return reply
         .type('application/json; charset=utf-8')
@@ -1042,10 +1149,11 @@ export async function createApp(
     );
   }
   app.addHook('onClose', async () => {
-    agent.close();
+    await agent.close();
+    await video.close();
     await runner.close();
     collab.close();
     store.close();
   });
-  return { app, store, auth, collab, runner, agent };
+  return { app, store, auth, collab, runner, agent, video };
 }

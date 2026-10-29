@@ -1,3 +1,7 @@
+import {
+  integrationSettingsFromEnv,
+  type IntegrationSettings,
+} from './integrations/settings.ts';
 import { scrypt, randomBytes, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -35,6 +39,7 @@ export type Settings = {
   githubRepositories?: string[];
   trustedProxies?: string[];
   runnerConfig?: string;
+  integrations?: IntegrationSettings;
 };
 export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
   const production = env.NODE_ENV === 'production',
@@ -83,6 +88,7 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
       'STUDIO_GITHUB_REPOSITORIES must contain owner/repository names',
     );
   return {
+    integrations: integrationSettingsFromEnv(env),
     production,
     origin,
     dataDir: env.STUDIO_DATA_DIR ?? '.studio',
@@ -208,7 +214,8 @@ export class Auth {
         // Hash even for an unknown account, to avoid a fast username oracle.
         const valid = await passwordValid(
           b.password,
-          u?.password ?? '00000000000000000000000000000000:' + '00'.repeat(64),
+          u?.password ??
+            '00000000000000000000000000000000:' + '00'.repeat(64),
         );
         if (!u || !u.password || !valid)
           throw new HttpError(401, 'Email or password is incorrect');
@@ -219,7 +226,8 @@ export class Auth {
     );
     app.post('/api/auth/demo', async (req, reply) => {
       this.assertOrigin(req);
-      if (!this.settings.demo) throw new HttpError(404, 'Demo is unavailable');
+      if (!this.settings.demo)
+        throw new HttpError(404, 'Demo is unavailable');
       const u = this.store.publicUser(
         this.store.userByEmail('demo@localhost').id,
       );
@@ -309,7 +317,10 @@ export class Auth {
             sub,
           );
         if (!existing || (existing.oidc_sub && existing.oidc_sub !== sub))
-          throw new HttpError(403, 'Ask a workspace owner to add your account');
+          throw new HttpError(
+            403,
+            'Ask a workspace owner to add your account',
+          );
         this.store.exec(
           'UPDATE users SET oidc_sub=? WHERE id=?',
           sub,
