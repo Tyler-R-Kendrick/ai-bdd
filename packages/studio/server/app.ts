@@ -20,7 +20,7 @@ const parse=<T>(s:z.ZodType<T>,v:unknown)=>s.parse(v);
 const stamp=()=>new Date().toISOString();
 const repo=z.string().max(300).refine(s=>s===''||/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/.test(s),'Use a github.com repository URL');
 export async function createApp(settings:Settings,options:{db?:string;logger?:boolean;clientDir?:string}={}) {
-  const app=Fastify({logger:options.logger??false,bodyLimit:2_100_000,requestTimeout:150000,connectionTimeout:15000,trustProxy:false});
+  const app=Fastify({logger:options.logger??false,bodyLimit:2_100_000,requestTimeout:150000,connectionTimeout:15000,trustProxy:settings.trustedProxies??false});
   const store=new Store(options.db??resolve(settings.dataDir,'studio.sqlite'));const auth=new Auth(store,settings);await auth.initialize();
   const collab=new Collaboration(store,auth),runner=new Runner(store,settings,collab),agent=new Agent(store,settings,collab);
   await app.register(cookie);
@@ -40,7 +40,7 @@ export async function createApp(settings:Settings,options:{db?:string;logger?:bo
   app.addHook('onSend',async(_req,reply,payload)=>{reply.header('Cache-Control','no-store');return payload;});
   await auth.routes(app);
   app.get('/api/health',async()=>{store.one('SELECT 1');return {ok:true};});
-  app.get('/api/capabilities',async req=>{auth.user(req);return {agent:!!settings.model,runner:!!settings.runnerConfig,oidc:!!settings.oidcIssuer,github:!!settings.githubToken,openDesign:false,magnetar:false};});
+  app.get('/api/capabilities',async req=>{auth.user(req);return {agent:!!settings.model,runner:!!settings.runnerConfig,oidc:!!settings.oidcIssuer,github:true,githubAuthenticated:!!settings.githubToken&&!!settings.githubRepositories?.length,openDesign:false,magnetar:false};});
   const previews=new Map<string,{userId:string;artifactId:string;html:string;expires:number}>();
   app.post<{Params:{id:string}}>('/api/artifacts/:id/previews',async(req,reply)=>{
     const user=auth.user(req),artifact=store.artifact(req.params.id,user.id);
@@ -130,14 +130,17 @@ export async function createApp(settings:Settings,options:{db?:string;logger?:bo
   app.post<{Params:{id:string}}>('/api/artifacts/:id/links',async req=>{const u=auth.user(req),a=store.artifact(req.params.id,u.id,'write'),b=parse(z.object({label:title,url:z.url().max(2000).refine(s=>s.startsWith('https://')),kind:z.enum(['pull-request','issue','test','reference'])}).strict(),req.body);store.exec('INSERT INTO links VALUES(?,?,?,?,?,?,?)',randomUUID(),a.id,b.label,b.url,b.kind,'unknown',stamp());store.audit(a.projectId,a.id,u.name,'link.added',b.url);collab.notify(a.projectId,a.id);return {ok:true};});
   app.post<{Params:{id:string;linkId:string}}>('/api/artifacts/:id/links/:linkId/refresh',async req=>{
     const u=auth.user(req),a=store.artifact(req.params.id,u.id,'write'),link=store.one('SELECT * FROM links WHERE id=? AND artifact_id=?',req.params.linkId,a.id);const m=link?.url.match(/^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)$/);if(!m)throw new HttpError(400,'Only GitHub pull requests support automatic state refresh');
-    const response=await fetch(`https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,{headers:{Accept:'application/vnd.github+json','User-Agent':'ai-bdd-studio'},signal:AbortSignal.timeout(10000),redirect:'error'});if(!response.ok)throw new HttpError(502,'GitHub could not return this pull request. Public repository access is required.');const pr=await response.json() as any;
+    const authenticated=settings.githubToken&&settings.githubRepositories?.includes(`${m[1]}/${m[2]}`.toLowerCase());
+    const response=await fetch(`https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,{headers:{Accept:'application/vnd.github+json','User-Agent':'ai-bdd-studio',...(authenticated?{Authorization:`Bearer ${settings.githubToken}`}:{})},signal:AbortSignal.timeout(10000),redirect:'error'});if(!response.ok)throw new HttpError(502,'GitHub could not return this pull request. Use a public repository or an operator-allowlisted private repository.');const pr=await response.json() as any;
     store.exec('UPDATE links SET state=?,updated_at=? WHERE id=?',pr.merged?'merged':pr.state,stamp(),link.id);store.audit(a.projectId,a.id,u.name,'link.refreshed',link.url);collab.notify(a.projectId,a.id);return {ok:true};
   });
   app.delete<{Params:{id:string;linkId:string}}>('/api/artifacts/:id/links/:linkId',async req=>{const u=auth.user(req),a=store.artifact(req.params.id,u.id,'write');store.exec('DELETE FROM links WHERE id=? AND artifact_id=?',req.params.linkId,a.id);collab.notify(a.projectId,a.id);return {ok:true};});
   app.post<{Params:{id:string}}>('/api/artifacts/:id/files',async(req,reply)=>{
     const u=auth.user(req),a=store.artifact(req.params.id,u.id,'write'),part=await req.file();if(!part)throw new HttpError(400,'Choose a file');const bytes=await part.toBuffer();
     let mime='';if(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))mime='image/png';else if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)mime='image/jpeg';else if(bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP')mime='image/webp';else if(bytes.toString('ascii',0,4)==='wOF2')mime='font/woff2';
-    if(!mime)throw new HttpError(400,'Supported uploads: PNG, JPEG, WebP, and WOFF2');const fid=randomUUID();store.exec('INSERT INTO files VALUES(?,?,?,?,?,?,?,?)',fid,a.projectId,a.id,part.filename.slice(0,200),mime,hash(bytes),bytes,stamp());store.audit(a.projectId,a.id,u.name,'file.uploaded',part.filename.slice(0,200));return reply.code(201).send({id:fid,url:`/api/files/${fid}`,mime,sha256:hash(bytes)});
+    if(!mime)throw new HttpError(400,'Supported uploads: PNG, JPEG, WebP, and WOFF2');
+    if(store.one('SELECT coalesce(sum(length(bytes)),0) AS n FROM files WHERE project_id=?',a.projectId).n+bytes.length>512*1024*1024)throw new HttpError(413,'This project has reached its 512 MB upload quota');
+    const fid=randomUUID();store.exec('INSERT INTO files VALUES(?,?,?,?,?,?,?,?)',fid,a.projectId,a.id,part.filename.slice(0,200),mime,hash(bytes),bytes,stamp());store.audit(a.projectId,a.id,u.name,'file.uploaded',part.filename.slice(0,200));return reply.code(201).send({id:fid,url:`/api/files/${fid}`,mime,sha256:hash(bytes)});
   });
   app.get<{Params:{id:string}}>('/api/files/:id',async(req,reply)=>{const u=auth.user(req),file=store.one('SELECT * FROM files WHERE id=?',req.params.id);if(!file)throw new HttpError(404,'File not found');store.role(file.project_id,u.id);return reply.type(file.mime).header('Content-Disposition','inline; filename="asset"').header('X-Content-Type-Options','nosniff').send(Buffer.from(file.bytes));});
   app.get<{Params:{id:string}}>('/api/artifacts/:id/export',async(req,reply)=>{const a=store.artifact(req.params.id,auth.user(req).id);return reply.header('Content-Disposition',`attachment; filename="artifact-${a.id}.json"`).send({schemaVersion:1,artifact:a,decisions:store.decisions(a.id),threads:store.threads(a.id),messages:store.messages(a.id),links:store.all('SELECT label,url,kind,state FROM links WHERE artifact_id=?',a.id)});});

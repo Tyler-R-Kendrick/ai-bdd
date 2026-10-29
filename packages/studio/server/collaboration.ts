@@ -42,13 +42,21 @@ export class Collaboration {
   }
   replace(id:string,user:User,content:Record<string,any>,version:number) {
     const a=this.store.artifact(id,user.id,'write');if(a.version!==version)throw new HttpError(409,'The document changed. Review the latest version before applying.');
-    validateContent(a.kind,content);const room=this.room(id,user.id);const before=Y.encodeStateVector(room.doc);
-    // Apply a server-authored replacement through the same CRDT, so connected editors observe it.
-    room.doc.transact(()=>prosemirrorToYXmlFragment(editorSchema().nodeFromJSON(content.doc),room.doc.getXmlFragment('default')),'server');
-    this.store.persistDoc(user,id,Y.encodeStateAsUpdate(room.doc),content);
-    const e=encoding.createEncoder();encoding.writeVarUint(e,0);sync.writeUpdate(e,Y.encodeStateAsUpdate(room.doc,before));
-    for(const p of room.peers)if(p.socket.readyState===1)p.socket.send(encoding.toUint8Array(e));
-    this.notify(a.projectId,id);return this.store.artifact(id,user.id);
+    const validated=validateContent(a.kind,content),schema=editorSchema(),next=schema.nodeFromJSON(validated.doc);next.check();
+    const room=this.room(id,user.id),before=Y.encodeStateVector(room.doc),candidate=new Y.Doc();
+    try {
+      // A failed validation or storage operation must leave connected editors on
+      // the durable document. Build and persist a candidate before touching it.
+      Y.applyUpdate(candidate,Y.encodeStateAsUpdate(room.doc));
+      candidate.transact(()=>prosemirrorToYXmlFragment(next,candidate.getXmlFragment('default')),'server');
+      const state=Y.encodeStateAsUpdate(candidate);if(state.length>4*1024*1024)throw new HttpError(400,'Document is too large');
+      const persisted=validateContent(a.kind,{doc:yXmlFragmentToProsemirrorJSON(candidate.getXmlFragment('default'))});schema.nodeFromJSON(persisted.doc).check();
+      this.store.persistDoc(user,id,state,persisted);
+      const update=Y.encodeStateAsUpdate(candidate,before);Y.applyUpdate(room.doc,update,'server');
+      const e=encoding.createEncoder();encoding.writeVarUint(e,0);sync.writeUpdate(e,update);
+      for(const p of room.peers)if(p.socket.readyState===1)p.socket.send(encoding.toUint8Array(e));
+      this.notify(a.projectId,id);return this.store.artifact(id,user.id);
+    }finally{candidate.destroy();}
   }
   routes(app:FastifyInstance) {
     app.get<{Params:{id:string}}>('/api/projects/:id/events',{websocket:true},(socket,req)=>{

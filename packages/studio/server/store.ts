@@ -73,7 +73,26 @@ export class Store {
   audit(projectId:string,artifactId:string|null,actor:string,action:string,detail='') {
     this.exec('INSERT INTO audit(project_id,artifact_id,actor,action,detail,created_at) VALUES(?,?,?,?,?,?)',projectId,artifactId,actor,action,detail,now());
   }
+  checkedContent(kind:ArtifactKind,content:unknown,projectId:string):Record<string,any> {
+    let parsed:Record<string,any>;
+    try{parsed=validateContent(kind,content);}catch(e){if(e instanceof Error&&'issues' in e)throw e;throw new HttpError(400,(e as Error).message);}
+    const file=(url:unknown,mime:string)=>{
+      if(typeof url!=='string'||!/^\/api\/files\/[0-9a-f-]{36}$/.test(url))throw new HttpError(400,'Media must reference an uploaded project file');
+      const asset=this.one('SELECT mime FROM files WHERE id=? AND project_id=?',url.split('/').pop(),projectId);
+      if(!asset||!(mime==='image'?asset.mime.startsWith('image/'):asset.mime===mime))throw new HttpError(400,'An uploaded asset is missing, has the wrong type, or belongs to another project');
+    };
+    if(kind==='image'||kind==='brand'||kind==='video')for(const layer of parsed.layers){if(layer.type==='image')file(layer.src,'image');if(layer.fontUrl)file(layer.fontUrl,'font/woff2');}
+    if(kind==='design'||kind==='document'){
+      const walk=(node:any)=>{
+        if(node.type==='image')file(node.attrs?.src,'image');
+        for(const mark of node.marks??[])if(mark.type==='link'&&!(typeof mark.attrs?.href==='string'&&/^(https?:\/\/|mailto:|#)/i.test(mark.attrs.href)))throw new HttpError(400,'Document links must use HTTP, HTTPS, mailto, or an anchor');
+        for(const child of node.content??[])walk(child);
+      };walk(parsed.doc);
+    }
+    return parsed;
+  }
   createProject(user:User,title:string,description:string,repository='') {
+    if(this.projects(user.id).length>=100)throw new HttpError(409,'This account has reached its 100-project limit');
     return this.tx(()=>{
       const id=randomUUID(), mainId=randomUUID();
       this.exec('INSERT INTO projects VALUES(?,?,?,?,?,?)',id,title,description,repository,mainId,now());
@@ -84,7 +103,8 @@ export class Store {
     });
   }
   insertArtifact(user:User,projectId:string,kind:ArtifactKind,title:string,id=randomUUID(),content=initialContent(kind,title)):Artifact {
-    const c=JSON.stringify(validateContent(kind,content)); const t=now();
+    if(this.one('SELECT count(*) AS n FROM artifacts WHERE project_id=?',projectId).n>=500)throw new HttpError(409,'This project has reached its 500-artifact limit');
+    const c=JSON.stringify(this.checkedContent(kind,content,projectId)); const t=now();
     this.exec('INSERT INTO artifacts(id,project_id,kind,title,content,updated_at,created_at,created_by) VALUES(?,?,?,?,?,?,?,?)',id,projectId,kind,title,c,t,t,user.id);
     this.exec('INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',id,1,c,user.name,t);
     this.exec('INSERT INTO decisions(id,artifact_id,title,context,decision,consequences,author,updated_at) VALUES(?,?,?,?,?,?,?,?)',randomUUID(),id,'ADR · '+title,'Why does this artifact exist?','Record the chosen approach and its owner.','Record tradeoffs and alternatives.',user.name,t);
@@ -97,7 +117,7 @@ export class Store {
   }
   updateArtifact(user:User,id:string,version:number,content:unknown,title?:string):Artifact {
     const a=this.artifact(id,user.id,'write');
-    const c=JSON.stringify(validateContent(a.kind,content));
+    const c=JSON.stringify(this.checkedContent(a.kind,content,a.projectId));
     return this.tx(()=>{
       const t=now();
       const r=this.exec('UPDATE artifacts SET content=?,title=?,version=version+1,updated_at=? WHERE id=? AND version=?',c,title??a.title,t,id,version);
@@ -117,7 +137,7 @@ export class Store {
     });
   }
   private updateDocContent(user:User,a:Artifact,content:Record<string,any>) {
-    const c=JSON.stringify(validateContent(a.kind,content)),t=now();
+    const c=JSON.stringify(this.checkedContent(a.kind,content,a.projectId)),t=now();
     this.exec('UPDATE artifacts SET content=?,version=version+1,updated_at=? WHERE id=?',c,t,a.id);
     this.exec('INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',a.id,a.version+1,c,user.name,t);
     this.exec('UPDATE projects SET updated_at=? WHERE id=?',t,a.projectId);

@@ -55,6 +55,14 @@ describe('Authenticated CRDT collaboration',()=>{
     expect(text(owner.doc)).not.toContain('"type":"script"');
     const bundle=(await request('GET',`/api/artifacts/${p.mainArtifactId}`)).json();expect(JSON.stringify(bundle.artifact.content)).not.toContain('"type":"script"');
   });
+  it('leaves the live document unchanged when a replacement fails validation or storage',async()=>{
+    const p=await project(request),editor=await connect(p.mainArtifactId),owner=instance.store.publicUser(instance.store.userByEmail('owner@example.test').id),before=text(editor.doc),original=instance.store.artifact(p.mainArtifactId,owner.id);
+    expect(()=>instance.collab.replace(p.mainArtifactId,owner,{doc:{type:'paragraph',content:[{type:'text',text:'Invalid root'}]}},original.version)).toThrow();
+    expect(text(instance.collab.rooms.get(p.mainArtifactId)!.doc)).toBe(before);expect(instance.store.artifact(p.mainArtifactId,owner.id).content).toEqual(original.content);
+    const persist=instance.store.persistDoc.bind(instance.store);instance.store.persistDoc=()=>{throw new Error('Injected disk failure');};
+    try{expect(()=>instance.collab.replace(p.mainArtifactId,owner,{doc:{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'Must not become live before storage'}]}]}},original.version)).toThrow('Injected disk failure');}finally{instance.store.persistDoc=persist;}
+    expect(text(instance.collab.rooms.get(p.mainArtifactId)!.doc)).toBe(before);expect(text(editor.doc)).toBe(before);expect(instance.store.artifact(p.mainArtifactId,owner.id).content).toEqual(original.content);
+  });
   it('attributes presence to the authenticated account and blocks revoked memberships',async()=>{
     const p=await project(request),editor=await member(instance.app,request,p.id,'editor'),owner=await connect(p.mainArtifactId),edit=await connect(p.mainArtifactId,editor.cookie);
     edit.provider.awareness.setLocalStateField('user',{id:'owner',name:'Forged workspace administrator',color:'#000000'});

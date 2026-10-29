@@ -7,7 +7,7 @@ import type { User } from '../shared/domain.ts';
 const derive=promisify(scrypt);
 export async function passwordHash(password:string):Promise<string> {const salt=randomBytes(16).toString('hex');const key=await derive(password,salt,64) as Buffer;return `${salt}:${key.toString('hex')}`;}
 export async function passwordValid(password:string,encoded:string):Promise<boolean> {const [salt,value]=encoded.split(':');if(!salt||!value)return false;const key=await derive(password,salt,64) as Buffer;const expected=Buffer.from(value,'hex');return expected.length===key.length&&timingSafeEqual(key,expected);}
-export type Settings = { production:boolean; origin:string; dataDir:string; adminEmail?:string; adminPassword?:string; oidcIssuer?:string; oidcClientId?:string; oidcClientSecret?:string; demo:boolean; model?:string; githubToken?:string; runnerConfig?:string };
+export type Settings = { production:boolean; origin:string; dataDir:string; adminEmail?:string; adminPassword?:string; oidcIssuer?:string; oidcClientId?:string; oidcClientSecret?:string; demo:boolean; model?:string; githubToken?:string; githubRepositories?:string[]; trustedProxies?:string[]; runnerConfig?:string };
 export function settingsFromEnv(env:NodeJS.ProcessEnv):Settings {
   const production=env.NODE_ENV==='production',origin=env.STUDIO_ORIGIN??'http://127.0.0.1:8787';
   const url=new URL(origin);
@@ -18,11 +18,16 @@ export function settingsFromEnv(env:NodeJS.ProcessEnv):Settings {
   if(production&&!env.STUDIO_ADMIN_PASSWORD&&!env.STUDIO_OIDC_ISSUER)throw new Error('Production requires a bootstrap password or OIDC');
   if(env.STUDIO_OIDC_ISSUER&&(!env.STUDIO_OIDC_CLIENT_ID||!env.STUDIO_OIDC_CLIENT_SECRET))throw new Error('OIDC requires STUDIO_OIDC_CLIENT_ID and STUDIO_OIDC_CLIENT_SECRET');
   if(env.STUDIO_MODEL&&!env.AI_GATEWAY_API_KEY)throw new Error('STUDIO_MODEL requires AI_GATEWAY_API_KEY');
-  return {production,origin,dataDir:env.STUDIO_DATA_DIR??'.studio',adminEmail:env.STUDIO_ADMIN_EMAIL??'owner@localhost',adminPassword:env.STUDIO_ADMIN_PASSWORD,oidcIssuer:env.STUDIO_OIDC_ISSUER,oidcClientId:env.STUDIO_OIDC_CLIENT_ID,oidcClientSecret:env.STUDIO_OIDC_CLIENT_SECRET,demo:env.STUDIO_DEMO==='1',model:env.STUDIO_MODEL,githubToken:env.STUDIO_GITHUB_TOKEN,runnerConfig:env.STUDIO_RUNNER_CONFIG};
+  const trustedProxies=env.STUDIO_TRUSTED_PROXIES?.split(',').map(s=>s.trim()).filter(Boolean);
+  if(trustedProxies?.some(s=>! /^(loopback|linklocal|uniquelocal|[0-9a-f:.]+(?:\/[0-9]{1,3})?)$/i.test(s)))throw new Error('STUDIO_TRUSTED_PROXIES must contain explicit IP addresses, CIDRs, or Fastify loopback/linklocal/uniquelocal ranges');
+  const githubRepositories=env.STUDIO_GITHUB_REPOSITORIES?.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  if(githubRepositories?.some(s=>!/^[-\w.]+\/[-\w.]+$/.test(s)))throw new Error('STUDIO_GITHUB_REPOSITORIES must contain owner/repository names');
+  return {production,origin,dataDir:env.STUDIO_DATA_DIR??'.studio',adminEmail:env.STUDIO_ADMIN_EMAIL??'owner@localhost',adminPassword:env.STUDIO_ADMIN_PASSWORD,oidcIssuer:env.STUDIO_OIDC_ISSUER,oidcClientId:env.STUDIO_OIDC_CLIENT_ID,oidcClientSecret:env.STUDIO_OIDC_CLIENT_SECRET,demo:env.STUDIO_DEMO==='1',model:env.STUDIO_MODEL,githubToken:env.STUDIO_GITHUB_TOKEN,githubRepositories,trustedProxies,runnerConfig:env.STUDIO_RUNNER_CONFIG};
 }
 export class Auth {
   constructor(readonly store:Store,readonly settings:Settings) {}
   async initialize() {
+    this.store.exec('DELETE FROM sessions WHERE expires<?',Date.now());
     if(this.settings.adminPassword&&!this.store.userByEmail(this.settings.adminEmail!))this.store.createUser(this.settings.adminEmail!,'Workspace owner',await passwordHash(this.settings.adminPassword));
     if(this.settings.demo&&!this.store.userByEmail('demo@localhost'))this.store.createUser('demo@localhost','Alex Morgan',null);
   }
@@ -34,7 +39,7 @@ export class Auth {
     return this.store.publicUser(session.user_id);
   }
   assertOrigin(req:FastifyRequest) {
-    if(req.headers.authorization?.startsWith('Bearer '))return;
+    if(req.headers.authorization?.match(/^Bearer (\S+)$/))return;
     if(req.headers.origin!==this.settings.origin)throw new HttpError(403,'Request origin is not allowed');
   }
   session(user:User,reply:FastifyReply) {

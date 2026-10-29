@@ -45,7 +45,8 @@ export class Runner {
         this.store.exec("UPDATE runs SET status='running' WHERE id=?",runId);this.collab.notify(artifact.projectId,id);
         const result=await engine.run({signal:c.signal,frozen:true,compile:false,strict:true});
         const verification=await engine.verifyRun(resolve(engine.config.runsDir,result.runId));
-        this.store.exec('UPDATE runs SET status=?,result=?,finished_at=? WHERE id=?',result.exitCode===0&&verification.ok?'passed':'failed',JSON.stringify({...result,integrity:verification}),new Date().toISOString(),runId);
+        const passed=result.exitCode===0&&verification.ok&&result.scenarios.length>0&&result.scenarios.every(s=>s.status==='passed'||s.status==='healed');
+        this.store.exec('UPDATE runs SET status=?,result=?,error=?,finished_at=? WHERE id=?',passed?'passed':'failed',JSON.stringify({...result,integrity:verification}),result.scenarios.length===0?'No acceptance scenarios were executed':result.scenarios.every(s=>s.status==='skipped')?'All acceptance scenarios were skipped':null,new Date().toISOString(),runId);
         this.store.audit(artifact.projectId,id,user.name,'tests.completed',`run ${runId}, exit ${result.exitCode}`);
       }catch{
         this.store.exec("UPDATE runs SET status='error',error=?,finished_at=? WHERE id=?",c.signal.aborted?'Run cancelled or timed out':'Runner failed. Inspect the trusted runner configuration and server logs.',new Date().toISOString(),runId);
