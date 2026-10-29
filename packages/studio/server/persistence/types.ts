@@ -6,6 +6,7 @@ export type SqlRunResult = {
 /** Trusted application SQL only. Artifact content is always a bound value. */
 export interface SqlDatabase {
   readonly dialect: 'sqlite' | 'postgres';
+  inTransaction(): boolean;
   one<T = any>(
     sql: string,
     params?: readonly SqlValue[],

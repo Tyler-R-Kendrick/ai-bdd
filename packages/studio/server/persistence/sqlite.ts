@@ -90,6 +90,9 @@ export class SqliteDatabase implements SqlDatabase {
       }),
     );
   }
+  inTransaction() {
+    return this.context.getStore()?.database === this;
+  }
   async lock(_key: string) {
     if (this.context.getStore()?.database !== this)
       throw new Error('Database locks require an active transaction');

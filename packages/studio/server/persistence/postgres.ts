@@ -164,6 +164,9 @@ export class PostgresDatabase implements SqlDatabase {
       }
     });
   }
+  inTransaction() {
+    return this.context.getStore()?.database === this;
+  }
   async lock(key: string) {
     const active = this.context.getStore();
     if (active?.database !== this)

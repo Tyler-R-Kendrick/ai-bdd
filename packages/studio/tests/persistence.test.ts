@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import * as Y from 'yjs';
+import { yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
 import { Store, hash } from '../server/store.ts';
 import {
   openDatabase,
@@ -101,6 +102,66 @@ describe('asynchronous SQL adapter boundaries', () => {
     release();
     await expect(failing).rejects.toThrow('rollback nested');
     expect(await outside).toBeUndefined();
+  });
+  it('keeps canonical authored and merged block IDs identical in JSON and durable Yjs state', async () => {
+    const store = await local(),
+      { user, project } = await fixture(store);
+    const artifact = await store.createArtifact(
+      user,
+      project.id,
+      'document',
+      'Canonical anchors',
+      {
+        doc: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              attrs: { id: 'stable' },
+              content: [{ type: 'text', text: 'Keep' }],
+            },
+            {
+              type: 'paragraph',
+              attrs: { id: 'stable' },
+              content: [{ type: 'text', text: 'Duplicate' }],
+            },
+          ],
+        },
+      },
+    );
+    expect(artifact.content.doc.content[0].attrs.id).toBe('stable');
+    expect(artifact.content.doc.content[1].attrs.id).not.toBe('stable');
+    const before = await store.documentState(artifact.id, user.id),
+      doc = new Y.Doc();
+    try {
+      Y.applyUpdate(doc, before);
+      expect(
+        yXmlFragmentToProsemirrorJSON(doc.getXmlFragment('default')),
+      ).toEqual(artifact.content.doc);
+      const block = new Y.XmlElement('paragraph'),
+        text = new Y.XmlText();
+      text.insert(0, 'Remote source');
+      block.insert(0, [text]);
+      doc.getXmlFragment('default').push([block]);
+      const update = Y.encodeStateAsUpdate(doc),
+        saved = await store.persistDoc(user, artifact.id, update, {}),
+        canonical = new Y.Doc();
+      try {
+        Y.applyUpdate(canonical, saved.state);
+        expect(
+          yXmlFragmentToProsemirrorJSON(canonical.getXmlFragment('default')),
+        ).toEqual(saved.artifact.content.doc);
+        const id = saved.artifact.content.doc.content[2].attrs.id;
+        expect(id).toMatch(/^[0-9a-f-]{36}$/);
+        const replay = await store.persistDoc(user, artifact.id, update, {});
+        expect(replay.artifact.content.doc.content[2].attrs.id).toBe(id);
+        expect(replay.artifact.version).toBe(saved.artifact.version);
+      } finally {
+        canonical.destroy();
+      }
+    } finally {
+      doc.destroy();
+    }
   });
   it('stores immutable external file references, byte quotas and context without requiring inline bytes', async () => {
     const store = await local(),

@@ -1,7 +1,9 @@
+import { canonicalDocumentIds } from '../shared/document-identity.ts';
 import { openDatabase, type SqlDatabase } from './persistence/index.ts';
 import * as Y from 'yjs';
 import {
   prosemirrorJSONToYDoc,
+  prosemirrorToYXmlFragment,
   yXmlFragmentToProsemirrorJSON,
 } from 'y-prosemirror';
 import { editorSchema } from '../shared/editor.ts';
@@ -16,6 +18,7 @@ import {
   type Role,
   type User,
   type Message,
+  type RichNode,
 } from '../shared/domain.ts';
 export class HttpError extends Error {
   constructor(
@@ -55,6 +58,12 @@ const readMessage = (row: any): OrderedMessage => ({
 });
 export const STUDIO_SCHEMA_VERSION = 2;
 export class Store {
+  repositoryAuthorizer?: (
+    projectId: string,
+    userId: string,
+    action: 'read' | 'write' | 'admin',
+    atomic: boolean,
+  ) => Promise<void>;
   private constructor(readonly db: SqlDatabase) {}
   static async open(input: string | SqlDatabase): Promise<Store> {
     const db =
@@ -148,6 +157,9 @@ export class Store {
   tx<T>(fn: () => Promise<T> | T): Promise<T> {
     return this.db.transaction(async () => fn());
   }
+  lock(key: string) {
+    return this.db.lock(key);
+  }
   close() {
     return this.db.close();
   }
@@ -201,6 +213,12 @@ export class Store {
     if (!r) throw new HttpError(404, 'Project not found');
     if (!capability(r, action))
       throw new HttpError(403, 'Your project role does not allow this action');
+    await this.repositoryAuthorizer?.(
+      projectId,
+      userId,
+      action,
+      this.db.inTransaction(),
+    );
     return r;
   }
   async artifact(
@@ -335,6 +353,7 @@ export class Store {
             );
         for (const child of node.content ?? []) walk(child);
       };
+      parsed.doc = canonicalDocumentIds(parsed.doc, randomUUID).doc;
       walk(parsed.doc);
     }
     if (assets.size) {
@@ -453,12 +472,27 @@ export class Store {
           409,
           'This project has reached its 500-artifact limit',
         );
-      const c = JSON.stringify(
-        await this.checkedContent(kind, content, projectId),
-      );
-      const t = now();
+      let validated = await this.checkedContent(kind, content, projectId),
+        ystate: Uint8Array | null = null;
+      if (kind === 'design' || kind === 'document') {
+        const doc = prosemirrorJSONToYDoc(
+          editorSchema(),
+          validated.doc,
+          'default',
+        );
+        try {
+          ystate = Y.encodeStateAsUpdate(doc);
+          validated = {
+            doc: yXmlFragmentToProsemirrorJSON(doc.getXmlFragment('default')),
+          };
+        } finally {
+          doc.destroy();
+        }
+      }
+      const c = JSON.stringify(validated),
+        t = now();
       await this.exec(
-        'INSERT INTO artifacts(id,project_id,kind,title,content,updated_at,created_at,created_by) VALUES(?,?,?,?,?,?,?,?)',
+        'INSERT INTO artifacts(id,project_id,kind,title,content,updated_at,created_at,created_by,ystate) VALUES(?,?,?,?,?,?,?,?,?)',
         id,
         projectId,
         kind,
@@ -467,6 +501,7 @@ export class Store {
         t,
         t,
         user.id,
+        ystate,
       );
       await this.exec(
         'INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',
@@ -529,14 +564,39 @@ export class Store {
     return this.tx(async () => {
       await this.db.lock('project:' + initial.projectId);
       const a = await this.artifact(id, user.id, 'write');
-      const c = JSON.stringify(
-        await this.checkedContent(a.kind, content, a.projectId),
-      );
-      const t = now();
+      let validated = await this.checkedContent(a.kind, content, a.projectId),
+        ystate = await this.state(id);
+      if (a.kind === 'design' || a.kind === 'document') {
+        const doc = ystate
+          ? new Y.Doc()
+          : prosemirrorJSONToYDoc(editorSchema(), validated.doc, 'default');
+        try {
+          if (ystate) {
+            Y.applyUpdate(doc, ystate);
+            doc.transact(
+              () =>
+                prosemirrorToYXmlFragment(
+                  editorSchema().nodeFromJSON(validated.doc),
+                  doc.getXmlFragment('default'),
+                ),
+              'versioned-source',
+            );
+          }
+          ystate = Y.encodeStateAsUpdate(doc);
+          validated = {
+            doc: yXmlFragmentToProsemirrorJSON(doc.getXmlFragment('default')),
+          };
+        } finally {
+          doc.destroy();
+        }
+      }
+      const c = JSON.stringify(validated),
+        t = now();
       const r = await this.exec(
-        'UPDATE artifacts SET content=?,title=?,version=version+1,updated_at=? WHERE id=? AND version=?',
+        'UPDATE artifacts SET content=?,title=?,ystate=?,version=version+1,updated_at=? WHERE id=? AND version=?',
         c,
         title ?? a.title,
+        ystate,
         t,
         id,
         version,
@@ -623,6 +683,22 @@ export class Store {
         const persisted = await this.state(id);
         if (persisted) Y.applyUpdate(doc, persisted);
         Y.applyUpdate(doc, state);
+        const normalized = canonicalDocumentIds(
+          yXmlFragmentToProsemirrorJSON(
+            doc.getXmlFragment('default'),
+          ) as RichNode,
+          randomUUID,
+        );
+        const schema = editorSchema();
+        if (normalized.changed)
+          doc.transact(
+            () =>
+              prosemirrorToYXmlFragment(
+                schema.nodeFromJSON(normalized.doc),
+                doc.getXmlFragment('default'),
+              ),
+            'canonical-anchors',
+          );
         const merged = Y.encodeStateAsUpdate(doc);
         if (merged.length > 4 * 1024 * 1024)
           throw new HttpError(400, 'Document is too large');
