@@ -292,14 +292,27 @@ export class Auth {
         throw new Error(
           'OIDC requires HTTPS; explicit development loopback opt-in is needed for an HTTP test issuer',
         );
-      const config = await oidc.discovery(
-        issuer,
-        this.settings.oidcClientId!,
-        this.settings.oidcClientSecret,
-        undefined,
-        allowHttp ? { execute: [oidc.allowInsecureRequests] } : undefined,
-      );
+      let discovery: Promise<oidc.Configuration> | undefined;
+      const configuration = async () => {
+        discovery ??= oidc.discovery(
+          issuer,
+          this.settings.oidcClientId!,
+          this.settings.oidcClientSecret,
+          undefined,
+          allowHttp ? { execute: [oidc.allowInsecureRequests] } : undefined,
+        );
+        try {
+          return await discovery;
+        } catch {
+          discovery = undefined;
+          throw new HttpError(
+            503,
+            'The organization sign-in provider is temporarily unavailable',
+          );
+        }
+      };
       app.get('/api/auth/oidc', async (_req, reply) => {
+        const config = await configuration();
         const state = oidc.randomState(),
           nonce = oidc.randomNonce(),
           verifier = oidc.randomPKCECodeVerifier(),
@@ -341,6 +354,7 @@ export class Auth {
           }>('oidc', state, req.cookies.studio_oidc ?? '');
         reply.clearCookie('studio_oidc', { path: '/api/auth' });
         if (!challenge) throw new HttpError(401, 'Sign-in expired. Try again.');
+        const config = await configuration();
         const tokens = await oidc.authorizationCodeGrant(config, url, {
           pkceCodeVerifier: challenge.payload.verifier,
           expectedState: state,
