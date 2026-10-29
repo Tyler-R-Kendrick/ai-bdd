@@ -1,4 +1,5 @@
 import RepositoryIdentity from './components/RepositoryIdentity.tsx';
+import { ArtifactTitle } from './components/ArtifactTitle.tsx';
 import {
   lazy,
   Suspense,
@@ -673,25 +674,13 @@ export function App() {
                     {kindLabels[artifact.kind]}
                     {readOnly && <Badge>View only</Badge>}
                   </div>
-                  <button
-                    className="artifact-title"
-                    disabled={readOnly}
-                    title={readOnly ? undefined : 'Rename artifact'}
-                    onClick={() => {
-                      const t = window.prompt(
-                        'Artifact title',
-                        artifact.title,
-                      );
-                      if (t?.trim())
-                        api(`/artifacts/${artifact.id}/title`, 'PATCH', {
-                          title: t.trim(),
-                        })
-                          .then(refresh)
-                          .catch((e) => report(e.message));
-                    }}
-                  >
-                    {artifact.title}
-                  </button>
+                  <ArtifactTitle
+                    key={artifact.id}
+                    artifact={artifact}
+                    readOnly={readOnly}
+                    refresh={refresh}
+                    report={report}
+                  />
                 </div>
                 <div className="artifact-actions">
                   {!['design', 'document'].includes(artifact.kind) && (
