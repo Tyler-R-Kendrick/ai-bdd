@@ -1,3 +1,4 @@
+import { proveHandwiredLayout } from './handwired.ts';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { capability, type Role } from '../shared/domain.ts';
@@ -16,7 +17,10 @@ export function verifyLayoutAllocation() {
   for (const detailOpen of [false, true]) {
     const regions = layoutRegions(detailOpen);
     assert.equal(regions[0].lower, STUDIO_LAYOUT.minViewport);
-    assert.equal(regions[regions.length - 1]!.upper, STUDIO_LAYOUT.maxViewport);
+    assert.equal(
+      regions[regions.length - 1]!.upper,
+      STUDIO_LAYOUT.maxViewport,
+    );
     for (let i = 0; i < regions.length; i++) {
       const region = regions[i]!;
       if (i > 0) {
@@ -97,6 +101,7 @@ export async function check(env: NodeJS.ProcessEnv = process.env) {
       'Exact rational proof of shell column allocation on real viewport widths 320–4096, and exhaustive evaluation of the production role predicate. No browser text metrics or whole-system proof.',
     layout: verifyLayoutAllocation(),
     permissions: verifyRolePolicy(),
+    compiledLayout: await proveHandwiredLayout(),
     externalProof:
       env.STUDIO_REQUIRE_PROOF === '1'
         ? await requireExternalProof(env)

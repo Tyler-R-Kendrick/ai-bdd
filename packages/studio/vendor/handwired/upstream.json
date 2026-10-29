@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/chenglou/handwired",
+  "commit": "257856e3b221140acb4cc4460626b850c0bd4ff1",
+  "files": {
+    "numeric-ui-core.ts": "75da2a13f39720e34b1e440533460435ead0af9a88fccad8c94e94a816dafa21",
+    "LICENSE": "55d5c9c20065b2aa66887036f6741ee5ef12c7a72cd4ad96034889867d436824"
+  }
+}
