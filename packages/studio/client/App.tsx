@@ -65,6 +65,7 @@ import {
 } from '../shared/domain.ts';
 const CodeEditor = lazy(() => import('./editors/CodeEditor.tsx'));
 const VisualEditor = lazy(() => import('./editors/VisualEditor.tsx'));
+const VideoEditor = lazy(() => import('./editors/VideoEditor.tsx'));
 const SceneEditor = lazy(() => import('./editors/SceneEditor.tsx'));
 const GenerativeEditor = lazy(() => import('./editors/GenerativeEditor.tsx'));
 export const kindIcons = {
@@ -121,7 +122,9 @@ export function App() {
     [rightOpen, setRightOpen] = useState(window.innerWidth >= 1280),
     [sideOpen, setSideOpen] = useState(false),
     [panel, setPanel] = useState('chat'),
-    [anchor, setAnchor] = useState<{ id: string; quote: string } | null>(null),
+    [anchor, setAnchor] = useState<{ id: string; quote: string } | null>(
+      null,
+    ),
     [settings, setSettings] = useState(false),
     [more, setMore] = useState(false),
     [busy, setBusy] = useState(false);
@@ -173,7 +176,10 @@ export function App() {
         if (event.shiftKey && document.activeElement === items[0]) {
           event.preventDefault();
           items.at(-1)?.focus();
-        } else if (!event.shiftKey && document.activeElement === items.at(-1)) {
+        } else if (
+          !event.shiftKey &&
+          document.activeElement === items.at(-1)
+        ) {
           event.preventDefault();
           items[0]?.focus();
         }
@@ -422,7 +428,10 @@ export function App() {
           <PanelsTopLeft size={22} />
           <strong>ai-bdd</strong>
           <span>Studio</span>
-          <IconButton label="Search artifacts" onClick={() => setCommand(true)}>
+          <IconButton
+            label="Search artifacts"
+            onClick={() => setCommand(true)}
+          >
             <Search size={16} />
           </IconButton>
         </div>
@@ -433,7 +442,8 @@ export function App() {
           <span>
             {project?.title ?? 'Your workspace'}
             <small>
-              {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+              {projects.length}{' '}
+              {projects.length === 1 ? 'project' : 'projects'}
             </small>
           </span>
           <ChevronDown size={14} />
@@ -598,7 +608,9 @@ export function App() {
               </>
             )}
             <IconButton
-              label={rightOpen ? 'Hide artifact panel' : 'Show artifact panel'}
+              label={
+                rightOpen ? 'Hide artifact panel' : 'Show artifact panel'
+              }
               onClick={() => setRightOpen((v) => !v)}
             >
               {rightOpen ? <PanelRightClose /> : <PanelRightOpen />}
@@ -665,7 +677,10 @@ export function App() {
                     disabled={readOnly}
                     title={readOnly ? undefined : 'Rename artifact'}
                     onClick={() => {
-                      const t = window.prompt('Artifact title', artifact.title);
+                      const t = window.prompt(
+                        'Artifact title',
+                        artifact.title,
+                      );
                       if (t?.trim())
                         api(`/artifacts/${artifact.id}/title`, 'PATCH', {
                           title: t.trim(),
@@ -722,7 +737,10 @@ export function App() {
                             <button
                               onClick={() => {
                                 setMore(false);
-                                api(`/artifacts/${artifact.id}/archive`, 'POST')
+                                api(
+                                  `/artifacts/${artifact.id}/archive`,
+                                  'POST',
+                                )
                                   .then(() =>
                                     navigate(
                                       project.id,
@@ -758,6 +776,10 @@ export function App() {
                         user={user}
                         readOnly={readOnly}
                         runs={bundle.runs}
+                        onDecisions={() => {
+                          setPanel('decisions');
+                          setRightOpen(true);
+                        }}
                         onTests={() => {
                           setPanel('tests');
                           setRightOpen(true);
@@ -771,11 +793,13 @@ export function App() {
                       />
                     ) : artifact.kind === 'code' ? (
                       <CodeEditor key={artifact.id} {...mediaProps!} />
+                    ) : artifact.kind === 'video' ? (
+                      <VideoEditor key={artifact.id} {...mediaProps!} />
                     ) : artifact.kind === 'image' ||
-                      artifact.kind === 'brand' ||
-                      artifact.kind === 'video' ? (
+                      artifact.kind === 'brand' ? (
                       <VisualEditor key={artifact.id} {...mediaProps!} />
-                    ) : artifact.kind === 'scene' || artifact.kind === 'cad' ? (
+                    ) : artifact.kind === 'scene' ||
+                      artifact.kind === 'cad' ? (
                       <SceneEditor key={artifact.id} {...mediaProps!} />
                     ) : (
                       <GenerativeEditor key={artifact.id} {...mediaProps!} />
@@ -818,8 +842,8 @@ export function App() {
               <Network size={22} />
               <h2>Built together.</h2>
               <p>
-                Projects are compositions of artifacts. Open any artifact to see
-                its dedicated discussion, decisions, and evidence.
+                Projects are compositions of artifacts. Open any artifact to
+                see its dedicated discussion, decisions, and evidence.
               </p>
               <div className="project-summary">
                 <span>{artifacts.length} artifacts</span>
@@ -939,7 +963,9 @@ export function App() {
         />
         <div className="command-results">
           {projects
-            .filter((p) => p.title.toLowerCase().includes(query.toLowerCase()))
+            .filter((p) =>
+              p.title.toLowerCase().includes(query.toLowerCase()),
+            )
             .map((p) => (
               <button
                 key={p.id}
@@ -957,7 +983,9 @@ export function App() {
               </button>
             ))}
           {artifacts
-            .filter((a) => a.title.toLowerCase().includes(query.toLowerCase()))
+            .filter((a) =>
+              a.title.toLowerCase().includes(query.toLowerCase()),
+            )
             .map((a) => {
               const Icon = kindIcons[a.kind];
               return (
@@ -1017,7 +1045,10 @@ export function App() {
               <Input name="title" defaultValue={project.title} required />
             </Field>
             <Field label="Description">
-              <Textarea name="description" defaultValue={project.description} />
+              <Textarea
+                name="description"
+                defaultValue={project.description}
+              />
             </Field>
             <Field label="Repository">
               <Input name="repository" defaultValue={project.repository} />
@@ -1040,8 +1071,8 @@ export function App() {
             </div>
           ))}
           <p className="small muted">
-            Providers and credentials are configured by the deployment operator.
-            Preview remains available without them.
+            Providers and credentials are configured by the deployment
+            operator. Preview remains available without them.
           </p>
           <Button
             variant="outline"

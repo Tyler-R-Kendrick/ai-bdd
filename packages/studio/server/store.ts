@@ -297,6 +297,8 @@ export class Store {
       }
     if (kind === 'scene' || kind === 'cad')
       for (const asset of parsed.imports ?? []) {
+        if (kind === 'cad' && asset.format !== 'step')
+          throw new HttpError(400, 'CAD base imports require STEP solids');
         if (asset.format === 'step' && kind !== 'cad')
           throw new HttpError(400, 'STEP files require the exact CAD editor');
         file(
