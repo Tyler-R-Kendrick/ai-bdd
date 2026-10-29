@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { setImmediate } from 'node:timers/promises';
 import {
   capability,
   initialContent,
@@ -10,6 +11,7 @@ import {
   type ArtifactKind,
   type Role,
   type User,
+  type Message,
 } from '../shared/domain.ts';
 
 export class HttpError extends Error {
@@ -25,15 +27,45 @@ export const hash = (s: string | Uint8Array) =>
 const now = () => new Date().toISOString();
 const artifactCols =
   'id, project_id AS projectId, kind, title, content, version, updated_at AS updatedAt, created_at AS createdAt, created_by AS createdBy, archived';
+const messageCols =
+  'id,artifact_id AS artifactId,thread_id AS threadId,author,author_id AS authorId,role,body,proposal,created_at AS createdAt';
+export type OrderedMessage = Message & { sequence: number };
+export type MessagePage = {
+  messages: OrderedMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+type ExportTable = 'decisions' | 'threads' | 'messages' | 'links';
+const exportColumns: Record<ExportTable, string> = {
+  decisions:
+    'id,artifact_id AS artifactId,title,context,decision,consequences,status,version,author,updated_at AS updatedAt',
+  threads:
+    'id,artifact_id AS artifactId,anchor,quote,resolved,created_at AS createdAt',
+  messages: messageCols,
+  links: 'label,url,kind,state',
+};
+const readMessage = (row: any): OrderedMessage => ({
+  ...row,
+  proposal: row.proposal ? JSON.parse(row.proposal) : null,
+});
 export class Store {
   db: DatabaseSync;
   constructor(file: string) {
     if (file !== ':memory:')
       mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(file);
-    let schemaVersion:number;
-    try { schemaVersion = (this.db.prepare('PRAGMA user_version').get() as {user_version:number}).user_version; }
-    catch(cause){this.db.close();throw new Error('Cannot read the database; another writer may hold its exclusive lock.',{cause});}
+    let schemaVersion: number;
+    try {
+      schemaVersion = (
+        this.db.prepare('PRAGMA user_version').get() as { user_version: number }
+      ).user_version;
+    } catch (cause) {
+      this.db.close();
+      throw new Error(
+        'Cannot read the database; another writer may hold its exclusive lock.',
+        { cause },
+      );
+    }
     if (schemaVersion > 1) {
       this.db.close();
       throw new Error(
@@ -49,7 +81,10 @@ export class Store {
       this.db.exec('PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; COMMIT;');
     } catch (cause) {
       this.db.close();
-      throw new Error('Could not acquire the database writer lock. Studio requires one writer per data volume.', {cause});
+      throw new Error(
+        'Could not acquire the database writer lock. Studio requires one writer per data volume.',
+        { cause },
+      );
     }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,name TEXT NOT NULL,password TEXT,color TEXT NOT NULL,oidc_sub TEXT UNIQUE);
@@ -67,6 +102,11 @@ export class Store {
       CREATE TABLE IF NOT EXISTS links(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,label TEXT NOT NULL,url TEXT NOT NULL,kind TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'unknown',updated_at TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS artifacts_project ON artifacts(project_id,archived);
       CREATE INDEX IF NOT EXISTS messages_thread ON messages(thread_id,created_at);
+      CREATE INDEX IF NOT EXISTS messages_artifact ON messages(artifact_id);
+      CREATE INDEX IF NOT EXISTS messages_artifact_thread ON messages(artifact_id,thread_id);
+      CREATE INDEX IF NOT EXISTS threads_artifact ON threads(artifact_id);
+      CREATE INDEX IF NOT EXISTS decisions_artifact ON decisions(artifact_id);
+      CREATE INDEX IF NOT EXISTS links_artifact ON links(artifact_id);
       CREATE INDEX IF NOT EXISTS runs_artifact ON runs(artifact_id,created_at);
       CREATE INDEX IF NOT EXISTS audit_project ON audit(project_id,id);
       PRAGMA user_version=1;
@@ -443,18 +483,108 @@ export class Store {
   }
   threads(id: string) {
     return this.all(
-      'SELECT id,artifact_id AS artifactId,anchor,quote,resolved,created_at AS createdAt FROM threads WHERE artifact_id=? ORDER BY created_at,id',
+      'SELECT t.id,t.artifact_id AS artifactId,t.anchor,t.quote,t.resolved,t.created_at AS createdAt,(SELECT count(*) FROM messages m WHERE m.thread_id=t.id AND m.artifact_id=t.artifact_id) AS messageCount FROM threads t WHERE t.artifact_id=? ORDER BY t.created_at,t.id',
       id,
     ).map((t) => ({ ...t, resolved: !!t.resolved }));
   }
   messages(id: string) {
     return this.all(
-      'SELECT id,artifact_id AS artifactId,thread_id AS threadId,author,author_id AS authorId,role,body,proposal,created_at AS createdAt FROM (SELECT rowid AS sequence,* FROM messages WHERE artifact_id=? ORDER BY rowid DESC LIMIT 1000) ORDER BY sequence',
+      `SELECT sequence,${messageCols} FROM (SELECT rowid AS sequence,* FROM messages WHERE artifact_id=? ORDER BY rowid DESC LIMIT 1000) ORDER BY sequence`,
       id,
-    ).map((m) => ({
-      ...m,
-      proposal: m.proposal ? JSON.parse(m.proposal) : null,
-    }));
+    ).map(readMessage);
+  }
+  messageById(artifactId: string, messageId: string): OrderedMessage | null {
+    const row = this.one(
+      `SELECT rowid AS sequence,${messageCols} FROM messages WHERE artifact_id=? AND id=?`,
+      artifactId,
+      messageId,
+    );
+    return row ? readMessage(row) : null;
+  }
+  messagePage(
+    artifactId: string,
+    threadId: string,
+    options: { limit?: number; before?: string } = {},
+  ): MessagePage {
+    const limit = options.limit ?? 100;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 200)
+      throw new HttpError(400, 'Message page size must be between 1 and 200');
+    if (
+      !this.one(
+        'SELECT id FROM threads WHERE id=? AND artifact_id=?',
+        threadId,
+        artifactId,
+      )
+    )
+      throw new HttpError(404, 'Discussion not found');
+    let before: number | undefined;
+    if (options.before !== undefined) {
+      const cursor = this.one(
+        'SELECT rowid AS sequence FROM messages WHERE id=? AND artifact_id=? AND thread_id=?',
+        options.before,
+        artifactId,
+        threadId,
+      );
+      if (!cursor)
+        throw new HttpError(404, 'Message cursor not found in this discussion');
+      before = cursor.sequence;
+    }
+    const rows = this.all(
+      `SELECT rowid AS sequence,${messageCols} FROM messages WHERE artifact_id=? AND thread_id=?${before === undefined ? '' : ' AND rowid<?'} ORDER BY rowid DESC LIMIT ?`,
+      artifactId,
+      threadId,
+      ...(before === undefined ? [] : [before]),
+      limit + 1,
+    );
+    const hasMore = rows.length > limit;
+    const messages = rows.slice(0, limit).reverse().map(readMessage);
+    return { messages, hasMore, nextCursor: hasMore ? messages[0]!.id : null };
+  }
+  exportBounds(artifactId: string): Record<ExportTable, number> {
+    return Object.fromEntries(
+      (Object.keys(exportColumns) as ExportTable[]).map((table) => [
+        table,
+        this.one(
+          `SELECT coalesce(max(rowid),0) AS sequence FROM ${table} WHERE artifact_id=?`,
+          artifactId,
+        ).sequence,
+      ]),
+    ) as Record<ExportTable, number>;
+  }
+  async *exportRows(
+    table: ExportTable,
+    artifactId: string,
+    through: number,
+    checkAccess: () => void,
+  ) {
+    let after = 0;
+    while (after < through) {
+      checkAccess();
+      // Page the append-only row order instead of retaining an SQLite iterator or
+      // an unbounded JavaScript array while a slow download holds the stream open.
+      const rows = this.all(
+        `SELECT rowid AS sequence,${exportColumns[table]} FROM ${table} WHERE artifact_id=? AND rowid>? AND rowid<=? ORDER BY rowid LIMIT 100`,
+        artifactId,
+        after,
+        through,
+      );
+      if (!rows.length) break;
+      for (const row of rows) {
+        checkAccess();
+        const { sequence, ...value } = row;
+        after = sequence;
+        if (table === 'messages')
+          yield {
+            ...value,
+            proposal: value.proposal ? JSON.parse(value.proposal) : null,
+          };
+        else if (table === 'threads')
+          yield { ...value, resolved: !!value.resolved };
+        else yield value;
+      }
+      // Let cancellation, membership changes, and other requests run between pages.
+      await setImmediate();
+    }
   }
   message(
     user: User,
@@ -487,10 +617,10 @@ export class Store {
       now(),
     );
     const m = this.one(
-      'SELECT id,artifact_id AS artifactId,thread_id AS threadId,author,author_id AS authorId,role,body,proposal,created_at AS createdAt FROM messages WHERE id=?',
+      `SELECT rowid AS sequence,${messageCols} FROM messages WHERE id=?`,
       mid,
     );
-    return { ...m, proposal: m.proposal ? JSON.parse(m.proposal) : null };
+    return readMessage(m);
   }
   decisions(id: string) {
     return this.all(

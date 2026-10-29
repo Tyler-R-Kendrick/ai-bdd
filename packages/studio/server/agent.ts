@@ -46,10 +46,8 @@ export class Agent {
     this.collab.notify(artifact.projectId, id);
     try {
       const messages = this.store
-        .messages(id)
-        .filter((m) => m.threadId === threadId)
-        .slice(-30)
-        .map((m) => `${m.author}: ${m.body}`)
+        .messagePage(id, threadId, { limit: 30 })
+        .messages.map((m) => `${m.author}: ${m.body}`)
         .join('\n')
         .slice(-40000);
       const source = JSON.stringify(artifact.content),

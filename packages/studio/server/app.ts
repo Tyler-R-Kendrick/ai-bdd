@@ -8,6 +8,7 @@ import fastifyStatic from '@fastify/static';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
+import { Readable } from 'node:stream';
 import { z, ZodError } from 'zod';
 import { Store, HttpError, hash } from './store.ts';
 import { Auth, passwordHash, type Settings } from './auth.ts';
@@ -85,25 +86,21 @@ export async function createApp(
   });
   app.setErrorHandler((error, req, reply) => {
     if (error instanceof ZodError)
-      return reply
-        .code(400)
-        .send({
-          error: 'Invalid request',
-          issues: error.issues.map((i) => ({
-            path: i.path.join('.'),
-            message: i.message,
-          })),
-        });
+      return reply.code(400).send({
+        error: 'Invalid request',
+        issues: error.issues.map((i) => ({
+          path: i.path.join('.'),
+          message: i.message,
+        })),
+      });
     const status = (error as any).statusCode ?? 500;
     if (status >= 500) req.log.error({ err: error }, 'Request failed');
-    return reply
-      .code(status)
-      .send({
-        error:
-          status < 500
-            ? (error as Error).message
-            : 'The server could not complete this request',
-      });
+    return reply.code(status).send({
+      error:
+        status < 500
+          ? (error as Error).message
+          : 'The server could not complete this request',
+    });
   });
   app.addHook('onRequest', async (req) => {
     if (
@@ -574,6 +571,27 @@ export async function createApp(
       return { ok: true };
     },
   );
+  app.get<{ Params: { id: string } }>(
+    '/api/artifacts/:id/messages',
+    async (req) => {
+      const user = auth.user(req),
+        artifact = store.artifact(req.params.id, user.id);
+      const query = parse(
+        z
+          .object({
+            threadId: id,
+            limit: z.coerce.number().int().min(1).max(200).default(100),
+            before: id.optional(),
+          })
+          .strict(),
+        req.query,
+      );
+      return store.messagePage(artifact.id, query.threadId, {
+        limit: query.limit,
+        before: query.before,
+      });
+    },
+  );
   app.post<{ Params: { id: string } }>(
     '/api/artifacts/:id/messages',
     async (req, reply) => {
@@ -622,7 +640,7 @@ export async function createApp(
     async (req) => {
       const u = auth.user(req),
         a = store.artifact(req.params.id, u.id, 'write'),
-        m = store.messages(a.id).find((m) => m.id === req.params.messageId);
+        m = store.messageById(a.id, req.params.messageId);
       if (!m?.proposal?.content)
         throw new HttpError(404, 'Edit proposal not found');
       if (a.kind === 'design' || a.kind === 'document')
@@ -641,7 +659,7 @@ export async function createApp(
     async (req) => {
       const u = auth.user(req),
         a = store.artifact(req.params.id, u.id, 'write'),
-        m = store.messages(a.id).find((m) => m.id === req.params.messageId);
+        m = store.messageById(a.id, req.params.messageId);
       if (!m?.proposal?.content)
         throw new HttpError(404, 'Edit proposal not found');
       collab.replace(a.id, u, m.proposal.content, m.proposal.version);
@@ -878,23 +896,49 @@ export async function createApp(
   app.get<{ Params: { id: string } }>(
     '/api/artifacts/:id/export',
     async (req, reply) => {
-      const a = store.artifact(req.params.id, auth.user(req).id);
+      const user = auth.user(req),
+        a = store.artifact(req.params.id, user.id);
+      const bounds = store.exportBounds(a.id);
+      const checkAccess = () => {
+        auth.user(req);
+        store.role(a.projectId, user.id);
+      };
+      async function* content() {
+        checkAccess();
+        yield JSON.stringify({ schemaVersion: 1, artifact: a }).slice(0, -1);
+        for (const table of [
+          'decisions',
+          'threads',
+          'messages',
+          'links',
+        ] as const) {
+          yield `,"${table}":[`;
+          let first = true;
+          for await (const row of store.exportRows(
+            table,
+            a.id,
+            bounds[table],
+            checkAccess,
+          )) {
+            yield (first ? '' : ',') + JSON.stringify(row);
+            first = false;
+          }
+          yield ']';
+        }
+        yield '}';
+      }
       return reply
+        .type('application/json; charset=utf-8')
         .header(
           'Content-Disposition',
           `attachment; filename="artifact-${a.id}.json"`,
         )
-        .send({
-          schemaVersion: 1,
-          artifact: a,
-          decisions: store.decisions(a.id),
-          threads: store.threads(a.id),
-          messages: store.messages(a.id),
-          links: store.all(
-            'SELECT label,url,kind,state FROM links WHERE artifact_id=?',
-            a.id,
-          ),
-        });
+        .send(
+          Readable.from(content(), {
+            objectMode: false,
+            highWaterMark: 64 * 1024,
+          }),
+        );
     },
   );
   app.post<{ Params: { id: string } }>(

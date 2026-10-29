@@ -1,0 +1,35 @@
+name: studio-api
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  artifact-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install the pinned Chromium
+        run: pnpm --filter @ai-bdd/studio exec playwright install --with-deps chromium
+      - name: Service, permissions, collaboration, storage, full history, and real-browser runner
+        run: pnpm --filter @ai-bdd/studio exec vitest run --config vitest.config.ts tests/server.test.ts tests/collaboration.test.ts tests/storage.test.ts tests/messages.test.ts tests/runner.test.ts
