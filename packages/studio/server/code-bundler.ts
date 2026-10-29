@@ -2,6 +2,7 @@ import { context, type Loader, type Message, type Plugin } from 'esbuild';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { compileCodeStyles } from './code-styles.ts';
 import {
   checkCodeProject,
   executableFile,
@@ -76,7 +77,10 @@ const diagnostic = (
 export function codePreviewDependencies() {
   return browserPackages.map((name) => {
     try {
-      return { name, version: String(require(name + '/package.json').version) };
+      return {
+        name,
+        version: String(require(name + '/package.json').version),
+      };
     } catch {
       // Packages with restrictive exports still have a bounded installed package manifest.
       let directory = dirname(require.resolve(name));
@@ -120,7 +124,9 @@ function validateManifest(files: CodeProject['files']) {
       const version = available.get(name)!;
       if (
         typeof range !== 'string' ||
-        !/^(?:\*|latest|[~^]?\d+(?:\.\d+|\.\*){0,2}(?:-[\w.-]+)?)$/.test(range)
+        !/^(?:\*|latest|[~^]?\d+(?:\.\d+|\.\*){0,2}(?:-[\w.-]+)?)$/.test(
+          range,
+        )
       )
         throw new CodeBuildError(
           `Use an exact version, ^ or ~ range for ${name}`,
@@ -136,7 +142,8 @@ function validateManifest(files: CodeProject['files']) {
         actualNumbers[0]! > lower[0]! ||
         (actualNumbers[0] === lower[0] &&
           (actualNumbers[1]! > lower[1]! ||
-            (actualNumbers[1] === lower[1] && actualNumbers[2]! >= lower[2]!)));
+            (actualNumbers[1] === lower[1] &&
+              actualNumbers[2]! >= lower[2]!)));
       const valid =
         atLeast &&
         wanted.every(
@@ -258,7 +265,9 @@ function htmlInputs(project: CodeProject) {
     (whole, prefix, quote, reference) => {
       if (/^(?:data:|blob:)/i.test(reference)) return whole;
       const path = local(reference);
-      return prefix + quote + assetDataUrl(path, project.files[path]!) + quote;
+      return (
+        prefix + quote + assetDataUrl(path, project.files[path]!) + quote
+      );
     },
   );
   const explicitScripts = sources.some(executableFile);
@@ -377,7 +386,10 @@ export async function compileCodePreview(
                   ? 'react'
                   : args.path,
             );
-            return builder.resolve(args.path, { resolveDir, kind: args.kind });
+            return builder.resolve(args.path, {
+              resolveDir,
+              kind: args.kind,
+            });
           },
         );
         builder.onResolve(
@@ -431,7 +443,10 @@ export async function compileCodePreview(
                   ? 'react'
                   : args.path,
             );
-            return builder.resolve(args.path, { resolveDir, kind: args.kind });
+            return builder.resolve(args.path, {
+              resolveDir,
+              kind: args.kind,
+            });
           },
         );
         builder.onLoad({ filter: /.*/, namespace: 'studio-entry' }, () => ({
@@ -439,21 +454,28 @@ export async function compileCodePreview(
           loader: 'tsx',
           resolveDir: '/',
         }));
-        builder.onLoad({ filter: /.*/, namespace: 'studio-files' }, (args) => {
-          loaded.add(args.path);
-          if (/\.(?:svg|png|jpe?g|gif|webp|woff2?|ttf)$/i.test(args.path))
+        builder.onLoad(
+          { filter: /.*/, namespace: 'studio-files' },
+          async (args) => {
+            loaded.add(args.path);
+            if (/\.(?:svg|png|jpe?g|gif|webp|woff2?|ttf)$/i.test(args.path))
+              return {
+                contents:
+                  'export default ' +
+                  JSON.stringify(
+                    assetDataUrl(args.path, virtual[args.path]!),
+                  ),
+                loader: 'js',
+              };
             return {
-              contents:
-                'export default ' +
-                JSON.stringify(assetDataUrl(args.path, virtual[args.path]!)),
-              loader: 'js',
+              contents: args.path.endsWith('.css')
+                ? await compileCodeStyles(args.path, virtual)
+                : virtual[args.path]!,
+              loader: loader(args.path),
+              resolveDir: '/',
             };
-          return {
-            contents: virtual[args.path]!,
-            loader: loader(args.path),
-            resolveDir: '/',
-          };
-        });
+          },
+        );
         builder.onResolve({ filter: /^studio:entry$/ }, () => ({
           path: 'entry',
           namespace: 'studio-entry',
@@ -572,7 +594,10 @@ export async function compileCodePreview(
       ),
       dependencies: [...dependencyNames]
         .sort()
-        .map((name) => ({ name, version: versions.get(name) ?? 'installed' })),
+        .map((name) => ({
+          name,
+          version: versions.get(name) ?? 'installed',
+        })),
       availableDependencies: codePreviewDependencies(),
       modules: [...loaded]
         .filter(

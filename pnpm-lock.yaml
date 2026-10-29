@@ -317,6 +317,9 @@ importers:
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
       three:
         specifier: ^0.186.1
         version: 0.186.1
@@ -381,9 +384,6 @@ importers:
       oidc-provider:
         specifier: 9.13.3
         version: 9.13.3
-      tailwindcss:
-        specifier: ^4.3.3
-        version: 4.3.3
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
