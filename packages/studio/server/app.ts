@@ -1,3 +1,4 @@
+import { uploadedMediaType } from './media-files.ts';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
@@ -163,7 +164,10 @@ export async function createApp(
         if (value.userId === user.id && value.artifactId === artifact.id)
           previews.delete(key);
       if (previews.size >= 40)
-        throw new HttpError(429, 'Too many live previews. Try again shortly.');
+        throw new HttpError(
+          429,
+          'Too many live previews. Try again shortly.',
+        );
       const token = randomBytes(24).toString('base64url');
       previews.set(token, {
         userId: user.id,
@@ -224,7 +228,11 @@ export async function createApp(
     store.role(req.params.id, user.id, 'admin');
     const b = parse(
       z
-        .object({ title, description: z.string().max(4000), repository: repo })
+        .object({
+          title,
+          description: z.string().max(4000),
+          repository: repo,
+        })
         .strict(),
       req.body,
     );
@@ -445,10 +453,19 @@ export async function createApp(
     let result;
     if (a.kind === 'design' || a.kind === 'document') {
       if (b.title && b.title !== a.title)
-        throw new HttpError(400, 'Use the title endpoint to rename a document');
+        throw new HttpError(
+          400,
+          'Use the title endpoint to rename a document',
+        );
       result = collab.replace(a.id, user, b.content, b.version);
     } else
-      result = store.updateArtifact(user, a.id, b.version, b.content, b.title);
+      result = store.updateArtifact(
+        user,
+        a.id,
+        b.version,
+        b.content,
+        b.title,
+      );
     collab.notify(a.projectId, a.id);
     return result;
   });
@@ -480,7 +497,10 @@ export async function createApp(
           a.projectId,
         ).main_artifact_id === a.id
       )
-        throw new HttpError(409, 'The main design document cannot be archived');
+        throw new HttpError(
+          409,
+          'The main design document cannot be archived',
+        );
       store.exec('UPDATE artifacts SET archived=1 WHERE id=?', a.id);
       store.audit(a.projectId, a.id, u.name, 'artifact.archived');
       collab.notify(a.projectId, a.id);
@@ -609,7 +629,10 @@ export async function createApp(
         a = store.artifact(req.params.id, u.id, 'write'),
         b = parse(
           z
-            .object({ threadId: id, body: z.string().trim().min(1).max(20000) })
+            .object({
+              threadId: id,
+              body: z.string().trim().min(1).max(20000),
+            })
             .strict(),
           req.body,
         );
@@ -782,7 +805,9 @@ export async function createApp(
         );
       const authenticated =
         settings.githubToken &&
-        settings.githubRepositories?.includes(`${m[1]}/${m[2]}`.toLowerCase());
+        settings.githubRepositories?.includes(
+          `${m[1]}/${m[2]}`.toLowerCase(),
+        );
       const response = await fetch(
         `https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,
         {
@@ -838,26 +863,7 @@ export async function createApp(
       if (!part) throw new HttpError(400, 'Choose a file');
       const bytes = await part.toBuffer();
       store.artifact(a.id, u.id, 'write');
-      let mime = '';
-      if (
-        bytes
-          .subarray(0, 8)
-          .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-      )
-        mime = 'image/png';
-      else if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255)
-        mime = 'image/jpeg';
-      else if (
-        bytes.toString('ascii', 0, 4) === 'RIFF' &&
-        bytes.toString('ascii', 8, 12) === 'WEBP'
-      )
-        mime = 'image/webp';
-      else if (bytes.toString('ascii', 0, 4) === 'wOF2') mime = 'font/woff2';
-      if (!mime)
-        throw new HttpError(
-          400,
-          'Supported uploads: PNG, JPEG, WebP, and WOFF2',
-        );
+      const mime = uploadedMediaType(bytes, part.filename, part.mimetype);
       if (
         store.one(
           'SELECT coalesce(sum(length(bytes)),0) AS n FROM files WHERE project_id=?',
@@ -891,20 +897,28 @@ export async function createApp(
       );
       return reply
         .code(201)
-        .send({ id: fid, url: `/api/files/${fid}`, mime, sha256: hash(bytes) });
+        .send({
+          id: fid,
+          url: `/api/files/${fid}`,
+          mime,
+          sha256: hash(bytes),
+        });
     },
   );
-  app.get<{ Params: { id: string } }>('/api/files/:id', async (req, reply) => {
-    const u = auth.user(req),
-      file = store.one('SELECT * FROM files WHERE id=?', req.params.id);
-    if (!file) throw new HttpError(404, 'File not found');
-    store.role(file.project_id, u.id);
-    return reply
-      .type(file.mime)
-      .header('Content-Disposition', 'inline; filename="asset"')
-      .header('X-Content-Type-Options', 'nosniff')
-      .send(Buffer.from(file.bytes));
-  });
+  app.get<{ Params: { id: string } }>(
+    '/api/files/:id',
+    async (req, reply) => {
+      const u = auth.user(req),
+        file = store.one('SELECT * FROM files WHERE id=?', req.params.id);
+      if (!file) throw new HttpError(404, 'File not found');
+      store.role(file.project_id, u.id);
+      return reply
+        .type(file.mime)
+        .header('Content-Disposition', 'inline; filename="asset"')
+        .header('X-Content-Type-Options', 'nosniff')
+        .send(Buffer.from(file.bytes));
+    },
+  );
   app.get<{ Params: { id: string } }>(
     '/api/artifacts/:id/export',
     async (req, reply) => {
@@ -957,8 +971,9 @@ export async function createApp(
     '/api/artifacts/:id/compile',
     async (req) => runner.compile(auth.user(req), req.params.id),
   );
-  app.get<{ Params: { id: string } }>('/api/artifacts/:id/plans', async (req) =>
-    runner.plans(auth.user(req), req.params.id),
+  app.get<{ Params: { id: string } }>(
+    '/api/artifacts/:id/plans',
+    async (req) => runner.plans(auth.user(req), req.params.id),
   );
   app.post<{ Params: { id: string } }>(
     '/api/artifacts/:id/review',

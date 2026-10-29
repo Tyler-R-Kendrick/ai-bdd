@@ -1,5 +1,21 @@
 import { z } from 'zod';
 import {
+  layerAppearanceSchema,
+  fontDesignSchema,
+  type LayerAppearance,
+} from './visual-design.ts';
+import {
+  cadFeatureSchema,
+  sceneImportSchema,
+  sceneEnvironmentSchema,
+} from './cad-domain.ts';
+import {
+  documentBlockSchemas,
+  isDocumentBlockKind,
+  documentBlockText,
+} from './document-blocks.ts';
+import { videoContentSchema } from './video.ts';
+import {
   richVisualSchemas,
   richVisualText,
   type RichVisualKind,
@@ -95,7 +111,13 @@ export type Run = {
   id: string;
   artifactId: string;
   artifactVersion: number;
-  status: 'queued' | 'running' | 'passed' | 'failed' | 'error' | 'interrupted';
+  status:
+    | 'queued'
+    | 'running'
+    | 'passed'
+    | 'failed'
+    | 'error'
+    | 'interrupted';
   result: Record<string, any> | null;
   error: string | null;
   createdAt: string;
@@ -111,7 +133,7 @@ export type AuditEntry = {
 };
 export type Layer = {
   id: string;
-  type: 'rect' | 'ellipse' | 'text' | 'image';
+  type: 'rect' | 'ellipse' | 'text' | 'image' | 'path';
   x: number;
   y: number;
   width: number;
@@ -125,7 +147,7 @@ export type Layer = {
   rotation: number;
   src?: string;
   fontUrl?: string;
-};
+} & LayerAppearance;
 export type Solid = {
   id: string;
   shape: 'box' | 'sphere' | 'cylinder';
@@ -134,6 +156,10 @@ export type Solid = {
   dimensions: [number, number, number];
   color: string;
   operation?: 'union' | 'subtract' | 'intersect';
+  name?: string;
+  visible?: boolean;
+  roughness?: number;
+  metalness?: number;
 };
 const nodeSchema: z.ZodType<RichNode> = z.lazy(
   () =>
@@ -163,6 +189,11 @@ const nodeSchema: z.ZodType<RichNode> = z.lazy(
           'chartBlock',
           'diagramBlock',
           'tabsBlock',
+          'calloutBlock',
+          'columnsBlock',
+          'questionnaireBlock',
+          'artifactReferenceBlock',
+          'evidenceBlock',
         ]),
         text: z.string().max(200000).optional(),
         attrs: z.record(z.string().max(80), z.json()).optional(),
@@ -188,6 +219,18 @@ const nodeSchema: z.ZodType<RichNode> = z.lazy(
       })
       .strict()
       .superRefine((node, context) => {
+        if (isDocumentBlockKind(node.type)) {
+          const result = documentBlockSchemas[node.type].safeParse(
+            node.attrs?.data,
+          );
+          if (!result.success)
+            for (const issue of result.error.issues)
+              context.addIssue({
+                code: 'custom',
+                path: ['attrs', 'data', ...issue.path],
+                message: issue.message,
+              });
+        }
         if (['chartBlock', 'diagramBlock', 'tabsBlock'].includes(node.type)) {
           const parsed = richVisualSchemas[
             node.type as RichVisualKind
@@ -207,7 +250,7 @@ const localFile = z.string().regex(/^\/api\/files\/[0-9a-f-]{36}$/);
 export const layerSchema = z
   .object({
     id: z.string().uuid(),
-    type: z.enum(['rect', 'ellipse', 'text', 'image']),
+    type: z.enum(['rect', 'ellipse', 'text', 'image', 'path']),
     x: finite,
     y: finite,
     width: finite.min(1),
@@ -215,14 +258,25 @@ export const layerSchema = z
     fill: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     text: z.string().max(10000),
     fontSize: finite.min(1).max(500),
-    fontFamily: z.enum(['Inter', 'Georgia', 'monospace', 'Custom']),
+    fontFamily: z.enum([
+      'Inter',
+      'Georgia',
+      'monospace',
+      'Custom',
+      'Generated',
+    ]),
     start: finite.min(0),
     duration: finite.min(0.1).max(600),
     rotation: finite,
     src: localFile.optional(),
     fontUrl: localFile.optional(),
+    ...layerAppearanceSchema.shape,
   })
   .strict()
+  .refine(
+    (l) => (l.type !== 'path' && l.mask !== 'path') || !!l.path,
+    'Vector paths and path masks require bounded path geometry',
+  )
   .refine(
     (l) => l.type !== 'image' || !!l.src,
     'Image layers require an uploaded image',
@@ -238,9 +292,17 @@ export const solidSchema = z
     shape: z.enum(['box', 'sphere', 'cylinder']),
     position: vec,
     rotation: vec,
-    dimensions: z.tuple([finite.min(0.01), finite.min(0.01), finite.min(0.01)]),
+    dimensions: z.tuple([
+      finite.min(0.01),
+      finite.min(0.01),
+      finite.min(0.01),
+    ]),
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     operation: z.enum(['union', 'subtract', 'intersect']).optional(),
+    name: z.string().max(120).optional(),
+    visible: z.boolean().optional(),
+    roughness: z.number().min(0).max(1).optional(),
+    metalness: z.number().min(0).max(1).optional(),
   })
   .strict();
 export function contentSchema(kind: ArtifactKind) {
@@ -270,13 +332,15 @@ export function contentSchema(kind: ArtifactKind) {
         entry: z.string().max(200),
       })
       .strict();
-  if (kind === 'image' || kind === 'brand' || kind === 'video')
+  if (kind === 'video') return videoContentSchema;
+  if (kind === 'image' || kind === 'brand')
     return z
       .object({
         width: finite.min(64).max(4096),
         height: finite.min(64).max(4096),
         background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
         layers: z.array(layerSchema).max(200),
+        fontDesign: fontDesignSchema.optional(),
         duration: z.number().min(1).max(600),
       })
       .strict();
@@ -286,6 +350,9 @@ export function contentSchema(kind: ArtifactKind) {
         solids: z.array(solidSchema).max(200),
         unit: z.enum(['m', 'mm']),
         grid: z.boolean(),
+        features: z.array(cadFeatureSchema).max(40).optional(),
+        imports: z.array(sceneImportSchema).max(30).optional(),
+        environment: sceneEnvironmentSchema.optional(),
       })
       .strict();
   return z
@@ -306,7 +373,8 @@ export function validateContent(
   let maxDepth = 0;
   // Bound nesting before recursive parsing. Quotes and escaped braces are excluded by JSON tokenization.
   for (const token of serialized.match(/"(?:\\.|[^"\\])*"|[[\]{}]/g) ?? []) {
-    if (token === '{' || token === '[') maxDepth = Math.max(maxDepth, ++depth);
+    if (token === '{' || token === '[')
+      maxDepth = Math.max(maxDepth, ++depth);
     if (token === '}' || token === ']') depth--;
   }
   if (maxDepth > 40) throw new Error('Artifact exceeds the nesting limit');
@@ -351,7 +419,10 @@ export function initialContent(
           ),
           {
             type: 'testBlock',
-            attrs: { label: 'Artifact context stays together', scenarioId: '' },
+            attrs: {
+              label: 'Artifact context stays together',
+              scenarioId: '',
+            },
           },
           {
             type: 'heading',
@@ -452,6 +523,8 @@ export function initialContent(
 }
 export function docText(node: RichNode): string {
   if (node.text) return node.text;
+  if (isDocumentBlockKind(node.type))
+    return documentBlockText(node.type, node.attrs?.data);
   if (['chartBlock', 'diagramBlock', 'tabsBlock'].includes(node.type))
     return richVisualText(node.type as RichVisualKind, node.attrs?.data);
   const children = (node.content ?? [])

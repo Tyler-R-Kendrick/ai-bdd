@@ -57,7 +57,9 @@ export class Store {
     let schemaVersion: number;
     try {
       schemaVersion = (
-        this.db.prepare('PRAGMA user_version').get() as { user_version: number }
+        this.db.prepare('PRAGMA user_version').get() as {
+          user_version: number;
+        }
       ).user_version;
     } catch (cause) {
       this.db.close();
@@ -141,7 +143,10 @@ export class Store {
     this.db.close();
   }
   publicUser(id: string): User {
-    const u = this.one('SELECT id,email,name,color FROM users WHERE id=?', id);
+    const u = this.one(
+      'SELECT id,email,name,color FROM users WHERE id=?',
+      id,
+    );
     if (!u) throw new HttpError(401, 'Sign in to continue');
     return u;
   }
@@ -181,7 +186,10 @@ export class Store {
     )?.role as Role | undefined;
     if (!r) throw new HttpError(404, 'Project not found');
     if (!capability(r, action))
-      throw new HttpError(403, 'Your project role does not allow this action');
+      throw new HttpError(
+        403,
+        'Your project role does not allow this action',
+      );
     return r;
   }
   artifact(
@@ -189,7 +197,10 @@ export class Store {
     userId: string,
     action: 'read' | 'write' | 'admin' = 'read',
   ): Artifact {
-    const a = this.one(`SELECT ${artifactCols} FROM artifacts WHERE id=?`, id);
+    const a = this.one(
+      `SELECT ${artifactCols} FROM artifacts WHERE id=?`,
+      id,
+    );
     if (!a) throw new HttpError(404, 'Artifact not found');
     this.role(a.projectId, userId, action);
     if (a.archived && action !== 'read')
@@ -243,7 +254,10 @@ export class Store {
       throw new HttpError(400, (e as Error).message);
     }
     const file = (url: unknown, mime: string) => {
-      if (typeof url !== 'string' || !/^\/api\/files\/[0-9a-f-]{36}$/.test(url))
+      if (
+        typeof url !== 'string' ||
+        !/^\/api\/files\/[0-9a-f-]{36}$/.test(url)
+      )
         throw new HttpError(
           400,
           'Media must reference an uploaded project file',
@@ -255,8 +269,9 @@ export class Store {
       );
       if (
         !asset ||
-        !(mime === 'image'
-          ? asset.mime.startsWith('image/')
+        !(['image', 'audio', 'video'].includes(mime)
+          ? asset.mime.startsWith(mime + '/') ||
+            (mime === 'audio' && asset.mime === 'video/webm')
           : asset.mime === mime)
       )
         throw new HttpError(
@@ -265,13 +280,63 @@ export class Store {
         );
     };
     if (kind === 'image' || kind === 'brand' || kind === 'video')
-      for (const layer of parsed.layers) {
+      for (const layer of parsed.layers ?? []) {
         if (layer.type === 'image') file(layer.src, 'image');
         if (layer.fontUrl) file(layer.fontUrl, 'font/woff2');
+        if (layer.fontFamily === 'Generated' && !parsed.fontDesign)
+          throw new HttpError(
+            400,
+            'Generated font layers require an editable font design',
+          );
+      }
+    if (kind === 'video')
+      for (const clip of parsed.clips ?? []) {
+        if (['image', 'audio', 'video'].includes(clip.type))
+          file(clip.src, clip.type);
+        if (clip.fontUrl) file(clip.fontUrl, 'font/woff2');
+      }
+    if (kind === 'scene' || kind === 'cad')
+      for (const asset of parsed.imports ?? []) {
+        if (asset.format === 'step' && kind !== 'cad')
+          throw new HttpError(400, 'STEP files require the exact CAD editor');
+        file(
+          asset.src,
+          (
+            {
+              glb: 'model/gltf-binary',
+              stl: 'model/stl',
+              step: 'model/step',
+            } as Record<string, string>
+          )[asset.format]!,
+        );
       }
     if (kind === 'design' || kind === 'document') {
       const walk = (node: any) => {
         if (node.type === 'image') file(node.attrs?.src, 'image');
+        if (
+          node.type === 'artifactReferenceBlock' &&
+          node.attrs?.data?.artifactId !==
+            '00000000-0000-4000-8000-000000000000' &&
+          !this.one(
+            'SELECT id FROM artifacts WHERE id=? AND project_id=?',
+            node.attrs?.data?.artifactId,
+            projectId,
+          )
+        )
+          throw new HttpError(
+            400,
+            'Document references must stay within their project',
+          );
+        if (
+          node.type === 'evidenceBlock' &&
+          node.attrs?.data?.runId &&
+          !this.one(
+            'SELECT r.id FROM runs r JOIN artifacts a ON a.id=r.artifact_id WHERE r.id=? AND a.project_id=?',
+            node.attrs.data.runId,
+            projectId,
+          )
+        )
+          throw new HttpError(400, 'Evidence must belong to this project');
         for (const mark of node.marks ?? [])
           if (
             mark.type === 'link' &&
@@ -313,7 +378,12 @@ export class Store {
         mainId,
         now(),
       );
-      this.exec('INSERT INTO memberships VALUES(?,?,?)', id, user.id, 'owner');
+      this.exec(
+        'INSERT INTO memberships VALUES(?,?,?)',
+        id,
+        user.id,
+        'owner',
+      );
       this.insertArtifact(user, id, 'design', title + ' — design', mainId);
       this.audit(id, null, user.name, 'project.created', title);
       return this.projects(user.id).find((p) => p.id === id);
@@ -398,7 +468,9 @@ export class Store {
     title?: string,
   ): Artifact {
     const a = this.artifact(id, user.id, 'write');
-    const c = JSON.stringify(this.checkedContent(a.kind, content, a.projectId));
+    const c = JSON.stringify(
+      this.checkedContent(a.kind, content, a.projectId),
+    );
     return this.tx(() => {
       const t = now();
       const r = this.exec(
@@ -422,7 +494,11 @@ export class Store {
         user.name,
         t,
       );
-      this.exec('UPDATE projects SET updated_at=? WHERE id=?', t, a.projectId);
+      this.exec(
+        'UPDATE projects SET updated_at=? WHERE id=?',
+        t,
+        a.projectId,
+      );
       this.audit(
         a.projectId,
         id,
@@ -443,12 +519,14 @@ export class Store {
     id: string,
     state: Uint8Array,
     content: Record<string, any>,
+    onPersist?: () => void,
   ) {
     const a = this.artifact(id, user.id, 'write');
     return this.tx(() => {
       this.exec('UPDATE artifacts SET ystate=? WHERE id=?', state, id);
       if (JSON.stringify(a.content) !== JSON.stringify(content))
         this.updateDocContent(user, a, content);
+      onPersist?.();
     });
   }
   private updateDocContent(
@@ -456,7 +534,9 @@ export class Store {
     a: Artifact,
     content: Record<string, any>,
   ) {
-    const c = JSON.stringify(this.checkedContent(a.kind, content, a.projectId)),
+    const c = JSON.stringify(
+        this.checkedContent(a.kind, content, a.projectId),
+      ),
       t = now();
     this.exec(
       'UPDATE artifacts SET content=?,version=version+1,updated_at=? WHERE id=?',
@@ -526,7 +606,10 @@ export class Store {
         threadId,
       );
       if (!cursor)
-        throw new HttpError(404, 'Message cursor not found in this discussion');
+        throw new HttpError(
+          404,
+          'Message cursor not found in this discussion',
+        );
       before = cursor.sequence;
     }
     const rows = this.all(
@@ -538,7 +621,11 @@ export class Store {
     );
     const hasMore = rows.length > limit;
     const messages = rows.slice(0, limit).reverse().map(readMessage);
-    return { messages, hasMore, nextCursor: hasMore ? messages[0]!.id : null };
+    return {
+      messages,
+      hasMore,
+      nextCursor: hasMore ? messages[0]!.id : null,
+    };
   }
   exportBounds(artifactId: string): Record<ExportTable, number> {
     return Object.fromEntries(
