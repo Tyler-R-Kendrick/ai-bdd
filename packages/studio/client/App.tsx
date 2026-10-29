@@ -1,3 +1,4 @@
+import RepositoryIdentity from './components/RepositoryIdentity.tsx';
 import {
   lazy,
   Suspense,
@@ -1021,6 +1022,14 @@ export function App() {
         onOpenChange={setSettings}
         title="Workspace settings"
       >
+        <div className="settings-section">
+          <RepositoryIdentity
+            onChanged={() => {
+              void refreshProjects().catch((error) => report(error.message));
+            }}
+            onError={report}
+          />
+        </div>
         {project?.role === 'owner' && (
           <form
             onSubmit={async (e) => {
@@ -1075,6 +1084,7 @@ export function App() {
             operator. Preview remains available without them.
           </p>
           <Button
+            disabled={!project}
             variant="outline"
             onClick={() => {
               setSettings(false);
