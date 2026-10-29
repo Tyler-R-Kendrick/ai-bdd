@@ -12,3 +12,9 @@ packages/testing/.quickstart/
 *.received.*
 .stryker-tmp/
 reports/
+.studio/
+.studio.env
+work/
+packages/studio/verification/proofs/
+packages/studio/pacts/
+packages/studio/logs/
