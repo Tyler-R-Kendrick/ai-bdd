@@ -1,0 +1,187 @@
+.rich-visual-block {
+  margin: 24px 0;
+  padding: 17px 19px 13px;
+  border: 1px solid #e1e4dc;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rich-visual-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4e5855;
+}
+.rich-visual-heading strong {
+  flex: 1;
+  color: #30372e;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rich-visual-heading > button {
+  flex-shrink: 0;
+}
+.rich-visual-description {
+  margin: 9px 0 13px !important;
+  font-size: 11px !important;
+  color: #687164;
+  line-height: 1.6;
+}
+.rich-chart svg,
+.rich-diagram svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 12px 0 0;
+  overflow: visible;
+}
+.rich-diagram-scroll {
+  overflow-x: auto;
+}
+.rich-diagram-scroll svg {
+  min-width: 640px;
+}
+.rich-chart svg {
+  min-width: 280px;
+}
+.rich-chart {
+  overflow-x: auto;
+}
+.rich-chart-tick {
+  font-family: inherit;
+  font-size: 10px;
+  fill: #65705f;
+}
+.rich-chart-point,
+.rich-diagram-node {
+  cursor: pointer;
+}
+.rich-chart-point:focus-visible rect,
+.rich-chart-point:focus-visible circle,
+.rich-diagram-node:focus-visible rect {
+  stroke: #303a2a;
+  stroke-width: 3;
+  outline: none;
+}
+.rich-chart-readout {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 25px;
+  margin-top: 5px;
+  color: #687164;
+  font-size: 10px;
+}
+.rich-chart-readout strong {
+  color: #475140;
+  font-weight: 500;
+}
+.rich-data-table {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #596651;
+}
+.rich-data-table summary {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rich-data-table table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.rich-data-table th,
+.rich-data-table td {
+  padding: 6px 8px;
+  border: 1px solid #e2e5dd;
+  text-align: left;
+}
+.rich-data-table td:last-child,
+.rich-data-table th:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rich-diagram-edge {
+  font-family: inherit;
+  font-size: 11px;
+  fill: #6a7463;
+  stroke: #fff;
+  stroke-width: 4;
+  paint-order: stroke;
+}
+.rich-diagram-label {
+  font-family: inherit;
+  font-size: 12px;
+  fill: #414d39;
+}
+.rich-tabs [role='tablist'] {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin: 15px 0 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e0e4d9;
+}
+.rich-tabs [role='tab'] {
+  padding: 7px 10px;
+  border-radius: 4px;
+  color: #66725c;
+  font-size: 11px;
+}
+.rich-tabs [role='tab'][aria-selected='true'] {
+  color: #515aa2;
+  background: #eff0f8;
+  font-weight: 500;
+}
+.rich-tabs [role='tab']:focus-visible {
+  outline: 2px solid #6b73d1;
+  outline-offset: 2px;
+}
+.rich-tabs [role='tabpanel'] {
+  min-height: 95px;
+  padding: 12px 1px 2px;
+  color: #4d5945;
+}
+.rich-tabs [role='tabpanel'] p {
+  font-size: 12px !important;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  margin: 0 0 12px !important;
+}
+.rich-source-editor {
+  min-height: 340px;
+  max-height: 55vh;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  tab-size: 2;
+}
+.rich-block-error {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #9b4034;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+}
+@media (max-width: 600px) {
+  .rich-visual-block {
+    padding: 13px 11px;
+  }
+  .rich-visual-heading {
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .rich-visual-heading strong {
+    font-size: 12px;
+  }
+  .rich-chart-tick {
+    font-size: 11px;
+  }
+  .rich-visual-block .badge {
+    display: none;
+  }
+}

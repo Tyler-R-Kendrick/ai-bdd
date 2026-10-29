@@ -1,5 +1,11 @@
 # ai-bdd
 
+Studio adds an artifact-centered team workspace over the testing engine: a shared design document, dedicated artifact chats and ADRs, inline acceptance criteria, and code, image, video, 3D/CAD, brand, and generated-UI canvases.
+
+Build with `pnpm build`, then run `pnpm --filter @ai-bdd/studio start` and open `http://127.0.0.1:8787`. The first local visit creates an owner account. The workspace remains usable without model or integration credentials; those capabilities report their configuration state. Development uses `pnpm --filter @ai-bdd/studio dev` and `pnpm --filter @ai-bdd/studio dev:ui` in separate terminals.
+
+See the [service contract](docs/studio-api.md) and [visual system](DESIGN.md). The implementation is a bounded application scope; it does not establish complete feature parity with the reference products or certify a deployment's live integrations.
+
 Turn plain markdown (requirements, READMEs, design docs, runbooks) into executable acceptance tests.
 
 You write prose. `ai-bdd` extracts features, user stories and Given/When/Then scenarios from it, binds every one to the exact paragraphs and quotes it came from, and runs them against your app. The first run of a scenario uses an AI agent and an AI judge. Everything that proves deterministic is recorded, and later runs replay it with **zero model calls**. What cannot be made deterministic stays AI-driven and is labelled `fuzzy`, with the reason.

@@ -1,0 +1,47 @@
+name: studio-ui
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  artifact-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DO_NOT_TRACK: '1'
+      SCARF_NO_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install Chromium for both runner and UI checks
+        run: pnpm --filter @ai-bdd/studio exec playwright install --with-deps chromium
+      - name: Artifact API, collaboration, renderer, media, and Pact checks
+        run: pnpm --filter @ai-bdd/studio test
+      - name: Real browser workflows and review captures
+        run: pnpm --filter @ai-bdd/studio test:e2e
+      - name: Preserve review screenshots and failure traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-ui-evidence
+          path: |
+            work/review
+            packages/studio/test-results
+            packages/studio/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,320 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T21:28:12Z",
+  "title": "Design System: ai-bdd Studio",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Charcoal action"
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Purple focus"
+      },
+      "purple-text": {
+        "role": "primary",
+        "displayName": "Readable purple text"
+      },
+      "selected-surface": {
+        "role": "primary",
+        "displayName": "Artifact selection surface"
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Application ground"
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Navigation ground"
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Document working ground"
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper and artboard"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Primary text"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted supporting text"
+      },
+      "secondary-text": {
+        "role": "neutral",
+        "displayName": "Green-gray supporting text"
+      }
+    },
+    "typographyMeta": {
+      "document-heading": {
+        "displayName": "Document heading",
+        "purpose": "Main document title; reduces to 25px below 600px."
+      },
+      "document-subheading": {
+        "displayName": "Document subheading",
+        "purpose": "Sections inside the reading surface."
+      },
+      "artifact-title": {
+        "displayName": "Artifact title",
+        "purpose": "Compact shell title; reduces to 17px below 900px."
+      },
+      "document-body": {
+        "displayName": "Document prose",
+        "purpose": "Spacious reading within the central paper."
+      },
+      "interface": {
+        "displayName": "Compact interface",
+        "purpose": "Navigation and panel headings."
+      },
+      "label": {
+        "displayName": "Metadata label",
+        "purpose": "Compact supporting shell states and badges."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Inline code and preformatted evidence; source editor is Monaco."
+      }
+    },
+    "shadows": [
+      {
+        "name": "document-paper",
+        "value": "0 2px 5px #23341905",
+        "purpose": "Desktop paper; removed below 600px."
+      },
+      {
+        "name": "visual-artboard",
+        "value": "0 6px 22px #20251b1a",
+        "purpose": "Artboard above dotted working ground."
+      },
+      {
+        "name": "artifact-card",
+        "value": "0 3px 8px #34492008",
+        "purpose": "Project canvas artifact cards."
+      },
+      {
+        "name": "menu",
+        "value": "0 6px 24px #242d201a",
+        "purpose": "Artifact action menu."
+      },
+      {
+        "name": "dialog",
+        "value": "0 24px 80px #11182733",
+        "purpose": "Modal dialog above its scrim."
+      },
+      {
+        "name": "context-overlay",
+        "value": "-12px 0 28px #26311e16",
+        "purpose": "Context overlay; removed below 600px."
+      }
+    ],
+    "motion": [
+      {
+        "name": "sidebar-drawer",
+        "value": "transform 0.2s ease-out",
+        "purpose": "Mobile navigation enters and leaves."
+      },
+      {
+        "name": "disclosure",
+        "value": "transform 0.15s ease-out",
+        "purpose": "Test/scenario disclosure chevrons."
+      },
+      {
+        "name": "loading",
+        "value": "spin 1.4s linear infinite",
+        "purpose": "Loading spinner."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation-duration: 0.01ms; transition-duration: 0.01ms; scroll-behavior: auto",
+        "purpose": "Shared reduced-motion treatment; panel disclosures disable their transition."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sidebar-in-flow",
+        "value": "900px"
+      },
+      {
+        "name": "context-in-flow",
+        "value": "1280px"
+      },
+      {
+        "name": "mobile-paper-and-full-context",
+        "value": "600px"
+      },
+      {
+        "name": "visual-container-compact",
+        "value": "760px"
+      },
+      {
+        "name": "visual-container-hide-layers",
+        "value": "580px"
+      },
+      {
+        "name": "visual-container-stack-properties",
+        "value": "390px"
+      },
+      {
+        "name": "scene-stack-inspector",
+        "value": "520px"
+      },
+      {
+        "name": "code-compact",
+        "value": "700px"
+      },
+      {
+        "name": "generated-hide-catalog",
+        "value": "900px"
+      }
+    ],
+    "layout": {
+      "source": "packages/studio/verification/layout.ts",
+      "sidebarWidth": "232px",
+      "contextWidth": "340px",
+      "topbarHeight": "56px",
+      "documentMaxWidth": "800px",
+      "geometryScope": "Shell allocation over viewport widths 320–4096px; excludes text metrics, browser rendering, WebGL, generated content, and asynchronous behavior."
+    },
+    "states": {
+      "document": [
+        "Live collaboration",
+        "Connecting…",
+        "Reconnecting · changes pending"
+      ],
+      "documentHeader": "No generic Saved label for live design/document artifacts.",
+      "explicitSave": "Save action with Saved / Unsaved changes; conflict and draft recovery remain explicit where implemented.",
+      "mobileNavigation": "Closed drawer is inert. Open drawer makes the workspace inert, moves focus inside, wraps Tab, closes with Escape, and restores toggle focus.",
+      "contextOverlay": "Center content is inert while the context overlay is open.",
+      "evidence": "Retain executed artifact version and out-of-date indication for stale evidence."
+    },
+    "sources": [
+      "packages/studio/client/styles.css",
+      "packages/studio/client/components/ui.tsx",
+      "packages/studio/client/components/panels/DetailPanel.css",
+      "packages/studio/client/editors/visual/editor.css",
+      "packages/studio/client/editors/scene/editor.css",
+      "packages/studio/client/editors/rich/blocks.css",
+      "packages/studio/client/editors/CodeEditor.css",
+      "packages/studio/client/editors/GenerativeEditor.css",
+      "packages/studio/client/App.tsx",
+      "packages/studio/client/editors/DocumentEditor.tsx"
+    ],
+    "identityReferences": [
+      "https://githubnext.com/projects/chopin/",
+      "https://ui.shadcn.com/"
+    ],
+    "verificationBoundary": "Source-grounded design record. Screenshot review confirms captured states only. Capability and deployment limits remain in docs/studio-readiness.md."
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Existing shadcn primary action variant.",
+      "html": "<button class=\"ds-primary\">Save</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;height:2.25rem;padding:.5rem 1rem;border-radius:.375rem;font-family:'Inter Variable',Inter,sans-serif;font-size:.875rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s;border:0;background:var(--primary,#242424);color:var(--primary-foreground,#fff)}.ds-primary:hover{background:color-mix(in oklab,var(--primary,#242424) 90%,transparent)}.ds-primary:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:2px}.ds-primary:disabled{opacity:.5;pointer-events:none}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Existing shadcn secondary action variant.",
+      "html": "<button class=\"ds-secondary\">Cancel</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;height:2.25rem;padding:.5rem 1rem;border-radius:.375rem;font-family:'Inter Variable',Inter,sans-serif;font-size:.875rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s;border:0;background:var(--secondary,#f1f1ef);color:var(--secondary-foreground,#30352f)}.ds-secondary:hover{background:color-mix(in oklab,var(--secondary,#f1f1ef) 80%,transparent)}.ds-secondary:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:2px}.ds-secondary:disabled{opacity:.5;pointer-events:none}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Existing shadcn outline action variant.",
+      "html": "<button class=\"ds-outline\">Export</button>",
+      "css": ".ds-outline{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;height:2.25rem;padding:.5rem 1rem;border-radius:.375rem;font-family:'Inter Variable',Inter,sans-serif;font-size:.875rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s;border:1px solid var(--input,#dddfd9);background:var(--background,#fff);color:var(--foreground,#24292e)}.ds-outline:hover{background:var(--accent,#eceeea)}.ds-outline:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:2px}.ds-outline:disabled{opacity:.5;pointer-events:none}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Existing shadcn ghost action variant.",
+      "html": "<button class=\"ds-ghost\">Details</button>",
+      "css": ".ds-ghost{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;height:2.25rem;padding:.5rem 1rem;border-radius:.375rem;font-family:'Inter Variable',Inter,sans-serif;font-size:.875rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s;border:0;background:transparent;color:var(--foreground,#24292e)}.ds-ghost:hover{background:var(--accent,#eceeea)}.ds-ghost:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:2px}.ds-ghost:disabled{opacity:.5;pointer-events:none}"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Existing shadcn destructive action variant.",
+      "html": "<button class=\"ds-destructive\">Delete</button>",
+      "css": ".ds-destructive{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;height:2.25rem;padding:.5rem 1rem;border-radius:.375rem;font-family:'Inter Variable',Inter,sans-serif;font-size:.875rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s;border:0;background:var(--destructive,#b83838);color:#fff}.ds-destructive:hover{background:color-mix(in oklab,var(--destructive,#b83838) 90%,transparent)}.ds-destructive:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:2px}.ds-destructive:disabled{opacity:.5;pointer-events:none}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "White field with quiet border and visible focus.",
+      "html": "<label class=\"ds-field\">Artifact title<input class=\"ds-input\" placeholder=\"Add a title\" /></label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:7px;font:500 12px 'Inter Variable',Inter,sans-serif;color:var(--foreground,#24292e)}.ds-input{height:2.25rem;padding:.5rem .75rem;border:1px solid var(--input,#dddfd9);border-radius:.375rem;background:var(--background,#fff);color:var(--foreground,#24292e);font:400 .875rem 'Inter Variable',Inter,sans-serif;box-shadow:0 1px 2px #0000000d;outline:none}.ds-input::placeholder{color:var(--muted,#687068);opacity:1}.ds-input:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:0}.ds-input:disabled{opacity:.5}"
+    },
+    {
+      "name": "Artifact Navigation",
+      "kind": "nav",
+      "refersTo": "artifact-navigation-selected",
+      "description": "Selected artifact row in persistent or overlay navigation.",
+      "html": "<nav aria-label=\"Artifacts\"><button class=\"ds-artifact\" aria-current=\"page\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M8 13h8M8 17h6\"/></svg><span>Main design document</span></button></nav>",
+      "css": ".ds-artifact{display:flex;align-items:center;gap:9px;width:100%;min-width:0;padding:9px 10px;border:0;border-radius:5px;background:#e8eaf5;color:#5059a4;font:400 12px 'Inter Variable',Inter,sans-serif;text-align:left;cursor:pointer}.ds-artifact span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-artifact:hover{background:#e8eaf5}.ds-artifact:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:3px}"
+    },
+    {
+      "name": "Purple Badge",
+      "kind": "chip",
+      "refersTo": "badge-purple",
+      "description": "Noninteractive semantic label with darker purple text.",
+      "html": "<span class=\"ds-badge\">Main artifact</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:3px 7px;border-radius:4px;background:#ececf9;color:#555ca8;font:550 10px/1.2 'Inter Variable',Inter,sans-serif;white-space:nowrap}"
+    },
+    {
+      "name": "Artifact Card",
+      "kind": "card",
+      "refersTo": "artifact-card",
+      "description": "Project canvas node linking to an artifact.",
+      "html": "<button class=\"ds-card\"><span>Design document</span><strong>Living specification</strong><p>Intent, implementation, and evidence.</p></button>",
+      "css": ".ds-card{display:block;width:260px;min-height:146px;padding:20px;text-align:left;background:var(--background,#fff);color:var(--foreground,#24292e);border:1px solid #dce1d1;border-radius:8px;box-shadow:0 3px 8px #34492008;font-family:'Inter Variable',Inter,sans-serif;cursor:pointer}.ds-card>span{display:block;font-size:10px;color:#626f56;margin-bottom:16px}.ds-card strong{display:block;font-size:14px;font-weight:550;line-height:1.5;overflow-wrap:anywhere}.ds-card p{font-size:10px;line-height:1.6;color:#626f56;margin:8px 0 0}.ds-card:focus-visible{outline:2px solid var(--ring,#6b73d1);outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The artifact leads.",
+    "overview": "An operating workspace with a reading surface inside it. Persistent project navigation, a central artifact canvas, and artifact-specific discussion and evidence keep the work prominent. Self-hosted Inter, white paper, pale green-gray grounds, and restrained purple preserve the identity authorized through the user’s references.",
+    "keyCharacteristics": [
+      "Compact neutral chrome",
+      "White authored surfaces",
+      "Restrained purple selection and focus",
+      "Explicit collaboration, draft, conflict, and evidence states"
+    ],
+    "rules": [
+      {
+        "name": "The readable accent rule",
+        "body": "Keep focus purple and darker purple text in separate roles. Use the implemented muted and green-gray supporting text colors.",
+        "section": "colors"
+      },
+      {
+        "name": "The bounded geometry rule",
+        "body": "The exact interval checker covers shell allocation at widths 320–4096px, not browser text layout, WebGL, generated content, or asynchronous behavior.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do let the artifact lead.",
+      "Do preserve the darker supporting and purple text roles.",
+      "Do distinguish live document connection from explicit saving.",
+      "Do retain evidence version and stale-state labels.",
+      "Do preserve keyboard focus, labeled icons, inert overlays, local scrolling, and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don’t use focus purple as a substitute for darker purple text.",
+      "Don’t add a generic saved-success claim to the live document header.",
+      "Don’t claim whole-product readiness or complete parity from source, captured screenshots, or the scoped geometry proof."
+    ]
+  }
+}
