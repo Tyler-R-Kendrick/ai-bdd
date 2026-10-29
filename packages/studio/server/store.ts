@@ -934,7 +934,7 @@ export class Store {
           artifact.projectId,
         )
       ).n;
-      if (used + input.byteSize > 512 * 1024 * 1024)
+      if (Number(used) + input.byteSize > 512 * 1024 * 1024)
         throw new HttpError(
           413,
           'This project has reached its 512 MB asset quota',

@@ -62,6 +62,11 @@ describe('asynchronous SQL adapter boundaries', () => {
         url: 'postgresql://user:example@db.example.test/database?sslmode=disable',
       }),
     ).toThrow('certificate-verified TLS');
+    expect(() =>
+      postgresPoolConfig({
+        url: 'postgresql://user:example@db.example.test/database?ssl=false',
+      }),
+    ).toThrow('TLS');
     expect(
       postgresPoolConfig({
         url: 'postgresql://studio:example@127.0.0.1/database?sslmode=disable',
@@ -181,6 +186,35 @@ describe.skipIf(!pgURL)('real PostgreSQL cross-instance persistence', () => {
     await expect(second.artifact(artifact.id, user.id)).rejects.toThrow(
       'Project not found',
     );
+  });
+  it('adds PostgreSQL NUMERIC quota aggregates as numbers across large external assets', async () => {
+    const { first } = await pair(),
+      { user, project } = await fixture(first);
+    await first.registerFile(user, project.mainArtifactId, {
+      name: 'large.bin',
+      mime: 'application/octet-stream',
+      sha256: hash('large'),
+      storageKey: 'test/large',
+      byteSize: 100 * 1024 * 1024,
+    });
+    const file = await first.registerFile(user, project.mainArtifactId, {
+      name: 'small.bin',
+      mime: 'application/octet-stream',
+      sha256: hash('small'),
+      storageKey: 'test/small',
+      byteSize: 1024 * 1024,
+    });
+    expect(file.byteSize).toBe(1024 * 1024);
+    expect(
+      Number(
+        (
+          await first.one(
+            'SELECT sum(byte_size) AS n FROM files WHERE project_id=?',
+            project.id,
+          )
+        ).n,
+      ),
+    ).toBe(101 * 1024 * 1024);
   });
   it('merges concurrent durable Yjs states without losing independent edits and fences stale replacements', async () => {
     const { first, second } = await pair(),

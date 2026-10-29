@@ -24,7 +24,13 @@ export function postgresPoolConfig(options: PostgresOptions): PoolConfig {
     throw new Error(
       'Remote PostgreSQL connections require certificate-verified TLS',
     );
-  for (const field of ['sslcert', 'sslkey', 'sslrootcert', 'uselibpqcompat'])
+  for (const field of [
+    'ssl',
+    'sslcert',
+    'sslkey',
+    'sslrootcert',
+    'uselibpqcompat',
+  ])
     if (url.searchParams.has(field))
       throw new Error(
         'Configure PostgreSQL TLS certificates through the TLS adapter options, not connection-string file paths',
