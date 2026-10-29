@@ -191,6 +191,37 @@ describe('actual HTTP GitHub OAuth and per-user repository permissions', () => {
       await h.identity.checkLease(h.users[0]!.id, repository, 'read'),
     ).toBe(true);
   });
+  it('coordinates one rotating refresh grant across independent server instances', async () => {
+    h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
+    await h.connect();
+    await h.store.exec(
+      'UPDATE repository_identities SET access_expires=? WHERE user_id=?',
+      Date.now() - 1,
+      h.users[0]!.id,
+    );
+    const second = new RepositoryIdentity(h.store, h.auth, h.settings);
+    await second.initialize();
+    h.fixture.gateUser(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    await Promise.all([
+      h.identity.assertRepository(h.users[0]!, repository, 'read'),
+      second.assertRepository(h.users[0]!, repository, 'read'),
+    ]);
+    expect(h.fixture.refreshCount).toBe(1);
+    expect(
+      h.fixture.requests.filter(
+        (request) => request.path === '/login/oauth/access_token',
+      ),
+    ).toHaveLength(2);
+    const stored = await h.store.one(
+      'SELECT refresh_owner,version FROM repository_identities WHERE user_id=?',
+      h.users[0]!.id,
+    );
+    expect(stored.refresh_owner).toBeNull();
+    expect(stored.version).toBe(2);
+    expect(await second.checkLease(h.users[0]!.id, repository, 'read')).toBe(
+      true,
+    );
+  });
   it('removes invalid refresh grants and revokes provider tokens without keeping shared-instance leases alive', async () => {
     h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
     await h.connect();

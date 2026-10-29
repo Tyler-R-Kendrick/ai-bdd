@@ -24,7 +24,8 @@ export async function githubFixture() {
     refreshCount = 0,
     revocations = 0,
     repoGate: (() => Promise<void>) | undefined,
-    tokenGate: (() => Promise<void>) | undefined;
+    tokenGate: (() => Promise<void>) | undefined,
+    userGate: (() => Promise<void>) | undefined;
   const json = (res: ServerResponse, status: number, body: unknown) => {
     res.writeHead(status, { 'content-type': 'application/json' });
     res.end(JSON.stringify(body));
@@ -137,7 +138,10 @@ export async function githubFixture() {
         )?.[1],
         grant = access && tokens.get(access);
       if (!grant) return json(res, 401, { error: 'bad_credentials' });
-      if (url.pathname === '/user') return json(res, 200, grant.user);
+      if (url.pathname === '/user') {
+        if (userGate) await userGate();
+        return json(res, 200, grant.user);
+      }
       const match = /^\/repos\/([^/]+\/[^/]+)(.*)$/.exec(url.pathname);
       if (match) {
         const key = match[1]!.toLowerCase(),
@@ -207,6 +211,9 @@ export async function githubFixture() {
       return revocations;
     },
     permissions,
+    gateUser(gate?: () => Promise<void>) {
+      userGate = gate;
+    },
     gateRepository(gate?: () => Promise<void>) {
       repoGate = gate;
     },

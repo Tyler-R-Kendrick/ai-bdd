@@ -7,6 +7,7 @@ import {
 } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { setTimeout as delay } from 'node:timers/promises';
 import { HttpError, hash } from '../store.ts';
 import type { User, Project } from '../../shared/domain.ts';
 import {
@@ -48,6 +49,8 @@ type IdentityRow = {
   refresh_expires: number | string;
   version: number;
   generation: string;
+  refresh_owner: string | null;
+  refresh_until: number | string;
   updated_at: number | string;
 };
 class GithubError extends HttpError {
@@ -182,8 +185,28 @@ export class RepositoryIdentity {
   async initialize() {
     await this.challenges.initialize();
     await this.store.exec(
-      'CREATE TABLE IF NOT EXISTS repository_identities(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,github_id TEXT UNIQUE NOT NULL,login TEXT NOT NULL,access_cipher TEXT NOT NULL,refresh_cipher TEXT,access_expires BIGINT NOT NULL DEFAULT 0,refresh_expires BIGINT NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,generation TEXT NOT NULL,updated_at BIGINT NOT NULL)',
+      'CREATE TABLE IF NOT EXISTS repository_identities(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,github_id TEXT UNIQUE NOT NULL,login TEXT NOT NULL,access_cipher TEXT NOT NULL,refresh_cipher TEXT,access_expires BIGINT NOT NULL DEFAULT 0,refresh_expires BIGINT NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,generation TEXT NOT NULL,refresh_owner TEXT,refresh_until BIGINT NOT NULL DEFAULT 0,updated_at BIGINT NOT NULL)',
     );
+    for (const [name, definition] of [
+      ['refresh_owner', 'TEXT'],
+      ['refresh_until', 'BIGINT NOT NULL DEFAULT 0'],
+    ]) {
+      try {
+        await this.store.one(
+          `SELECT ${name} FROM repository_identities LIMIT 1`,
+        );
+      } catch {
+        try {
+          await this.store.exec(
+            `ALTER TABLE repository_identities ADD COLUMN ${name} ${definition}`,
+          );
+        } catch {
+          await this.store.one(
+            `SELECT ${name} FROM repository_identities LIMIT 1`,
+          );
+        }
+      }
+    }
     await this.store.exec(
       "CREATE TABLE IF NOT EXISTS repository_identity_leases(user_id TEXT NOT NULL REFERENCES repository_identities(user_id) ON DELETE CASCADE,repository TEXT NOT NULL,action TEXT NOT NULL CHECK(action IN ('read','write')),identity_version INTEGER NOT NULL,identity_generation TEXT NOT NULL,expires_at BIGINT NOT NULL,PRIMARY KEY(user_id,repository,action))",
     );
@@ -319,6 +342,57 @@ export class RepositoryIdentity {
     return pending;
   }
   private async refresh(row: IdentityRow): Promise<IdentityRow> {
+    const owner = randomUUID(),
+      now = Date.now(),
+      claimed = await this.store.one(
+        'UPDATE repository_identities SET refresh_owner=?,refresh_until=? WHERE user_id=? AND generation=? AND version=? AND (refresh_owner IS NULL OR refresh_until<=?) RETURNING user_id',
+        owner,
+        now + 35000,
+        row.user_id,
+        row.generation,
+        row.version,
+        now,
+      );
+    if (!claimed) {
+      for (let attempt = 0; attempt < 350; attempt++) {
+        const current = await this.identity(row.user_id);
+        if (!current)
+          throw new HttpError(403, 'Your GitHub connection was revoked');
+        if (
+          current.generation !== row.generation ||
+          Number(current.version) !== Number(row.version)
+        )
+          return current;
+        if (
+          !current.refresh_owner ||
+          Number(current.refresh_until) <= Date.now()
+        )
+          throw new HttpError(
+            503,
+            'GitHub credentials could not be refreshed. Retry the request.',
+          );
+        await delay(100);
+      }
+      throw new HttpError(
+        503,
+        'GitHub credentials are being refreshed. Retry shortly.',
+      );
+    }
+    try {
+      return await this.refreshUnlocked(row, owner);
+    } finally {
+      await this.store.exec(
+        'UPDATE repository_identities SET refresh_owner=NULL,refresh_until=0 WHERE user_id=? AND generation=? AND refresh_owner=?',
+        row.user_id,
+        row.generation,
+        owner,
+      );
+    }
+  }
+  private async refreshUnlocked(
+    row: IdentityRow,
+    owner: string,
+  ): Promise<IdentityRow> {
     const { vault } = this.requireConfigured();
     if (
       !row.refresh_cipher ||
@@ -343,6 +417,11 @@ export class RepositoryIdentity {
           Number(current.version) !== Number(row.version))
       )
         return current;
+      if (current && current.refresh_owner !== owner)
+        throw new HttpError(
+          503,
+          'GitHub credentials are being refreshed. Retry shortly.',
+        );
       if (error instanceof HttpError && error.statusCode === 401)
         await this.revoke(row.user_id, false, row.generation);
       throw error;
@@ -357,7 +436,7 @@ export class RepositoryIdentity {
     }
     const now = Date.now(),
       updated = await this.store.one(
-        'UPDATE repository_identities SET login=?,access_cipher=?,refresh_cipher=?,access_expires=?,refresh_expires=?,version=version+1,updated_at=? WHERE user_id=? AND version=? AND generation=? RETURNING user_id',
+        'UPDATE repository_identities SET login=?,access_cipher=?,refresh_cipher=?,access_expires=?,refresh_expires=?,version=version+1,refresh_owner=NULL,refresh_until=0,updated_at=? WHERE user_id=? AND version=? AND generation=? AND refresh_owner=? RETURNING user_id',
         profile.login,
         vault.seal(tokens.access_token, row.user_id, 'access'),
         tokens.refresh_token
@@ -371,6 +450,7 @@ export class RepositoryIdentity {
         row.user_id,
         row.version,
         row.generation,
+        owner,
       );
     if (updated)
       await this.store.exec(
