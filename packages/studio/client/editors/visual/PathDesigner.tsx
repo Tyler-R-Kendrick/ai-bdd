@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { Check, MousePointer2, PenLine, Plus, Trash2 } from "lucide-react";
-import { Button, Field, Input } from "../../components/ui.tsx";
+import { useEffect, useRef, useState } from 'react';
+import { Check, MousePointer2, PenLine, Plus, Trash2 } from 'lucide-react';
+import { Button, Field, Input } from '../../components/ui.tsx';
 import {
   pathData,
   type DesignPoint,
   type VectorPath,
-} from "../../../shared/visual-design.ts";
+} from '../../../shared/visual-design.ts';
 
 type Props = {
   value: VectorPath;
@@ -19,11 +19,11 @@ export default function PathDesigner({
   value,
   onChange,
   readOnly,
-  fill = "#6b73d1",
-  label = "Vector outline",
+  fill = '#6b73d1',
+  label = 'Vector outline',
   baseline,
 }: Props) {
-  const [tool, setTool] = useState<"select" | "pen">("select"),
+  const [tool, setTool] = useState<'select' | 'pen'>('select'),
     [pending, setPending] = useState<DesignPoint[]>([]),
     [selected, setSelected] = useState<[number, number] | null>(null),
     [dragged, setDragged] = useState<VectorPath | null>(null),
@@ -58,7 +58,7 @@ export default function PathDesigner({
     if (pending.length < 2 || readOnly) return;
     onChange({ ...value, contours: [...value.contours, pending] });
     setPending([]);
-    setTool("select");
+    setTool('select');
   }
   function updatePoint(patch: Partial<DesignPoint>) {
     if (!selected || readOnly) return;
@@ -82,9 +82,9 @@ export default function PathDesigner({
       >
         <Button
           size="sm"
-          variant={tool === "select" ? "secondary" : "ghost"}
+          variant={tool === 'select' ? 'secondary' : 'ghost'}
           onClick={() => {
-            setTool("select");
+            setTool('select');
             setPending([]);
           }}
         >
@@ -93,10 +93,10 @@ export default function PathDesigner({
         </Button>
         <Button
           size="sm"
-          variant={tool === "pen" ? "secondary" : "ghost"}
+          variant={tool === 'pen' ? 'secondary' : 'ghost'}
           disabled={readOnly || value.contours.length >= 64}
           onClick={() => {
-            setTool("pen");
+            setTool('pen');
             setSelected(null);
           }}
         >
@@ -123,13 +123,13 @@ export default function PathDesigner({
       </div>
       <svg
         ref={svg}
-        className={"design-outline-canvas " + (tool === "pen" ? "drawing" : "")}
+        className={'design-outline-canvas ' + (tool === 'pen' ? 'drawing' : '')}
         viewBox={`0 0 ${value.viewWidth} ${value.viewHeight}`}
         aria-label={`${label} point canvas`}
         role="img"
         tabIndex={0}
         onPointerDown={(e) => {
-          if (tool === "pen" && !readOnly) {
+          if (tool === 'pen' && !readOnly) {
             e.preventDefault();
             if (pending.length < 256) setPending((p) => [...p, point(e)]);
           }
@@ -160,33 +160,33 @@ export default function PathDesigner({
           setDragged(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Escape") {
+          if (e.key === 'Escape') {
             setPending([]);
-            setTool("select");
+            setTool('select');
           }
-          if (e.key === "Enter" && tool === "pen") {
+          if (e.key === 'Enter' && tool === 'pen') {
             e.preventDefault();
             finish();
           }
           if (!selectedPoint || readOnly || !selected) return;
           if (
-            ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+            ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
           ) {
             e.preventDefault();
             const delta = e.shiftKey ? 10 : 1;
             updatePoint({
               x:
                 selectedPoint.x +
-                (e.key === "ArrowLeft"
+                (e.key === 'ArrowLeft'
                   ? -delta
-                  : e.key === "ArrowRight"
+                  : e.key === 'ArrowRight'
                     ? delta
                     : 0),
               y:
                 selectedPoint.y +
-                (e.key === "ArrowUp"
+                (e.key === 'ArrowUp'
                   ? -delta
-                  : e.key === "ArrowDown"
+                  : e.key === 'ArrowDown'
                     ? delta
                     : 0),
             });
@@ -198,7 +198,7 @@ export default function PathDesigner({
         </title>
         <defs>
           <pattern
-            id={`point-grid-${label.replace(/\W/g, "")}`}
+            id={`point-grid-${label.replace(/\W/g, '')}`}
             width={value.viewWidth / 10}
             height={value.viewHeight / 10}
             patternUnits="userSpaceOnUse"
@@ -214,7 +214,7 @@ export default function PathDesigner({
         <rect
           width={value.viewWidth}
           height={value.viewHeight}
-          fill={`url(#point-grid-${label.replace(/\W/g, "")})`}
+          fill={`url(#point-grid-${label.replace(/\W/g, '')})`}
         />
         {baseline !== undefined && (
           <line
@@ -228,7 +228,7 @@ export default function PathDesigner({
         )}
         <path
           d={pathData(current)}
-          fill={current.closed ? fill : "none"}
+          fill={current.closed ? fill : 'none'}
           fillRule="nonzero"
           stroke={fill}
           strokeWidth={current.closed ? 0 : value.viewWidth / 80}
@@ -242,17 +242,17 @@ export default function PathDesigner({
               r={value.viewWidth / 130}
               fill={
                 selected?.[0] === ci && selected?.[1] === pi
-                  ? "#555ca8"
+                  ? '#555ca8'
                   : p.onCurve === false
-                    ? "#dfb955"
-                    : "#ffffff"
+                    ? '#dfb955'
+                    : '#ffffff'
               }
               stroke="#555ca8"
               strokeWidth={value.viewWidth / 500}
               className="design-outline-point"
               aria-label={`Contour ${ci + 1} point ${pi + 1}`}
               onPointerDown={(e) => {
-                if (tool === "pen" || readOnly) return;
+                if (tool === 'pen' || readOnly) return;
                 e.preventDefault();
                 e.stopPropagation();
                 setSelected([ci, pi]);
@@ -269,7 +269,7 @@ export default function PathDesigner({
         {pending.length > 0 && (
           <>
             <polyline
-              points={pending.map((p) => `${p.x},${p.y}`).join(" ")}
+              points={pending.map((p) => `${p.x},${p.y}`).join(' ')}
               fill="none"
               stroke="#555ca8"
               strokeWidth={value.viewWidth / 350}
@@ -288,9 +288,9 @@ export default function PathDesigner({
       </svg>
       <div className="design-outline-footer">
         <p>
-          {tool === "pen"
-            ? "Click points, then finish the contour. Enter finishes; Escape cancels."
-            : "Drag a point or use arrow keys. Shift moves ten units. Gold points control a quadratic curve."}
+          {tool === 'pen'
+            ? 'Click points, then finish the contour. Enter finishes; Escape cancels.'
+            : 'Drag a point or use arrow keys. Shift moves ten units. Gold points control a quadratic curve.'}
         </p>
         <Button
           size="sm"

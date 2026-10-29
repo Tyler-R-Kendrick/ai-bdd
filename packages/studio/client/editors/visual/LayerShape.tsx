@@ -1,5 +1,6 @@
-import { pathData, filterCss } from "../../../shared/visual-design.ts";
-import { layerFont, layerLines, type Layer } from "./render.ts";
+import { pathData } from '../../../shared/visual-design.ts';
+import FilterDefinition from './FilterDefinition.tsx';
+import { layerFont, layerLines, type Layer } from './render.ts';
 export default function LayerShape({
   layer,
   measure,
@@ -7,14 +8,24 @@ export default function LayerShape({
   layer: Layer;
   measure: (layer: Layer, text: string) => number;
 }) {
-  const clip = "appearance-" + layer.id,
+  const clip = 'appearance-' + layer.id,
     crop = layer.crop ?? { x: 0, y: 0, width: 1, height: 1 };
   return (
     <>
-      {(layer.mask === "ellipse" || (layer.mask === "path" && layer.path)) && (
+      {(layer.filters ||
+        layer.mask === 'ellipse' ||
+        (layer.mask === 'path' && layer.path)) && (
         <defs>
+          {layer.filters && (
+            <FilterDefinition
+              id={clip + '-filter'}
+              filters={layer.filters}
+              width={layer.width}
+              height={layer.height}
+            />
+          )}
           <clipPath id={clip}>
-            {layer.mask === "ellipse" ? (
+            {layer.mask === 'ellipse' ? (
               <ellipse
                 cx={layer.width / 2}
                 cy={layer.height / 2}
@@ -34,12 +45,12 @@ export default function LayerShape({
       )}
       <g
         opacity={layer.opacity ?? 1}
-        style={{ filter: filterCss(layer.filters) }}
+        filter={layer.filters ? `url(#${clip}-filter)` : undefined}
         clipPath={
-          layer.mask && layer.mask !== "none" ? `url(#${clip})` : undefined
+          layer.mask && layer.mask !== 'none' ? `url(#${clip})` : undefined
         }
       >
-        {layer.type === "image" ? (
+        {layer.type === 'image' ? (
           <svg
             width={layer.width}
             height={layer.height}
@@ -54,7 +65,7 @@ export default function LayerShape({
               preserveAspectRatio="none"
             />
           </svg>
-        ) : layer.type === "path" && layer.path ? (
+        ) : layer.type === 'path' && layer.path ? (
           <svg
             width={layer.width}
             height={layer.height}
@@ -63,12 +74,12 @@ export default function LayerShape({
           >
             <path
               d={pathData(layer.path)}
-              fill={layer.path.closed ? layer.fill : "none"}
+              fill={layer.path.closed ? layer.fill : 'none'}
               stroke={layer.stroke ?? layer.fill}
               strokeWidth={layer.strokeWidth ?? (layer.path.closed ? 0 : 2)}
             />
           </svg>
-        ) : layer.type === "rect" ? (
+        ) : layer.type === 'rect' ? (
           <rect
             width={layer.width}
             height={layer.height}
@@ -76,7 +87,7 @@ export default function LayerShape({
             stroke={layer.stroke ?? layer.fill}
             strokeWidth={layer.strokeWidth ?? 0}
           />
-        ) : layer.type === "ellipse" ? (
+        ) : layer.type === 'ellipse' ? (
           <ellipse
             cx={layer.width / 2}
             cy={layer.height / 2}
@@ -89,7 +100,7 @@ export default function LayerShape({
         ) : (
           <>
             <defs>
-              <clipPath id={"editor-clip-" + layer.id}>
+              <clipPath id={'editor-clip-' + layer.id}>
                 <rect width={layer.width} height={layer.height} />
               </clipPath>
             </defs>
@@ -103,7 +114,7 @@ export default function LayerShape({
               fontSize={layer.fontSize}
               fill={layer.fill}
               clipPath={`url(#editor-clip-${layer.id})`}
-              style={{ userSelect: "none" }}
+              style={{ userSelect: 'none' }}
             >
               {layerLines(layer, (text) => measure(layer, text)).map(
                 (line, index) => (

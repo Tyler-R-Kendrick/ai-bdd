@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -24,16 +24,16 @@ import {
   X,
   PenLine,
   FileJson,
-} from "lucide-react";
-import type { MediaProps } from "../App.tsx";
-import type { Layer } from "./visual/render.ts";
-import { defaultFilters, iconPaths } from "../../shared/visual-design.ts";
-import { createFontDesign } from "./visual/typeface.ts";
-import { removeEdgeColor } from "./visual/raster.ts";
-import LayerShape from "./visual/LayerShape.tsx";
-import PathDesigner from "./visual/PathDesigner.tsx";
-import FontDesigner from "./visual/FontDesigner.tsx";
-import { validateContent } from "../../shared/domain.ts";
+} from 'lucide-react';
+import type { MediaProps } from '../App.tsx';
+import type { Layer } from './visual/render.ts';
+import { defaultFilters, iconPaths } from '../../shared/visual-design.ts';
+import { createFontDesign } from './visual/typeface.ts';
+import { removeEdgeColor } from './visual/raster.ts';
+import LayerShape from './visual/LayerShape.tsx';
+import PathDesigner from './visual/PathDesigner.tsx';
+import FontDesigner from './visual/FontDesigner.tsx';
+import { validateContent } from '../../shared/domain.ts';
 import {
   Badge,
   Button,
@@ -42,8 +42,8 @@ import {
   Input,
   Select,
   Textarea,
-} from "../components/ui.tsx";
-import { api, download } from "../lib.ts";
+} from '../components/ui.tsx';
+import { api, download } from '../lib.ts';
 import {
   clamp,
   drawFrame,
@@ -55,19 +55,19 @@ import {
   timeLabel,
   visibleAt,
   type VisualContent,
-} from "./visual/render.ts";
+} from './visual/render.ts';
 import {
   clearAssetCache,
   imageDimensions,
   loadAssets,
-} from "./visual/assets.ts";
-import fixWebmDuration from "fix-webm-duration";
-import "./visual/editor.css";
+} from './visual/assets.ts';
+import fixWebmDuration from 'fix-webm-duration';
+import './visual/editor.css';
 
 type Gesture = {
   layer: Layer;
   start: { x: number; y: number };
-  type: "move" | "resize";
+  type: 'move' | 'resize';
   pointer: number;
 };
 
@@ -94,8 +94,8 @@ export default function VisualEditor({
   const [layersOpen, setLayersOpen] = useState(true);
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [workspaceTool, setWorkspaceTool] = useState<
-    "canvas" | "outline" | "font"
-  >("canvas");
+    'canvas' | 'outline' | 'font'
+  >('canvas');
   const [matteTolerance, setMatteTolerance] = useState(24);
   const projectInput = useRef<HTMLInputElement>(null);
   const [past, setPast] = useState<VisualContent[]>([]);
@@ -110,8 +110,8 @@ export default function VisualEditor({
   const imageInput = useRef<HTMLInputElement>(null);
   const fontInput = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
-  const video = artifact.kind === "video";
-  const brand = artifact.kind === "brand";
+  const video = artifact.kind === 'video';
+  const brand = artifact.kind === 'brand';
   const dirty = JSON.stringify(draft) !== saved;
   const conflict = artifact.version > version && dirty;
   const locked = readOnly || exporting || saving || importing;
@@ -148,13 +148,13 @@ export default function VisualEditor({
     draft.layers
       .map(
         (layer) =>
-          (layer.src ?? "") +
-          "|" +
-          (layer.fontUrl ?? "") +
-          "|" +
+          (layer.src ?? '') +
+          '|' +
+          (layer.fontUrl ?? '') +
+          '|' +
           layer.fontFamily,
       )
-      .join(";") + JSON.stringify(draft.fontDesign ?? null);
+      .join(';') + JSON.stringify(draft.fontDesign ?? null);
   useEffect(() => {
     let active = true;
     void loadAssets(draft)
@@ -190,7 +190,7 @@ export default function VisualEditor({
   }, [playing, draft.duration]);
 
   const measure = useMemo(() => {
-    const ctx = document.createElement("canvas").getContext("2d");
+    const ctx = document.createElement('canvas').getContext('2d');
     return (layer: Layer, text: string) => {
       if (!ctx) return text.length * layer.fontSize * 0.55;
       ctx.font = `${layer.fontSize}px ${layerFont(layer)}`;
@@ -218,12 +218,12 @@ export default function VisualEditor({
         layer.id === selectedId ? { ...layer, ...values } : layer,
       ),
     }));
-  const add = (type: Layer["type"]) => {
+  const add = (type: Layer['type']) => {
     if (locked) return;
     const layer = newLayer(type, draft);
     change((current) => ({ ...current, layers: [...current.layers, layer] }));
     setSelectedId(layer.id);
-    setWorkspaceTool("canvas");
+    setWorkspaceTool('canvas');
   };
   const remove = () => {
     if (!selected || locked) return;
@@ -281,7 +281,7 @@ export default function VisualEditor({
   function startGesture(
     event: React.PointerEvent,
     layer: Layer,
-    type: Gesture["type"],
+    type: Gesture['type'],
   ) {
     event.stopPropagation();
     setSelectedId(layer.id);
@@ -304,7 +304,7 @@ export default function VisualEditor({
       dx = position.x - current.start.x,
       dy = position.y - current.start.y;
     const delta =
-      current.type === "move"
+      current.type === 'move'
         ? {
             x: clamp(Math.round(current.layer.x + dx), -100000, 100000),
             y: clamp(Math.round(current.layer.y + dy), -100000, 100000),
@@ -331,6 +331,8 @@ export default function VisualEditor({
     try {
       const content = validateContent(artifact.kind, draft);
       await onSave(content, version);
+      // Validation canonicalizes optional fields; keep the draft and saved snapshot in the same order.
+      setDraft(structuredClone(content) as VisualContent);
       setSaved(JSON.stringify(content));
       setVersion(version + 1);
     } catch (error) {
@@ -347,7 +349,7 @@ export default function VisualEditor({
       download(
         `${artifact.title}.svg`,
         svgSource(draft, video ? time : undefined, measure, assets),
-        "image/svg+xml",
+        'image/svg+xml',
       );
     } catch (error) {
       onError((error as Error).message);
@@ -357,13 +359,13 @@ export default function VisualEditor({
     try {
       await document.fonts.ready;
       const assets = await loadAssets(draft);
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = draft.width;
       canvas.height = draft.height;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (!ctx)
         throw new Error(
-          "Canvas export is unavailable in this browser. Download SVG instead.",
+          'Canvas export is unavailable in this browser. Download SVG instead.',
         );
       drawFrame(ctx, draft, video ? time : undefined, assets);
       const blob = await new Promise<Blob>((resolve, reject) =>
@@ -372,12 +374,12 @@ export default function VisualEditor({
             value
               ? resolve(value)
               : reject(
-                  new Error("PNG encoding failed. Try a smaller artboard."),
+                  new Error('PNG encoding failed. Try a smaller artboard.'),
                 ),
-          "image/png",
+          'image/png',
         ),
       );
-      download(`${artifact.title}.png`, blob, "image/png");
+      download(`${artifact.title}.png`, blob, 'image/png');
     } catch (error) {
       onError((error as Error).message);
     }
@@ -386,27 +388,27 @@ export default function VisualEditor({
   async function exportVideo() {
     if (exporting) return;
     if (
-      typeof MediaRecorder === "undefined" ||
-      typeof HTMLCanvasElement.prototype.captureStream !== "function"
+      typeof MediaRecorder === 'undefined' ||
+      typeof HTMLCanvasElement.prototype.captureStream !== 'function'
     ) {
       onError(
-        "WebM recording is unavailable in this browser. Open the editor in a current Chromium or Firefox browser. You can still export the current frame as PNG or SVG.",
+        'WebM recording is unavailable in this browser. Open the editor in a current Chromium or Firefox browser. You can still export the current frame as PNG or SVG.',
       );
       return;
     }
     const mime = [
-      "video/webm;codecs=vp9",
-      "video/webm;codecs=vp8",
-      "video/webm",
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
     ].find((value) => MediaRecorder.isTypeSupported(value));
     if (!mime) {
       onError(
-        "This browser cannot encode WebM. Use a current Chromium or Firefox browser.",
+        'This browser cannot encode WebM. Use a current Chromium or Firefox browser.',
       );
       return;
     }
-    if (document.visibilityState === "hidden") {
-      onError("Keep this editor visible while recording a WebM export.");
+    if (document.visibilityState === 'hidden') {
+      onError('Keep this editor visible while recording a WebM export.');
       return;
     }
     setPlaying(false);
@@ -415,14 +417,14 @@ export default function VisualEditor({
     const controller = new AbortController();
     exportAbort.current = controller;
     const visibility = () => {
-      if (document.visibilityState === "hidden") {
+      if (document.visibilityState === 'hidden') {
         controller.abort();
         onError(
-          "Video export was cancelled because the editor became hidden. Keep this tab visible to record every frame.",
+          'Video export was cancelled because the editor became hidden. Keep this tab visible to record every frame.',
         );
       }
     };
-    document.addEventListener("visibilitychange", visibility);
+    document.addEventListener('visibilitychange', visibility);
     let stream: MediaStream | undefined;
     let recorder: MediaRecorder | undefined;
     let frame = 0;
@@ -430,12 +432,12 @@ export default function VisualEditor({
       await document.fonts.ready;
       const assets = await loadAssets(draft, controller.signal);
       if (controller.signal.aborted)
-        throw new DOMException("Export cancelled", "AbortError");
-      const canvas = document.createElement("canvas");
+        throw new DOMException('Export cancelled', 'AbortError');
+      const canvas = document.createElement('canvas');
       canvas.width = draft.width;
       canvas.height = draft.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas recording could not start.");
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas recording could not start.');
       drawFrame(ctx, draft, 0, assets);
       stream = canvas.captureStream(30);
       recorder = new MediaRecorder(stream, {
@@ -454,7 +456,7 @@ export default function VisualEditor({
             controller.abort();
             reject(
               new Error(
-                "The export exceeded 512 MB. Shorten the timeline or reduce the artboard size.",
+                'The export exceeded 512 MB. Shorten the timeline or reduce the artboard size.',
               ),
             );
           }
@@ -462,7 +464,7 @@ export default function VisualEditor({
         recorder!.onerror = () =>
           reject(
             new Error(
-              "The browser stopped video encoding. Try a smaller artboard or shorter duration.",
+              'The browser stopped video encoding. Try a smaller artboard or shorter duration.',
             ),
           );
         recorder!.onstop = () => resolve(new Blob(chunks, { type: mime }));
@@ -471,8 +473,8 @@ export default function VisualEditor({
       const started = performance.now();
       const rendering = new Promise<void>((resolve, reject) => {
         const aborted = () =>
-          reject(new DOMException("Export cancelled", "AbortError"));
-        controller.signal.addEventListener("abort", aborted, { once: true });
+          reject(new DOMException('Export cancelled', 'AbortError'));
+        controller.signal.addEventListener('abort', aborted, { once: true });
         const tick = (now: number) => {
           if (controller.signal.aborted) return;
           const current = Math.min((now - started) / 1000, draft.duration);
@@ -484,7 +486,7 @@ export default function VisualEditor({
           );
           setProgress(current / draft.duration);
           if (current >= draft.duration) {
-            controller.signal.removeEventListener("abort", aborted);
+            controller.signal.removeEventListener('abort', aborted);
             resolve();
           } else frame = requestAnimationFrame(tick);
         };
@@ -494,7 +496,7 @@ export default function VisualEditor({
         rendering,
         recording.then(() => {
           throw new Error(
-            "The browser stopped recording before the timeline finished. Try a shorter export.",
+            'The browser stopped recording before the timeline finished. Try a shorter export.',
           );
         }),
       ]);
@@ -506,12 +508,12 @@ export default function VisualEditor({
       if (!controller.signal.aborted)
         download(`${artifact.title}.webm`, finalized, mime);
     } catch (error) {
-      if ((error as Error).name !== "AbortError")
+      if ((error as Error).name !== 'AbortError')
         onError((error as Error).message);
     } finally {
       cancelAnimationFrame(frame);
-      document.removeEventListener("visibilitychange", visibility);
-      if (recorder?.state !== "inactive") recorder?.stop();
+      document.removeEventListener('visibilitychange', visibility);
+      if (recorder?.state !== 'inactive') recorder?.stop();
       stream?.getTracks().forEach((track) => track.stop());
       exportAbort.current = null;
       setExporting(false);
@@ -525,23 +527,23 @@ export default function VisualEditor({
       x = Math.round((draft.width - size) / 2),
       y = Math.round((draft.height - size) / 2);
     const mark = {
-      ...newLayer("ellipse", draft),
+      ...newLayer('ellipse', draft),
       x,
       y,
       width: size,
       height: size,
-      fill: "#24292e",
+      fill: '#24292e',
     };
     const letter = {
-      ...newLayer("text", draft),
+      ...newLayer('text', draft),
       x: x + size * 0.16,
       y: y + size * 0.1,
       width: size * 0.8,
       height: size * 0.8,
       text: artifact.title.slice(0, 1).toUpperCase(),
       fontSize: size * 0.75,
-      fill: "#f4f1e9",
-      fontFamily: "Georgia",
+      fill: '#f4f1e9',
+      fontFamily: 'Georgia',
     };
     change((content) => ({
       ...content,
@@ -552,43 +554,43 @@ export default function VisualEditor({
 
   async function importFile(
     event: React.ChangeEvent<HTMLInputElement>,
-    kind: "image" | "font",
+    kind: 'image' | 'font',
   ) {
     const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
+    event.currentTarget.value = '';
     if (!file || locked) return;
-    if (kind === "image" && draftRef.current.layers.length >= 200) {
+    if (kind === 'image' && draftRef.current.layers.length >= 200) {
       onError(
-        "This composition already has 200 layers. Delete a layer before importing another image.",
+        'This composition already has 200 layers. Delete a layer before importing another image.',
       );
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      onError("Uploads must be 10 MB or smaller.");
+      onError('Uploads must be 10 MB or smaller.');
       return;
     }
     const target = selectedId;
-    if (kind === "font" && (!selected || selected.type !== "text")) {
-      onError("Select a text layer before importing a WOFF2 font.");
+    if (kind === 'font' && (!selected || selected.type !== 'text')) {
+      onError('Select a text layer before importing a WOFF2 font.');
       return;
     }
     setImporting(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append('file', file);
       const result = await api<{ url: string; mime: string }>(
         `/artifacts/${artifact.id}/files`,
-        "POST",
+        'POST',
         form,
       );
-      if (kind === "font") {
-        if (result.mime !== "font/woff2")
-          throw new Error("Choose a valid WOFF2 font file.");
+      if (kind === 'font') {
+        if (result.mime !== 'font/woff2')
+          throw new Error('Choose a valid WOFF2 font file.');
         const updated = {
           ...draftRef.current,
           layers: draftRef.current.layers.map((layer) =>
             layer.id === target
-              ? { ...layer, fontFamily: "Custom", fontUrl: result.url }
+              ? { ...layer, fontFamily: 'Custom', fontUrl: result.url }
               : layer,
           ),
         };
@@ -598,8 +600,8 @@ export default function VisualEditor({
           setDraft(updated);
         }
       } else {
-        if (!result.mime.startsWith("image/"))
-          throw new Error("Choose a PNG, JPEG, or WebP image.");
+        if (!result.mime.startsWith('image/'))
+          throw new Error('Choose a PNG, JPEG, or WebP image.');
         const size = await imageDimensions(result.url);
         const scale = Math.min(
           1,
@@ -607,7 +609,7 @@ export default function VisualEditor({
           (draftRef.current.height * 0.8) / size.height,
         );
         const layer = {
-          ...newLayer("image", draftRef.current),
+          ...newLayer('image', draftRef.current),
           src: result.url,
           text: file.name,
           width: Math.max(1, Math.round(size.width * scale)),
@@ -631,37 +633,37 @@ export default function VisualEditor({
     }
   }
 
-  function addPath(name = "Spark") {
+  function addPath(name = 'Spark') {
     if (locked || draft.layers.length >= 200) return;
     const layer = {
-      ...newLayer("path", draft),
+      ...newLayer('path', draft),
       text: name,
       path: structuredClone(iconPaths[name] ?? iconPaths.Spark!),
     };
     change((current) => ({ ...current, layers: [...current.layers, layer] }));
     setSelectedId(layer.id);
-    setWorkspaceTool("outline");
+    setWorkspaceTool('outline');
   }
   async function exportProject() {
     try {
       const assets = await loadAssets(draft),
         pack = {
-          format: "studio-visual",
+          format: 'studio-visual',
           version: 1,
           content: draft,
           assets: [...assets.dataUrls]
-            .filter(([key]) => key.startsWith("/api/files/"))
+            .filter(([key]) => key.startsWith('/api/files/'))
             .map(([key, data]) => ({ key, data })),
         };
       const source = JSON.stringify(pack, null, 2);
       if (source.length > 40 * 1024 * 1024)
         throw new Error(
-          "Portable projects are limited to 40 MB. Resize large image assets before exporting.",
+          'Portable projects are limited to 40 MB. Resize large image assets before exporting.',
         );
       download(
         `${artifact.title}.studio-design.json`,
         source,
-        "application/json",
+        'application/json',
       );
     } catch (error) {
       onError((error as Error).message);
@@ -669,23 +671,23 @@ export default function VisualEditor({
   }
   async function importProject(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
+    event.currentTarget.value = '';
     if (!file || locked) return;
     if (file.size > 40 * 1024 * 1024) {
-      onError("Portable projects are limited to 40 MB.");
+      onError('Portable projects are limited to 40 MB.');
       return;
     }
     setImporting(true);
     try {
       const pack = JSON.parse(await file.text());
       if (
-        pack?.format !== "studio-visual" ||
+        pack?.format !== 'studio-visual' ||
         pack.version !== 1 ||
         !Array.isArray(pack.assets) ||
         pack.assets.length > 200
       )
         throw new Error(
-          "Choose a Studio visual project exported by this editor.",
+          'Choose a Studio visual project exported by this editor.',
         );
       const content = validateContent(
         artifact.kind,
@@ -700,37 +702,37 @@ export default function VisualEditor({
       for (const key of references) {
         const asset = pack.assets.find(
           (entry: unknown) =>
-            typeof entry === "object" &&
+            typeof entry === 'object' &&
             entry !== null &&
             (entry as { key?: unknown }).key === key,
         );
         if (
           !asset ||
-          typeof asset.data !== "string" ||
+          typeof asset.data !== 'string' ||
           asset.data.length > 14 * 1024 * 1024 ||
           !/^data:(image\/(png|jpeg|webp)|font\/woff2);base64,[A-Za-z0-9+/]*={0,2}$/.test(
             asset.data,
           )
         )
           throw new Error(
-            "A required project image or font is missing or malformed.",
+            'A required project image or font is missing or malformed.',
           );
-        const [header, encoded] = asset.data.split(","),
-          mime = header.slice(5, header.indexOf(";")),
+        const [header, encoded] = asset.data.split(','),
+          mime = header.slice(5, header.indexOf(';')),
           bytes = Uint8Array.from(atob(encoded), (c: string) =>
             c.charCodeAt(0),
           );
         if (bytes.byteLength > 10 * 1024 * 1024)
-          throw new Error("Project assets must be 10 MB or smaller.");
+          throw new Error('Project assets must be 10 MB or smaller.');
         const form = new FormData();
         form.append(
-          "file",
+          'file',
           new Blob([bytes], { type: mime }),
-          mime === "font/woff2" ? "font.woff2" : `image.${mime.split("/")[1]}`,
+          mime === 'font/woff2' ? 'font.woff2' : `image.${mime.split('/')[1]}`,
         );
         const uploaded = await api<{ url: string }>(
           `/artifacts/${artifact.id}/files`,
-          "POST",
+          'POST',
           form,
         );
         remapped.set(key, uploaded.url);
@@ -744,7 +746,7 @@ export default function VisualEditor({
       record();
       setDraft(content);
       setSelectedId(null);
-      setWorkspaceTool("canvas");
+      setWorkspaceTool('canvas');
     } catch (error) {
       onError((error as Error).message);
     } finally {
@@ -752,20 +754,20 @@ export default function VisualEditor({
     }
   }
   async function removeRasterBackground() {
-    if (locked || selected?.type !== "image" || !selected.src) return;
+    if (locked || selected?.type !== 'image' || !selected.src) return;
     const target = selected.id;
     setImporting(true);
     try {
       const assets = await loadAssets(draft),
         image = assets.images.get(selected.src) as HTMLImageElement;
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = image.naturalWidth;
       canvas.height = image.naturalHeight;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx)
-        throw new Error("Raster editing is unavailable in this browser.");
+        throw new Error('Raster editing is unavailable in this browser.');
       if (canvas.width * canvas.height > 16_000_000)
-        throw new Error("Raster editing supports images up to 16 megapixels.");
+        throw new Error('Raster editing supports images up to 16 megapixels.');
       ctx.drawImage(image, 0, 0);
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
       data.data.set(
@@ -777,15 +779,15 @@ export default function VisualEditor({
           (value) =>
             value
               ? resolve(value)
-              : reject(new Error("Raster encoding failed.")),
-          "image/png",
+              : reject(new Error('Raster encoding failed.')),
+          'image/png',
         ),
       );
       const form = new FormData();
-      form.append("file", blob, "edge-matte.png");
+      form.append('file', blob, 'edge-matte.png');
       const uploaded = await api<{ url: string }>(
         `/artifacts/${artifact.id}/files`,
-        "POST",
+        'POST',
         form,
       );
       record();
@@ -805,9 +807,9 @@ export default function VisualEditor({
   return (
     <div
       className={
-        "visual-editor " +
-        (video ? "visual-video " : "") +
-        (brand ? "visual-brand" : "")
+        'visual-editor ' +
+        (video ? 'visual-video ' : '') +
+        (brand ? 'visual-brand' : '')
       }
     >
       <input
@@ -824,7 +826,7 @@ export default function VisualEditor({
         accept="image/png,image/jpeg,image/webp"
         aria-label="Upload image file"
         hidden
-        onChange={(event) => importFile(event, "image")}
+        onChange={(event) => importFile(event, 'image')}
       />
       <input
         ref={fontInput}
@@ -832,7 +834,7 @@ export default function VisualEditor({
         accept=".woff2,font/woff2"
         aria-label="Upload WOFF2 font"
         hidden
-        onChange={(event) => importFile(event, "font")}
+        onChange={(event) => importFile(event, 'font')}
       />
       <div
         className="visual-toolbar"
@@ -842,21 +844,21 @@ export default function VisualEditor({
         <div className="visual-tool-group">
           <IconButton
             label="Add text"
-            onClick={() => add("text")}
+            onClick={() => add('text')}
             disabled={locked || draft.layers.length >= 200}
           >
             <Type />
           </IconButton>
           <IconButton
             label="Add rectangle"
-            onClick={() => add("rect")}
+            onClick={() => add('rect')}
             disabled={locked || draft.layers.length >= 200}
           >
             <Square />
           </IconButton>
           <IconButton
             label="Add ellipse"
-            onClick={() => add("ellipse")}
+            onClick={() => add('ellipse')}
             disabled={locked || draft.layers.length >= 200}
           >
             <Circle />
@@ -897,7 +899,7 @@ export default function VisualEditor({
           {brand && (
             <Button
               size="sm"
-              variant={workspaceTool === "font" ? "secondary" : "ghost"}
+              variant={workspaceTool === 'font' ? 'secondary' : 'ghost'}
               onClick={() => {
                 if (!draft.fontDesign && !locked)
                   change((current) => ({
@@ -906,18 +908,18 @@ export default function VisualEditor({
                   }));
                 if (draft.fontDesign || !locked)
                   setWorkspaceTool(
-                    workspaceTool === "font" ? "canvas" : "font",
+                    workspaceTool === 'font' ? 'canvas' : 'font',
                   );
               }}
             >
               Design typeface
             </Button>
           )}
-          {workspaceTool !== "canvas" && (
+          {workspaceTool !== 'canvas' && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setWorkspaceTool("canvas")}
+              onClick={() => setWorkspaceTool('canvas')}
             >
               Back to canvas
             </Button>
@@ -1062,9 +1064,9 @@ export default function VisualEditor({
       )}
       <div
         className={
-          "visual-workspace " +
-          (layersOpen ? "with-layers " : "") +
-          (propertiesOpen ? "with-properties" : "")
+          'visual-workspace ' +
+          (layersOpen ? 'with-layers ' : '') +
+          (propertiesOpen ? 'with-properties' : '')
         }
       >
         {layersOpen && (
@@ -1079,32 +1081,32 @@ export default function VisualEditor({
             <div className="visual-layer-list">
               {[...draft.layers].reverse().map((layer, index) => {
                 const Icon =
-                  layer.type === "text"
+                  layer.type === 'text'
                     ? Type
-                    : layer.type === "image"
+                    : layer.type === 'image'
                       ? ImageIcon
-                      : layer.type === "ellipse"
+                      : layer.type === 'ellipse'
                         ? Circle
                         : Square;
                 return (
                   <button
                     key={layer.id}
                     className={
-                      "visual-layer-row " +
-                      (selectedId === layer.id ? "selected" : "")
+                      'visual-layer-row ' +
+                      (selectedId === layer.id ? 'selected' : '')
                     }
                     aria-pressed={selectedId === layer.id}
                     onClick={() => setSelectedId(layer.id)}
                   >
                     <Icon size={14} />
                     <span>
-                      {layer.type === "text"
-                        ? layer.text.slice(0, 28) || "Empty text"
-                        : layer.type === "image"
-                          ? layer.text.slice(0, 28) || "Image"
-                          : layer.type === "path"
-                            ? layer.text || "Vector path"
-                            : `${layer.type === "rect" ? "Rectangle" : "Ellipse"} ${draft.layers.length - index}`}
+                      {layer.type === 'text'
+                        ? layer.text.slice(0, 28) || 'Empty text'
+                        : layer.type === 'image'
+                          ? layer.text.slice(0, 28) || 'Image'
+                          : layer.type === 'path'
+                            ? layer.text || 'Vector path'
+                            : `${layer.type === 'rect' ? 'Rectangle' : 'Ellipse'} ${draft.layers.length - index}`}
                     </span>
                     {video && !visibleAt(layer, time) && (
                       <span
@@ -1158,9 +1160,9 @@ export default function VisualEditor({
         )}
         <section
           className="visual-stage"
-          aria-label={video ? "Video composition" : "Design canvas"}
+          aria-label={video ? 'Video composition' : 'Design canvas'}
         >
-          {workspaceTool === "font" && draft.fontDesign ? (
+          {workspaceTool === 'font' && draft.fontDesign ? (
             <FontDesigner
               design={draft.fontDesign}
               readOnly={locked}
@@ -1168,24 +1170,24 @@ export default function VisualEditor({
               onChange={(fontDesign) =>
                 change((current) => ({ ...current, fontDesign }))
               }
-              canApply={selected?.type === "text"}
+              canApply={selected?.type === 'text'}
               onApply={() => {
-                if (selected?.type !== "text") {
+                if (selected?.type !== 'text') {
                   onError(
-                    "Select a text layer to apply the designed typeface.",
+                    'Select a text layer to apply the designed typeface.',
                   );
                   return;
                 }
-                layerChange({ fontFamily: "Generated" });
-                setWorkspaceTool("canvas");
+                layerChange({ fontFamily: 'Generated' });
+                setWorkspaceTool('canvas');
               }}
             />
-          ) : workspaceTool === "outline" && selected?.path ? (
+          ) : workspaceTool === 'outline' && selected?.path ? (
             <PathDesigner
               label={
-                selected.type === "image"
-                  ? "Image mask outline"
-                  : "Vector outline"
+                selected.type === 'image'
+                  ? 'Image mask outline'
+                  : 'Vector outline'
               }
               value={selected.path}
               fill={selected.fill}
@@ -1207,8 +1209,8 @@ export default function VisualEditor({
                   if (
                     event.target === event.currentTarget ||
                     (event.target as Element).getAttribute(
-                      "data-background",
-                    ) === "true"
+                      'data-background',
+                    ) === 'true'
                   )
                     setSelectedId(null);
                 }}
@@ -1217,16 +1219,16 @@ export default function VisualEditor({
                 onPointerCancel={endGesture}
                 onKeyDown={(event) => {
                   if (locked || !selected) return;
-                  if (event.key === "Delete" || event.key === "Backspace") {
+                  if (event.key === 'Delete' || event.key === 'Backspace') {
                     event.preventDefault();
                     remove();
                   }
                   if (
                     [
-                      "ArrowLeft",
-                      "ArrowRight",
-                      "ArrowUp",
-                      "ArrowDown",
+                      'ArrowLeft',
+                      'ArrowRight',
+                      'ArrowUp',
+                      'ArrowDown',
                     ].includes(event.key)
                   ) {
                     event.preventDefault();
@@ -1234,16 +1236,16 @@ export default function VisualEditor({
                     layerChange({
                       x:
                         selected.x +
-                        (event.key === "ArrowLeft"
+                        (event.key === 'ArrowLeft'
                           ? -delta
-                          : event.key === "ArrowRight"
+                          : event.key === 'ArrowRight'
                             ? delta
                             : 0),
                       y:
                         selected.y +
-                        (event.key === "ArrowUp"
+                        (event.key === 'ArrowUp'
                           ? -delta
-                          : event.key === "ArrowDown"
+                          : event.key === 'ArrowDown'
                             ? delta
                             : 0),
                     });
@@ -1263,43 +1265,47 @@ export default function VisualEditor({
                     <g
                       key={layer.id}
                       transform={`translate(${layer.x} ${layer.y}) rotate(${layer.rotation} ${layer.width / 2} ${layer.height / 2})`}
-                      className={readOnly ? "" : "visual-object"}
+                      className={readOnly ? '' : 'visual-object'}
                       onPointerDown={(event) =>
-                        startGesture(event, layer, "move")
+                        startGesture(event, layer, 'move')
                       }
                     >
                       <LayerShape layer={layer} measure={measure} />
-                      {selectedId === layer.id && (
-                        <g className="visual-selection" pointerEvents="none">
-                          <rect
-                            width={layer.width}
-                            height={layer.height}
-                            fill="none"
-                            stroke="#5967c9"
-                            strokeWidth={1.5}
-                            vectorEffect="non-scaling-stroke"
-                          />
-                          {!locked && (
-                            <rect
-                              pointerEvents="all"
-                              x={layer.width - 6}
-                              y={layer.height - 6}
-                              width={12}
-                              height={12}
-                              fill="white"
-                              stroke="#5967c9"
-                              strokeWidth={1.5}
-                              vectorEffect="non-scaling-stroke"
-                              className="visual-resize-handle"
-                              onPointerDown={(event) =>
-                                startGesture(event, layer, "resize")
-                              }
-                            />
-                          )}
-                        </g>
-                      )}
                     </g>
                   ))}
+                {selected && (!video || visibleAt(selected, time)) && (
+                  <g
+                    className="visual-selection"
+                    pointerEvents="none"
+                    transform={`translate(${selected.x} ${selected.y}) rotate(${selected.rotation} ${selected.width / 2} ${selected.height / 2})`}
+                  >
+                    <rect
+                      width={selected.width}
+                      height={selected.height}
+                      fill="none"
+                      stroke="#5967c9"
+                      strokeWidth={1.5}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {!locked && (
+                      <rect
+                        pointerEvents="all"
+                        x={selected.width - 6}
+                        y={selected.height - 6}
+                        width={12}
+                        height={12}
+                        fill="white"
+                        stroke="#5967c9"
+                        strokeWidth={1.5}
+                        vectorEffect="non-scaling-stroke"
+                        className="visual-resize-handle"
+                        onPointerDown={(event) =>
+                          startGesture(event, selected, 'resize')
+                        }
+                      />
+                    )}
+                  </g>
+                )}
               </svg>
             </div>
           )}
@@ -1309,17 +1315,21 @@ export default function VisualEditor({
             </span>
             <span>
               {readOnly
-                ? "View only"
-                : selected
-                  ? "Drag to move · corner to resize · arrows to nudge"
-                  : "Select a layer to edit"}
+                ? 'View only'
+                : workspaceTool === 'font'
+                  ? 'Edit glyph outlines and spacing · export TTF'
+                  : workspaceTool === 'outline'
+                    ? 'Drag points · draw contours · arrows to nudge'
+                    : selected
+                      ? 'Drag to move · corner to resize · arrows to nudge'
+                      : 'Select a layer to edit'}
             </span>
           </div>
         </section>
         {propertiesOpen && (
           <aside className="visual-inspector" aria-label="Design properties">
             <div className="visual-panel-heading">
-              <h3>{selected ? "Layer properties" : "Artboard"}</h3>
+              <h3>{selected ? 'Layer properties' : 'Artboard'}</h3>
               {selected && (
                 <IconButton
                   label="Deselect layer"
@@ -1375,17 +1385,17 @@ export default function VisualEditor({
                   max={100}
                   onChange={(value) => layerChange({ opacity: value / 100 })}
                 />
-                {selected.type === "path" && (
+                {selected.type === 'path' && (
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setWorkspaceTool("outline")}
+                    onClick={() => setWorkspaceTool('outline')}
                   >
                     <PenLine size={13} />
                     Edit vector points
                   </Button>
                 )}
-                {selected.type !== "image" && (
+                {selected.type !== 'image' && (
                   <>
                     <Numeric
                       label="Stroke width"
@@ -1406,11 +1416,11 @@ export default function VisualEditor({
                     </Field>
                   </>
                 )}
-                {selected.type === "image" && (
+                {selected.type === 'image' && (
                   <>
                     <h4>Crop and mask</h4>
                     <div className="visual-property-grid">
-                      {(["x", "y", "width", "height"] as const).map((key) => (
+                      {(['x', 'y', 'width', 'height'] as const).map((key) => (
                         <Numeric
                           key={key}
                           label={`Crop ${key} · percent`}
@@ -1422,7 +1432,7 @@ export default function VisualEditor({
                               height: 1,
                             })[key] * 100
                           }
-                          min={key === "width" || key === "height" ? 1 : 0}
+                          min={key === 'width' || key === 'height' ? 1 : 0}
                           max={100}
                           onChange={(value) => {
                             const crop = {
@@ -1434,13 +1444,13 @@ export default function VisualEditor({
                               }),
                               [key]: value / 100,
                             };
-                            if (key === "x")
+                            if (key === 'x')
                               crop.width = Math.min(crop.width, 1 - crop.x);
-                            if (key === "y")
+                            if (key === 'y')
                               crop.height = Math.min(crop.height, 1 - crop.y);
-                            if (key === "width")
+                            if (key === 'width')
                               crop.x = Math.min(crop.x, 1 - crop.width);
-                            if (key === "height")
+                            if (key === 'height')
                               crop.y = Math.min(crop.y, 1 - crop.height);
                             crop.width = Math.max(0.01, crop.width);
                             crop.height = Math.max(0.01, crop.height);
@@ -1454,12 +1464,12 @@ export default function VisualEditor({
                     <Field label="Image mask">
                       <Select
                         aria-label="Image mask"
-                        value={selected.mask ?? "none"}
+                        value={selected.mask ?? 'none'}
                         onChange={(e) => {
-                          const mask = e.target.value as Layer["mask"];
+                          const mask = e.target.value as Layer['mask'];
                           layerChange({
                             mask,
-                            ...(mask === "path" && !selected.path
+                            ...(mask === 'path' && !selected.path
                               ? { path: structuredClone(iconPaths.Leaf!) }
                               : {}),
                           });
@@ -1470,11 +1480,11 @@ export default function VisualEditor({
                         <option value="path">Editable outline</option>
                       </Select>
                     </Field>
-                    {selected.mask === "path" && (
+                    {selected.mask === 'path' && (
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setWorkspaceTool("outline")}
+                        onClick={() => setWorkspaceTool('outline')}
                       >
                         Edit mask outline
                       </Button>
@@ -1482,24 +1492,24 @@ export default function VisualEditor({
                     <h4>Image adjustments</h4>
                     {(
                       [
-                        "brightness",
-                        "contrast",
-                        "saturation",
-                        "grayscale",
-                        "blur",
+                        'brightness',
+                        'contrast',
+                        'saturation',
+                        'grayscale',
+                        'blur',
                       ] as const
                     ).map((key) => (
                       <Numeric
                         key={key}
                         label={
-                          key === "blur"
-                            ? "Blur · px"
+                          key === 'blur'
+                            ? 'Blur · px'
                             : key[0]!.toUpperCase() + key.slice(1)
                         }
                         value={(selected.filters ?? defaultFilters)[key]}
                         min={0}
-                        max={key === "blur" ? 30 : key === "grayscale" ? 1 : 2}
-                        step={key === "blur" ? 1 : 0.05}
+                        max={key === 'blur' ? 30 : key === 'grayscale' ? 1 : 2}
+                        step={key === 'blur' ? 1 : 0.05}
                         onChange={(value) =>
                           layerChange({
                             filters: {
@@ -1532,7 +1542,7 @@ export default function VisualEditor({
                     </Button>
                   </>
                 )}
-                {selected.type !== "image" && (
+                {selected.type !== 'image' && (
                   <Field label="Fill">
                     <input
                       type="color"
@@ -1544,7 +1554,7 @@ export default function VisualEditor({
                     />
                   </Field>
                 )}
-                {selected.type === "text" && (
+                {selected.type === 'text' && (
                   <>
                     <Field label="Text">
                       <Textarea
@@ -1684,8 +1694,8 @@ export default function VisualEditor({
                 )}
                 <p className="visual-hint">
                   {brand
-                    ? "Compose editable marks and typography, then export SVG for vector workflows or PNG for exact rasterized lettering."
-                    : "Add text or geometric layers. Every layer remains editable in this artifact."}
+                    ? 'Compose editable marks and typography, then export SVG for vector workflows or PNG for exact rasterized lettering.'
+                    : 'Add text or geometric layers. Every layer remains editable in this artifact.'}
                 </p>
               </fieldset>
             )}
@@ -1696,7 +1706,7 @@ export default function VisualEditor({
         <section className="visual-timeline" aria-label="Video timeline">
           <div className="visual-timeline-controls">
             <IconButton
-              label={playing ? "Pause timeline" : "Play timeline"}
+              label={playing ? 'Pause timeline' : 'Play timeline'}
               onClick={() => setPlaying((value) => !value)}
               disabled={exporting}
             >
@@ -1734,16 +1744,16 @@ export default function VisualEditor({
             {[...draft.layers].reverse().map((layer) => (
               <div className="visual-timeline-track" key={layer.id}>
                 <button
-                  className={selectedId === layer.id ? "selected" : ""}
+                  className={selectedId === layer.id ? 'selected' : ''}
                   onClick={() => setSelectedId(layer.id)}
                 >
-                  {layer.type === "text"
-                    ? layer.text.slice(0, 20) || "Text"
-                    : layer.type === "rect"
-                      ? "Rectangle"
-                      : layer.type === "image"
-                        ? "Image"
-                        : "Ellipse"}
+                  {layer.type === 'text'
+                    ? layer.text.slice(0, 20) || 'Text'
+                    : layer.type === 'rect'
+                      ? 'Rectangle'
+                      : layer.type === 'image'
+                        ? 'Image'
+                        : 'Ellipse'}
                 </button>
                 <div
                   className="visual-timeline-lane"
@@ -1763,8 +1773,8 @@ export default function VisualEditor({
                   <button
                     aria-label={`Select ${layer.type} clip`}
                     className={
-                      "visual-timeline-clip " +
-                      (selectedId === layer.id ? "selected" : "")
+                      'visual-timeline-clip ' +
+                      (selectedId === layer.id ? 'selected' : '')
                     }
                     style={{
                       left: `${(layer.start / draft.duration) * 100}%`,
@@ -1776,7 +1786,7 @@ export default function VisualEditor({
                     }}
                   >
                     <span>
-                      {layer.type === "text"
+                      {layer.type === 'text'
                         ? layer.text.slice(0, 40)
                         : layer.type}
                     </span>
@@ -1834,7 +1844,7 @@ function Numeric({
           else setInput(String(value));
         }}
         onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
+          if (event.key === 'Enter') event.currentTarget.blur();
         }}
       />
     </Field>

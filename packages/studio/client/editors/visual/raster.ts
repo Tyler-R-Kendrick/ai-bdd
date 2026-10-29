@@ -13,9 +13,9 @@ export function removeEdgeColor(
     width * height > 16_000_000 ||
     data.length !== width * height * 4
   )
-    throw new Error("Raster editing supports images up to 16 megapixels.");
+    throw new Error('Raster editing supports images up to 16 megapixels.');
   if (!Number.isFinite(tolerance) || tolerance < 0 || tolerance > 128)
-    throw new Error("Color tolerance must be between 0 and 128.");
+    throw new Error('Color tolerance must be between 0 and 128.');
   const output = new Uint8ClampedArray(data),
     seen = new Uint8Array(width * height),
     queue = new Uint32Array(width * height),

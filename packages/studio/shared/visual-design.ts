@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const coordinate = z.number().finite().min(-10000).max(10000);
 export const designPointSchema = z
@@ -24,7 +24,7 @@ export const layerAppearanceSchema = z
       .optional(),
     strokeWidth: z.number().finite().min(0).max(100).optional(),
     path: vectorPathSchema.optional(),
-    mask: z.enum(["none", "ellipse", "path"]).optional(),
+    mask: z.enum(['none', 'ellipse', 'path']).optional(),
     crop: z
       .object({
         x: z.number().finite().min(0).max(1),
@@ -35,7 +35,7 @@ export const layerAppearanceSchema = z
       .strict()
       .refine(
         (c) => c.x + c.width <= 1.000001 && c.y + c.height <= 1.000001,
-        "Crop must stay inside its source image",
+        'Crop must stay inside its source image',
       )
       .optional(),
     filters: z
@@ -58,7 +58,7 @@ export const fontGlyphSchema = z
       .max(1)
       .refine(
         (c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) < 0xd800,
-        "Use a printable Basic Multilingual Plane character",
+        'Use a printable Basic Multilingual Plane character',
       ),
     advanceWidth: z.number().int().min(100).max(2000),
     contours: z.array(z.array(designPointSchema).min(3).max(256)).max(64),
@@ -80,7 +80,7 @@ export const fontDesignSchema = z
   .strict()
   .refine(
     (f) => new Set(f.glyphs.map((g) => g.character)).size === f.glyphs.length,
-    "Glyph characters must be unique",
+    'Glyph characters must be unique',
   );
 
 export type DesignPoint = z.infer<typeof designPointSchema>;
@@ -100,26 +100,41 @@ export const defaultFilters = {
 export function pathData(path: VectorPath): string {
   return path.contours
     .map((points) => {
-      const first = points[0]!;
-      let d = `M ${first.x} ${first.y}`;
-      for (let i = 1; i < points.length; i++) {
-        const point = points[i]!;
+      const first = points[0]!,
+        last = points.at(-1)!;
+      const midpoint = (a: DesignPoint, b: DesignPoint): DesignPoint => ({
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2,
+      });
+      const start =
+        first.onCurve !== false
+          ? first
+          : last.onCurve !== false
+            ? last
+            : midpoint(last, first);
+      const outline =
+        first.onCurve !== false
+          ? points.slice(1)
+          : last.onCurve !== false
+            ? points.slice(0, -1)
+            : points;
+      let d = `M ${start.x} ${start.y}`;
+      for (let i = 0; i < outline.length; i++) {
+        const point = outline[i]!;
         if (point.onCurve === false) {
-          const next = points[(i + 1) % points.length]!;
-          const end =
-            next.onCurve === false
-              ? { x: (point.x + next.x) / 2, y: (point.y + next.y) / 2 }
-              : next;
+          const next = outline[i + 1] ?? start,
+            end = next.onCurve === false ? midpoint(point, next) : next;
           d += ` Q ${point.x} ${point.y} ${end.x} ${end.y}`;
-          if (next.onCurve !== false && i + 1 < points.length) i++;
+          if (next.onCurve !== false) i++;
         } else d += ` L ${point.x} ${point.y}`;
       }
-      return d + (path.closed ? " Z" : "");
+      return d + (path.closed ? ' Z' : '');
     })
-    .join(" ");
+    .join(' ');
 }
-export function filterCss(filters?: LayerAppearance["filters"]): string {
-  if (!filters) return "none";
+
+export function filterCss(filters?: LayerAppearance['filters']): string {
+  if (!filters) return 'none';
   return `brightness(${filters.brightness}) contrast(${filters.contrast}) saturate(${filters.saturation}) grayscale(${filters.grayscale}) blur(${filters.blur}px)`;
 }
 export const iconPaths: Record<string, VectorPath> = {
@@ -186,3 +201,27 @@ export const iconPaths: Record<string, VectorPath> = {
     ],
   },
 };
+
+export const grayscaleMatrix = (amount: number) =>
+  [
+    0.2126 + 0.7874 * (1 - amount),
+    0.7152 - 0.7152 * (1 - amount),
+    0.0722 - 0.0722 * (1 - amount),
+    0,
+    0,
+    0.2126 - 0.2126 * (1 - amount),
+    0.7152 + 0.2848 * (1 - amount),
+    0.0722 - 0.0722 * (1 - amount),
+    0,
+    0,
+    0.2126 - 0.2126 * (1 - amount),
+    0.7152 - 0.7152 * (1 - amount),
+    0.0722 + 0.9278 * (1 - amount),
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ].join(' ');

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { Download, Plus, Type } from "lucide-react";
-import type { FontDesign } from "../../../shared/visual-design.ts";
-import { Button, Field, Input, Select } from "../../components/ui.tsx";
-import { download } from "../../lib.ts";
-import { buildTrueType, gridGlyph } from "./typeface.ts";
-import PathDesigner from "./PathDesigner.tsx";
+import { useEffect, useState } from 'react';
+import { Download, Plus, Type } from 'lucide-react';
+import type { FontDesign } from '../../../shared/visual-design.ts';
+import { Button, Field, Input, Select } from '../../components/ui.tsx';
+import { download } from '../../lib.ts';
+import { buildTrueType, gridGlyph } from './typeface.ts';
+import PathDesigner from './PathDesigner.tsx';
 
 export default function FontDesigner({
   design,
@@ -21,10 +21,10 @@ export default function FontDesigner({
   readOnly: boolean;
   onError: (message: string) => void;
 }) {
-  const [character, setCharacter] = useState("A"),
-    [newCharacter, setNewCharacter] = useState(""),
-    [preview, setPreview] = useState("STUDIO 0123"),
-    [faceName, setFaceName] = useState("Inter");
+  const [character, setCharacter] = useState('A'),
+    [newCharacter, setNewCharacter] = useState(''),
+    [preview, setPreview] = useState('STUDIO 0123'),
+    [faceName, setFaceName] = useState('Inter');
   const glyph =
     design.glyphs.find((g) => g.character === character) ?? design.glyphs[0]!;
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function FontDesigner({
     try {
       const bytes = buildTrueType(design);
       font = new FontFace(
-        "DesignedPreview-" + crypto.randomUUID(),
+        'DesignedPreview-' + crypto.randomUUID(),
         new Uint8Array(bytes).buffer,
       );
       void font
@@ -47,7 +47,7 @@ export default function FontDesigner({
         .catch(() => {
           if (active)
             onError(
-              "The generated typeface could not be previewed. Check the glyph outlines.",
+              'The generated typeface could not be previewed. Check the glyph outlines.',
             );
         });
     } catch (error) {
@@ -82,9 +82,9 @@ export default function FontDesigner({
               download(
                 `${design.family}.ttf`,
                 new Blob([new Uint8Array(buildTrueType(design)).buffer], {
-                  type: "font/ttf",
+                  type: 'font/ttf',
                 }),
-                "font/ttf",
+                'font/ttf',
               );
             } catch (error) {
               onError((error as Error).message);
@@ -116,11 +116,11 @@ export default function FontDesigner({
           >
             {design.glyphs.map((g) => (
               <option key={g.character} value={g.character}>
-                {g.character === " " ? "Space" : g.character} · U+
+                {g.character === ' ' ? 'Space' : g.character} · U+
                 {g.character
                   .charCodeAt(0)
                   .toString(16)
-                  .padStart(4, "0")
+                  .padStart(4, '0')
                   .toUpperCase()}
               </option>
             ))}
@@ -168,7 +168,7 @@ export default function FontDesigner({
               glyphs: [...design.glyphs, gridGlyph(newCharacter)],
             });
             setCharacter(newCharacter);
-            setNewCharacter("");
+            setNewCharacter('');
           }}
         >
           <Plus size={13} />
@@ -194,7 +194,7 @@ export default function FontDesigner({
             c.map((p) => ({ ...p, y: 800 - p.y })),
           ),
         }}
-        label={`Glyph ${glyph.character === " " ? "space" : glyph.character}`}
+        label={`Glyph ${glyph.character === ' ' ? 'space' : glyph.character}`}
         baseline={800}
         readOnly={readOnly}
         fill="#24292e"
@@ -222,7 +222,7 @@ export default function FontDesigner({
           {preview}
         </output>
         <p>
-          1000 units/em · ascender 800 · descender −200 · {design.glyphs.length}{" "}
+          1000 units/em · ascender 800 · descender −200 · {design.glyphs.length}{' '}
           authored glyphs. Unsupported characters use the font’s missing-glyph
           outline.
         </p>

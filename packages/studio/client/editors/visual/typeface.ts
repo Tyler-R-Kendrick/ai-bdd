@@ -3,60 +3,60 @@ import {
   type FontDesign,
   type FontGlyph,
   type DesignPoint,
-} from "../../../shared/visual-design.ts";
+} from '../../../shared/visual-design.ts';
 
 const alphabet: Record<string, string[]> = {
-  A: ["01110", "11011", "11011", "11111", "11011", "11011", "11011"],
-  B: ["11110", "11011", "11011", "11110", "11011", "11011", "11110"],
-  C: ["01111", "11000", "11000", "11000", "11000", "11000", "01111"],
-  D: ["11110", "11011", "11011", "11011", "11011", "11011", "11110"],
-  E: ["11111", "11000", "11000", "11110", "11000", "11000", "11111"],
-  F: ["11111", "11000", "11000", "11110", "11000", "11000", "11000"],
-  G: ["01111", "11000", "11000", "11011", "11011", "11011", "01111"],
-  H: ["11011", "11011", "11011", "11111", "11011", "11011", "11011"],
-  I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
-  J: ["00111", "00011", "00011", "00011", "00011", "11011", "01110"],
-  K: ["11011", "11010", "11100", "11000", "11100", "11010", "11011"],
-  L: ["11000", "11000", "11000", "11000", "11000", "11000", "11111"],
-  M: ["10001", "11011", "11111", "10101", "10001", "10001", "10001"],
-  N: ["11011", "11011", "11111", "11111", "11111", "11011", "11011"],
-  O: ["01110", "11011", "11011", "11011", "11011", "11011", "01110"],
-  P: ["11110", "11011", "11011", "11110", "11000", "11000", "11000"],
-  Q: ["01110", "11011", "11011", "11011", "11111", "11010", "01101"],
-  R: ["11110", "11011", "11011", "11110", "11100", "11010", "11011"],
-  S: ["01111", "11000", "11000", "01110", "00011", "00011", "11110"],
-  T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
-  U: ["11011", "11011", "11011", "11011", "11011", "11011", "01110"],
-  V: ["11011", "11011", "11011", "11011", "11011", "01010", "00100"],
-  W: ["10001", "10001", "10001", "10101", "11111", "11011", "10001"],
-  X: ["11011", "11011", "01010", "00100", "01010", "11011", "11011"],
-  Y: ["11011", "11011", "01010", "00100", "00100", "00100", "00100"],
-  Z: ["11111", "00011", "00010", "00100", "01000", "11000", "11111"],
-  "0": ["01110", "11011", "11111", "11111", "11111", "11011", "01110"],
-  "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
-  "2": ["01110", "11011", "00011", "00110", "01100", "11000", "11111"],
-  "3": ["11110", "00011", "00011", "01110", "00011", "00011", "11110"],
-  "4": ["11011", "11011", "11011", "11111", "00011", "00011", "00011"],
-  "5": ["11111", "11000", "11000", "11110", "00011", "00011", "11110"],
-  "6": ["01110", "11000", "11000", "11110", "11011", "11011", "01110"],
-  "7": ["11111", "00011", "00010", "00100", "01000", "01000", "01000"],
-  "8": ["01110", "11011", "11011", "01110", "11011", "11011", "01110"],
-  "9": ["01110", "11011", "11011", "01111", "00011", "00011", "01110"],
+  A: ['01110', '11011', '11011', '11111', '11011', '11011', '11011'],
+  B: ['11110', '11011', '11011', '11110', '11011', '11011', '11110'],
+  C: ['01111', '11000', '11000', '11000', '11000', '11000', '01111'],
+  D: ['11110', '11011', '11011', '11011', '11011', '11011', '11110'],
+  E: ['11111', '11000', '11000', '11110', '11000', '11000', '11111'],
+  F: ['11111', '11000', '11000', '11110', '11000', '11000', '11000'],
+  G: ['01111', '11000', '11000', '11011', '11011', '11011', '01111'],
+  H: ['11011', '11011', '11011', '11111', '11011', '11011', '11011'],
+  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+  J: ['00111', '00011', '00011', '00011', '00011', '11011', '01110'],
+  K: ['11011', '11010', '11100', '11000', '11100', '11010', '11011'],
+  L: ['11000', '11000', '11000', '11000', '11000', '11000', '11111'],
+  M: ['10001', '11011', '11111', '10101', '10001', '10001', '10001'],
+  N: ['11011', '11011', '11111', '11111', '11111', '11011', '11011'],
+  O: ['01110', '11011', '11011', '11011', '11011', '11011', '01110'],
+  P: ['11110', '11011', '11011', '11110', '11000', '11000', '11000'],
+  Q: ['01110', '11011', '11011', '11011', '11111', '11010', '01101'],
+  R: ['11110', '11011', '11011', '11110', '11100', '11010', '11011'],
+  S: ['01111', '11000', '11000', '01110', '00011', '00011', '11110'],
+  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+  U: ['11011', '11011', '11011', '11011', '11011', '11011', '01110'],
+  V: ['11011', '11011', '11011', '11011', '11011', '01010', '00100'],
+  W: ['10001', '10001', '10001', '10101', '11111', '11011', '10001'],
+  X: ['11011', '11011', '01010', '00100', '01010', '11011', '11011'],
+  Y: ['11011', '11011', '01010', '00100', '00100', '00100', '00100'],
+  Z: ['11111', '00011', '00010', '00100', '01000', '11000', '11111'],
+  '0': ['01110', '11011', '11111', '11111', '11111', '11011', '01110'],
+  '1': ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
+  '2': ['01110', '11011', '00011', '00110', '01100', '11000', '11111'],
+  '3': ['11110', '00011', '00011', '01110', '00011', '00011', '11110'],
+  '4': ['11011', '11011', '11011', '11111', '00011', '00011', '00011'],
+  '5': ['11111', '11000', '11000', '11110', '00011', '00011', '11110'],
+  '6': ['01110', '11000', '11000', '11110', '11011', '11011', '01110'],
+  '7': ['11111', '00011', '00010', '00100', '01000', '01000', '01000'],
+  '8': ['01110', '11011', '11011', '01110', '11011', '11011', '01110'],
+  '9': ['01110', '11011', '11011', '01111', '00011', '00011', '01110'],
 };
 export function gridGlyph(character: string): FontGlyph {
   const cells = alphabet[character.toUpperCase()] ?? [
-    "11111",
-    "10001",
-    "10001",
-    "10001",
-    "10001",
-    "10001",
-    "11111",
+    '11111',
+    '10001',
+    '10001',
+    '10001',
+    '10001',
+    '10001',
+    '11111',
   ];
   const contours: DesignPoint[][] = [];
   cells.forEach((row, y) =>
     [...row].forEach((filled, x) => {
-      if (filled === "1") {
+      if (filled === '1') {
         const left = 70 + x * 100,
           bottom = 100 + (6 - y) * 100;
         // Clockwise outer contours in font coordinates, with no overlapping cells.
@@ -71,15 +71,15 @@ export function gridGlyph(character: string): FontGlyph {
   );
   return { character, advanceWidth: 640, contours };
 }
-export function createFontDesign(family = "Studio Sans"): FontDesign {
+export function createFontDesign(family = 'Studio Sans'): FontDesign {
   return {
     family,
     unitsPerEm: 1000,
     ascender: 800,
     descender: -200,
     glyphs: [
-      { character: " ", advanceWidth: 400, contours: [] },
-      ...[..."ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"].map(gridGlyph),
+      { character: ' ', advanceWidth: 400, contours: [] },
+      ...[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'].map(gridGlyph),
     ],
   };
 }
@@ -197,11 +197,11 @@ function cmap(glyphs: FontGlyph[]): Uint8Array {
 function nameTable(family: string): Uint8Array {
   const names = [
     [1, family],
-    [2, "Regular"],
+    [2, 'Regular'],
     [3, `${family}:1.0`],
     [4, `${family} Regular`],
-    [5, "Version 1.0"],
-    [6, `${family.replace(/[^A-Za-z0-9]/g, "") || "StudioFont"}-Regular`],
+    [5, 'Version 1.0'],
+    [6, `${family.replace(/[^A-Za-z0-9]/g, '') || 'StudioFont'}-Regular`],
   ] as const;
   const strings = new Binary(),
     records = new Binary()
@@ -225,7 +225,7 @@ function nameTable(family: string): Uint8Array {
 export function buildTrueType(input: FontDesign): Uint8Array {
   const design = fontDesignSchema.parse(input);
   const notdef: FontGlyph = {
-    character: "\u0000",
+    character: '\u0000',
     advanceWidth: 640,
     contours: [
       [
@@ -242,9 +242,9 @@ export function buildTrueType(input: FontDesign): Uint8Array {
       ],
     ],
   };
-  const supplied = design.glyphs.some((g) => g.character === " ")
+  const supplied = design.glyphs.some((g) => g.character === ' ')
     ? design.glyphs
-    : [{ character: " ", advanceWidth: 400, contours: [] }, ...design.glyphs];
+    : [{ character: ' ', advanceWidth: 400, contours: [] }, ...design.glyphs];
   const glyphs = [
     notdef,
     ...[...supplied].sort(
@@ -262,10 +262,10 @@ export function buildTrueType(input: FontDesign): Uint8Array {
     glyf.zeros(aligned(glyf.values.length) - glyf.values.length);
   }
   loca.u32(glyf.values.length);
-  tables.set("glyf", glyf.bytes());
-  tables.set("loca", loca.bytes());
-  tables.set("cmap", cmap(glyphs));
-  tables.set("name", nameTable(design.family));
+  tables.set('glyf', glyf.bytes());
+  tables.set('loca', loca.bytes());
+  tables.set('cmap', cmap(glyphs));
+  tables.set('name', nameTable(design.family));
   const head = new Binary()
     .u32(0x10000)
     .u32(0x10000)
@@ -279,7 +279,7 @@ export function buildTrueType(input: FontDesign): Uint8Array {
     .u32(3849984000);
   for (const v of box) head.i16(v!);
   head.u16(0).u16(8).i16(2).i16(1).i16(0);
-  tables.set("head", head.bytes());
+  tables.set('head', head.bytes());
   const advances = glyphs.map((g) => g.advanceWidth);
   const hhea = new Binary()
     .u32(0x10000)
@@ -296,10 +296,10 @@ export function buildTrueType(input: FontDesign): Uint8Array {
     .zeros(8)
     .i16(0)
     .u16(glyphs.length);
-  tables.set("hhea", hhea.bytes());
+  tables.set('hhea', hhea.bytes());
   const hmtx = new Binary();
   glyphs.forEach((g, i) => hmtx.u16(g.advanceWidth).i16(boxes[i]![0]!));
-  tables.set("hmtx", hmtx.bytes());
+  tables.set('hmtx', hmtx.bytes());
   const maxp = new Binary()
     .u32(0x10000)
     .u16(glyphs.length)
@@ -309,9 +309,9 @@ export function buildTrueType(input: FontDesign): Uint8Array {
     .u16(0)
     .u16(2)
     .zeros(16);
-  tables.set("maxp", maxp.bytes());
+  tables.set('maxp', maxp.bytes());
   tables.set(
-    "post",
+    'post',
     new Binary().u32(0x30000).u32(0).i16(-100).i16(50).zeros(20).bytes(),
   );
   const os2 = new Binary()
@@ -336,7 +336,7 @@ export function buildTrueType(input: FontDesign): Uint8Array {
     .u32(0)
     .u32(0)
     .u32(0)
-    .text("AIBD")
+    .text('AIBD')
     .u16(64)
     .u16(Math.min(...supplied.map((g) => g.character.charCodeAt(0))))
     .u16(Math.max(...supplied.map((g) => g.character.charCodeAt(0))))
@@ -352,7 +352,7 @@ export function buildTrueType(input: FontDesign): Uint8Array {
     .u16(0)
     .u16(32)
     .u16(2);
-  tables.set("OS/2", os2.bytes());
+  tables.set('OS/2', os2.bytes());
   const entries = [...tables].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
     count = entries.length,
     power = 2 ** Math.floor(Math.log2(count));
@@ -367,7 +367,7 @@ export function buildTrueType(input: FontDesign): Uint8Array {
   for (const [tag, bytes] of entries) {
     const offset = 12 + 16 * count + data.values.length;
     output.text(tag).u32(fontChecksum(bytes)).u32(offset).u32(bytes.length);
-    if (tag === "head") headOffset = offset;
+    if (tag === 'head') headOffset = offset;
     data.add(bytes).zeros(aligned(bytes.length) - bytes.length);
   }
   const result = output.add(data.bytes()).bytes();

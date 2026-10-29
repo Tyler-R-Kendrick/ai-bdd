@@ -1,23 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 import {
   fontDesignSchema,
   layerAppearanceSchema,
   pathData,
   vectorPathSchema,
-} from "../shared/visual-design.ts";
+} from '../shared/visual-design.ts';
 import {
   buildTrueType,
   createFontDesign,
-} from "../client/editors/visual/typeface.ts";
-import { removeEdgeColor } from "../client/editors/visual/raster.ts";
+} from '../client/editors/visual/typeface.ts';
+import { removeEdgeColor } from '../client/editors/visual/raster.ts';
 import {
   newLayer,
   svgSource,
   type VisualContent,
-} from "../client/editors/visual/render.ts";
+} from '../client/editors/visual/render.ts';
 
-describe("editable vector and raster sources", () => {
-  it("rejects malformed geometry and crops outside their authenticated source image", () => {
+describe('editable vector and raster sources', () => {
+  it('rejects malformed geometry and crops outside their authenticated source image', () => {
     expect(
       layerAppearanceSchema.safeParse({
         crop: { x: 0.8, y: 0, width: 0.5, height: 1 },
@@ -34,7 +34,7 @@ describe("editable vector and raster sources", () => {
         contours: [
           [
             { x: 0, y: 0 },
-            { x: "<script>", y: 1 },
+            { x: '<script>', y: 1 },
           ],
         ],
       }).success,
@@ -52,9 +52,9 @@ describe("editable vector and raster sources", () => {
           ],
         ],
       }),
-    ).toBe("M 0 0 Q 40 0 80 80 Z");
+    ).toBe('M 0 0 Q 40 0 80 80 Z');
   });
-  it("derives an alpha matte from actual connected edge colors without deleting enclosed matching pixels", () => {
+  it('derives an alpha matte from actual connected edge colors without deleting enclosed matching pixels', () => {
     const width = 7,
       height = 7,
       data = new Uint8ClampedArray(width * height * 4).fill(255);
@@ -69,21 +69,21 @@ describe("editable vector and raster sources", () => {
     expect(matte[(3 * width + 3) * 4 + 3]).toBe(255);
     expect(matte[(1 * width + 1) * 4 + 3]).toBe(255);
     expect(data[3]).toBe(255);
-    expect(() => removeEdgeColor(data, 7, 8, 10)).toThrow("16 megapixels");
+    expect(() => removeEdgeColor(data, 7, 8, 10)).toThrow('16 megapixels');
     expect(() => removeEdgeColor(data, width, height, Infinity)).toThrow(
-      "tolerance",
+      'tolerance',
     );
   });
-  it("exports geometric paths, crop/mask appearance and designed fonts without external asset dependencies", () => {
+  it('exports geometric paths, crop/mask appearance and designed fonts without external asset dependencies', () => {
     const content: VisualContent = {
       width: 500,
       height: 500,
       duration: 1,
-      background: "#ffffff",
+      background: '#ffffff',
       layers: [],
     };
     const vector = {
-      ...newLayer("path", content),
+      ...newLayer('path', content),
       path: {
         viewWidth: 100,
         viewHeight: 100,
@@ -97,18 +97,18 @@ describe("editable vector and raster sources", () => {
         ],
       },
       opacity: 0.6,
-      stroke: "#000000",
+      stroke: '#000000',
       strokeWidth: 2,
     };
     const source = svgSource({ ...content, layers: [vector] });
     expect(source).toContain('d="M 0 0 L 100 0 L 50 100 Z"');
     expect(source).toContain('opacity="0.6"');
-    expect(source).not.toContain("foreignObject");
+    expect(source).not.toContain('foreignObject');
     const image = {
-      ...newLayer("image", content),
-      src: "/api/files/12978879-c986-440f-bcbc-658156798220",
+      ...newLayer('image', content),
+      src: '/api/files/12978879-c986-440f-bcbc-658156798220',
       crop: { x: 0.1, y: 0.2, width: 0.5, height: 0.6 },
-      mask: "ellipse" as const,
+      mask: 'ellipse' as const,
     };
     const output = svgSource(
       { ...content, layers: [image] },
@@ -116,18 +116,18 @@ describe("editable vector and raster sources", () => {
       undefined,
       {
         images: new Map(),
-        dataUrls: new Map([[image.src, "data:image/png;base64,iVBORw=="]]),
+        dataUrls: new Map([[image.src, 'data:image/png;base64,iVBORw==']]),
       },
     );
     expect(output).toContain('viewBox="0.1 0.2 0.5 0.6"');
-    expect(output).toContain("<clipPath");
+    expect(output).toContain('<clipPath');
     expect(output).not.toContain('href="/api/');
   });
 });
 
-describe("TrueType font creation", () => {
-  it("produces deterministic installable table data with the TrueType whole-font checksum", () => {
-    const design = createFontDesign("Proof Typeface"),
+describe('TrueType font creation', () => {
+  it('produces deterministic installable table data with the TrueType whole-font checksum', () => {
+    const design = createFontDesign('Proof Typeface'),
       bytes = buildTrueType(design),
       view = new DataView(bytes.buffer);
     expect(buildTrueType(design)).toEqual(bytes);
@@ -146,20 +146,20 @@ describe("TrueType font creation", () => {
       tables.set(tag, { offset, length });
     }
     expect([...tables.keys()]).toEqual([
-      "OS/2",
-      "cmap",
-      "glyf",
-      "head",
-      "hhea",
-      "hmtx",
-      "loca",
-      "maxp",
-      "name",
-      "post",
+      'OS/2',
+      'cmap',
+      'glyf',
+      'head',
+      'hhea',
+      'hmtx',
+      'loca',
+      'maxp',
+      'name',
+      'post',
     ]);
-    expect(tables.get("maxp")!.length).toBe(32);
-    expect(view.getUint16(tables.get("maxp")!.offset + 4)).toBe(38);
-    const cmap = tables.get("cmap")!.offset,
+    expect(tables.get('maxp')!.length).toBe(32);
+    expect(view.getUint16(tables.get('maxp')!.offset + 4)).toBe(38);
+    const cmap = tables.get('cmap')!.offset,
       sub = cmap + view.getUint32(cmap + 8),
       segments = view.getUint16(sub + 6) / 2;
     const codes = Array.from({ length: segments }, (_, i) =>
@@ -170,12 +170,12 @@ describe("TrueType font creation", () => {
     expect(codes).toContain(48);
     expect(codes.at(-1)).toBe(65535);
   });
-  it("preserves authored quadratic control points, glyph metrics and non-ASCII mappings", () => {
+  it('preserves authored quadratic control points, glyph metrics and non-ASCII mappings', () => {
     const design = {
-      ...createFontDesign("Outline Studio"),
+      ...createFontDesign('Outline Studio'),
       glyphs: [
         {
-          character: "中",
+          character: '中',
           advanceWidth: 800,
           contours: [
             [
@@ -197,12 +197,12 @@ describe("TrueType font creation", () => {
         view.getUint32(start + 8),
       );
     }
-    const loca = tables.get("loca")!,
-      glyf = tables.get("glyf")!,
+    const loca = tables.get('loca')!,
+      glyf = tables.get('glyf')!,
       start = glyf + view.getUint32(loca + 8);
     expect(view.getInt16(start)).toBe(1);
     expect([...bytes.slice(start + 14, start + 17)]).toEqual([1, 0, 1]);
-    const hmtx = tables.get("hmtx")!;
+    const hmtx = tables.get('hmtx')!;
     expect(view.getUint16(hmtx + 8)).toBe(800);
     expect(
       fontDesignSchema.safeParse({
