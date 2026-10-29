@@ -159,6 +159,19 @@ export function validateRichVisual(
 ): ChartData | DiagramData | TabsData {
   return richVisualSchemas[kind].parse(value);
 }
+export function assertRichVisualUnchanged(
+  kind: RichVisualKind,
+  opening: unknown,
+  current: unknown,
+): void {
+  if (
+    JSON.stringify(validateRichVisual(kind, opening)) !==
+    JSON.stringify(validateRichVisual(kind, current))
+  )
+    throw new Error(
+      'A teammate changed this block while you were editing it. Your typed source is retained. Copy your changes, cancel, and reopen the block to review the latest version before saving.',
+    );
+}
 export function chartRange(points: ChartData['points']): {
   min: number;
   max: number;
