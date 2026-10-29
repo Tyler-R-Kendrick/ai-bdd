@@ -489,7 +489,7 @@ export class Store {
   }
   messages(id: string) {
     return this.all(
-      `SELECT sequence,${messageCols} FROM (SELECT rowid AS sequence,* FROM messages WHERE artifact_id=? ORDER BY rowid DESC LIMIT 1000) ORDER BY sequence`,
+      `SELECT sequence,${messageCols} FROM (SELECT rowid AS sequence,* FROM messages WHERE artifact_id=? ORDER BY rowid DESC LIMIT 100) ORDER BY sequence`,
       id,
     ).map(readMessage);
   }

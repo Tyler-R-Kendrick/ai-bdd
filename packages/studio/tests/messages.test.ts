@@ -101,6 +101,9 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
     expect(all[0].body).toBe('message 0');
     expect(new Set(all.map((message: any) => message.id)).size).toBe(1001);
     expect(instance.store.threads(p.mainArtifactId)[0].messageCount).toBe(1001);
+    const bundle=(await request('GET',`/api/artifacts/${p.mainArtifactId}`)).json();
+    expect(bundle.messages).toHaveLength(100);
+    expect(bundle.messages.at(-1).body).toBe('message 1000');
   });
 
   it('scopes threads and cursors to both the artifact and discussion', async () => {
