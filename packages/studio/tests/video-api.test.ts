@@ -15,7 +15,7 @@ beforeEach(async () => {
   const settings = testSettings(dir);
   context = await createApp(settings, { db: ':memory:' });
   service =
-    context.video ??
+    (context as typeof context & { video?: typeof service }).video ??
     registerVideoRoutes(context.app, {
       store: context.store,
       auth: context.auth,
@@ -52,10 +52,7 @@ afterEach(async () => {
 async function completed(id: string) {
   for (let attempt = 0; attempt < 200; attempt++) {
     const row = (
-      await request(
-        'GET',
-        `/api/artifacts/${artifact.id}/video/renders/${id}`,
-      )
+      await request('GET', `/api/artifacts/${artifact.id}/video/renders/${id}`)
     ).json();
     if (!['queued', 'rendering'].includes(row.status)) return row;
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -127,5 +124,21 @@ describe('Authorized durable video rendering', () => {
         artifact.id,
       ).n,
     ).toBe(0);
+  });
+  it('does not publish an export against a document revision changed during rendering', async () => {
+    const queued = await request(
+      'POST',
+      `/api/artifacts/${artifact.id}/video/render`,
+      { version: 1, format: 'mp4' },
+    );
+    expect(queued.statusCode).toBe(202);
+    context.store.exec(
+      'UPDATE artifacts SET version=2 WHERE id=?',
+      artifact.id,
+    );
+    const result = await completed(queued.json().id);
+    expect(result.status).toBe('failed');
+    expect(result.fileId).toBeNull();
+    expect(result.error).toContain('changed during rendering');
   });
 });
