@@ -1,6 +1,6 @@
 {
   "image": "ai-bdd-studio:review",
-  "imageId": "sha256:8161b4dab4271b6b9fdbfa92b542460598f69a18b6ce3d225c8eee608a94ac14",
+  "imageId": "sha256:3b410b07899c039fd360cb1848086474299b2b4542b08e823de8a81dba13a1dc",
   "checks": [
     "production starts as non-root with read-only filesystem and dropped capabilities",
     "demo access is unavailable in production",
