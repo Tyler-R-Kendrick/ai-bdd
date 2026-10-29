@@ -361,3 +361,23 @@ describe('standard Pact boundaries in isolated previews', () => {
     }
   });
 });
+
+it('resolves inline module imports relative to a nested HTML entry', async () => {
+  const result = await compileCodePreview({
+    channel: 'nested-html',
+    entry: 'pages/index.html',
+    files: {
+      'pages/index.html':
+        '<h1></h1><script type="module">import {title} from "./title.ts";document.querySelector("h1").textContent=title;</script>',
+      'pages/title.ts': 'export const title:string="Nested module"',
+    },
+  });
+  const { page, preview } = await frame(result.html);
+  try {
+    await expect
+      .poll(() => preview.getByRole('heading').textContent())
+      .toBe('Nested module');
+  } finally {
+    await page.close();
+  }
+});
