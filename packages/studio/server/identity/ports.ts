@@ -7,6 +7,7 @@ export interface IdentityStore {
   exec(sql: string, ...args: any[]): Awaitable<unknown>;
   projects(userId: string): Awaitable<Project[]>;
   publicUser(userId: string): Awaitable<User>;
+  tx<T>(fn: () => Promise<T>): Promise<T>;
 }
 export interface IdentityAuth {
   user(request: FastifyRequest): Awaitable<User>;
