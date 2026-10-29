@@ -1,0 +1,39 @@
+services:
+  studio:
+    build:
+      context: .
+      dockerfile: packages/studio/Dockerfile
+    image: ai-bdd-studio:local
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .studio.env
+    environment:
+      NODE_ENV: production
+      STUDIO_HOST: 0.0.0.0
+      STUDIO_PORT: 8787
+      STUDIO_DATA_DIR: /data
+      AI_BDD_CHROMIUM_PATH: /usr/bin/chromium
+    ports:
+      - '127.0.0.1:8787:8787'
+    volumes:
+      - studio-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    shm_size: 256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    stop_grace_period: 45s
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  studio-data:

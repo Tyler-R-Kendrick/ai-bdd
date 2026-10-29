@@ -32,7 +32,16 @@ export async function createApp(
   options: { db?: string; logger?: boolean; clientDir?: string } = {},
 ) {
   const app = Fastify({
-    logger: options.logger ?? false,
+    logger: options.logger
+      ? {
+          redact: [
+            'req.url',
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'res.headers.set-cookie',
+          ],
+        }
+      : false,
     bodyLimit: 2_100_000,
     requestTimeout: 150000,
     connectionTimeout: 15000,

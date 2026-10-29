@@ -1,0 +1,9 @@
+# Dockerfile.dockerignore is used when building from the repository root.
+node_modules
+dist
+.studio
+.env
+.env.*
+!.env.example
+test-results
+playwright-report
