@@ -2,22 +2,55 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { capability, initialContent, validateContent, type Artifact, type ArtifactKind, type Role, type User } from '../shared/domain.ts';
+import {
+  capability,
+  initialContent,
+  validateContent,
+  type Artifact,
+  type ArtifactKind,
+  type Role,
+  type User,
+} from '../shared/domain.ts';
 
 export class HttpError extends Error {
-  constructor(public statusCode: number, message: string) { super(message); }
+  constructor(
+    public statusCode: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }
-export const hash = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex');
+export const hash = (s: string | Uint8Array) =>
+  createHash('sha256').update(s).digest('hex');
 const now = () => new Date().toISOString();
-const artifactCols = 'id, project_id AS projectId, kind, title, content, version, updated_at AS updatedAt, created_at AS createdAt, created_by AS createdBy, archived';
+const artifactCols =
+  'id, project_id AS projectId, kind, title, content, version, updated_at AS updatedAt, created_at AS createdAt, created_by AS createdBy, archived';
 export class Store {
   db: DatabaseSync;
   constructor(file: string) {
-    if(file !== ':memory:') mkdirSync(dirname(file), {recursive:true,mode:0o700});
+    if (file !== ':memory:')
+      mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(file);
-    const schemaVersion=(this.db.prepare('PRAGMA user_version').get() as {user_version:number}).user_version;
-    if(schemaVersion>1){this.db.close();throw new Error('This database was created by a newer Studio version; refusing an unsafe downgrade');}
-    this.db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL;');
+    let schemaVersion:number;
+    try { schemaVersion = (this.db.prepare('PRAGMA user_version').get() as {user_version:number}).user_version; }
+    catch(cause){this.db.close();throw new Error('Cannot read the database; another writer may hold its exclusive lock.',{cause});}
+    if (schemaVersion > 1) {
+      this.db.close();
+      throw new Error(
+        'This database was created by a newer Studio version; refusing an unsafe downgrade',
+      );
+    }
+    this.db.exec(
+      'PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL;',
+    );
+    try {
+      // Retain SQLite's exclusive connection lock until close. A second app
+      // process must never recover jobs or edit this volume concurrently.
+      this.db.exec('PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; COMMIT;');
+    } catch (cause) {
+      this.db.close();
+      throw new Error('Could not acquire the database writer lock. Studio requires one writer per data volume.', {cause});
+    }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,name TEXT NOT NULL,password TEXT,color TEXT NOT NULL,oidc_sub TEXT UNIQUE);
       CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires INTEGER NOT NULL,kind TEXT NOT NULL DEFAULT 'session');
@@ -38,119 +71,437 @@ export class Store {
       CREATE INDEX IF NOT EXISTS audit_project ON audit(project_id,id);
       PRAGMA user_version=1;
     `);
-    this.db.prepare("UPDATE runs SET status='interrupted', error='Server restarted during execution', finished_at=? WHERE status IN ('queued','running')").run(now());
+    this.db
+      .prepare(
+        "UPDATE runs SET status='interrupted', error='Server restarted during execution', finished_at=? WHERE status IN ('queued','running')",
+      )
+      .run(now());
   }
-  one(sql:string,...args:any[]): any { return this.db.prepare(sql).get(...args); }
-  all(sql:string,...args:any[]): any[] { return this.db.prepare(sql).all(...args); }
-  exec(sql:string,...args:any[]) { return this.db.prepare(sql).run(...args); }
-  tx<T>(fn:()=>T):T { this.db.exec('BEGIN IMMEDIATE'); try { const result=fn(); this.db.exec('COMMIT'); return result; } catch(e) {this.db.exec('ROLLBACK');throw e;} }
-  close() { this.db.close(); }
-  publicUser(id:string):User { const u=this.one('SELECT id,email,name,color FROM users WHERE id=?',id); if(!u)throw new HttpError(401,'Sign in to continue');return u; }
-  userByEmail(email:string) {return this.one('SELECT * FROM users WHERE email=?',email.toLowerCase());}
-  createUser(email:string,name:string,password:string|null,sub:string|null=null):User {
-    const id=randomUUID(); const color=['#6b73d1','#378469','#b06440','#8a5eb0'][parseInt(id[0]!,16)%4]!;
-    this.exec('INSERT INTO users(id,email,name,password,color,oidc_sub) VALUES(?,?,?,?,?,?)',id,email.toLowerCase(),name,password,color,sub);
+  one(sql: string, ...args: any[]): any {
+    return this.db.prepare(sql).get(...args);
+  }
+  all(sql: string, ...args: any[]): any[] {
+    return this.db.prepare(sql).all(...args);
+  }
+  exec(sql: string, ...args: any[]) {
+    return this.db.prepare(sql).run(...args);
+  }
+  tx<T>(fn: () => T): T {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const result = fn();
+      this.db.exec('COMMIT');
+      return result;
+    } catch (e) {
+      this.db.exec('ROLLBACK');
+      throw e;
+    }
+  }
+  close() {
+    this.db.close();
+  }
+  publicUser(id: string): User {
+    const u = this.one('SELECT id,email,name,color FROM users WHERE id=?', id);
+    if (!u) throw new HttpError(401, 'Sign in to continue');
+    return u;
+  }
+  userByEmail(email: string) {
+    return this.one('SELECT * FROM users WHERE email=?', email.toLowerCase());
+  }
+  createUser(
+    email: string,
+    name: string,
+    password: string | null,
+    sub: string | null = null,
+  ): User {
+    const id = randomUUID();
+    const color = ['#6b73d1', '#378469', '#b06440', '#8a5eb0'][
+      parseInt(id[0]!, 16) % 4
+    ]!;
+    this.exec(
+      'INSERT INTO users(id,email,name,password,color,oidc_sub) VALUES(?,?,?,?,?,?)',
+      id,
+      email.toLowerCase(),
+      name,
+      password,
+      color,
+      sub,
+    );
     return this.publicUser(id);
   }
-  role(projectId:string,userId:string,action:'read'|'write'|'admin'='read'):Role {
-    const r=this.one('SELECT role FROM memberships WHERE project_id=? AND user_id=?',projectId,userId)?.role as Role|undefined;
-    if(!r)throw new HttpError(404,'Project not found');
-    if(!capability(r,action))throw new HttpError(403,'Your project role does not allow this action');
+  role(
+    projectId: string,
+    userId: string,
+    action: 'read' | 'write' | 'admin' = 'read',
+  ): Role {
+    const r = this.one(
+      'SELECT role FROM memberships WHERE project_id=? AND user_id=?',
+      projectId,
+      userId,
+    )?.role as Role | undefined;
+    if (!r) throw new HttpError(404, 'Project not found');
+    if (!capability(r, action))
+      throw new HttpError(403, 'Your project role does not allow this action');
     return r;
   }
-  artifact(id:string,userId:string,action:'read'|'write'|'admin'='read'):Artifact {
-    const a=this.one(`SELECT ${artifactCols} FROM artifacts WHERE id=?`,id);
-    if(!a)throw new HttpError(404,'Artifact not found');
-    this.role(a.projectId,userId,action);
-    if(a.archived&&action!=='read')throw new HttpError(409,'This artifact is archived');
-    return {...a,content:JSON.parse(a.content),archived:!!a.archived};
+  artifact(
+    id: string,
+    userId: string,
+    action: 'read' | 'write' | 'admin' = 'read',
+  ): Artifact {
+    const a = this.one(`SELECT ${artifactCols} FROM artifacts WHERE id=?`, id);
+    if (!a) throw new HttpError(404, 'Artifact not found');
+    this.role(a.projectId, userId, action);
+    if (a.archived && action !== 'read')
+      throw new HttpError(409, 'This artifact is archived');
+    return { ...a, content: JSON.parse(a.content), archived: !!a.archived };
   }
-  artifacts(projectId:string,userId:string) {
-    this.role(projectId,userId);
-    return this.all(`SELECT ${artifactCols} FROM artifacts WHERE project_id=? AND archived=0 ORDER BY created_at,id`,projectId).map(a=>({...a,content:JSON.parse(a.content),archived:!!a.archived}));
+  artifacts(projectId: string, userId: string) {
+    this.role(projectId, userId);
+    return this.all(
+      `SELECT ${artifactCols} FROM artifacts WHERE project_id=? AND archived=0 ORDER BY created_at,id`,
+      projectId,
+    ).map((a) => ({
+      ...a,
+      content: JSON.parse(a.content),
+      archived: !!a.archived,
+    }));
   }
-  projects(userId:string) {return this.all('SELECT p.id,p.title,p.description,p.repository,p.main_artifact_id AS mainArtifactId,p.updated_at AS updatedAt,m.role FROM projects p JOIN memberships m ON m.project_id=p.id WHERE m.user_id=? ORDER BY p.updated_at DESC',userId);}
-  audit(projectId:string,artifactId:string|null,actor:string,action:string,detail='') {
-    this.exec('INSERT INTO audit(project_id,artifact_id,actor,action,detail,created_at) VALUES(?,?,?,?,?,?)',projectId,artifactId,actor,action,detail,now());
+  projects(userId: string) {
+    return this.all(
+      'SELECT p.id,p.title,p.description,p.repository,p.main_artifact_id AS mainArtifactId,p.updated_at AS updatedAt,m.role FROM projects p JOIN memberships m ON m.project_id=p.id WHERE m.user_id=? ORDER BY p.updated_at DESC',
+      userId,
+    );
   }
-  checkedContent(kind:ArtifactKind,content:unknown,projectId:string):Record<string,any> {
-    let parsed:Record<string,any>;
-    try{parsed=validateContent(kind,content);}catch(e){if(e instanceof Error&&'issues' in e)throw e;throw new HttpError(400,(e as Error).message);}
-    const file=(url:unknown,mime:string)=>{
-      if(typeof url!=='string'||!/^\/api\/files\/[0-9a-f-]{36}$/.test(url))throw new HttpError(400,'Media must reference an uploaded project file');
-      const asset=this.one('SELECT mime FROM files WHERE id=? AND project_id=?',url.split('/').pop(),projectId);
-      if(!asset||!(mime==='image'?asset.mime.startsWith('image/'):asset.mime===mime))throw new HttpError(400,'An uploaded asset is missing, has the wrong type, or belongs to another project');
+  audit(
+    projectId: string,
+    artifactId: string | null,
+    actor: string,
+    action: string,
+    detail = '',
+  ) {
+    this.exec(
+      'INSERT INTO audit(project_id,artifact_id,actor,action,detail,created_at) VALUES(?,?,?,?,?,?)',
+      projectId,
+      artifactId,
+      actor,
+      action,
+      detail,
+      now(),
+    );
+  }
+  checkedContent(
+    kind: ArtifactKind,
+    content: unknown,
+    projectId: string,
+  ): Record<string, any> {
+    let parsed: Record<string, any>;
+    try {
+      parsed = validateContent(kind, content);
+    } catch (e) {
+      if (e instanceof Error && 'issues' in e) throw e;
+      throw new HttpError(400, (e as Error).message);
+    }
+    const file = (url: unknown, mime: string) => {
+      if (typeof url !== 'string' || !/^\/api\/files\/[0-9a-f-]{36}$/.test(url))
+        throw new HttpError(
+          400,
+          'Media must reference an uploaded project file',
+        );
+      const asset = this.one(
+        'SELECT mime FROM files WHERE id=? AND project_id=?',
+        url.split('/').pop(),
+        projectId,
+      );
+      if (
+        !asset ||
+        !(mime === 'image'
+          ? asset.mime.startsWith('image/')
+          : asset.mime === mime)
+      )
+        throw new HttpError(
+          400,
+          'An uploaded asset is missing, has the wrong type, or belongs to another project',
+        );
     };
-    if(kind==='image'||kind==='brand'||kind==='video')for(const layer of parsed.layers){if(layer.type==='image')file(layer.src,'image');if(layer.fontUrl)file(layer.fontUrl,'font/woff2');}
-    if(kind==='design'||kind==='document'){
-      const walk=(node:any)=>{
-        if(node.type==='image')file(node.attrs?.src,'image');
-        for(const mark of node.marks??[])if(mark.type==='link'&&!(typeof mark.attrs?.href==='string'&&/^(https?:\/\/|mailto:|#)/i.test(mark.attrs.href)))throw new HttpError(400,'Document links must use HTTP, HTTPS, mailto, or an anchor');
-        for(const child of node.content??[])walk(child);
-      };walk(parsed.doc);
+    if (kind === 'image' || kind === 'brand' || kind === 'video')
+      for (const layer of parsed.layers) {
+        if (layer.type === 'image') file(layer.src, 'image');
+        if (layer.fontUrl) file(layer.fontUrl, 'font/woff2');
+      }
+    if (kind === 'design' || kind === 'document') {
+      const walk = (node: any) => {
+        if (node.type === 'image') file(node.attrs?.src, 'image');
+        for (const mark of node.marks ?? [])
+          if (
+            mark.type === 'link' &&
+            !(
+              typeof mark.attrs?.href === 'string' &&
+              /^(https?:\/\/|mailto:|#)/i.test(mark.attrs.href)
+            )
+          )
+            throw new HttpError(
+              400,
+              'Document links must use HTTP, HTTPS, mailto, or an anchor',
+            );
+        for (const child of node.content ?? []) walk(child);
+      };
+      walk(parsed.doc);
     }
     return parsed;
   }
-  createProject(user:User,title:string,description:string,repository='') {
-    if(this.projects(user.id).length>=100)throw new HttpError(409,'This account has reached its 100-project limit');
-    return this.tx(()=>{
-      const id=randomUUID(), mainId=randomUUID();
-      this.exec('INSERT INTO projects VALUES(?,?,?,?,?,?)',id,title,description,repository,mainId,now());
-      this.exec('INSERT INTO memberships VALUES(?,?,?)',id,user.id,'owner');
-      this.insertArtifact(user,id,'design',title+' — design',mainId);
-      this.audit(id,null,user.name,'project.created',title);
-      return this.projects(user.id).find(p=>p.id===id);
+  createProject(
+    user: User,
+    title: string,
+    description: string,
+    repository = '',
+  ) {
+    if (this.projects(user.id).length >= 100)
+      throw new HttpError(
+        409,
+        'This account has reached its 100-project limit',
+      );
+    return this.tx(() => {
+      const id = randomUUID(),
+        mainId = randomUUID();
+      this.exec(
+        'INSERT INTO projects VALUES(?,?,?,?,?,?)',
+        id,
+        title,
+        description,
+        repository,
+        mainId,
+        now(),
+      );
+      this.exec('INSERT INTO memberships VALUES(?,?,?)', id, user.id, 'owner');
+      this.insertArtifact(user, id, 'design', title + ' — design', mainId);
+      this.audit(id, null, user.name, 'project.created', title);
+      return this.projects(user.id).find((p) => p.id === id);
     });
   }
-  insertArtifact(user:User,projectId:string,kind:ArtifactKind,title:string,id=randomUUID(),content=initialContent(kind,title)):Artifact {
-    if(this.one('SELECT count(*) AS n FROM artifacts WHERE project_id=?',projectId).n>=500)throw new HttpError(409,'This project has reached its 500-artifact limit');
-    const c=JSON.stringify(this.checkedContent(kind,content,projectId)); const t=now();
-    this.exec('INSERT INTO artifacts(id,project_id,kind,title,content,updated_at,created_at,created_by) VALUES(?,?,?,?,?,?,?,?)',id,projectId,kind,title,c,t,t,user.id);
-    this.exec('INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',id,1,c,user.name,t);
-    this.exec('INSERT INTO decisions(id,artifact_id,title,context,decision,consequences,author,updated_at) VALUES(?,?,?,?,?,?,?,?)',randomUUID(),id,'ADR · '+title,'Why does this artifact exist?','Record the chosen approach and its owner.','Record tradeoffs and alternatives.',user.name,t);
-    this.exec('INSERT INTO threads(id,artifact_id,created_at) VALUES(?,?,?)',randomUUID(),id,t);
-    this.audit(projectId,id,user.name,'artifact.created',kind);
-    return this.artifact(id,user.id);
+  insertArtifact(
+    user: User,
+    projectId: string,
+    kind: ArtifactKind,
+    title: string,
+    id = randomUUID(),
+    content = initialContent(kind, title),
+  ): Artifact {
+    if (
+      this.one(
+        'SELECT count(*) AS n FROM artifacts WHERE project_id=?',
+        projectId,
+      ).n >= 500
+    )
+      throw new HttpError(
+        409,
+        'This project has reached its 500-artifact limit',
+      );
+    const c = JSON.stringify(this.checkedContent(kind, content, projectId));
+    const t = now();
+    this.exec(
+      'INSERT INTO artifacts(id,project_id,kind,title,content,updated_at,created_at,created_by) VALUES(?,?,?,?,?,?,?,?)',
+      id,
+      projectId,
+      kind,
+      title,
+      c,
+      t,
+      t,
+      user.id,
+    );
+    this.exec(
+      'INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',
+      id,
+      1,
+      c,
+      user.name,
+      t,
+    );
+    this.exec(
+      'INSERT INTO decisions(id,artifact_id,title,context,decision,consequences,author,updated_at) VALUES(?,?,?,?,?,?,?,?)',
+      randomUUID(),
+      id,
+      'ADR · ' + title,
+      'Why does this artifact exist?',
+      'Record the chosen approach and its owner.',
+      'Record tradeoffs and alternatives.',
+      user.name,
+      t,
+    );
+    this.exec(
+      'INSERT INTO threads(id,artifact_id,created_at) VALUES(?,?,?)',
+      randomUUID(),
+      id,
+      t,
+    );
+    this.audit(projectId, id, user.name, 'artifact.created', kind);
+    return this.artifact(id, user.id);
   }
-  createArtifact(user:User,projectId:string,kind:ArtifactKind,title:string,content?:Record<string,any>) {
-    this.role(projectId,user.id,'write');return this.tx(()=>this.insertArtifact(user,projectId,kind,title,undefined,content));
+  createArtifact(
+    user: User,
+    projectId: string,
+    kind: ArtifactKind,
+    title: string,
+    content?: Record<string, any>,
+  ) {
+    this.role(projectId, user.id, 'write');
+    return this.tx(() =>
+      this.insertArtifact(user, projectId, kind, title, undefined, content),
+    );
   }
-  updateArtifact(user:User,id:string,version:number,content:unknown,title?:string):Artifact {
-    const a=this.artifact(id,user.id,'write');
-    const c=JSON.stringify(this.checkedContent(a.kind,content,a.projectId));
-    return this.tx(()=>{
-      const t=now();
-      const r=this.exec('UPDATE artifacts SET content=?,title=?,version=version+1,updated_at=? WHERE id=? AND version=?',c,title??a.title,t,id,version);
-      if(r.changes!==1)throw new HttpError(409,'This artifact changed. Reload the latest version before saving.');
-      this.exec('INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',id,version+1,c,user.name,t);
-      this.exec('UPDATE projects SET updated_at=? WHERE id=?',t,a.projectId);
-      this.audit(a.projectId,id,user.name,'artifact.updated',`version ${version+1}`);
-      return this.artifact(id,user.id);
+  updateArtifact(
+    user: User,
+    id: string,
+    version: number,
+    content: unknown,
+    title?: string,
+  ): Artifact {
+    const a = this.artifact(id, user.id, 'write');
+    const c = JSON.stringify(this.checkedContent(a.kind, content, a.projectId));
+    return this.tx(() => {
+      const t = now();
+      const r = this.exec(
+        'UPDATE artifacts SET content=?,title=?,version=version+1,updated_at=? WHERE id=? AND version=?',
+        c,
+        title ?? a.title,
+        t,
+        id,
+        version,
+      );
+      if (r.changes !== 1)
+        throw new HttpError(
+          409,
+          'This artifact changed. Reload the latest version before saving.',
+        );
+      this.exec(
+        'INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',
+        id,
+        version + 1,
+        c,
+        user.name,
+        t,
+      );
+      this.exec('UPDATE projects SET updated_at=? WHERE id=?', t, a.projectId);
+      this.audit(
+        a.projectId,
+        id,
+        user.name,
+        'artifact.updated',
+        `version ${version + 1}`,
+      );
+      return this.artifact(id, user.id);
     });
   }
-  state(id:string):Uint8Array|null {return this.one('SELECT ystate FROM artifacts WHERE id=?',id)?.ystate??null;}
-  persistDoc(user:User,id:string,state:Uint8Array,content:Record<string,any>) {
-    const a=this.artifact(id,user.id,'write');
-    return this.tx(()=>{
-      this.exec('UPDATE artifacts SET ystate=? WHERE id=?',state,id);
-      if(JSON.stringify(a.content)!==JSON.stringify(content))this.updateDocContent(user,a,content);
+  state(id: string): Uint8Array | null {
+    return (
+      this.one('SELECT ystate FROM artifacts WHERE id=?', id)?.ystate ?? null
+    );
+  }
+  persistDoc(
+    user: User,
+    id: string,
+    state: Uint8Array,
+    content: Record<string, any>,
+  ) {
+    const a = this.artifact(id, user.id, 'write');
+    return this.tx(() => {
+      this.exec('UPDATE artifacts SET ystate=? WHERE id=?', state, id);
+      if (JSON.stringify(a.content) !== JSON.stringify(content))
+        this.updateDocContent(user, a, content);
     });
   }
-  private updateDocContent(user:User,a:Artifact,content:Record<string,any>) {
-    const c=JSON.stringify(this.checkedContent(a.kind,content,a.projectId)),t=now();
-    this.exec('UPDATE artifacts SET content=?,version=version+1,updated_at=? WHERE id=?',c,t,a.id);
-    this.exec('INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',a.id,a.version+1,c,user.name,t);
-    this.exec('UPDATE projects SET updated_at=? WHERE id=?',t,a.projectId);
-    this.audit(a.projectId,a.id,user.name,'document.edited',`version ${a.version+1}`);
+  private updateDocContent(
+    user: User,
+    a: Artifact,
+    content: Record<string, any>,
+  ) {
+    const c = JSON.stringify(this.checkedContent(a.kind, content, a.projectId)),
+      t = now();
+    this.exec(
+      'UPDATE artifacts SET content=?,version=version+1,updated_at=? WHERE id=?',
+      c,
+      t,
+      a.id,
+    );
+    this.exec(
+      'INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',
+      a.id,
+      a.version + 1,
+      c,
+      user.name,
+      t,
+    );
+    this.exec('UPDATE projects SET updated_at=? WHERE id=?', t, a.projectId);
+    this.audit(
+      a.projectId,
+      a.id,
+      user.name,
+      'document.edited',
+      `version ${a.version + 1}`,
+    );
   }
-  threads(id:string) {return this.all('SELECT id,artifact_id AS artifactId,anchor,quote,resolved,created_at AS createdAt FROM threads WHERE artifact_id=? ORDER BY created_at,id',id).map(t=>({...t,resolved:!!t.resolved}));}
-  messages(id:string) {return this.all('SELECT id,artifact_id AS artifactId,thread_id AS threadId,author,author_id AS authorId,role,body,proposal,created_at AS createdAt FROM (SELECT rowid AS sequence,* FROM messages WHERE artifact_id=? ORDER BY rowid DESC LIMIT 1000) ORDER BY sequence',id).map(m=>({...m,proposal:m.proposal?JSON.parse(m.proposal):null}));}
-  message(user:User,id:string,threadId:string,body:string,role='user',proposal:unknown=null) {
-    this.artifact(id,user.id,'write');
-    if(!this.one('SELECT id FROM threads WHERE id=? AND artifact_id=?',threadId,id))throw new HttpError(404,'Discussion not found');
-    const mid=randomUUID();this.exec('INSERT INTO messages VALUES(?,?,?,?,?,?,?,?,?)',mid,id,threadId,user.id,role==='assistant'?'Studio agent':user.name,role,body,proposal?JSON.stringify(proposal):null,now());
-    const m=this.one('SELECT id,artifact_id AS artifactId,thread_id AS threadId,author,author_id AS authorId,role,body,proposal,created_at AS createdAt FROM messages WHERE id=?',mid);return {...m,proposal:m.proposal?JSON.parse(m.proposal):null};
+  threads(id: string) {
+    return this.all(
+      'SELECT id,artifact_id AS artifactId,anchor,quote,resolved,created_at AS createdAt FROM threads WHERE artifact_id=? ORDER BY created_at,id',
+      id,
+    ).map((t) => ({ ...t, resolved: !!t.resolved }));
   }
-  decisions(id:string) {return this.all('SELECT id,artifact_id AS artifactId,title,context,decision,consequences,status,version,author,updated_at AS updatedAt FROM decisions WHERE artifact_id=? ORDER BY updated_at,id',id);}
-  runs(id:string) {return this.all('SELECT id,artifact_id AS artifactId,artifact_version AS artifactVersion,status,result,error,created_at AS createdAt,finished_at AS finishedAt FROM runs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 100',id).map(r=>({...r,result:r.result?JSON.parse(r.result):null}));}
+  messages(id: string) {
+    return this.all(
+      'SELECT id,artifact_id AS artifactId,thread_id AS threadId,author,author_id AS authorId,role,body,proposal,created_at AS createdAt FROM (SELECT rowid AS sequence,* FROM messages WHERE artifact_id=? ORDER BY rowid DESC LIMIT 1000) ORDER BY sequence',
+      id,
+    ).map((m) => ({
+      ...m,
+      proposal: m.proposal ? JSON.parse(m.proposal) : null,
+    }));
+  }
+  message(
+    user: User,
+    id: string,
+    threadId: string,
+    body: string,
+    role = 'user',
+    proposal: unknown = null,
+  ) {
+    this.artifact(id, user.id, 'write');
+    if (
+      !this.one(
+        'SELECT id FROM threads WHERE id=? AND artifact_id=?',
+        threadId,
+        id,
+      )
+    )
+      throw new HttpError(404, 'Discussion not found');
+    const mid = randomUUID();
+    this.exec(
+      'INSERT INTO messages VALUES(?,?,?,?,?,?,?,?,?)',
+      mid,
+      id,
+      threadId,
+      user.id,
+      role === 'assistant' ? 'Studio agent' : user.name,
+      role,
+      body,
+      proposal ? JSON.stringify(proposal) : null,
+      now(),
+    );
+    const m = this.one(
+      'SELECT id,artifact_id AS artifactId,thread_id AS threadId,author,author_id AS authorId,role,body,proposal,created_at AS createdAt FROM messages WHERE id=?',
+      mid,
+    );
+    return { ...m, proposal: m.proposal ? JSON.parse(m.proposal) : null };
+  }
+  decisions(id: string) {
+    return this.all(
+      'SELECT id,artifact_id AS artifactId,title,context,decision,consequences,status,version,author,updated_at AS updatedAt FROM decisions WHERE artifact_id=? ORDER BY updated_at,id',
+      id,
+    );
+  }
+  runs(id: string) {
+    return this.all(
+      'SELECT id,artifact_id AS artifactId,artifact_version AS artifactVersion,status,result,error,created_at AS createdAt,finished_at AS finishedAt FROM runs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 100',
+      id,
+    ).map((r) => ({ ...r, result: r.result ? JSON.parse(r.result) : null }));
+  }
 }

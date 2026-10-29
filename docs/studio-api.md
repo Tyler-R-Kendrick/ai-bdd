@@ -1,0 +1,15 @@
+# Artifact workspace service
+
+`@ai-bdd/studio` adds a durable service over the existing ai-bdd engine. This first stack layer contains the HTTP and WebSocket service; the following UI layer supplies the browser workspace.
+
+Each project is created with a main design document. Each artifact is created in one SQLite transaction with its content, first revision, dedicated ADR, and dedicated chat thread. Project roles are owner, editor, and viewer. Authenticated WebSocket participants share a Yjs document, presence is attributed by the server, and permissions are checked before both incoming writes and outgoing updates.
+
+The service supports account sessions, optional admitted-account OIDC with PKCE, project membership management, hashed expiring API tokens, anchored comments, ADR revisions, activity history, file uploads, artifact export, GitHub pull-request links, and operator-configured model and test adapters. Code preview documents have an independent sandbox and restrictive content policy. The preview API never executes code in the server process.
+
+The test adapter uses the existing engine for grounded compilation, scenario review, frozen execution, deterministic replay, and evidence hash verification. A green Studio run requires actual passing scenarios, a zero engine exit code, and a successful integrity check. Old evidence retains its original artifact version.
+
+Use Node24 or Node22.18+ and the repository's pinned pnpm. Build the repository, then start the Studio package. By default the service listens on `127.0.0.1:8787`; the local first-owner setup is available through `/api/auth/setup`. Production requires an HTTPS `STUDIO_ORIGIN` and an explicit bootstrap password or OIDC configuration. API-only health is available at `/api/health`.
+
+The storage release supports one process per data volume and enforces that boundary with SQLite's writer lock. Stop the writer for a whole-volume backup. It rejects databases with a newer schema version, retains exact document state, and marks unfinished jobs interrupted after restart.
+
+Focused verification is in `packages/studio/tests/server.test.ts`, `collaboration.test.ts`, and `storage.test.ts`. Provider-backed AI, live OIDC, private GitHub access, and production target systems require actual deployment credentials; deterministic tests do not establish those live integrations. This layer does not claim complete parity with any referenced product.
