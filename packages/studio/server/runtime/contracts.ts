@@ -1,6 +1,11 @@
 import type { User } from '../../shared/domain.ts';
 
-export type DurableJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type DurableJobStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 export type DurableJob = {
   id: string;
   kind: string;
@@ -34,7 +39,13 @@ export type EnqueueJob = {
   maxAttempts?: number;
   availableAt?: number;
 };
-export type JobDelivery = { messageId: string; deliveryCount: number; region?: string; deadlineAt?: number; signal?: AbortSignal };
+export type JobDelivery = {
+  messageId: string;
+  deliveryCount: number;
+  region?: string;
+  deadlineAt?: number;
+  signal?: AbortSignal;
+};
 export interface DurableJobContext {
   readonly job: DurableJob;
   readonly snapshot: unknown;
@@ -45,11 +56,20 @@ export interface DurableJobContext {
   /** Persist bounded progress and renew only this attempt's fenced lease. */
   progress(value: { percent: number; label?: string }): Promise<void>;
   /** Cache a completed external step. Calls may repeat if the process dies before its receipt commits. */
-  step<T>(name: string, operation: (idempotencyKey: string) => Promise<T>): Promise<T>;
-  /** SQL publication and its named receipt commit atomically under job/project locks. Stage external uploads first. */
-  commit<T>(name: string, operation: () => Promise<T>, options?: { requireCurrentVersion?: boolean }): Promise<T>;
+  step<T>(
+    name: string,
+    operation: (idempotencyKey: string) => Promise<T>,
+  ): Promise<T>;
+  /** FINAL SQL publication, named receipt and canonical completed/result state commit atomically under job/project locks. Stage external uploads first. */
+  commit<T>(
+    name: string,
+    operation: () => Promise<T>,
+    options?: { requireCurrentVersion?: boolean },
+  ): Promise<T>;
 }
-export type DurableJobHandler = (context: DurableJobContext) => Promise<unknown>;
+export type DurableJobHandler = (
+  context: DurableJobContext,
+) => Promise<unknown>;
 export interface DurableJobRuntime {
   enqueue(input: EnqueueJob): Promise<DurableJob>;
   get(id: string): Promise<DurableJob | null>;
