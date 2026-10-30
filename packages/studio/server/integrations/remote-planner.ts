@@ -307,7 +307,9 @@ export class RemotePlanner {
     socket.on('pong', () => {
       lastHeard = Date.now();
     });
-    const store = this.options.store;
+    const store = this.options.store,
+      connectionAbort = new AbortController(),
+      toolControllers = new Map<string, AbortController>();
     const check = async () => {
       if (closed) throw new HttpError(409, 'Planner connection closed');
       if (!peer) throw new HttpError(401, 'Attach a Planner first');
@@ -554,31 +556,37 @@ export class RemotePlanner {
           row.id,
         );
       });
-      if (!turn.repository || !turn.revision)
-        throw new HttpError(
-          409,
-          'This turn has no captured repository revision',
-        );
-      const reader = new RepositoryReader(
-        turn.repository,
-        this.options.settings,
-        () => requestRow(row.id),
-        AbortSignal.timeout(30000),
-        fetch,
-        this.options.repositoryRead
-          ? (input, signal) =>
-              this.options.repositoryRead!(
-                peer!.user,
-                turn.repository,
-                input,
-                signal,
-              )
-          : undefined,
-      );
-      reader.pin(turn.revision);
       let value: unknown,
         isError = false;
+      const toolController = new AbortController();
+      toolControllers.set(row.id, toolController);
       try {
+        if (!turn.repository || !turn.revision)
+          throw new HttpError(
+            409,
+            'This turn has no captured repository revision',
+          );
+        const reader = new RepositoryReader(
+          turn.repository,
+          this.options.settings,
+          () => requestRow(row.id),
+          AbortSignal.any([
+            AbortSignal.timeout(30000),
+            connectionAbort.signal,
+            toolController.signal,
+          ]),
+          fetch,
+          this.options.repositoryRead
+            ? (input, signal) =>
+                this.options.repositoryRead!(
+                  peer!.user,
+                  turn.repository,
+                  input,
+                  signal,
+                )
+            : undefined,
+        );
+        reader.pin(turn.revision);
         value =
           message.name === 'repository_tree'
             ? await reader.tree()
@@ -626,6 +634,7 @@ export class RemotePlanner {
           ),
         };
       }
+      toolControllers.delete(row.id);
       await this.activity.hostPart(
         row.id,
         'result:' + message.callId,
@@ -704,6 +713,7 @@ export class RemotePlanner {
     });
     socket.on('close', () => {
       closed = true;
+      connectionAbort.abort(new Error('Planner connection closed'));
       this.sockets.delete(socket);
       clearInterval(timer);
       void (async () => {
@@ -829,6 +839,7 @@ export class RemotePlanner {
                       : 'abort',
                   requestId: id,
                 });
+              toolControllers.get(id)?.abort(new Error('Remote turn ended'));
               aborted.add(id);
               await this.activity.ended(id);
               continue;

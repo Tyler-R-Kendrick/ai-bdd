@@ -31,6 +31,33 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('returns an unavailable repository tool as a bounded error without failing a valid remote turn', async () => {
+    const w = await remoteFixture(),
+      client = await w.connect(),
+      run = await turn(w, client);
+    client.ws.send(
+      JSON.stringify({
+        type: 'tool',
+        requestId: run.requestId,
+        callId: 'missing-repository',
+        name: 'repository_file',
+        input: { path: 'README.md' },
+      }),
+    );
+    await until(() =>
+      client.frames.some((frame: any) => frame.type === 'tool-result'),
+    );
+    expect(
+      client.frames.find((frame: any) => frame.type === 'tool-result'),
+    ).toMatchObject({
+      isError: true,
+      value: { error: 'This turn has no captured repository revision' },
+    });
+    expect(client.ws.readyState).toBe(1);
+    complete(client.ws, run.requestId);
+    await run.done;
+    expect((await w.runtime.get(run.job.id))?.status).toBe('completed');
+  });
   it('preserves member-written choices and partial cancellation without changing the runtime answer contract', async () => {
     const w = await remoteFixture(),
       client = await w.connect(),
