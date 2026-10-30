@@ -13,21 +13,25 @@
     {
       "command": "pnpm build",
       "result": "passed",
-      "packages": 9
+      "packages": 9,
+      "source": "9875adf"
     },
     {
       "command": "pnpm typecheck",
-      "result": "passed"
+      "result": "passed",
+      "source": "bb5f1f5"
     },
     {
       "command": "pnpm lint",
-      "result": "passed"
+      "result": "passed",
+      "source": "768c312"
     },
     {
       "command": "node --test scripts/test",
       "result": "passed",
       "tests": 120,
-      "skipped": 0
+      "skipped": 0,
+      "source": "9875adf"
     },
     {
       "command": "pnpm coverage",
@@ -36,7 +40,8 @@
       "skipped": 58,
       "passedFiles": 186,
       "skippedFiles": 1,
-      "allPackageFloorsPreserved": true
+      "allPackageFloorsPreserved": true,
+      "source": "bb5f1f5"
     },
     {
       "command": "pnpm exec vitest run --project acceptance --project adversarial --project fuzz --project chaos",
@@ -44,17 +49,20 @@
       "tests": 782,
       "skipped": 9,
       "passedFiles": 83,
-      "skippedFiles": 1
+      "skippedFiles": 1,
+      "source": "bb5f1f5"
     },
     {
       "command": "node scripts/crap.mjs --check",
-      "result": "passed"
+      "result": "passed",
+      "source": "768c312"
     },
     {
       "command": "node scripts/check-all.mjs --root /workspace/ai-bdd",
       "result": "passed",
       "gates": 8,
-      "allowIncomplete": false
+      "allowIncomplete": false,
+      "source": "29eabea"
     },
     {
       "command": "pnpm --dir packages/studio verify",
@@ -63,14 +71,16 @@
       "roleCases": 9,
       "compiledOperations": 10,
       "tensorCases": 483330,
-      "solverVerdict": "unsat"
+      "solverVerdict": "unsat",
+      "source": "9875adf"
     },
     {
       "command": "STUDIO_REQUIRE_PROOF=1 pnpm --dir packages/studio verify",
       "result": "passed",
       "scope": "Reverified the retained public 1280px/detail-open execution proof with the actual independent cryptographic verifier, not a new proof-generation run.",
       "binarySha256": "088aef340dbae69ec424f1d703f40f099de0abfea05efb25c0ce850b971a9282",
-      "proofSha256": "0fc167647b00c3aa160cdd400297388c1a224827434f4b40445ea842d8c5a4c1"
+      "proofSha256": "0fc167647b00c3aa160cdd400297388c1a224827434f4b40445ea842d8c5a4c1",
+      "source": "768c312"
     }
   ],
   "coverage": {
@@ -85,5 +95,6 @@
     "67 skipped Vitest cases are retained as skips, including real Cua/desktop and privileged filesystem capabilities unavailable in this environment.",
     "No live paid provider calls, Docker image build, classifier-accuracy certification or production deployment certification are asserted.",
     "The independent Magnetar implementation is unaudited and uses public witnesses; the reverified execution is not a whole-application proof."
-  ]
+  ],
+  "sourceScopeNote": "Each command records its actual invocation commit. SDK/scripts/CI scope at the completed 768c312 snapshot is identical to root29eabea; later snapshot changes from bb5f1f5 only remove an unused Studio MIDI type import."
 }
