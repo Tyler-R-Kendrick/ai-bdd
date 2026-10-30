@@ -43,6 +43,7 @@ import {
   reasonCode,
   pause,
   MachineTransportError,
+  permanentRejection,
 } from './machine/runtime.ts';
 
 const execute = promisify(execFile);
@@ -432,10 +433,7 @@ export async function resumeInvestigationReports(
       );
       await reports.clear(report.workId);
     } catch (error) {
-      if (
-        error instanceof MachineTransportError &&
-        [404, 409].includes(error.status)
-      ) {
+      if (permanentRejection(error) && ![401, 403].includes(error.status)) {
         await reports.clear(report.workId);
         continue;
       }
@@ -618,10 +616,11 @@ export async function runInvestigationOnce(
     return { claimed: true, workId, status: 'completed' };
   } catch (error) {
     client?.close();
+    if (permanentRejection(error)) await reports.clear(workId);
     if (
       !(
         error instanceof MachineTransportError &&
-        [401, 403].includes(error.status)
+        [401, 403, 404, 409].includes(error.status)
       )
     ) {
       const failure = {

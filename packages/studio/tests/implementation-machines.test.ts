@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -27,6 +27,10 @@ import {
   resumeImplementationRuns,
 } from '../server/machine/implementation-worker.ts';
 import type { MachineCredentials } from '../server/machine-worker.ts';
+import {
+  sendImplementationReport,
+  resumeImplementationReports,
+} from '../server/machine/implementation-bridge.ts';
 const execute = promisify(execFile),
   require = createRequire(import.meta.url),
   close: (() => Promise<unknown>)[] = [],
@@ -448,6 +452,90 @@ describe(`machine-bound approved graph lifecycle (${url ? 'PostgreSQL' : 'SQLite
       'operator dirty edit\n',
     );
     expect(await c.store.runs(c.artifact.id)).toEqual([]);
+  });
+  it('does not retain explicitly rejected reports and replays only ambiguous accepted receipts', async () => {
+    const c = await fixture(),
+      state = await started(c),
+      outbox = join(c.dir, 'report-outbox'),
+      bridge = {
+        version: 1 as const,
+        origin: c.credentials.origin,
+        machineId: c.credentials.id,
+        token: c.credentials.token,
+        queueId: state.queued.id,
+        generation: state.lease.generation,
+        leaseToken: state.lease.leaseToken,
+        runId: state.run.id,
+        outboxDirectory: outbox,
+      };
+    const denied: ImplementationReport = {
+      runId: state.run.id,
+      idempotencyKey: 'invalid-implementer-verification',
+      command: {
+        kind: 'report_verification',
+        verification: {
+          summary: 'Explicit rejected transport fixture',
+          tasks: [
+            {
+              taskId: 'inspect',
+              criteria: [
+                {
+                  index: 0,
+                  passed: true,
+                  evidence: 'This implementer lacks a verifier credential',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    await expect(sendImplementationReport(bridge, denied)).rejects.toThrow(
+      'HTTP 403',
+    );
+    expect(await readdir(outbox)).toEqual([]);
+    const report: ImplementationReport = {
+      runId: state.run.id,
+      idempotencyKey: 'accepted-start',
+      command: { kind: 'start_task', taskId: 'inspect' },
+    };
+    await sendImplementationReport(bridge, report);
+    const revision = (await c.graphs.read(c.user, c.artifact.id)).revision;
+    await privateJson(join(outbox, crypto.randomUUID() + '.json'), {
+      version: 1,
+      createdAt: new Date().toISOString(),
+      origin: c.credentials.origin,
+      machineId: c.credentials.id,
+      queueId: state.queued.id,
+      body: { ...state.lease, report },
+    });
+    await resumeImplementationReports(c.credentials, outbox);
+    expect((await c.graphs.read(c.user, c.artifact.id)).revision).toBe(
+      revision,
+    );
+    expect(await readdir(outbox)).toEqual([]);
+    const huge: ImplementationReport = {
+      runId: state.run.id,
+      idempotencyKey: 'oversized-review',
+      command: {
+        kind: 'report_verification',
+        verification: {
+          summary: 'Explicit bounded-output fixture',
+          tasks: Array.from({ length: 15 }, (_, i) => ({
+            taskId: 'task-' + i,
+            criteria: Array.from({ length: 30 }, (_, index) => ({
+              index,
+              passed: false,
+              evidence: 'x'.repeat(5000),
+            })),
+          })),
+        },
+      },
+    };
+    await expect(sendImplementationReport(bridge, huge)).rejects.toThrow(
+      '2 MiB',
+    );
+    expect(await readdir(outbox)).toEqual([]);
   });
 });
 function acpScript() {

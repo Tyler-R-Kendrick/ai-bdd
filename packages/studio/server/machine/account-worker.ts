@@ -1,4 +1,4 @@
-import { resolve, join,isAbsolute } from 'node:path';
+import { resolve, join, isAbsolute } from 'node:path';
 import { realpath, mkdir, open, rm } from 'node:fs/promises';
 import { z } from 'zod';
 import {
@@ -277,16 +277,6 @@ export async function runAccountMachineWorker(
         const index = (cursor + offset) % connected.assignments.length,
           assignment = connected.assignments[index]!,
           projectState = join(stateDirectory, 'projects', assignment.projectId);
-        await resumeImplementationRuns(
-          assignment.credentials,
-          projectState,
-          controller.signal,
-        );
-        await resumeInvestigationReports(
-          assignment.credentials,
-          projectState,
-          controller.signal,
-        );
         const options = {
           command,
           args,
@@ -296,6 +286,16 @@ export async function runAccountMachineWorker(
           signal: controller.signal,
         };
         try {
+          await resumeImplementationRuns(
+            assignment.credentials,
+            projectState,
+            controller.signal,
+          );
+          await resumeInvestigationReports(
+            assignment.credentials,
+            projectState,
+            controller.signal,
+          );
           result = await runImplementationOnce(assignment.credentials, options);
           if (!result.claimed)
             result = await runInvestigationOnce(

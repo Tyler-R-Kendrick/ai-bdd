@@ -3,6 +3,7 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  readdir,
   writeFile,
   rm,
   symlink,
@@ -210,7 +211,7 @@ describe('exact-checkout ACP investigation connector', () => {
     await c.service.run(c.user, record.id);
     const outcome = await runInvestigationOnce(c.credentials, {
       command: process.execPath,
-      diagnostic: text => process.stderr.write(text),
+      diagnostic: (text) => process.stderr.write(text),
       args: [agent],
       cwd: c.git.dir,
       stateDirectory: c.state,
@@ -364,5 +365,32 @@ describe('exact-checkout ACP investigation connector', () => {
       ),
     ).rejects.toThrow('HTTP 401');
     expect(calls).toBe(1);
+  });
+  it('fails a server-rejected candidate visibly without retaining a poisoned completion outbox', async () => {
+    const c = await httpFixture(),
+      agent = join(c.state, 'rejected-candidate-acp.mjs');
+    const script = acpScript().replace(
+      'fileId:image.fileId',
+      "fileId:'00000000-0000-4000-8000-000000000001'",
+    );
+    expect(script).toContain("fileId:'00000000-0000-4000-8000-000000000001'");
+    await writeFile(agent, script);
+    const record = await c.service.propose(c.user, c.artifact.id, {
+      version: c.artifact.version,
+      brief: 'Exercise candidate ownership rejection',
+    });
+    await c.service.run(c.user, record.id);
+    await expect(
+      runInvestigationOnce(c.credentials, {
+        command: process.execPath,
+        args: [agent],
+        cwd: c.git.dir,
+        stateDirectory: c.state,
+        bridgeEntry: resolve('server/machine-worker.ts'),
+        signal: AbortSignal.timeout(20000),
+      }),
+    ).rejects.toThrow('HTTP 400');
+    expect((await c.service.get(c.user, record.id)).status).toBe('failed');
+    expect(await readdir(join(c.state, 'outbox'))).toEqual([]);
   });
 });

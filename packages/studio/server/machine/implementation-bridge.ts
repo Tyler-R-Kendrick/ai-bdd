@@ -11,6 +11,7 @@ import {
   privateJson,
   reconnect,
   MachineTransportError,
+  permanentRejection,
 } from './runtime.ts';
 export const implementationBridgeSchema = z
   .object({
@@ -101,6 +102,10 @@ export async function sendImplementationReport(
     ...(state.verifierToken ? { verifierToken: state.verifierToken } : {}),
     report: implementationReportSchema.parse(report),
   };
+  if (Buffer.byteLength(JSON.stringify(body)) > 2 * 1024 * 1024)
+    throw new Error(
+      'The lifecycle report exceeds 2 MiB. Shorten evidence text while retaining every required criterion.',
+    );
   const file = join(state.outboxDirectory, randomUUID() + '.json');
   await privateJson(file, {
     version: 1,
@@ -110,12 +115,17 @@ export async function sendImplementationReport(
     queueId: state.queueId,
     body,
   });
-  const result = await reconnect(() => post(state, 'report', body, signal), {
-    signal,
-    maxDelayMs: 10000,
-  });
-  await rm(file, { force: true });
-  return result;
+  try {
+    const result = await reconnect(() => post(state, 'report', body, signal), {
+      signal,
+      maxDelayMs: 10000,
+    });
+    await rm(file, { force: true });
+    return result;
+  } catch (error) {
+    if (permanentRejection(error)) await rm(file, { force: true });
+    throw error;
+  }
 }
 export async function resumeImplementationReports(
   credentials: { origin: string; id: string; token: string },
@@ -154,10 +164,7 @@ export async function resumeImplementationReports(
       );
       await rm(file, { force: true });
     } catch (error) {
-      if (
-        error instanceof MachineTransportError &&
-        [404, 409].includes(error.status)
-      ) {
+      if (permanentRejection(error)) {
         await rm(file, { force: true });
         continue;
       }

@@ -20,6 +20,13 @@ export class MachineTransportError extends Error {
     super(`HTTP ${status}`);
   }
 }
+export const permanentRejection = (
+  error: unknown,
+): error is MachineTransportError =>
+  error instanceof MachineTransportError &&
+  error.status >= 400 &&
+  error.status < 500 &&
+  ![408, 425, 429].includes(error.status);
 export const retryable = (error: unknown) => {
   if (error instanceof MachineTransportError)
     return [408, 425, 429].includes(error.status) || error.status >= 500;
@@ -113,6 +120,14 @@ export async function privateJson(file: string, value: unknown) {
     await handle.close();
   }
   await rename(temporary, file);
+  if (process.platform !== 'win32') {
+    const directory = await open(dirname(file), 'r');
+    try {
+      await directory.sync();
+    } finally {
+      await directory.close();
+    }
+  }
 }
 export async function readPrivateJson(
   file: string,
