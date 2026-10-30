@@ -81,6 +81,7 @@ export class FindingsReviews {
 CREATE TABLE IF NOT EXISTS studio_findings_reviews(id TEXT PRIMARY KEY,investigation_id TEXT NOT NULL REFERENCES studio_investigations(id) ON DELETE CASCADE,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),source_version BIGINT NOT NULL,source_hash TEXT NOT NULL,evidence_hash TEXT NOT NULL,owner_epoch BIGINT NOT NULL,automatic INTEGER NOT NULL,review_key TEXT NOT NULL UNIQUE,job_id TEXT REFERENCES studio_durable_jobs(id) ON DELETE CASCADE,accepted_by TEXT REFERENCES users(id),accepted_at TEXT,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS studio_findings_candidates(investigation_id TEXT PRIMARY KEY REFERENCES studio_investigations(id) ON DELETE CASCADE,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,due_at BIGINT NOT NULL,error TEXT);
 CREATE TABLE IF NOT EXISTS studio_findings_seen(investigation_id TEXT PRIMARY KEY REFERENCES studio_investigations(id) ON DELETE CASCADE,result_hash TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS studio_findings_acknowledgements(id TEXT PRIMARY KEY,investigation_id TEXT NOT NULL REFERENCES studio_investigations(id) ON DELETE CASCADE,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),result_hash TEXT NOT NULL,source_version BIGINT NOT NULL,source_hash TEXT NOT NULL,rationale TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(artifact_id,created_at);
       `);
     });
@@ -169,8 +170,16 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
         'SELECT due_at,error FROM studio_findings_candidates WHERE investigation_id=?',
         id,
       );
+    const acknowledgements = await store.all(
+      'SELECT a.id,a.user_id AS "authorId",u.name AS author,a.rationale,a.result_hash AS "resultHash",a.source_version AS "sourceVersion",a.created_at AS "createdAt" FROM studio_findings_acknowledgements a JOIN users u ON u.id=a.user_id WHERE a.investigation_id=? ORDER BY a.created_at DESC,a.id DESC LIMIT 20',
+      id,
+    );
     await store.role(artifact.projectId, user.id);
     return {
+      acknowledgements: acknowledgements.map((row) => ({
+        ...row,
+        sourceVersion: Number(row.sourceVersion),
+      })),
       owner: owner ? { userId: owner.user_id, name: owner.name } : null,
       pending: candidate
         ? { dueAt: Number(candidate.due_at), error: candidate.error }
@@ -346,6 +355,11 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
       await store.exec(
         'DELETE FROM studio_findings_candidates WHERE investigation_id=?',
         id,
+      );
+      await store.exec(
+        'INSERT INTO studio_findings_seen VALUES(?,?) ON CONFLICT(investigation_id) DO UPDATE SET result_hash=excluded.result_hash',
+        id,
+        row.result_hash,
       );
       await store.audit(
         artifact.projectId,
@@ -711,6 +725,95 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
     await this.options.runtime.cancel(review.job_id, user);
     return { ok: true };
   }
+  async acknowledge(
+    user: User,
+    id: string,
+    input: {
+      requestId: string;
+      version: number;
+      resultHash: string;
+      rationale: string;
+    },
+  ) {
+    const b = acknowledgementSchema.parse(input),
+      { store, collab } = this.options;
+    const initial = await this.record(user, id, true);
+    return store.tx(async () => {
+      await store.lock('project:' + initial.artifact.projectId);
+      const { row, artifact } = await this.record(user, id, true);
+      const previous = await store.one(
+        'SELECT * FROM studio_findings_acknowledgements WHERE id=?',
+        b.requestId,
+      );
+      if (previous) {
+        if (
+          previous.investigation_id !== id ||
+          previous.user_id !== user.id ||
+          previous.result_hash !== b.resultHash ||
+          previous.rationale !== b.rationale ||
+          Number(previous.source_version) !== b.version
+        )
+          throw new HttpError(
+            409,
+            'This acknowledgement request already identifies different evidence or rationale',
+          );
+        return { ok: true, id: previous.id };
+      }
+      if (artifact.version !== b.version || row.result_hash !== b.resultHash)
+        throw new HttpError(
+          409,
+          'The plan or evidence changed. Review the current evidence before acknowledging it',
+        );
+      await store.artifactWriteGuard?.(artifact, user.id);
+      await store.exec(
+        'INSERT INTO studio_findings_acknowledgements VALUES(?,?,?,?,?,?,?,?,?)',
+        b.requestId,
+        id,
+        artifact.id,
+        user.id,
+        b.resultHash,
+        b.version,
+        hash(JSON.stringify(await readPlanSource(store, artifact))),
+        b.rationale,
+        stamp(),
+      );
+      await store.exec(
+        'UPDATE studio_investigations SET required_reason=NULL,updated_at=? WHERE id=?',
+        stamp(),
+        id,
+      );
+      await store.exec(
+        'DELETE FROM studio_findings_candidates WHERE investigation_id=?',
+        id,
+      );
+      await store.exec(
+        'INSERT INTO studio_findings_seen VALUES(?,?) ON CONFLICT(investigation_id) DO UPDATE SET result_hash=excluded.result_hash',
+        id,
+        b.resultHash,
+      );
+      const active = await store.all(
+        "SELECT r.job_id FROM studio_findings_reviews r JOIN studio_durable_jobs j ON j.id=r.job_id WHERE r.investigation_id=? AND j.status IN ('queued','running')",
+        id,
+      );
+      for (const job of active)
+        await this.options.runtime.cancel(job.job_id, user);
+      await store.audit(
+        artifact.projectId,
+        artifact.id,
+        user.name,
+        'investigation.findings.acknowledged',
+        JSON.stringify({
+          id: b.requestId,
+          investigationId: id,
+          resultHash: b.resultHash,
+          sourceVersion: b.version,
+          rationale: b.rationale,
+        }),
+      );
+      await collab.publishDocumentMetadata(artifact.projectId, artifact.id);
+      return { ok: true, id: b.requestId };
+    });
+  }
   /** SQL-only saved-write debounce. No model call, owner claim, or local execution. */
   async observe(_user: User, previous: Artifact, current: Artifact) {
     if (
@@ -784,6 +887,14 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
     }
   }
 }
+const acknowledgementSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    version: z.number().int().positive(),
+    resultHash: z.string().regex(/^[a-f0-9]{64}$/),
+    rationale: z.string().trim().min(20).max(2000),
+  })
+  .strict();
 export function registerFindingsReviewRoutes(
   app: FastifyInstance,
   auth: Auth,
@@ -804,6 +915,15 @@ export function registerFindingsReviewRoutes(
       service.view(
         await auth.user(req),
         z.string().uuid().parse(req.params.id),
+      ),
+  );
+  app.post<{ Params: { id: string } }>(
+    '/api/investigations/:id/findings/acknowledge',
+    async (req) =>
+      service.acknowledge(
+        await human(req),
+        z.string().uuid().parse(req.params.id),
+        acknowledgementSchema.parse(req.body),
       ),
   );
   app.post<{ Params: { id: string } }>(

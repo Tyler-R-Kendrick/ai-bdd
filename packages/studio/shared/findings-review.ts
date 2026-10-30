@@ -49,6 +49,15 @@ export type FindingsReview = {
 };
 export type FindingsReviewView = {
   reviews: FindingsReview[];
+  acknowledgements: {
+    id: string;
+    authorId: string;
+    author: string;
+    rationale: string;
+    resultHash: string;
+    sourceVersion: number;
+    createdAt: string;
+  }[];
   pending: { dueAt: number; error: string | null } | null;
   owner: { userId: string; name: string } | null;
 };

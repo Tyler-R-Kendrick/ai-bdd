@@ -697,6 +697,8 @@ export function InvestigationPanel({
                 artifactVersion={artifactVersion}
                 canWrite={canWrite}
                 currentUserId={currentUserId}
+                resultHash={record.resultHash!}
+                requiredReason={record.requiredReason}
                 onApplied={refresh}
               />
             </>

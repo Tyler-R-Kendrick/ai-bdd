@@ -7,18 +7,24 @@ export function FindingsReview({
   artifactVersion,
   canWrite,
   currentUserId,
+  resultHash,
+  requiredReason,
   onApplied,
 }: {
   investigationId: string;
   artifactVersion: number;
   canWrite: boolean;
   currentUserId: string;
+  resultHash: string;
+  requiredReason: string | null;
   onApplied: () => void | Promise<void>;
 }) {
   const [view, setView] = useState<FindingsReviewView | null>(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
-    [confirmed, setConfirmed] = useState<string | null>(null);
+    [confirmed, setConfirmed] = useState<string | null>(null),
+    [rationale, setRationale] = useState(''),
+    [acknowledged, setAcknowledged] = useState(false);
   const refresh = async () =>
     setView(
       await api<FindingsReviewView>(
@@ -196,6 +202,61 @@ export function FindingsReview({
           )}
         </article>
       ))}
+      {view?.acknowledgements.map((receipt) => (
+        <article key={receipt.id}>
+          <strong>Incorporated by {receipt.author}</strong>
+          <p>{receipt.rationale}</p>
+          <small>
+            Exact evidence {receipt.resultHash.slice(0, 12)} · document v
+            {receipt.sourceVersion} · {date(receipt.createdAt)}
+          </small>
+        </article>
+      ))}
+      {canWrite && requiredReason && (
+        <details>
+          <summary>Incorporate findings manually</summary>
+          <p>
+            Use this after editing the plan yourself, or explain why no source
+            change is needed. This records your acknowledgement of the exact
+            evidence and clears its implementation requirement.
+          </p>
+          <label>
+            How were these findings incorporated?
+            <textarea
+              value={rationale}
+              onChange={(e) => setRationale(e.target.value)}
+              minLength={20}
+              maxLength={2000}
+            />
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+            />
+            I reviewed the current evidence and plan and take responsibility for
+            this acknowledgement.
+          </label>
+          <button
+            disabled={busy || !acknowledged || rationale.trim().length < 20}
+            onClick={() =>
+              void action(
+                `/investigations/${investigationId}/findings/acknowledge`,
+                'POST',
+                {
+                  requestId: crypto.randomUUID(),
+                  version: artifactVersion,
+                  resultHash,
+                  rationale,
+                },
+              )
+            }
+          >
+            Record human incorporation
+          </button>
+        </details>
+      )}
     </section>
   );
 }

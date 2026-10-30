@@ -655,6 +655,67 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         });
         await expect(interrupted.next()).rejects.toThrow('membership revoked');
       });
+      it('lets a person acknowledge text-only findings with an exact source/evidence rationale and no invented model edit, preserving source and idempotency', async () => {
+        const w = await fixture(),
+          before = await w.latest(),
+          state = await w.store.state(w.id),
+          record = await w.store.one(
+            'SELECT result_hash FROM studio_investigations WHERE id=?',
+            w.record.id,
+          );
+        const input = {
+          requestId: randomUUID(),
+          version: before.version,
+          resultHash: record.result_hash,
+          rationale:
+            'The measured local observation is already consistent with this plan; no source change is justified.',
+        };
+        await expect(
+          w.service.acknowledge(w.viewer, w.record.id, input),
+        ).rejects.toThrow();
+        await expect(
+          w.service.acknowledge(w.user, w.record.id, {
+            ...input,
+            resultHash: 'f'.repeat(64),
+          }),
+        ).rejects.toThrow('changed');
+        await w.service.acknowledge(w.user, w.record.id, input);
+        expect(await w.latest()).toEqual(before);
+        expect(await w.store.state(w.id)).toEqual(state);
+        expect(w.requests).toHaveLength(0);
+        expect(w.native).toHaveLength(0);
+        expect(
+          (await w.service.view(w.user, w.record.id)).acknowledgements[0],
+        ).toMatchObject({
+          authorId: w.user.id,
+          rationale: input.rationale,
+          resultHash: input.resultHash,
+        });
+        expect(
+          (
+            await w.store.one(
+              'SELECT required_reason FROM studio_investigations WHERE id=?',
+              w.record.id,
+            )
+          ).required_reason,
+        ).toBeNull();
+        await w.store.touchArtifactSource(w.user, w.id);
+        await w.service.acknowledge(w.user, w.record.id, input);
+        await expect(
+          w.service.acknowledge(w.user, w.record.id, {
+            ...input,
+            rationale:
+              'A different statement cannot reuse this receipt identifier.',
+          }),
+        ).rejects.toThrow('different');
+        const exported = [];
+        for await (const row of findingsExportRows(w.store, w.id, async () => {
+          await w.store.artifact(w.id, w.user.id);
+        }))
+          exported.push(row);
+        expect(exported).toHaveLength(1);
+        expect(exported[0]?.kind).toBe('findings-acknowledgement');
+      });
       if (adapter === 'postgres')
         it('coalesces independent PostgreSQL instances and publishes one proposal under one shared project/source lock', async () => {
           const w = await fixture();

@@ -14,6 +14,14 @@ export async function* findingsExportRows(
       )
     ).n,
   );
+  const acknowledgementCutoff = Number(
+    (
+      await store.one(
+        'SELECT coalesce(max(rowid),0) AS n FROM studio_findings_acknowledgements WHERE artifact_id=?',
+        artifactId,
+      )
+    ).n,
+  );
   let cursor = 0;
   while (cursor < cutoff) {
     await checkAccess();
@@ -45,5 +53,20 @@ export async function* findingsExportRows(
     row.automatic = !!row.automatic;
     await checkAccess();
     yield { kind: 'findings-review', value: row };
+  }
+  cursor = 0;
+  while (cursor < acknowledgementCutoff) {
+    await checkAccess();
+    const row = await store.one(
+      'SELECT rowid AS sequence,id,investigation_id AS investigationId,user_id AS authorId,result_hash AS resultHash,source_version AS sourceVersion,source_hash AS sourceHash,rationale,created_at AS createdAt FROM studio_findings_acknowledgements WHERE artifact_id=? AND rowid>? AND rowid<=? ORDER BY rowid LIMIT 1',
+      artifactId,
+      cursor,
+      acknowledgementCutoff,
+    );
+    if (!row) break;
+    cursor = Number(row.sequence);
+    delete row.sequence;
+    await checkAccess();
+    yield { kind: 'findings-acknowledgement', value: row };
   }
 }
