@@ -10,6 +10,7 @@ export default {
     try {
       handler ??= createIdentityLeaseHandler({
         scope: identityScopeFromEnv(process.env),
+        onFailure: (diagnostic) => console.warn(diagnostic),
         secret: process.env.STUDIO_JOB_SECRET ?? '',
         getToken: async (nativeRequest) => {
           try {

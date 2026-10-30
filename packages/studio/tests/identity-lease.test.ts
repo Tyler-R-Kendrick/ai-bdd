@@ -33,6 +33,7 @@ afterEach(async () => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 let keys: Awaited<ReturnType<typeof generateKeyPair>>;
 let publicKey: Awaited<ReturnType<typeof exportJWK>>;
@@ -199,7 +200,7 @@ describe('private native identity lease over actual HTTP and signed JWKS', () =>
       f.setToken(await token({ [claim]: 'wrong-scope' }));
       await expect(f.client.acquire()).rejects.toMatchObject({
         name: 'IdentityLeaseError',
-        code: 'transport',
+        code: 'verification',
       });
       expect(f.calls()).toBe(1);
     },
@@ -259,9 +260,13 @@ describe('private native identity lease over actual HTTP and signed JWKS', () =>
     await expect(f.client.acquire()).rejects.toMatchObject({
       code: 'body-limit',
     });
+    const failures: unknown[] = [];
     const handler = createIdentityLeaseHandler({
       scope,
       secret,
+      onFailure: (diagnostic) => {
+        failures.push(diagnostic);
+      },
       getToken: async () => {
         throw new Error('PRIVATE-CREDENTIAL-ERROR');
       },
@@ -281,6 +286,28 @@ describe('private native identity lease over actual HTTP and signed JWKS', () =>
     );
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain('PRIVATE-CREDENTIAL-ERROR');
+    expect(failures).toMatchObject([
+      { stage: 'acquire', code: 'unavailable' },
+    ]);
+    expect(JSON.stringify(failures)).not.toContain(
+      'PRIVATE-CREDENTIAL-ERROR',
+    );
+    f.transform(async () => {
+      const raw = JSON.stringify({
+        error: 'identity-lease-unavailable',
+        code: 'PRIVATE-UNTRUSTED-CODE',
+      });
+      return new Response(raw, {
+        status: 503,
+        headers: internalHeaders(secret, IDENTITY_RESPONSE_CONTEXT, raw),
+      });
+    });
+    const refusal = await f.client.acquire().catch((error: unknown) => error);
+    expect(refusal).toMatchObject({
+      name: 'IdentityLeaseError',
+      code: 'transport',
+    });
+    expect(String(refusal)).not.toContain('PRIVATE-UNTRUSTED-CODE');
   });
 
   it('isolates fresh concurrent grants and rejects cross-swapped signed responses', async () => {
@@ -359,6 +386,7 @@ describe('private native identity lease over actual HTTP and signed JWKS', () =>
       new Error('PRIVATE-SDK-CONTEXT-ERROR'),
     );
     vi.stubGlobal('fetch', f.fetcher);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const api = await import('../api/studio-identity.ts');
     f.useHandler(async (request) => {
       request.headers.set('x-vercel-oidc-token', platformToken);
@@ -376,7 +404,7 @@ describe('private native identity lease over actual HTTP and signed JWKS', () =>
     platformToken = await token({ project_id: 'prj_Wrong' });
     await expect(f.client.acquire()).rejects.toMatchObject({
       name: 'IdentityLeaseError',
-      code: 'transport',
+      code: 'verification',
     });
   });
 });

@@ -48,6 +48,24 @@ export type IdentityLeaseFailureCode =
   | 'verification'
   | 'expired'
   | 'unavailable';
+export function identityFailureCode(
+  value: unknown,
+): IdentityLeaseFailureCode | undefined {
+  return [
+    'configuration',
+    'authorization',
+    'body-limit',
+    'request',
+    'deployment',
+    'transport',
+    'response',
+    'verification',
+    'expired',
+    'unavailable',
+  ].includes(value as string)
+    ? (value as IdentityLeaseFailureCode)
+    : undefined;
+}
 export class IdentityLeaseError extends Error {
   readonly statusCode = 503;
   constructor(readonly code: IdentityLeaseFailureCode) {

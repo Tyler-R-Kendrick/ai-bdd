@@ -7,6 +7,8 @@ import {
   identityRequestSchema,
   identityResponseSchema,
   IdentityLeaseError,
+  identityFailureCode,
+  type IdentityLeaseFailureCode,
   IDENTITY_PATH,
   IDENTITY_RESPONSE_CONTEXT,
   IDENTITY_LEASE_MS,
@@ -182,8 +184,33 @@ export class PrivateIdentityLeaseClient {
         signal: deadline,
       });
       if (response.status !== 200) {
-        await response.body?.cancel();
-        throw new IdentityLeaseError('transport');
+        let code: IdentityLeaseFailureCode | undefined;
+        try {
+          const rawError = await boundedIdentityText(response.body);
+          assertInternalRequest(
+            this.#secret,
+            IDENTITY_RESPONSE_CONTEXT,
+            rawError,
+            {
+              time: response.headers.get('x-studio-time') ?? undefined,
+              signature:
+                response.headers.get('x-studio-signature') ?? undefined,
+            },
+            this.#clock(),
+          );
+          const data: unknown = JSON.parse(rawError);
+          if (
+            data &&
+            typeof data === 'object' &&
+            'error' in data &&
+            data.error === 'identity-lease-unavailable' &&
+            'code' in data
+          )
+            code = identityFailureCode(data.code);
+        } catch {
+          /* Unauthenticated/unrecognized responses never supply trusted diagnostics. */
+        }
+        throw new IdentityLeaseError(code ?? 'transport');
       }
       const raw = await boundedIdentityText(response.body);
       assertInternalRequest(
@@ -237,7 +264,16 @@ export class PrivateIdentityLeaseClient {
     }
   }
 }
+export type IdentityLeaseFailureDiagnostic = {
+  event: 'studio_identity_lease_failed';
+  stage: 'acquire' | 'verify';
+  code: IdentityLeaseFailureCode;
+  tokenEnvPresent: boolean;
+  tokenFileEnvPresent: boolean;
+  requestTokenPresent: boolean;
+};
 export type IdentityLeaseHandlerOptions = Options & {
+  onFailure?: (diagnostic: IdentityLeaseFailureDiagnostic) => void;
   secret: string;
   getToken: (request: Request) => Promise<string>;
 };
@@ -250,11 +286,26 @@ export function createIdentityLeaseHandler(
   const clock = options.clock ?? Date.now;
   const verifier = new IdentityTokenVerifier(options);
   return async (request: Request): Promise<Response> => {
-    const fail = (status: number, code: string) =>
-      Response.json(
-        { error: 'identity-lease-unavailable', code },
-        { status, headers: { 'cache-control': 'no-store' } },
-      );
+    const fail = (status: number, code: string, signed = false) => {
+      const body = JSON.stringify({
+        error: 'identity-lease-unavailable',
+        code,
+      });
+      return new Response(body, {
+        status,
+        headers: {
+          ...(signed
+            ? internalHeaders(
+                options.secret,
+                IDENTITY_RESPONSE_CONTEXT,
+                body,
+                clock(),
+              )
+            : { 'content-type': 'application/json' }),
+          'cache-control': 'no-store',
+        },
+      });
+    };
     if (request.method !== 'POST')
       return new Response(null, {
         status: 405,
@@ -292,11 +343,13 @@ export function createIdentityLeaseHandler(
     if (!parsed?.success) return fail(400, 'request');
     if (parsed.data.deploymentId !== scope.deploymentId)
       return fail(409, 'deployment');
+    let stage: 'acquire' | 'verify' = 'acquire';
     try {
       // Only an authenticated invocation reaches the official native token acquisition callback.
       const token = await options.getToken(request);
       if (typeof token !== 'string' || token.length > 7000)
         return fail(503, 'body-limit');
+      stage = 'verify';
       const issuedAt = clock();
       const expiresAt = issuedAt + IDENTITY_LEASE_MS;
       await verifier.verify(token, expiresAt);
@@ -326,8 +379,26 @@ export function createIdentityLeaseHandler(
           'x-content-type-options': 'nosniff',
         },
       });
-    } catch {
-      return fail(503, 'unavailable');
+    } catch (error) {
+      const code =
+        error instanceof IdentityLeaseError
+          ? (identityFailureCode(error.code) ?? 'unavailable')
+          : 'unavailable';
+      try {
+        options.onFailure?.({
+          event: 'studio_identity_lease_failed',
+          stage,
+          code,
+          tokenEnvPresent: Boolean(process.env.VERCEL_OIDC_TOKEN),
+          tokenFileEnvPresent: Boolean(process.env.VERCEL_OIDC_TOKEN_FILE),
+          requestTokenPresent: Boolean(
+            request.headers.get('x-vercel-oidc-token'),
+          ),
+        });
+      } catch {
+        /* Diagnostics cannot replace refusal. */
+      }
+      return fail(503, code, true);
     }
   };
 }
