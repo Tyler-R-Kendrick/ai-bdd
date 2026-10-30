@@ -1,3 +1,5 @@
+import { FindingsReviews, registerFindingsReviewRoutes } from './integrations/findings-review.ts';
+import { findingsExportRows } from './integrations/findings-export.ts';
 import {
   recentAgentDocumentChanges,
   recordAgentDocumentChanges,
@@ -220,7 +222,7 @@ export async function createApp(
       store,
       runtime,
       provider: agent.profiles.catalog().some((harness) => harness.configured)
-        ? (input) => agent.generateTitle(input)
+        ? (input) => agent.generateTitleAndGoal(input)
         : undefined,
       captureProfile: (user, id) => agent.captureProfile(user, id),
       available: async (user, id) => {
@@ -241,6 +243,7 @@ export async function createApp(
       notify: (projectId, id) =>
         collab.publishDocumentMetadata(projectId, id),
       onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
+      onGoalSeed: (user, artifact, beforeDoc) => recordAgentDocumentChanges(store, user, artifact.id, beforeDoc, 'Agent goal seed'),
     });
     await titles.initialize();
     agent.options.onGeneratedArtifact = (id) => titles.markGenerated(id);
@@ -512,6 +515,22 @@ export async function createApp(
         void collab.notify(projectId, id).catch(() => {});
       },
     });
+    const findings = new FindingsReviews({
+      store, runtime, collab, models: decisions,
+      generation: {
+        captureProfile: async (user, id) => {
+          const profile = await agent.captureProfile(user, id);
+          agent.profiles.assertAvailable(profile);
+          return profile;
+        },
+        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+      },
+      allowed: (user, id) => agent.canParticipate(user, id),
+      remote: remotePlanner,
+      onAccepted: (user, id, beforeDoc) => recordAgentDocumentChanges(store, user, id, beforeDoc, 'Applied investigation findings'),
+    });
+    await findings.initialize();
+    registerFindingsReviewRoutes(app, auth, findings);
     integrations.machines.hooks.otherWorkActive = (id) =>
       investigations!.activeOnMachine(id);
     store.contentReferenceValidator = (input) =>
@@ -641,6 +660,7 @@ export async function createApp(
           void collab.refreshArtifact(current.id, user.id).catch(() => {});
         });
       }
+      await findings.observe(user, previous, current);
       await spikes.observe(user, previous, current);
       await rebuilds.observe(user, previous, current);
     };
@@ -1188,15 +1208,10 @@ export async function createApp(
     );
     app.patch<{ Params: { id: string } }>(
       '/api/artifacts/:id/title-policy',
-      async (req) =>
-        titles.policy(
-          await auth.user(req),
-          req.params.id,
-          parse(
-            z.object({ mode: z.enum(['human', 'automatic']) }).strict(),
-            req.body,
-          ).mode,
-        ),
+      async (req) => {
+        const input = parse(z.object({ mode: z.enum(['human', 'automatic']), seedGoal: z.boolean().optional() }).strict(), req.body);
+        return titles.policy(await auth.user(req), req.params.id, input.mode, input.seedGoal);
+      },
     );
     app.post<{
       Params: {
@@ -1797,6 +1812,9 @@ export async function createApp(
           }
           yield ']';
         }
+        await checkAccess();
+        yield ',"titlePolicy":' + JSON.stringify(await titles.exportState(a.id));
+        await checkAccess();
         yield ',"documentReview":{';
         for (
           let index = 0;
@@ -1968,6 +1986,12 @@ export async function createApp(
           yield (firstInvestigation ? '' : ',') + JSON.stringify(row);
           firstInvestigation = false;
         }
+        yield '],"findingsReviews":[';
+        let firstFindings = true;
+        for await (const row of findingsExportRows(store, a.id, checkAccess)) {
+          yield (firstFindings ? '' : ',') + JSON.stringify(row);
+          firstFindings = false;
+        }
         yield '],"integrationHistory":[';
         let firstIntegration = true;
         for await (const row of integrationExportRows(store, user, a.id)) {
@@ -2112,6 +2136,7 @@ export async function createApp(
       graphs,
       remotePlanner,
       investigations,
+      findings,
       implementationMachines,
       accounts,
       rebuilds,
@@ -2122,6 +2147,7 @@ export async function createApp(
         await audio.cleanupStaged(10);
         await video.cleanupStaged(10);
         await rebuilds.tick();
+        await findings.tick(5);
       },
       spikes,
       drafting,
