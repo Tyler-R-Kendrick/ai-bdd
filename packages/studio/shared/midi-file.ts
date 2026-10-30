@@ -482,24 +482,30 @@ export function writeMidiFile(
           },
         ];
       const muted = track.mute || (solo && !track.solo);
-      if (track.gainDb !== 0 || muted)
+      // SMF has no track-mute event. Omit this part's notes and channel state,
+      // so later CC7/SysEx and other parts sharing its channel cannot unmute it.
+      if (muted) return events.slice(0, 1);
+      const gain = Math.pow(10, track.gainDb / 20),
+        volume = (value: number) =>
+          Math.min(127, Math.max(0, Math.round(value * gain)));
+      if (track.gainDb !== 0)
         events.push({
           tick: 0,
           priority: 1,
-          bytes: [
-            0xb0 | track.channel,
-            7,
-            muted
-              ? 0
-              : Math.min(
-                  127,
-                  Math.round(100 * Math.pow(10, track.gainDb / 20)),
-                ),
-          ],
+          bytes: [0xb0 | track.channel, 7, volume(100)],
         });
       events.push(
         ...track.events
-          .map((event) => preserved(event, track.channel))
+          .map((event) => {
+            const adjusted =
+              track.gainDb !== 0 &&
+              event.kind === 'midi' &&
+              (event.data[0] & 0xf0) === 0xb0 &&
+              event.data[1] === 7
+                ? { ...event, data: [event.data[0], 7, volume(event.data[2])] }
+                : event;
+            return preserved(adjusted, track.channel);
+          })
           .filter((event): event is OutputEvent => !!event),
       );
       for (const note of track.notes) {

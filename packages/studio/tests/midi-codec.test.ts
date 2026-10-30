@@ -273,3 +273,87 @@ it('rejects shortening the composition past tempo, meter or preserved event mark
     }).success,
   ).toBe(true);
 });
+
+it('omits muted/unsoloed parts without muting shared channels and scales later preserved CC7', () => {
+  const content = midiContentSchema.parse({
+    ...initialMidiContent(),
+    lengthBeats: 4,
+    meta: [
+      { kind: 'sysex', tick: 480, type: 0xf0, data: [0x7e, 0x7f, 9, 1, 0xf7] },
+    ],
+    tracks: [
+      {
+        id: 'quiet',
+        title: 'Muted part',
+        channel: 0,
+        instrument: 99,
+        mute: true,
+        notes: [
+          { id: 'quiet-note', pitch: 60, start: 0, duration: 2, velocity: 100 },
+        ],
+        events: [{ kind: 'midi', tick: 240, data: [0xb0, 7, 127] }],
+      },
+      {
+        id: 'shared',
+        title: 'Shared channel part',
+        channel: 0,
+        instrument: 4,
+        notes: [
+          {
+            id: 'shared-note',
+            pitch: 64,
+            start: 0,
+            duration: 2,
+            velocity: 100,
+          },
+        ],
+      },
+    ],
+  });
+  const decode = () => parseMidi(writeMidiFile(content));
+  let decoded = decode();
+  expect(decoded.tracks[1].filter((event) => 'channel' in event)).toHaveLength(
+    0,
+  );
+  expect(
+    decoded.tracks[2]
+      .filter((event) => event.type === 'noteOn')
+      .map((event) => (event as any).noteNumber),
+  ).toEqual([64]);
+  expect(
+    decoded.tracks.flat().filter((event) => event.type === 'controller'),
+  ).toHaveLength(0);
+  content.tracks[0].mute = false;
+  content.tracks[1].solo = true;
+  decoded = decode();
+  expect(
+    decoded.tracks[1].filter((event) => event.type === 'noteOn'),
+  ).toHaveLength(0);
+  expect(
+    decoded.tracks[2].filter((event) => event.type === 'noteOn'),
+  ).toHaveLength(1);
+  content.tracks[1].solo = false;
+  content.tracks[1].mute = true;
+  content.tracks[0].gainDb = -6;
+  content.tracks[0].events = [
+    { kind: 'midi', tick: 0, data: [0xb0, 7, 80] },
+    { kind: 'midi', tick: 240, data: [0xb0, 7, 120] },
+    { kind: 'midi', tick: 480, data: [0xb0, 10, 64] },
+  ];
+  decoded = decode();
+  expect(
+    decoded.tracks[1]
+      .filter(
+        (event) => event.type === 'controller' && event.controllerType === 7,
+      )
+      .map((event) => (event as any).value),
+  ).toEqual([50, 40, 60]);
+  expect(
+    decoded.tracks[1].find(
+      (event) => event.type === 'controller' && event.controllerType === 10,
+    ),
+  ).toMatchObject({ value: 64 });
+  expect(decoded.tracks[2].filter((event) => 'channel' in event)).toHaveLength(
+    0,
+  );
+});
