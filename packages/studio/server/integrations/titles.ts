@@ -209,7 +209,11 @@ export class ArtifactTitles {
           profile: s.profile,
         })
       ).trim();
-      if (!value || value.length > 180 || /[\u0000-\u001f]/.test(value))
+      if (
+        !value ||
+        value.length > 180 ||
+        [...value].some((character) => character.charCodeAt(0) < 32)
+      )
         throw new HttpError(
           502,
           'The title provider returned an invalid title',

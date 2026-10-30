@@ -52,7 +52,7 @@ const decodeMarkdownText = (value: string) =>
   });
 const safeHref = (href: string) =>
   /^(https?:\/\/|mailto:|#|\/api\/files\/[0-9a-f-]{36}$)/i.test(href) &&
-  !Array.from(href).some(character => character.charCodeAt(0) <= 32);
+  !Array.from(href).some((character) => character.charCodeAt(0) <= 32);
 const components: Record<string, string> = {
   Chart: 'chartBlock',
   Diagram: 'diagramBlock',
@@ -73,7 +73,12 @@ const componentNames = Object.fromEntries(
 export type DocumentImport = {
   doc: RichNode;
   warnings: string[];
-  attachments: { key: string; name: string; mime: string; bytes: Uint8Array }[];
+  attachments: {
+    key: string;
+    name: string;
+    mime: string;
+    bytes: Uint8Array;
+  }[];
 };
 function checkedDoc(doc: RichNode): RichNode {
   const normalized = canonicalDocumentIds(doc, () => crypto.randomUUID()).doc;
@@ -101,7 +106,10 @@ function checkedBlock(type: string, data: unknown): RichNode {
       (typeof envelope.id !== 'string' ||
         !envelope.id ||
         envelope.id.length > 100 ||
-        /[\u0000-\u0020\u007f]/.test(envelope.id))
+        [...envelope.id].some(
+          (character) =>
+            character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
+        ))
     )
       throw new Error(
         'Investigation component anchors must be bounded identifiers',
@@ -131,7 +139,8 @@ function checkedBlock(type: string, data: unknown): RichNode {
     typeof value.label === 'string' &&
     value.label.length <= 180 &&
     (value.scenarioId === undefined ||
-      (typeof value.scenarioId === 'string' && value.scenarioId.length <= 300))
+      (typeof value.scenarioId === 'string' &&
+        value.scenarioId.length <= 300))
   )
     return {
       type,
@@ -173,7 +182,8 @@ export function importMarkdown(
   ): RichNode[] => {
     if (depth > 16) throw new Error('Markdown inline nesting is too deep');
     return tokens.flatMap((token) => {
-      if (++count > 10000) throw new Error('Document contains too many nodes');
+      if (++count > 10000)
+        throw new Error('Document contains too many nodes');
       if (
         token.type === 'strong' ||
         token.type === 'em' ||
@@ -209,7 +219,10 @@ export function importMarkdown(
         warnings.add(
           'Images remain links during Markdown import. Upload images through Insert image to attach owned project files.',
         );
-        return text(`Image: ${token.text ?? ''} (${token.href ?? ''})`, marks);
+        return text(
+          `Image: ${token.text ?? ''} (${token.href ?? ''})`,
+          marks,
+        );
       }
       if (token.type === 'html') {
         warnings.add(
@@ -236,7 +249,8 @@ export function importMarkdown(
   const blocks = (tokens: any[], depth = 0): RichNode[] => {
     if (depth > 16) throw new Error('Markdown block nesting is too deep');
     return tokens.flatMap((token) => {
-      if (++count > 10000) throw new Error('Document contains too many nodes');
+      if (++count > 10000)
+        throw new Error('Document contains too many nodes');
       if (token.type === 'space' || token.type === 'def') return [];
       if (token.type === 'heading')
         return [
@@ -338,9 +352,13 @@ export function importMarkdown(
       }
       if (token.type === 'html') {
         const value = token.raw.trim(),
-          match = /^<([A-Z][A-Za-z]+)\s+data=\{([\s\S]*)\}\s*\/>$/.exec(value);
+          match = /^<([A-Z][A-Za-z]+)\s+data=\{([\s\S]*)\}\s*\/>$/.exec(
+            value,
+          );
         if (match && components[match[1]!])
-          return [checkedBlock(components[match[1]!]!, JSON.parse(match[2]!))];
+          return [
+            checkedBlock(components[match[1]!]!, JSON.parse(match[2]!)),
+          ];
         if (restrictedMdx && /^<[A-Z]/.test(value))
           throw new Error(
             'Restricted MDX supports only the registered document components with literal JSON data',
@@ -427,7 +445,8 @@ export function exportMarkdown(doc: RichNode, restrictedMdx = false): string {
   const render = (node: RichNode, depth = 0): string => {
     const content = node.content ?? [],
       prose = () => content.map(inline).join('');
-    if (node.type === 'doc') return content.map((c) => render(c)).join('\n\n');
+    if (node.type === 'doc')
+      return content.map((c) => render(c)).join('\n\n');
     if (node.type === 'paragraph') return prose();
     if (node.type === 'heading')
       return `${'#'.repeat(Math.max(1, Math.min(6, Number(node.attrs?.level) || 1)))} ${prose()}`;
@@ -450,7 +469,10 @@ export function exportMarkdown(doc: RichNode, restrictedMdx = false): string {
     if (node.type === 'codeBlock') {
       const source = content.map((c) => c.text ?? '').join(''),
         fence = '`'.repeat(
-          Math.max(3, ...(source.match(/`+/g) ?? []).map((s) => s.length + 1)),
+          Math.max(
+            3,
+            ...(source.match(/`+/g) ?? []).map((s) => s.length + 1),
+          ),
         );
       return `${fence}${String(node.attrs?.language ?? '')}\n${source}\n${fence}`;
     }
@@ -505,18 +527,26 @@ export function validateDocxArchive(bytes: Uint8Array): number {
       end = i;
       break;
     }
-  if (end < 0 || view.getUint16(end + 4, true) || view.getUint16(end + 6, true))
+  if (
+    end < 0 ||
+    view.getUint16(end + 4, true) ||
+    view.getUint16(end + 6, true)
+  )
     throw new Error('DOCX archive structure is unsupported');
   if (
     (end >= 20 && view.getUint32(end - 20, true) === 0x07064b50) ||
     view.getUint16(end + 8, true) !== view.getUint16(end + 10, true)
   )
-    throw new Error('DOCX ZIP64 or inconsistent entry counts are unsupported');
+    throw new Error(
+      'DOCX ZIP64 or inconsistent entry counts are unsupported',
+    );
   const entries = view.getUint16(end + 10, true),
     centralSize = view.getUint32(end + 12, true),
     start = view.getUint32(end + 16, true);
   if (entries > 256 || entries === 65535 || start + centralSize > end)
-    throw new Error('DOCX archive contains too many entries or ZIP64 metadata');
+    throw new Error(
+      'DOCX archive contains too many entries or ZIP64 metadata',
+    );
   let position = start,
     total = 0;
   const names = new Set<string>();
@@ -741,7 +771,10 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
               'Nested Word list indentation was flattened; list text and sequence are retained.',
             );
           if (previous?.type === type)
-            previous.content!.push({ type: 'listItem', content: [paragraph] });
+            previous.content!.push({
+              type: 'listItem',
+              content: [paragraph],
+            });
           else
             result.push({
               type,
@@ -796,7 +829,10 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
             column += span;
           }
           if (!cells.length)
-            cells.push({ type: 'tableCell', content: [{ type: 'paragraph' }] });
+            cells.push({
+              type: 'tableCell',
+              content: [{ type: 'paragraph' }],
+            });
           rows.push({ type: 'tableRow', content: cells });
         }
         result.push({ type: 'table', content: rows });
@@ -984,7 +1020,8 @@ export function exportDocx(
       prose = `Acceptance criterion: ${String(node.attrs?.label ?? '')}\nScenario: ${String(node.attrs?.scenarioId || 'Not linked')}`;
     else if (node.type === 'researchBlock')
       prose = `Research: ${String(node.attrs?.brief ?? '')}`;
-    else if (node.type === 'blockMath') prose = String(node.attrs?.latex ?? '');
+    else if (node.type === 'blockMath')
+      prose = String(node.attrs?.latex ?? '');
     return prose
       .split('\n')
       .map((line) => paragraph({ type: 'paragraph', content: text(line) }))
