@@ -35,6 +35,8 @@ export function ConversationCards({
   }, [base, threadId]);
   useEffect(() => {
     let active = true;
+    setView(null);
+    setError('');
     const refresh = async () => {
       try {
         const next = await api<ConversationView>(
