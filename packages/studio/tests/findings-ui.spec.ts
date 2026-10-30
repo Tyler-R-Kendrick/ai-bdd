@@ -399,7 +399,7 @@ test('a person can incorporate text-only evidence with an explicit rationale and
     .check();
   await submit.click();
   await expect(
-    panel.getByText('Incorporated by Workspace owner', { exact: true }),
+    panel.getByText('Incorporated by ' + owner.name, { exact: true }),
   ).toBeVisible();
   await expect(panel.getByText(rationale, { exact: true })).toBeVisible();
   expect(await studio.store.artifact(id, owner.id)).toEqual(before);
