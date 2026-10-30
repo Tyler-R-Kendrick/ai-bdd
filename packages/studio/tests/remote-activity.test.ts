@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { remoteFixture, until } from './remote-fixture.ts';
 import { paragraph } from '../shared/domain.ts';
-import { connectRemotePlanner } from '../server/machine/planner-client.ts';
+import {
+  connectRemotePlanner,
+  runRemotePlanner,
+} from '../server/machine/planner-client.ts';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { HttpError } from '../server/store.ts';
 const event = (ws: any, requestId: string, value: Record<string, unknown>) => {
   const eventId = crypto.randomUUID();
@@ -31,6 +37,104 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('bridges a spawned ACP streamed turn and explicit workflow report through a real browser question without inventing pause support', async () => {
+    const w = await remoteFixture(),
+      dir = await mkdtemp(join(tmpdir(), 'studio-remote-input-acp-')),
+      script = join(dir, 'protocol.mjs'),
+      controller = new AbortController();
+    await writeFile(
+      script,
+      `
+      import readline from 'node:readline';
+      const send=value=>process.stdout.write(JSON.stringify({jsonrpc:'2.0',...value})+'\\n');
+      let prompt;
+      const update=value=>send({method:'session/update',params:{sessionId:'actual-input',update:value}});
+      const report=status=>update({sessionUpdate:'studio_run_report',runs:{active:status==='running'?['acp-review']:[],paused:[],cards:[{id:'acp-review',name:'Actual ACP boundary review',status,started:1,updated:2,...(status==='finished'?{ended:2}:{}),waiting:status==='running'?1:0,stages:[{id:'review',name:'Ask the person',status:status==='running'?'awaiting_input':'completed'}]}]}});
+      for await(const line of readline.createInterface({input:process.stdin})){
+        const m=JSON.parse(line);
+        if(m.method==='initialize')send({id:m.id,result:{protocolVersion:1}});
+        if(m.method==='session/new')send({id:m.id,result:{sessionId:'actual-input'}});
+        if(m.method==='session/prompt'){
+          prompt=m.id;report('running');
+          update({sessionUpdate:'agent_message_chunk',content:{type:'text',text:'{"summary":"'}});
+          send({id:'browser-question',method:'session/request_input',params:{sessionId:'actual-input',questionId:'acp-confirmation',runId:'acp-review',input:{method:'confirm',title:'Confirm the actual ACP boundary?',message:'An answer does not authorize tools.'}}});
+        }
+        if(m.id==='browser-question'&&m.result){
+          if(m.result.status!=='answered'||m.result.value!==true)process.exit(13);
+          update({sessionUpdate:'agent_message_chunk',content:{type:'text',text:'Actual ACP browser confirmation recorded."}'}});report('finished');
+          send({id:prompt,result:{stopReason:'end_turn'}});
+        }
+      }
+    `,
+    );
+    let attached = false;
+    const client = runRemotePlanner({
+      origin: w.origin,
+      artifactId: w.artifact.id,
+      token: 'explicit-fixture-token',
+      signal: controller.signal,
+      command: process.execPath,
+      args: [script],
+      cwd: dir,
+      onAttached: () => {
+        attached = true;
+      },
+    });
+    try {
+      await until(() => attached);
+      const run = await w.start();
+      let id = '';
+      await until(async () => {
+        const response = await w.request(
+          `/api/artifacts/${w.artifact.id}/planner/activity`,
+        );
+        id = response.value.requests[0]?.id;
+        return response.value.requests[0]?.questions.length === 1;
+      });
+      const before = await w.request(path(w, id));
+      expect(before.value.runs.cards[0].name).toBe(
+        'Actual ACP boundary review',
+      );
+      expect(before.value.stream.blocks[0].text).toBe('{"summary":"');
+      expect(
+        (
+          await w.request(path(w, id) + '/control', {
+            idempotencyKey: crypto.randomUUID(),
+            action: 'pause',
+            runId: 'acp-review',
+          })
+        ).status,
+      ).toBe(200);
+      await until(
+        async () =>
+          (await w.request(path(w, id))).value.controls[0]?.status === 'failed',
+      );
+      expect(
+        (
+          await w.request(path(w, id) + '/questions/acp-confirmation', {
+            idempotencyKey: crypto.randomUUID(),
+            expectedRevision: 1,
+            action: 'answer',
+            value: true,
+          })
+        ).status,
+      ).toBe(200);
+      await run.done;
+      expect((await w.runtime.get(run.job.id))?.status).toBe('completed');
+      expect(
+        (await w.store.messages(w.artifact.id)).find(
+          (m) => m.role === 'assistant',
+        )?.body,
+      ).toBe('Actual ACP browser confirmation recorded.');
+      expect((await w.request(path(w, id))).value.runs.cards[0].status).toBe(
+        'finished',
+      );
+    } finally {
+      controller.abort();
+      await client;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
   it('reports exhausted active model time back to the durable server instead of leaving its lease running forever', async () => {
     const w = await remoteFixture(),
       controller = new AbortController();
