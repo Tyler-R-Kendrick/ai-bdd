@@ -106,7 +106,11 @@ export class Collaboration {
         }: { added: number[]; updated: number[]; removed: number[] },
         origin: Peer | null,
       ) => {
-        if (origin && typeof origin === 'object' && origin.ids instanceof Set) {
+        if (
+          origin &&
+          typeof origin === 'object' &&
+          origin.ids instanceof Set
+        ) {
           added.forEach((n) => origin.ids.add(n));
           removed.forEach((n) => origin.ids.delete(n));
         }
@@ -131,6 +135,7 @@ export class Collaboration {
     user: User,
     content: Record<string, any>,
     version: number,
+    onPersist?: () => void,
   ) {
     const a = this.store.artifact(id, user.id, 'write');
     if (a.version !== version)
@@ -151,17 +156,22 @@ export class Collaboration {
       Y.applyUpdate(candidate, Y.encodeStateAsUpdate(room.doc));
       candidate.transact(
         () =>
-          prosemirrorToYXmlFragment(next, candidate.getXmlFragment('default')),
+          prosemirrorToYXmlFragment(
+            next,
+            candidate.getXmlFragment('default'),
+          ),
         'server',
       );
       const state = Y.encodeStateAsUpdate(candidate);
       if (state.length > 4 * 1024 * 1024)
         throw new HttpError(400, 'Document is too large');
       const persisted = validateContent(a.kind, {
-        doc: yXmlFragmentToProsemirrorJSON(candidate.getXmlFragment('default')),
+        doc: yXmlFragmentToProsemirrorJSON(
+          candidate.getXmlFragment('default'),
+        ),
       });
       schema.nodeFromJSON(persisted.doc).check();
-      this.store.persistDoc(user, id, state, persisted);
+      this.store.persistDoc(user, id, state, persisted, onPersist);
       const update = Y.encodeStateAsUpdate(candidate, before);
       Y.applyUpdate(room.doc, update, 'server');
       const e = encoding.createEncoder();
@@ -276,7 +286,10 @@ export class Collaboration {
                   const update = decoding.readVarUint8Array(d),
                     candidate = new Y.Doc();
                   try {
-                    Y.applyUpdate(candidate, Y.encodeStateAsUpdate(room!.doc));
+                    Y.applyUpdate(
+                      candidate,
+                      Y.encodeStateAsUpdate(room!.doc),
+                    );
                     Y.applyUpdate(candidate, update);
                     const state = Y.encodeStateAsUpdate(candidate);
                     if (state.length > 4 * 1024 * 1024)
@@ -301,7 +314,8 @@ export class Collaboration {
                     encoding.writeVarUint(out, 0);
                     sync.writeUpdate(out, update);
                     for (const p of room!.peers)
-                      if (p !== peer) this.send(p, encoding.toUint8Array(out));
+                      if (p !== peer)
+                        this.send(p, encoding.toUint8Array(out));
                     this.notify(a.projectId, id);
                   } finally {
                     candidate.destroy();
@@ -314,7 +328,8 @@ export class Collaboration {
                 // Presence names and colors come from the authenticated identity, never a spoofable client label.
                 const input = decoding.createDecoder(update),
                   count = decoding.readVarUint(input);
-                if (count > 10) throw new Error('Too many presence identities');
+                if (count > 10)
+                  throw new Error('Too many presence identities');
                 const owned: {
                   client: number;
                   clock: number;

@@ -38,7 +38,7 @@ ENV NODE_ENV=production \
     SCARF_NO_ANALYTICS=true \
     NODE_USE_ENV_PROXY=1
 RUN apt-get update \
- && apt-get install -y --no-install-recommends chromium ca-certificates fonts-liberation sqlite3 \
+ && apt-get install -y --no-install-recommends chromium ca-certificates fonts-liberation sqlite3 ffmpeg \
  && rm -rf /var/lib/apt/lists/* \
  && mkdir /data && chown node:node /data
 ENV XDG_CONFIG_HOME=/tmp/studio-config XDG_CACHE_HOME=/tmp/studio-cache

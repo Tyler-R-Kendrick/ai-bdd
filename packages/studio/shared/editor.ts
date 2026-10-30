@@ -4,6 +4,7 @@ import { TableKit } from '@tiptap/extension-table';
 import Mathematics from '@tiptap/extension-mathematics';
 import Image from '@tiptap/extension-image';
 import UniqueID from '@tiptap/extension-unique-id';
+import { documentBlockSchemas, documentBlockText, type DocumentBlockKind } from './document-blocks.ts';
 import {
   richVisualDefaults,
   richVisualText,
@@ -82,6 +83,18 @@ function visualBlock(name: RichVisualKind) {
 export const ChartBlock = visualBlock('chartBlock');
 export const DiagramBlock = visualBlock('diagramBlock');
 export const TabsBlock = visualBlock('tabsBlock');
+export const DocumentBlocks = Object.keys(documentBlockSchemas).map((kind) => {
+  const name = kind as DocumentBlockKind;
+  return Node.create({
+    name,
+    group: 'block',
+    atom: true,
+    draggable: true,
+    addAttributes: () => ({ data: { default: null, validate: (value: unknown) => { documentBlockSchemas[name].parse(value); }, renderHTML: () => ({}) } }),
+    parseHTML: () => [],
+    renderHTML: ({ node, HTMLAttributes }) => ['section', { 'data-document-component': name, ...(HTMLAttributes.id ? { id: HTMLAttributes.id } : {}) }, ['pre', {}, documentBlockText(name, node.attrs.data)]],
+  });
+});
 export const baseExtensions = () => [
   StarterKit.configure({
     undoRedo: false,
@@ -102,6 +115,7 @@ export const baseExtensions = () => [
   ChartBlock,
   DiagramBlock,
   TabsBlock,
+  ...DocumentBlocks,
   UniqueID.configure({
     types: [
       'heading',
@@ -114,6 +128,7 @@ export const baseExtensions = () => [
       'table',
       'blockquote',
       'codeBlock',
+      ...Object.keys(documentBlockSchemas),
     ],
   }),
 ];

@@ -4,5 +4,6 @@
   "lightningcss-linux-x64-musl": "MPL-2.0, dev-only (see lightningcss)",
   "caniuse-lite": "CC-BY-4.0 (browser support data), dev-only transitive dependency of the mutation testing tooling (Stryker), never shipped",
   "@fontsource-variable/inter@5.3.0": "SIL OFL-1.1, verified in the installed LICENSE; self-hosted unmodified Inter font used in Studio. Copyright and full license are emitted with frontend third-party notices. Font files retain their license and are not sold separately.",
-  "webgl-constants@1.1.1": "MIT, verified in the installed package LICENSE (Copyright 2019 Tim van Scherpenzeel); upstream package.json omits its license field. Full notice is emitted with frontend third-party notices."
+  "webgl-constants@1.1.1": "MIT, verified in the installed package LICENSE (Copyright 2019 Tim van Scherpenzeel); upstream package.json omits its license field. Full notice is emitted with frontend third-party notices.",
+  "replicad-opencascadejs@1.1.0": "LGPL-2.1-only, verified in installed LICENSE. Unmodified separately loaded replaceable OCCT WASM kernel; full LGPL, OCCT exception, corresponding pinned wrapper/kernel/OCCT source and rebuild/relink instructions ship under Studio public/licenses/cad-kernel-source.md. Source-replacement and reverse engineering for debugging modifications remain permitted."
 }
