@@ -4,6 +4,8 @@ import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/store.ts';
 import { Collaboration } from '../server/collaboration.ts';
+import { DecisionModels } from '../server/decisions/models.ts';
+import { decisionProfileSchema } from '../shared/decision-profile.ts';
 import { Agent } from '../server/agent.ts';
 import { DurableJobCoordinator } from '../server/runtime/jobs.ts';
 import { paragraph } from '../shared/domain.ts';
@@ -439,12 +441,6 @@ describe('durable artifact agent using actual HTTP model/source transports', () 
   it('routes one paragraph through isolated visual decisions and creates a reviewed source-bound proposal', async () => {
     let calls = 0;
     const responses = [
-      { possible: true, reason: 'The paragraph describes relationships.' },
-      {
-        improves: true,
-        reason: 'A relationship diagram explains the boundary.',
-      },
-      { kind: 'diagramBlock' },
       {
         title: 'Contract boundary',
         description: 'Proposed architecture from the paragraph.',
@@ -464,6 +460,48 @@ describe('durable artifact agent using actual HTTP model/source transports', () 
       gatewayBaseUrl: gateway.url,
       plannerVisuals: true,
     });
+    const native = await http((_path, body, res) =>
+      res.end(
+        JSON.stringify({
+          model: body.model,
+          answers: body.questions.map((q: any) =>
+            q.type === 'choice'
+              ? {
+                  name: q.name,
+                  type: 'choice',
+                  choice: 'diagramBlock',
+                  confidence: 0.95,
+                  probabilities: q.choices.map((choice: any) => ({
+                    value: choice.value,
+                    probability:
+                      choice.value === 'diagramBlock' ? 0.94 : 0.02,
+                  })),
+                }
+              : { name: q.name, type: 'predicate', probability: 0.95 },
+          ),
+          usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 },
+        }),
+      ),
+    );
+    const decisions = new DecisionModels({
+      store: w.store,
+      settings: {
+        production: false,
+        timeoutMs: 3000,
+        defaultProfile: decisionProfileSchema.parse({
+          provider: 'openai-decisions',
+          model: 'gpt-6-luna',
+        }),
+        openai: {
+          baseUrl: native.url + '/v1',
+          apiKey: 'explicit-native-visual-fixture',
+          models: ['gpt-6-luna'],
+        },
+      },
+    });
+    await decisions.ready;
+    cleanup.push(() => decisions.close());
+    w.agent.options.decisions = decisions;
     await w.collab.replace(
       w.artifact.id,
       w.user,
@@ -487,9 +525,26 @@ describe('durable artifact agent using actual HTTP model/source transports', () 
     );
     const original = await w.store.artifact(w.artifact.id, w.user.id),
       job = await w.agent.respond(w.user, w.artifact.id, w.threadId, 'chat');
+    await decisions.profile(
+      w.user,
+      w.artifact.id,
+      decisionProfileSchema.parse({ provider: 'jev', model: 'jev-latest' }),
+    );
     await w.run(job.id);
     await w.run(job.id);
-    expect(calls).toBe(4);
+    expect(calls).toBe(1);
+    expect(native.requests).toHaveLength(3);
+    expect(
+      native.requests.every((request) => request.body.model === 'gpt-6-luna'),
+    ).toBe(true);
+    expect(
+      native.requests.map((request) => request.body.questions[0].type),
+    ).toEqual(['predicate', 'predicate', 'choice']);
+    expect(
+      native.requests.every(
+        (request) => !JSON.stringify(request.body).includes('decisions'),
+      ),
+    ).toBe(true);
     expect(JSON.stringify(gateway.requests[0].body)).not.toContain(
       'decisions',
     );

@@ -1,11 +1,18 @@
 import { createGateway, generateText, Output, type LanguageModel } from 'ai';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { Artifact, RichNode } from '../../shared/domain.ts';
+import type { User, Artifact, RichNode } from '../../shared/domain.ts';
 import {
   richVisualSchemas,
   type RichVisualKind,
 } from '../../shared/rich-blocks.ts';
+import type { DecisionModels } from '../decisions/models.ts';
+import type {
+  DecisionProfile,
+  DecisionPurpose,
+  DecisionQuestion,
+} from '../../shared/decision-profile.ts';
+import { HttpError } from '../store.ts';
 import type { DurableJobContext } from '../runtime/contracts.ts';
 export type VisualTarget = {
   request: string;
@@ -49,7 +56,15 @@ export function visualTarget(
 }
 export class VisualRouting {
   constructor(
-    readonly options: { model: LanguageModel; gatewayBaseUrl?: string },
+    readonly options: {
+      model: LanguageModel;
+      gatewayBaseUrl?: string;
+      decisions?: DecisionModels;
+      decisionProfile: DecisionProfile | null;
+      user: User;
+      artifactId: string;
+      artifactVersion: number;
+    },
   ) {}
   async propose(
     ctx: DurableJobContext,
@@ -90,33 +105,74 @@ export class VisualRouting {
         });
         return schema.parse(response.output);
       });
-    const possible = await run(
-      'possibility',
-      'Decide whether this paragraph can be faithfully explained by a chart, node diagram, or tabbed comparison. No new facts or invented numeric data may be added.',
-      z
-        .object({ possible: z.boolean(), reason: z.string().max(500) })
-        .strict(),
-    );
-    if (!possible.possible) return null;
-    const comprehension = await run(
+    const decide = async (
+      name: string,
+      purpose: DecisionPurpose,
+      question: DecisionQuestion,
+    ) => {
+      if (!this.options.decisions || !this.options.decisionProfile)
+        throw new HttpError(
+          503,
+          'The independent decision model is not configured for visual routing',
+        );
+      const evaluation = await ctx.step('visual.' + name, (key) =>
+        this.options.decisions!.decide({
+          user: this.options.user,
+          artifactId: this.options.artifactId,
+          artifactVersion: this.options.artifactVersion,
+          profile: this.options.decisionProfile!,
+          input: prompt,
+          purpose,
+          questions: [question],
+          idempotencyKey: key,
+          signal: ctx.signal,
+          policyVersion: 'visual-routing-v1',
+        }),
+      );
+      const answer = evaluation.answers[0];
+      if (!answer || answer.status !== 'answered')
+        throw new HttpError(
+          answer?.status === 'error' ? 503 : 409,
+          'The independent decision model ' +
+            (answer?.status ?? 'could not assess') +
+            ' this paragraph. No visual proposal was generated.',
+        );
+      return answer.value;
+    };
+    const possible = await decide('possibility', 'visual-possibility', {
+      id: 'possible',
+      kind: 'boolean',
+      instructions:
+        'Can this paragraph be faithfully explained by a chart, node diagram, or tabbed comparison? No new facts or invented numeric data may be added.',
+    });
+    if (possible !== true) return null;
+    const comprehension = await decide(
       'comprehension',
-      'Decide whether a visual would materially improve comprehension of this one paragraph for the explicit request. Prefer prose when it is already clear.',
-      z
-        .object({ improves: z.boolean(), reason: z.string().max(500) })
-        .strict(),
+      'visual-comprehension',
+      {
+        id: 'improves',
+        kind: 'boolean',
+        instructions:
+          'Would a visual materially improve comprehension of this one paragraph for the explicit request? Prefer prose when it is already clear.',
+      },
     );
-    if (!comprehension.improves) return null;
-    const classification = await run(
-      'type',
-      'Choose the visual representation grounded in this paragraph: chartBlock requires actual stated numeric values; diagramBlock shows relationships; tabsBlock compares alternatives; none keeps prose.',
-      z
-        .object({
-          kind: z.enum(['chartBlock', 'diagramBlock', 'tabsBlock', 'none']),
-        })
-        .strict(),
-    );
-    if (classification.kind === 'none') return null;
-    const kind = classification.kind as RichVisualKind;
+    if (comprehension !== true) return null;
+    const classification = await decide('type', 'visual-type', {
+      id: 'kind',
+      kind: 'choice',
+      instructions:
+        'Choose the visual representation grounded in this paragraph. A chart requires actual stated numeric values. A diagram shows relationships. Tabs compare alternatives. Choose none when prose is adequate.',
+      choices: [
+        { value: 'chartBlock' },
+        { value: 'diagramBlock' },
+        { value: 'tabsBlock' },
+        { value: 'none' },
+      ],
+    });
+    if (classification === 'none') return null;
+    const kind = z
+      .enum(['chartBlock', 'diagramBlock', 'tabsBlock'])
+      .parse(classification) as RichVisualKind;
     const data = await run(
       'author',
       'Author the selected ' +

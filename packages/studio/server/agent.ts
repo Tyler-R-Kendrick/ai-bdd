@@ -31,6 +31,8 @@ import type { RemotePlanner } from './integrations/remote-planner.ts';
 import { AgentProfiles } from './integrations/agent-profiles.ts';
 import { t3LanguageModel } from './integrations/t3-model.ts';
 import type { AgentProfile } from '../shared/agent-profile.ts';
+import type { DecisionProfile } from '../shared/decision-profile.ts';
+import type { DecisionModels } from './decisions/models.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
 import {
   VisualRouting,
@@ -60,6 +62,8 @@ type Snapshot = {
   ownerEpoch: number;
   remote: boolean;
   profile: AgentProfile;
+  decisionProfile: DecisionProfile | null;
+  participationInput: string;
   visual: VisualTarget | null;
 };
 export type AgentOptions = {
@@ -73,6 +77,7 @@ export type AgentOptions = {
   ) => Promise<void>;
   remote?: RemotePlanner;
   repositoryRead?: RepositoryReadPort;
+  decisions?: DecisionModels;
 };
 
 /** SQL owns turn scheduling and ownership. Instances only execute fenced, frozen jobs. */
@@ -546,6 +551,20 @@ export class Agent {
         .map((m) => `${m.author}: ${m.body}`)
         .join('\n')
         .slice(-40000);
+      const needsDecision =
+        !!visual || (!!options.automatic && !options.addressed);
+      if (
+        needsDecision &&
+        this.options.decisions &&
+        this.options.decisions.options.store !== this.store
+      )
+        throw new Error(
+          'Agent and decision models must share the same Store transaction context',
+        );
+      const decisionProfile =
+        needsDecision && this.options.decisions
+          ? await this.options.decisions.captureProfile(user, id)
+          : null;
       const source = JSON.stringify(artifact.content);
       if (intent === 'edit' && source.length > 70000)
         throw new HttpError(
@@ -565,6 +584,16 @@ export class Agent {
         model: profile.model,
         remote: profile.harness === 'remote-planner',
         profile,
+        decisionProfile,
+        participationInput: JSON.stringify({
+          messages: transcript.slice(-8).map((message) => ({
+            id: message.id,
+            role: message.role,
+            author: message.author,
+            body: message.body,
+          })),
+          latestId: options.latestId ?? null,
+        }),
         visual,
         repository: project.repository ?? '',
         requestHash,
@@ -871,6 +900,11 @@ export class Agent {
       if (snapshot.visual) {
         const visual = await new VisualRouting({
           model: this.model(snapshot.profile, key + ':visual'),
+          decisions: this.options.decisions,
+          decisionProfile: snapshot.decisionProfile,
+          user,
+          artifactId: id,
+          artifactVersion: artifact.version,
         }).propose(ctx, snapshot.visual, artifact);
         if (visual)
           return {
