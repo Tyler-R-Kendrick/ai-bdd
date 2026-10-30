@@ -7,6 +7,7 @@ import {
   remoteQuestionInputSchema,
   remoteQuestionValue,
   remoteStreamPartSchema,
+  remoteRunsSchema,
   type RemoteActivity,
   type RemoteQuestionInput,
   type RemoteRuns,
@@ -558,8 +559,15 @@ export function runRemotePlanner(
             value.content?.type === 'text'
           )
             emit(value.content.text);
+          if (value?.sessionUpdate === 'studio_run_report') {
+            pending = pending.then(() =>
+              context.reportRuns(remoteRunsSchema.parse(value.runs)),
+            );
+            void pending.catch(() => {});
+          }
         },
         requestInput: async (value) => {
+          await pending;
           const params = value as Record<string, any>,
             {
               sessionId: _sessionId,
