@@ -21,10 +21,10 @@ for (const name of [
   'DOCKER_CERT_PATH',
 ])
   delete env[name];
-const docker = async (args) =>
+const docker = async (args, timeout = 60000) =>
   execute('docker', ['--host=unix:///var/run/docker.sock', ...args], {
     env,
-    timeout: 60000,
+    timeout,
     maxBuffer: 1024 * 1024,
   });
 const results = [];
@@ -132,6 +132,32 @@ try {
   ]);
   pass(
     'packaged pinned CPU model generates chat and schema JSON as non-root with no network',
+  );
+  await docker(
+    [
+      'run',
+      '--rm',
+      '--network',
+      'none',
+      '--read-only',
+      '--tmpfs',
+      '/tmp',
+      '--memory=2g',
+      '--cpus=2',
+      '--cap-drop',
+      'ALL',
+      '--security-opt',
+      'no-new-privileges:true',
+      '-e',
+      'STUDIO_SMOKE_NATIVE_APP=1',
+      image,
+      'node',
+      'dist/server/studio-native-app-smoke.mjs',
+    ],
+    240000,
+  );
+  pass(
+    'shipping App defaults to genuine local native T3, completes HTTP chat and a fresh-process turn with persisted checkpoints offline',
   );
 
   await api('/auth/demo', 'POST', undefined, 404);
@@ -257,7 +283,7 @@ try {
     checks: results,
     passed: true,
     scope:
-      'Local container release smoke test with synthetic fixture accounts and data; no live OIDC or model provider validation.',
+      'Actual local release-image models and native T3 with synthetic accounts and durable data; hosted identity has separate acceptance.',
   };
   if (process.env.STUDIO_SMOKE_REPORT) {
     await writeFile(

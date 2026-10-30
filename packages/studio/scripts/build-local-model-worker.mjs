@@ -9,3 +9,8 @@ await copyFile(
   new URL('../server/local/studio-local-decisions.mjs', import.meta.url),
   new URL('../dist/server/studio-local-decisions.mjs', import.meta.url),
 );
+
+await copyFile(
+  new URL('../verification/native-app-smoke.mjs', import.meta.url),
+  new URL('../dist/server/studio-native-app-smoke.mjs', import.meta.url),
+);
