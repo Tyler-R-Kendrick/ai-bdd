@@ -1,4 +1,9 @@
-import { FindingsReviews, registerFindingsReviewRoutes } from './integrations/findings-review.ts';
+import { registerArtifactLifecycle } from './artifact-lifecycle.ts';
+import { registerAccountPlannerRoutes } from './integrations/account-planners.ts';
+import {
+  FindingsReviews,
+  registerFindingsReviewRoutes,
+} from './integrations/findings-review.ts';
 import { findingsExportRows } from './integrations/findings-export.ts';
 import {
   recentAgentDocumentChanges,
@@ -149,8 +154,7 @@ export async function createApp(
       !options.runtime && !options.hosting
         ? new LocalJobDispatcher()
         : undefined;
-    if (localDispatcher)
-      startupCleanup.unshift(() => localDispatcher.close());
+    if (localDispatcher) startupCleanup.unshift(() => localDispatcher.close());
     const sourceProbe = options.audioSourceProbe ?? probeAudio;
     const objects =
       options.hosting?.objects ??
@@ -238,10 +242,16 @@ export async function createApp(
         }
       },
       allowed: (user, id) => agent.canParticipate(user, id),
-      notify: (projectId, id) =>
-        collab.publishDocumentMetadata(projectId, id),
+      notify: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
       onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
-      onGoalSeed: (user, artifact, beforeDoc) => recordAgentDocumentChanges(store, user, artifact.id, beforeDoc, 'Agent goal seed'),
+      onGoalSeed: (user, artifact, beforeDoc) =>
+        recordAgentDocumentChanges(
+          store,
+          user,
+          artifact.id,
+          beforeDoc,
+          'Agent goal seed',
+        ),
     });
     await titles.initialize();
     agent.options.onGeneratedArtifact = (id) => titles.markGenerated(id);
@@ -349,9 +359,7 @@ export async function createApp(
             id: harness.id,
             label:
               harness.label +
-              (harness.id === selected.harness
-                ? ' (currently selected)'
-                : ''),
+              (harness.id === selected.harness ? ' (currently selected)' : ''),
           }));
       },
     });
@@ -391,11 +399,7 @@ export async function createApp(
         if (atomic) {
           await store.lock('repository-identity:' + userId);
           if (
-            !(await identity.checkLease(
-              userId,
-              project.repository,
-              permission,
-            ))
+            !(await identity.checkLease(userId, project.repository, permission))
           )
             throw new HttpError(
               403,
@@ -472,8 +476,7 @@ export async function createApp(
           agent.profiles.assertAvailable(profile);
           return profile;
         },
-        modelForProfile: (profile, key) =>
-          agent.modelForProfile(profile, key),
+        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
       },
     });
     const video = await registerVideoRoutes(app, {
@@ -515,7 +518,10 @@ export async function createApp(
       },
     });
     const findings = new FindingsReviews({
-      store, runtime, collab, models: decisions,
+      store,
+      runtime,
+      collab,
+      models: decisions,
       generation: {
         captureProfile: async (user, id) => {
           const profile = await agent.captureProfile(user, id);
@@ -526,7 +532,14 @@ export async function createApp(
       },
       allowed: (user, id) => agent.canParticipate(user, id),
       remote: remotePlanner,
-      onAccepted: (user, id, beforeDoc) => recordAgentDocumentChanges(store, user, id, beforeDoc, 'Applied investigation findings'),
+      onAccepted: (user, id, beforeDoc) =>
+        recordAgentDocumentChanges(
+          store,
+          user,
+          id,
+          beforeDoc,
+          'Applied investigation findings',
+        ),
     });
     await findings.initialize();
     registerFindingsReviewRoutes(app, auth, findings);
@@ -565,6 +578,30 @@ export async function createApp(
         if (store.db.inTransaction()) store.db.afterCommit(notify);
         else void notify().catch(() => {});
       },
+    });
+    const accountPlanners = await registerAccountPlannerRoutes(app, {
+      store,
+      auth,
+      accounts,
+      profiles: agent.profiles,
+      enabled: !!settings.integrations?.remotePlanner,
+      hasLiveActivity: (id, userId, scope) =>
+        remotePlanner.hasLiveActivity(id, userId, scope),
+      notify: (projectId, id) => {
+        void collab.notify(projectId, id).catch(() => {});
+      },
+    });
+    remotePlanner.options.authenticateScoped = (request) =>
+      accountPlanners.authenticatePlanner(request);
+    remotePlanner.options.assertScoped = (scope) =>
+      accountPlanners.assertPlanner(scope);
+    const lifecycle = await registerArtifactLifecycle(app, {
+      store,
+      auth,
+      objects: hosting.objects,
+      assertEditable: (artifact) => graphs.assertPlanEditable(artifact.id),
+      hasActivity: (id) => remotePlanner.hasLiveActivityForArtifact(id),
+      notify: (projectId, id) => collab.notify(projectId, id),
     });
     const authorizeMachine = (machine: any) =>
       accounts.assertCurrentMachine(machine);
@@ -677,8 +714,7 @@ export async function createApp(
         await documentImplementationReady(store, artifact);
         await investigations!.assertReady(artifact.id);
       },
-      publish: (projectId, id) =>
-        collab.publishDocumentMetadata(projectId, id),
+      publish: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
     });
     await drafting.initialize();
     registerImplementationDraftRoutes(app, auth, drafting);
@@ -779,10 +815,7 @@ export async function createApp(
         if (value.userId === user.id && value.artifactId === artifact.id)
           previews.delete(key);
       if (previews.size >= 40)
-        throw new HttpError(
-          429,
-          'Too many live previews. Try again shortly.',
-        );
+        throw new HttpError(429, 'Too many live previews. Try again shortly.');
       const token = randomBytes(24).toString('base64url');
       previews.set(token, {
         userId: user.id,
@@ -790,9 +823,7 @@ export async function createApp(
         html,
         expires: Date.now() + 120000,
       });
-      return reply
-        .code(201)
-        .send({ url: '/api/previews/' + token, ...build });
+      return reply.code(201).send({ url: '/api/previews/' + token, ...build });
     });
     app.get<{
       Params: {
@@ -876,10 +907,7 @@ export async function createApp(
           currentProject.repository !== b.repository &&
           store.artifactWriteGuard
         )
-          for (const artifact of await store.artifacts(
-            req.params.id,
-            user.id,
-          ))
+          for (const artifact of await store.artifacts(req.params.id, user.id))
             await store.artifactWriteGuard(artifact, user.id);
         if (b.repository && settings.repositoryIdentity) {
           await store.lock('repository-identity:' + user.id);
@@ -1110,10 +1138,7 @@ export async function createApp(
         id: string;
       };
     }>('/api/artifacts/:id', async (req) => {
-      const a = await store.artifact(
-        req.params.id,
-        (await auth.user(req)).id,
-      );
+      const a = await store.artifact(req.params.id, (await auth.user(req)).id);
       return {
         artifact: a,
         threads: await store.threads(a.id),
@@ -1125,10 +1150,7 @@ export async function createApp(
           a.id,
         ),
         agentActive: await agent.isActive(a.id),
-        agentAvailable: await agent.canParticipate(
-          await auth.user(req),
-          a.id,
-        ),
+        agentAvailable: await agent.canParticipate(await auth.user(req), a.id),
         agentProfile: await agent.profiles.view(await auth.user(req), a.id),
         runnerActive: await runner.isActive(a.id),
       };
@@ -1208,44 +1230,44 @@ export async function createApp(
     app.patch<{ Params: { id: string } }>(
       '/api/artifacts/:id/title-policy',
       async (req) => {
-        const input = parse(z.object({ mode: z.enum(['human', 'automatic']), seedGoal: z.boolean().optional() }).strict(), req.body);
-        return titles.policy(await auth.user(req), req.params.id, input.mode, input.seedGoal);
+        const input = parse(
+          z
+            .object({
+              mode: z.enum(['human', 'automatic']),
+              seedGoal: z.boolean().optional(),
+            })
+            .strict(),
+          req.body,
+        );
+        return titles.policy(
+          await auth.user(req),
+          req.params.id,
+          input.mode,
+          input.seedGoal,
+        );
       },
     );
-    app.post<{
-      Params: {
-        id: string;
-      };
-    }>('/api/artifacts/:id/archive', async (req) => {
-      const u = await auth.user(req),
-        a = await store.artifact(req.params.id, u.id, 'admin');
-      await projectWrite(req, a.projectId, 'admin', async () => {
-        if (
-          (
-            await store.one(
-              'SELECT main_artifact_id FROM projects WHERE id=?',
-              a.projectId,
-            )
-          ).main_artifact_id === a.id
-        )
-          throw new HttpError(
-            409,
-            'The main design document cannot be archived',
-          );
-        await store.exec('UPDATE artifacts SET archived=1 WHERE id=?', a.id);
-        await store.audit(a.projectId, a.id, u.name, 'artifact.archived');
-      });
-      await collab.notify(a.projectId, a.id);
-      return { ok: true };
-    });
+    app.post<{ Params: { id: string } }>(
+      '/api/artifacts/:id/archive',
+      async (req) => {
+        auth.assertOrigin(req);
+        const body = parse(
+          z
+            .object({ version: z.number().int().positive().optional() })
+            .strict(),
+          req.body ?? {},
+        );
+        return lifecycle.archive(
+          await auth.user(req),
+          req.params.id,
+          body.version,
+        );
+      },
+    );
     app.get<{ Params: { id: string } }>(
       '/api/artifacts/:id/document/agent-changes',
       async (req) =>
-        recentAgentDocumentChanges(
-          store,
-          await auth.user(req),
-          req.params.id,
-        ),
+        recentAgentDocumentChanges(store, await auth.user(req), req.params.id),
     );
     app.get<{
       Params: {
@@ -1812,7 +1834,8 @@ export async function createApp(
           yield ']';
         }
         await checkAccess();
-        yield ',"titlePolicy":' + JSON.stringify(await titles.exportState(a.id));
+        yield ',"titlePolicy":' +
+          JSON.stringify(await titles.exportState(a.id));
         await checkAccess();
         yield ',"documentReview":{';
         for (
@@ -1851,11 +1874,7 @@ export async function createApp(
           yield ']';
         }
         yield '},"conversation":{';
-        for (
-          let index = 0;
-          index < conversationExportTables.length;
-          index++
-        ) {
+        for (let index = 0; index < conversationExportTables.length; index++) {
           const table = conversationExportTables[index]!,
             cutoff = (
               await store.one(
@@ -1961,13 +1980,15 @@ export async function createApp(
             remoteCursor = row.sequence;
           }
         }
+        yield '],"accountPlanners":[';
+        const assignments = await accountPlanners.exportState(a.id);
+        for (const [index, assignment] of assignments.entries()) {
+          await checkAccess();
+          yield (index ? ',' : '') + JSON.stringify(assignment);
+        }
         yield '],"decisionModels":[';
         let firstDecision = true;
-        for await (const row of decisionExportRows(
-          store,
-          a.id,
-          checkAccess,
-        )) {
+        for await (const row of decisionExportRows(store, a.id, checkAccess)) {
           yield (firstDecision ? '' : ',') + JSON.stringify(row);
           firstDecision = false;
         }
@@ -2165,9 +2186,12 @@ export async function createApp(
       findings,
       implementationMachines,
       accounts,
+      accountPlanners,
+      lifecycle,
       rebuilds,
       maintenance: async () => {
         await accounts.cleanupRevoked(5);
+        await lifecycle.cleanup(3);
         await investigations!.expire();
         await implementationMachines.expire();
         await audio.cleanupStaged(10);
