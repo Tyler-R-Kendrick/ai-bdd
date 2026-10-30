@@ -228,6 +228,37 @@ async function acceptSemanticChoice(
   });
 }
 describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => {
+  it('keeps pending evidence valid across another investigation card and unaccepted ADR draft edits', async () => {
+    const c = await fixture();
+    const first = await c.proposal();
+    const current = await c.store.artifact(c.artifact.id, c.user.id);
+    await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'A separate bounded investigation',
+    });
+    await c.store.tx(async () => {
+      await c.store.db.lock('project:' + c.project.id);
+      await c.store.exec(
+        "UPDATE decisions SET decision='Unaccepted alternative under discussion',version=version+1 WHERE artifact_id=? AND status='proposed'",
+        c.artifact.id,
+      );
+    });
+    await c.service.run(c.user, first.id);
+    expect((await c.service.claim(c.machine)).work?.id).toBe(first.id);
+  });
+  it('retains already published historical receipt replay after accepted ADR source changes', async () => {
+    const c = await fixture();
+    const { record, input } = await running(c);
+    const receipt = await c.service.complete(c.machine, record.id, input);
+    await acceptSemanticChoice(
+      c,
+      'A later human decision does not rewrite historical evidence.',
+    );
+    expect(await c.service.complete(c.machine, record.id, input)).toEqual(
+      receipt,
+    );
+    expect((await c.service.get(c.user, record.id)).status).toBe('completed');
+  });
   it('seals accepted human ADR source into the actual claimed investigation context', async () => {
     const c = await fixture();
     const { current, source } = await acceptSemanticChoice(
