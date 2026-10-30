@@ -182,7 +182,7 @@ test('owner archives restores and explicitly deletes an eligible draft while ret
     modal.getByRole('region', { name: 'Archived artifact details' }),
   ).toBeVisible();
   await expect(
-    modal.getByText('1 messages · 1 decisions · 1 versions · 0 uploaded files'),
+    modal.getByText('1 message · 1 decision · 1 version · 0 uploaded files'),
   ).toBeVisible();
   await capture(page, 'archive-browse-desktop');
   await modal

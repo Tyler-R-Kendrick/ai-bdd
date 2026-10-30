@@ -200,9 +200,19 @@ export function ArchivePanel({
               <Badge>Archived · v{artifact!.version}</Badge>
             </header>
             <p className="muted small">
-              {selected.counts.messages} messages · {selected.counts.decisions}{' '}
-              decisions · {selected.counts.revisions} versions ·{' '}
-              {selected.counts.files} uploaded files
+              {(
+                [
+                  [selected.counts.messages, 'message'],
+                  [selected.counts.decisions, 'decision'],
+                  [selected.counts.revisions, 'version'],
+                  [selected.counts.files, 'uploaded file'],
+                ] as const
+              )
+                .map(
+                  ([count, label]) =>
+                    `${count} ${label}${count === 1 ? '' : 's'}`,
+                )
+                .join(' · ')}
             </p>
             {selected.blockers.length > 0 && (
               <div className="archive-dependencies">
