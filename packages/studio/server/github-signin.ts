@@ -11,14 +11,17 @@ export type GitHubSignInAuthorization = {
   state: string;
   codeChallenge: string;
   redirectUri: string;
+  nonce?: string;
 };
 /** Trusted server dependency. A browser cannot select or construct a provider. */
 export interface GitHubSignInProvider {
-  authorizationUrl(input: GitHubSignInAuthorization): string;
+  authorizationUrl(input: GitHubSignInAuthorization): string | Promise<string>;
   authenticate(input: {
     code: string;
     verifier: string;
     redirectUri: string;
+    state?: string;
+    nonce?: string;
   }): Promise<GitHubSignInIdentity>;
 }
 export type GitHubSignInSettings = { clientId: string; clientSecret: string };
@@ -75,7 +78,28 @@ export class GitHubOAuthSignInProvider implements GitHubSignInProvider {
     }).toString();
     return url.href;
   }
-  private async request(url: string, options: RequestInit, maximum: number) {
+  async authenticate(input: { code: string; verifier: string; redirectUri: string }) {
+    const token = await githubSignInRequest('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: this.settings.clientId,
+        client_secret: this.settings.clientSecret,
+        code: input.code,
+        code_verifier: input.verifier,
+        redirect_uri: input.redirectUri,
+      }),
+    }, 16384);
+    if (
+      !token || typeof token !== 'object' || token.error || typeof token.access_token !== 'string' ||
+      token.access_token.length < 10 || token.access_token.length > 4096 ||
+      typeof token.token_type !== 'string' || token.token_type.toLowerCase() !== 'bearer'
+    ) throw new HttpError(401, 'GitHub could not complete sign-in. Start again.');
+    return githubSignInIdentityFromToken(token.access_token);
+  }
+}
+
+async function githubSignInRequest(url: string, options: RequestInit, maximum: number) {
     let response: Response;
     try {
       response = await fetch(url, {
@@ -101,26 +125,13 @@ export class GitHubOAuthSignInProvider implements GitHubSignInProvider {
     }
     return boundedJson(response, maximum);
   }
-  async authenticate(input: { code: string; verifier: string; redirectUri: string }) {
-    const token = await this.request('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: this.settings.clientId,
-        client_secret: this.settings.clientSecret,
-        code: input.code,
-        code_verifier: input.verifier,
-        redirect_uri: input.redirectUri,
-      }),
-    }, 16384);
-    if (
-      !token || typeof token !== 'object' || token.error || typeof token.access_token !== 'string' ||
-      token.access_token.length < 10 || token.access_token.length > 4096 ||
-      typeof token.token_type !== 'string' || token.token_type.toLowerCase() !== 'bearer'
-    ) throw new HttpError(401, 'GitHub could not complete sign-in. Start again.');
-    const headers = { Authorization: 'Bearer ' + token.access_token };
-    const profile = await this.request('https://api.github.com/user', { headers }, 65536);
-    const emails = await this.request('https://api.github.com/user/emails?per_page=100', { headers }, 65536);
+
+/** Resolve the actual numeric GitHub account and verified emails from a server-obtained user token. */
+export async function githubSignInIdentityFromToken(accessToken: string): Promise<GitHubSignInIdentity> {
+  if (typeof accessToken !== 'string' || accessToken.length < 10 || accessToken.length > 4096 || /[\r\n]/.test(accessToken)) throw new HttpError(401, 'GitHub could not complete sign-in. Start again.');
+    const headers = { Authorization: 'Bearer ' + accessToken };
+    const profile = await githubSignInRequest('https://api.github.com/user', { headers }, 65536);
+    const emails = await githubSignInRequest('https://api.github.com/user/emails?per_page=100', { headers }, 65536);
     if (
       !profile || typeof profile !== 'object' || !Number.isSafeInteger(profile.id) || profile.id <= 0 ||
       typeof profile.login !== 'string' || !/^[A-Za-z0-9-]{1,39}$/.test(profile.login) ||
@@ -137,5 +148,4 @@ export class GitHubOAuthSignInProvider implements GitHubSignInProvider {
         ? profile.name.trim().slice(0, 100) : profile.login,
       verifiedEmails,
     };
-  }
 }

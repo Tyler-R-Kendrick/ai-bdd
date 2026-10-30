@@ -163,6 +163,9 @@ importers:
       '@ai-bdd/sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@auth/core':
+        specifier: 0.41.3
+        version: 0.41.3
       '@fastify/cookie':
         specifier: ^11.1.5
         version: 11.1.5
@@ -256,6 +259,9 @@ importers:
       '@vercel/blob':
         specifier: 2.8.2
         version: 2.8.2
+      '@vercel/connect':
+        specifier: 2.6.0
+        version: 2.6.0(@auth/core@0.41.3)(@modelcontextprotocol/sdk@1.32.1(zod@4.6.5))(ai@7.0.137(zod@4.6.5))
       '@vercel/oidc':
         specifier: 4.0.5
         version: 4.0.5
@@ -452,6 +458,20 @@ packages:
   '@ai-sdk/provider@4.0.26':
     resolution: {integrity: sha512-BZ443uBEq6HuMA+Z4b7Hpm65GpZSo7pWqnYqpf/7tAO3C48JbtvAhOE2JnODFj+jodsZzfRHkAyQb64xuD2tZQ==}
     engines: {node: '>=22'}
+
+  '@auth/core@0.41.3':
+    resolution: {integrity: sha512-sJ3JMHHkXMD3aOjopv7mOBTO1Ocw4b0fAEXJBz6k7YHLpYQI6C40jCUPc5fNvUKxXRXNE1/sRISA15UrwWJBTw==}
+    peerDependencies:
+      '@simplewebauthn/browser': ^9.0.1
+      '@simplewebauthn/server': ^9.0.2
+      nodemailer: ^7.0.7 || ^8.0.5
+    peerDependenciesMeta:
+      '@simplewebauthn/browser':
+        optional: true
+      '@simplewebauthn/server':
+        optional: true
+      nodemailer:
+        optional: true
 
   '@babel/code-frame@8.0.6':
     resolution: {integrity: sha512-uMHhvmDmwFiLuiozaoRYTZHqMFuu3fem/X9JY78lohAuLoh8LSGGC8JqUzo2cVuBsBxkjMZNk56CE7ock8Xxkw==}
@@ -1372,6 +1392,9 @@ packages:
   '@pact-foundation/pact@17.1.4':
     resolution: {integrity: sha512-HrMX+QA/B2Afto6yuQDeMDtTHLv2wtiqdmCIcodlzIlnYrCUg9HT1tFlOtFkjKZ3gsnnc52eeb+9Nm7IZGCW/w==}
     engines: {node: '>=22'}
+
+  '@panva/hkdf@1.2.1':
+    resolution: {integrity: sha512-6oclG6Y3PiDFcoyk8srjLfVKyMfVCKJ27JwNPViuXziFpmdz+MZnZN/aKY0JGXgYuO/VghU0jcOAZgWXZ1Dmrw==}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -2396,6 +2419,32 @@ packages:
   '@vercel/cli-exec@1.0.1':
     resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
     engines: {node: '>= 18'}
+
+  '@vercel/connect@2.6.0':
+    resolution: {integrity: sha512-7fh5WT1djgda/tN4vlQlvfcaVtHuqOn91lDjExp6Gvaax+/4761l8nkvWcMAkjZ1KWl4NDz3Cm2yMHwv5CSahw==}
+    peerDependencies:
+      '@ai-sdk/mcp': ^1 || ^2
+      '@auth/core': '>=0.41.3'
+      '@chat-adapter/slack': ^4.0.0
+      '@modelcontextprotocol/sdk': ^1.29.0
+      ai: ^6 || ^7.0.0-beta.0
+      better-auth: '>=1.5.0'
+      eve: '>=0.39.1'
+    peerDependenciesMeta:
+      '@ai-sdk/mcp':
+        optional: true
+      '@auth/core':
+        optional: true
+      '@chat-adapter/slack':
+        optional: true
+      '@modelcontextprotocol/sdk':
+        optional: true
+      ai:
+        optional: true
+      better-auth:
+        optional: true
+      eve:
+        optional: true
 
   '@vercel/detect-agent@1.2.5':
     resolution: {integrity: sha512-0krENrjuitlW8s6TJu0MlqCevyCU7K7JK63jZAf7xZ6n17tx+vUEwzHT3sTxawtwZxaW21hu+oFUpoOrm49FsQ==}
@@ -4164,6 +4213,14 @@ packages:
   potpack@1.0.2:
     resolution: {integrity: sha512-choctRBIV9EMT9WGAZHn3V7t0Z2pMQyl0EZE6pFc/6ml3ssw7Dlf/oAOvFwjm1HVsqfQN8GfeFyJ+d8tRzqueQ==}
 
+  preact-render-to-string@6.5.11:
+    resolution: {integrity: sha512-ubnauqoGczeGISiOh6RjX0/cdaF8v/oDXIjO85XALCQjwQP+SB4RDXXtvZ6yTYSjG+PC1QRP2AhPgCEsM2EvUw==}
+    peerDependencies:
+      preact: '>=10'
+
+  preact@10.24.3:
+    resolution: {integrity: sha512-Z2dPnBnMUfyQfSQ+GBdsGa16hz35YmLmtTLhM169uW944hYL6xzTYkJjC07j+Wosz733pMWx0fgON3JNw1jJQA==}
+
   pretty-bytes@6.1.1:
     resolution: {integrity: sha512-mQUvGU6aUFQ+rNvTIAcZuWGRT9a6f6Yrg9bHs4ImKF+HZCEK+plBvnAZYSIQztknZF2qnzNtr6F8s0+IuptdlQ==}
     engines: {node: ^14.13.1 || >=16.0.0}
@@ -5065,6 +5122,14 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
+  '@auth/core@0.41.3':
+    dependencies:
+      '@panva/hkdf': 1.2.1
+      jose: 6.2.14
+      oauth4webapi: 3.8.8
+      preact: 10.24.3
+      preact-render-to-string: 6.5.11(preact@10.24.3)
+
   '@babel/code-frame@8.0.6':
     dependencies:
       '@babel/helper-validator-identifier': 8.0.6
@@ -5882,6 +5947,8 @@ snapshots:
     transitivePeerDependencies:
       - debug
       - supports-color
+
+  '@panva/hkdf@1.2.1': {}
 
   '@pinojs/redact@0.4.0': {}
 
@@ -6937,6 +7004,14 @@ snapshots:
   '@vercel/cli-exec@1.0.1':
     dependencies:
       execa: 5.1.1
+
+  '@vercel/connect@2.6.0(@auth/core@0.41.3)(@modelcontextprotocol/sdk@1.32.1(zod@4.6.5))(ai@7.0.137(zod@4.6.5))':
+    dependencies:
+      '@vercel/oidc': 4.0.5
+    optionalDependencies:
+      '@auth/core': 0.41.3
+      '@modelcontextprotocol/sdk': 1.32.1(zod@4.6.5)
+      ai: 7.0.137(zod@4.6.5)
 
   '@vercel/detect-agent@1.2.5': {}
 
@@ -8844,6 +8919,12 @@ snapshots:
       xtend: 4.0.2
 
   potpack@1.0.2: {}
+
+  preact-render-to-string@6.5.11(preact@10.24.3):
+    dependencies:
+      preact: 10.24.3
+
+  preact@10.24.3: {}
 
   pretty-bytes@6.1.1: {}
 

@@ -200,7 +200,7 @@ export async function createApp(
         ),
     });
     startupCleanup.unshift(() => followupPublication.close());
-    const auth = new Auth(store, settings);
+    const auth = new Auth(store, settings, options.identityExecutionContext);
     await auth.initialize();
     const collab = new Collaboration(store, auth);
     startupCleanup.unshift(() => collab.close());

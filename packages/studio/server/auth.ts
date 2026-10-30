@@ -11,6 +11,8 @@ import {
   GitHubOAuthSignInProvider, githubCodeChallenge, githubSignInSettingsFromEnv,
   type GitHubSignInProvider, type GitHubSignInSettings, type GitHubSignInIdentity,
 } from './github-signin.ts';
+import { VercelConnectGitHubSignInProvider, githubSignInConnectorFromEnv } from './github-connect-signin.ts';
+import type { IdentityExecutionContext } from './hosting/identity-context.ts';
 
 // Retained for reading historical test/migration fixtures. No HTTP endpoint uses passwords.
 const derive = promisify(scrypt);
@@ -38,6 +40,7 @@ export type Settings = {
   oidcClientSecret?: string;
   oidcAllowHttpLoopback?: boolean;
   githubSignIn?: GitHubSignInSettings;
+  githubSignInConnector?: string;
   /** Code-only injection for an independently implemented, trusted server adapter. */
   githubSignInProvider?: GitHubSignInProvider;
   repositoryIdentity?: RepositoryIdentitySettings;
@@ -59,9 +62,10 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
     throw new Error('Production requires an HTTPS STUDIO_ORIGIN');
   if (production && env.STUDIO_DEMO === '1')
     throw new Error('Demo access is forbidden in production');
-  const githubSignIn = githubSignInSettingsFromEnv(env);
-  if (production && !githubSignIn)
-    throw new Error('Production requires GitHub sign-in client bindings');
+  const githubSignInConnector = githubSignInConnectorFromEnv(env);
+  const githubSignIn = githubSignInConnector ? undefined : githubSignInSettingsFromEnv(env);
+  if (production && !githubSignIn && !githubSignInConnector)
+    throw new Error('Production requires GitHub sign-in client bindings or STUDIO_GITHUB_SIGNIN_CONNECTOR');
   if (env.STUDIO_MODEL && !env.AI_GATEWAY_API_KEY && !env.VERCEL_OIDC_TOKEN && env.VERCEL !== '1')
     throw new Error('STUDIO_MODEL requires AI_GATEWAY_API_KEY or Vercel OIDC authentication');
   const trustedProxies = env.STUDIO_TRUSTED_PROXIES?.split(',').map(s => s.trim()).filter(Boolean);
@@ -75,7 +79,7 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
     integrations: integrationSettingsFromEnv(env), production, origin,
     dataDir: env.STUDIO_DATA_DIR ?? '.studio',
     adminEmail: env.STUDIO_ADMIN_EMAIL ?? 'owner@localhost',
-    githubSignIn, demo: false, model: env.STUDIO_MODEL,
+    githubSignIn, githubSignInConnector, demo: false, model: env.STUDIO_MODEL,
     githubToken: env.STUDIO_GITHUB_TOKEN, githubRepositories, trustedProxies,
     runnerConfig: env.STUDIO_RUNNER_CONFIG,
   };
@@ -83,9 +87,11 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
 export class Auth {
   readonly challenges: DurableChallenges;
   readonly github: GitHubSignInProvider | undefined;
-  constructor(readonly store: Store, readonly settings: Settings) {
+  constructor(readonly store: Store, readonly settings: Settings, identityExecutionContext?: IdentityExecutionContext) {
     this.challenges = new DurableChallenges(store);
-    this.github = settings.githubSignInProvider ?? (settings.githubSignIn ? new GitHubOAuthSignInProvider(settings.githubSignIn) : undefined);
+    this.github = settings.githubSignInProvider ?? (settings.githubSignInConnector
+      ? new VercelConnectGitHubSignInProvider(settings.githubSignInConnector, identityExecutionContext)
+      : settings.githubSignIn ? new GitHubOAuthSignInProvider(settings.githubSignIn) : undefined);
   }
   async initialize() {
     await this.store.tx(async () => {
@@ -168,25 +174,26 @@ export class Auth {
       reply.clearCookie('studio_session', { path: '/' });
       return { ok: true };
     });
-    app.get('/api/auth/github', async (_req, reply) => {
+    app.get('/api/auth/github', {config:{rateLimit:{max:8,timeWindow:'1 minute'}}}, async (_req, reply) => {
       if (!this.github) throw new HttpError(503, 'GitHub sign-in is not configured');
-      const state = randomBytes(32).toString('base64url'), binding = randomBytes(32).toString('base64url'), verifier = randomBytes(32).toString('base64url');
+      const state = randomBytes(32).toString('base64url'), binding = randomBytes(32).toString('base64url'), verifier = randomBytes(32).toString('base64url'), nonce = randomBytes(32).toString('base64url');
+      const authorizationUrl = await this.github.authorizationUrl({ state, nonce, codeChallenge: githubCodeChallenge(verifier), redirectUri: this.settings.origin + '/api/auth/github/callback' });
       await this.store.tx(async () => {
         await this.store.db.lock('identity:github-signin-challenges');
-        await this.challenges.put('github-signin', state, binding, { verifier }, Date.now() + 300000);
+        await this.challenges.put('github-signin', state, binding, { verifier, nonce }, Date.now() + 300000);
       });
       reply.setCookie('studio_github_signin', binding, { path: '/api/auth/github', httpOnly: true, sameSite: 'lax', secure: this.settings.production, maxAge: 300 });
-      return reply.redirect(this.github.authorizationUrl({ state, codeChallenge: githubCodeChallenge(verifier), redirectUri: this.settings.origin + '/api/auth/github/callback' }));
+      return reply.redirect(authorizationUrl);
     });
     app.get('/api/auth/github/callback', async (req, reply) => {
       reply.clearCookie('studio_github_signin', { path: '/api/auth/github' });
       try {
         const url = new URL(req.url, this.settings.origin), state = url.searchParams.get('state') ?? '';
-        const challenge = await this.challenges.consume<{verifier: string}>('github-signin', state, req.cookies.studio_github_signin ?? '');
+        const challenge = await this.challenges.consume<{verifier: string; nonce?: string}>('github-signin', state, req.cookies.studio_github_signin ?? '');
         const code = url.searchParams.get('code') ?? '';
-        if (!this.github || !challenge || url.searchParams.has('error') || !/^[A-Za-z0-9_-]{1,512}$/.test(code))
+        if (!this.github || !challenge || url.searchParams.has('error') || code.length<1 || code.length>4096 || [...code].some(character=>character.charCodeAt(0)<=32 || character.charCodeAt(0)>126))
           throw new HttpError(401, 'GitHub sign-in expired. Start again.');
-        const identity = await this.github.authenticate({ code, verifier: challenge.payload.verifier, redirectUri: this.settings.origin + '/api/auth/github/callback' });
+        const identity = await this.github.authenticate({ code, state, nonce: challenge.payload.nonce, verifier: challenge.payload.verifier, redirectUri: this.settings.origin + '/api/auth/github/callback' });
         const user = await this.admit(identity);
         await this.session(user, reply);
         return reply.redirect('/');
