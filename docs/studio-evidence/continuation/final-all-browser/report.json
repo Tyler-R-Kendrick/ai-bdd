@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "productionSource": "75f1e8d",
+  "testSource": "e9613c6",
+  "build": {
+    "command": "pnpm --dir packages/studio run build",
+    "result": "passed",
+    "includes": [
+      "production client",
+      "server",
+      "portable connector"
+    ]
+  },
+  "browser": {
+    "command": "pnpm --dir packages/studio exec playwright test --config final-all.playwright.config.ts",
+    "tests": 52,
+    "files": 18,
+    "passed": 52,
+    "failed": 0,
+    "skipped": 0,
+    "retries": 0,
+    "workers": 1,
+    "duration": "2.8m",
+    "exclusions": []
+  },
+  "isolation": {
+    "freshSqlDirectory": true,
+    "reuseExistingServer": false,
+    "baselinePort": 8877,
+    "audioPort": 8891,
+    "rebuildPort": 8895,
+    "otherFullAppListeners": "ephemeral",
+    "allOwnedListenersClosed": true
+  },
+  "fixtureCorrection": {
+    "commit": "e9613c6",
+    "change": "Derive the MIDI fixture Origin from its actual auth/status response URL, preserving strict status and permission assertions under both standalone and main Playwright configs."
+  },
+  "claims": [
+    "All six document cases pass after answer and accepted-ADR source version advancement, including imported questionnaires, human acceptance, suggestions, durable anchors and fresh viewer permissions.",
+    "All four full-product native decision/conversation/investigation cases pass with actual application composition and explicitly local provider/workstation protocol fixtures.",
+    "Both audio and both MIDI cases pass under the main glob with actual encoded media and measured synth/playback checks.",
+    "Living-document rebuild acceptance and all prior standard browser cases pass together."
+  ],
+  "limits": [
+    "Local protocol models, identity issuers, search results and workstation completion remain explicit fixtures; no live paid provider or deployed production certification is asserted.",
+    "Screenshots establish the visible states described in README.md; they do not measure classifier accuracy or cryptographic security."
+  ]
+}
