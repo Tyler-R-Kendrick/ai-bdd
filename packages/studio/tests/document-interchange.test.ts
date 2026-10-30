@@ -370,3 +370,9 @@ describe('safe document interchange and passage review', () => {
     expect(() => importDocx(zip64)).toThrow('ZIP64');
   });
 });
+
+it('rejects every ASCII control and space inside exported links while retaining safe URLs', () => {
+  const linked = (href: string): RichNode => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Evidence', marks: [{ type: 'link', attrs: { href } }] }] }] });
+  for (let code = 0; code <= 32; code++) expect(exportMarkdown(linked('https://example.test/a' + String.fromCharCode(code) + 'b'))).not.toContain('[Evidence]');
+  expect(exportMarkdown(linked('https://example.test/evidence'))).toContain('[Evidence](https://example.test/evidence)');
+});

@@ -46,7 +46,7 @@ const decodeMarkdownText = (value: string) =>
   });
 const safeHref = (href: string) =>
   /^(https?:\/\/|mailto:|#|\/api\/files\/[0-9a-f-]{36}$)/i.test(href) &&
-  !/[\u0000-\u0020]/.test(href);
+  !Array.from(href).some(character => character.charCodeAt(0) <= 32);
 const components: Record<string, string> = {
   Chart: 'chartBlock',
   Diagram: 'diagramBlock',
