@@ -23,7 +23,7 @@ pnpm --filter @ai-bdd/studio dev:ui
 
 The API listens on `http://127.0.0.1:8787`; the Vite client defaults to `http://localhost:5173`. Set `STUDIO_ORIGIN=http://localhost:5173` on the API when using Vite, because cookie mutations and WebSocket handshakes check the browser's exact origin. Open that same Vite origin in your browser.
 
-An empty development database offers local owner setup with a password of at least 16 characters. `STUDIO_DEMO=1` explicitly enables a local sample account. Production refuses demo access and interactive setup.
+Configure the authorized first owner's `STUDIO_ADMIN_EMAIL` and a [GitHub sign-in adapter](../../docs/studio-github-signin.md). The first verified GitHub sign-in can create that owner while the database is empty; subsequent users need an invitation. Password setup/login, demo access and generic organization OIDC sign-in are disabled in development and production.
 
 For a single built process:
 
@@ -51,16 +51,18 @@ The default hosted composition is **Vercel Services + external PostgreSQL (Neon)
 For the local SQLite/disk adapter, build from the repository root:
 
 ```sh
-docker build -f Dockerfile.studio -t ai-bdd-studio:local .
+docker build -f Dockerfile.studio -t studio:local .
 ```
 
 In a managed build environment using a TLS proxy, supply its public CA through a BuildKit secret rather than copying it into an image:
 
 ```sh
-docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f Dockerfile.studio -t ai-bdd-studio:local .
+docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f Dockerfile.studio -t studio:local .
 ```
 
-Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN`, the authorized first-owner `STUDIO_ADMIN_EMAIL`, and the configured GitHub sign-in adapter. The direct GitHub OAuth adapter uses `STUDIO_GITHUB_SIGNIN_CLIENT_ID` and `STUDIO_GITHUB_SIGNIN_CLIENT_SECRET` with callback `/api/auth/github/callback`. Password and generic organization OIDC login are disabled. Model integrations and the acceptance runner are separate capabilities. No populated secret file belongs in a commit or image.
+Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN`, the authorized first-owner `STUDIO_ADMIN_EMAIL`, and the configured GitHub sign-in adapter. On Vercel, prefer the owned managed connector selected by `STUDIO_GITHUB_SIGNIN_CONNECTOR`; it requires project/environment attachment and no GitHub client secret in Studio. The explicit direct adapter outside Connect uses `STUDIO_GITHUB_SIGNIN_CLIENT_ID` and `STUDIO_GITHUB_SIGNIN_CLIENT_SECRET` with callback `/api/auth/github/callback`. Password and generic organization OIDC login are disabled. Model integrations and the acceptance runner are separate capabilities. No populated secret file belongs in a commit or image.
+
+Generation defaults to genuine managed T3/OpenCode with downloaded Qwen weights; independent finite decisions default to the same local weights through their own provider/model picker. Optional Gateway authoring and native evaluation require explicit registration and the [free-only policy](../../docs/studio-free-models.md) on every attempt. No paid model, credit purchase or implicit provider fallback is authorized. Published zero prices do not establish account availability: the bounded live free-model probes returned HTTP402 before inference completed.
 
 ```sh
 docker compose -f docker-compose.studio.yml up -d --build
@@ -113,7 +115,7 @@ Create a personal API token from Share → Connect an agent, then put its value 
 ```json
 {
   "mcpServers": {
-    "ai-bdd-studio": {
+    "studio": {
       "command": "node",
       "args": ["/absolute/path/to/ai-bdd/packages/studio/dist/server/mcp.js"],
       "env": {
@@ -141,11 +143,11 @@ The [hosted runbook](../../docs/studio-vercel-deployment.md#backup-restore-rollb
 
 Stop incoming work and stop the application before snapshotting the complete data volume, including runner artifacts. The exclusive SQLite writer lock intentionally excludes external online backup access; no in-process online-backup adapter is supplied. Never copy only an actively written SQLite main file while ignoring its WAL.
 
-One stopped-volume backup procedure, using the already-built image's tools, is:
+Identify the intended Docker volume from the Compose configuration and set the operator variable `STUDIO_BACKUP_VOLUME` to that volume name. One stopped-volume backup procedure, using the already-built image's tools, is:
 
 ```sh
 docker compose -f docker-compose.studio.yml stop studio
-docker run --rm --user node --entrypoint sh -v ai-bdd_studio-data:/data:ro -v "$PWD/backups:/backup" ai-bdd-studio:local -c 'tar -C /data -czf /backup/studio-data.tgz .'
+docker run --rm --user node --entrypoint sh -v "$STUDIO_BACKUP_VOLUME:/data:ro" -v "$PWD/backups:/backup" studio:local -c 'tar -C /data -czf /backup/studio-data.tgz .'
 docker compose -f docker-compose.studio.yml start studio
 ```
 

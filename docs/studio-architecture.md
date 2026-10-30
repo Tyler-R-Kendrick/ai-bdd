@@ -92,13 +92,34 @@ SameSite; mutations check canonical origin. Hashed personal MCP tokens inherit
 current owner permissions. Source transactions recheck rights under the project
 lock after awaited work. Trusted proxy CIDRs are explicit.
 
-OIDC uses durable one-use state, PKCE, nonce, verified email and admission.
-Lazy issuer discovery leaves password sign-in available during issuer outages.
-HTTP issuers require explicit development-only loopback mode. Per-user GitHub
-credentials use a stable-key encrypted vault. Refresh and permission leases
+Browser sign-in uses GitHub with durable one-use state, browser-bound PKCE,
+verified email admission and a stable numeric GitHub identity. The preferred
+Vercel Connect adapter also verifies issuer, audience, signature, nonce and
+userinfo subject through a fresh server-side identity scope. A direct GitHub
+OAuth adapter is an explicit alternative outside Connect. Password/setup/demo
+and generic organization OIDC sign-in are disabled; provider failure leaves a
+visible retry state. Historical browser sessions without GitHub provenance are
+rejected, while API bearer credentials retain their separate policy.
+
+Repository authorization is separate from sign-in. Per-user GitHub credentials
+use a stable-key encrypted vault. Refresh and permission leases
 coordinate across instances; signed webhooks fence stale grants. An operator
 token cannot grant repository access to a participant. Account linking remains
 reachable before project admission succeeds.
+
+## ADR: local defaults and explicit free-only model alternatives
+
+Genuine managed T3/OpenCode with pinned downloaded Qwen weights is the default
+authoring harness. Explicit Local CPU and Vercel/fx selections remain separate.
+Finite decisions have an independent persisted provider/model/threshold and
+default to native local conditional label likelihoods, with explicit abstention
+and uncalibrated provenance. Neither picker changes the other.
+
+Optional Gateway authoring, structured generation and native evaluation must
+pass the [free-only model policy](studio-free-models.md) on every attempt.
+Fresh catalog and endpoint metadata must show exact zero fees; unknown or paid
+routes, unverified transports and fallback routing fail before inference.
+Provider unavailability never changes the selected harness or grants authority.
 
 ## ADR: retain decisions separately from prose
 
