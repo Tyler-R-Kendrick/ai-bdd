@@ -992,11 +992,19 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
       message: record.message ?? undefined,
       createdAt: record.created_at,
     })) as RemoteControl[];
-    const membership = await this.store.one(
-      'SELECT role FROM memberships WHERE project_id=? AND user_id=?',
-      row.project_id,
-      user.id,
-    );
+    // Read history remains available when write entitlement is denied. Renew
+    // repository authority outside SQL, just like the browser action routes.
+    let writableRole: string | undefined;
+    if (!artifact.archived)
+      try {
+        writableRole = await this.store.role(row.project_id, user.id, 'write');
+      } catch (error) {
+        if (
+          !(error instanceof HttpError) ||
+          ![403, 404].includes(error.statusCode)
+        )
+          throw error;
+      }
     return {
       id: row.id,
       jobId: row.job_id,
@@ -1010,9 +1018,11 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
       runs: JSON.parse(row.runs_json),
       questions,
       controls,
-      canAnswer: live && exact && membership?.role !== 'viewer',
+      canAnswer: live && exact && writableRole !== undefined,
       canControl:
-        live && (row.user_id === user.id || membership?.role === 'owner'),
+        live &&
+        writableRole !== undefined &&
+        (row.user_id === user.id || writableRole === 'owner'),
       createdAt: row.created_at,
     };
   }
