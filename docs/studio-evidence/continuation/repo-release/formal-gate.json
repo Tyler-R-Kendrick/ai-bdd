@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "scope": "Exact rational proof of shell column allocation on real viewport widths 320\u20134096, and exhaustive evaluation of the production role predicate. No browser text metrics or whole-system proof.",
+  "layout": [
+    {
+      "detailOpen": false,
+      "lower": 320,
+      "upper": 900,
+      "includeUpper": false,
+      "canvasLowerBound": "320"
+    },
+    {
+      "detailOpen": false,
+      "lower": 900,
+      "upper": 1280,
+      "includeUpper": false,
+      "canvasLowerBound": "668"
+    },
+    {
+      "detailOpen": false,
+      "lower": 1280,
+      "upper": 4096,
+      "includeUpper": true,
+      "canvasLowerBound": "1048"
+    },
+    {
+      "detailOpen": true,
+      "lower": 320,
+      "upper": 900,
+      "includeUpper": false,
+      "canvasLowerBound": "320"
+    },
+    {
+      "detailOpen": true,
+      "lower": 900,
+      "upper": 1280,
+      "includeUpper": false,
+      "canvasLowerBound": "668"
+    },
+    {
+      "detailOpen": true,
+      "lower": 1280,
+      "upper": 4096,
+      "includeUpper": true,
+      "canvasLowerBound": "708"
+    }
+  ],
+  "permissions": {
+    "exhaustiveCases": 9,
+    "roles": [
+      "owner",
+      "editor",
+      "viewer"
+    ],
+    "actions": [
+      "read",
+      "write",
+      "admin"
+    ]
+  },
+  "compiledLayout": {
+    "scope": "Z3 UNSAT proof of the actual Handwired operation graph on the declared 1/64-pixel lattice, plus exhaustive FP32 tensor equivalence. The independent rational checker covers all real widths. Browser text metrics and whole-application execution are outside these theorems.",
+    "solver": "Z3",
+    "verdict": "unsat",
+    "upstream": {
+      "repository": "https://github.com/chenglou/handwired",
+      "commit": "257856e3b221140acb4cc4460626b850c0bd4ff1",
+      "sha256": "75da2a13f39720e34b1e440533460435ead0af9a88fccad8c94e94a816dafa21"
+    },
+    "compiledOperations": 10,
+    "tensorCases": 483330,
+    "quantum": "1/64 pixel",
+    "smtLib": "(declare-fun width () Real)\n(declare-fun width_in_64ths () Int)\n(declare-fun detail_open () Real)\n(assert (>= width 320.0))\n(assert (<= width 4096.0))\n(assert (= (* width 64.0) (to_real width_in_64ths)))\n(assert (or (= detail_open (to_real 0)) (= detail_open (to_real 1))))\n(assert (let ((a!1 (ite (> (+ 57600.0 0.0 (* width (- 64.0))) 0.0)\n                (+ 57600.0 0.0 (* width (- 64.0)))\n                0.0))\n      (a!4 (ite (> (+ 81920.0 0.0 (* width (- 64.0))) 0.0)\n                (+ 81920.0 0.0 (* width (- 64.0)))\n                0.0))\n      (a!7 (ite (> (+ (+ 0.0 0.0) (* detail_open 1.0)) 0.0)\n                (+ (+ 0.0 0.0) (* detail_open 1.0))\n                0.0))\n      (a!8 (ite (and (>= width 1280.0) (= detail_open (to_real 1))) 340.0 0.0)))\n(let ((a!2 (+ (+ 1.0 0.0) (* (+ 1.0 0.0) a!1 (- 1.0))))\n      (a!5 (+ (+ 1.0 0.0) (* (+ 1.0 0.0) a!4 (- 1.0)))))\n(let ((a!3 (* (+ 1.0 0.0) (ite (> a!2 0.0) a!2 0.0)))\n      (a!6 (+ (+ 0.0 0.0) (* (+ 1.0 0.0) (ite (> a!5 0.0) a!5 0.0) 1.0))))\n(let ((a!9 (distinct (+ (+ 0.0 0.0) (* (* a!6 a!7) 340.0)) a!8))\n      (a!10 (+ (+ 0.0 0.0)\n               (* width 1.0)\n               (* a!3 (- 232.0))\n               (* (* a!6 a!7) (- 340.0))))\n      (a!11 (- (- width (+ (+ 0.0 0.0) (* a!3 232.0)))\n               (+ (+ 0.0 0.0) (* (* a!6 a!7) 340.0)))))\n  (or (distinct (+ (+ 0.0 0.0) (* a!3 232.0)) (ite (>= width 900.0) 232.0 0.0))\n      a!9\n      (distinct a!10 a!11)\n      (< a!10 320.0)))))))\n"
+  },
+  "externalProof": {
+    "verified": false,
+    "status": "not-requested",
+    "reason": "The optional Magnetar research gate requires an explicitly configured real verifier."
+  }
+}
