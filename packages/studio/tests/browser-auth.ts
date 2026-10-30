@@ -5,7 +5,7 @@ const origin = 'http://127.0.0.1:8877';
 type Cookies = Awaited<ReturnType<BrowserContext['cookies']>>;
 let bootstrap: { projectId: string; cookies: Cookies; previousActor: Cookies } | undefined;
 
-/** Each actor is invited through the API, then signs in through real OAuth/PKCE. */
+/** Each actor signs in through OAuth, then receives project membership by its internal ID. */
 export async function signInAcceptanceActor(page: Page) {
   if (!bootstrap) {
     await signInBrowser(page, origin, browserOwnerEmail);
@@ -19,12 +19,12 @@ export async function signInAcceptanceActor(page: Page) {
   }
   await page.context().addCookies(bootstrap.previousActor);
   const email = `acceptance-${randomUUID()}@example.test`;
+  const actor = await signInBrowser(page, origin, email);
   const invitation = await page.request.post(`/api/projects/${bootstrap.projectId}/members`, {
     headers: { origin, cookie: bootstrap.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') },
-    data: { email, name: 'Alex Morgan', role: 'owner' },
+    data: { userId: actor.id, role: 'owner' },
   });
   expect(invitation.ok(), await invitation.text()).toBe(true);
   expect(await invitation.json()).not.toHaveProperty('temporaryPassword');
-  await signInBrowser(page, origin, email);
   bootstrap.previousActor = await page.context().cookies();
 }

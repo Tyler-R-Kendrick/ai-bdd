@@ -18,7 +18,7 @@ const escape = (value: string) => value.replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char]!);
 const sha = (value: string) => createHash('sha256').update(value).digest('base64url');
-export async function githubSignInFixture() {
+export async function githubSignInFixture(options: { defaultName?: string } = {}) {
   let origin = '', exchanges = 0, fail = false;
   const accounts = new Map<string, Account>();
   const codes = new Map<string, { challenge: string; redirectUri: string; account: Account }>();
@@ -30,7 +30,7 @@ export async function githubSignInFixture() {
         kind:'github',
         id: (BigInt('0x' + createHash('sha256').update(normalized).digest('hex').slice(0, 12)) + 1n).toString(),
         login: 'fixture-' + createHash('sha256').update(normalized).digest('hex').slice(0, 12),
-        name: 'GitHub acceptance actor',
+        name: options.defaultName ?? 'GitHub acceptance actor',
         verifiedEmails: [normalized],
       };
       accounts.set(normalized, value);
