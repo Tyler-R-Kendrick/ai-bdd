@@ -346,9 +346,11 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           409,
           'Select a GitHub repository and connect its checkout before investigating',
         );
-      const repository = repositorySchema.parse(project.repository);
+      const repository = repositorySchema.parse(
+        project.repository.replace(/\/$/, ''),
+      );
       const checkout = await this.store.one(
-        'SELECT c.source_commit FROM studio_investigation_checkouts c JOIN studio_machines m ON m.id=c.machine_id WHERE m.project_id=? AND m.user_id=? AND m.expires>? AND c.repository=? ORDER BY c.updated_at DESC LIMIT 1',
+        "SELECT c.source_commit FROM studio_investigation_checkouts c JOIN studio_machines m ON m.id=c.machine_id WHERE m.project_id=? AND m.user_id=? AND m.expires>? AND lower(rtrim(c.repository,'/'))=lower(?) ORDER BY c.updated_at DESC LIMIT 1",
         artifact.projectId,
         user.id,
         Date.now(),

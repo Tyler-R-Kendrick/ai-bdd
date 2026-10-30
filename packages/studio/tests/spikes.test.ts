@@ -324,4 +324,22 @@ describe('saved-source speculative prototype classifier', () => {
     ).toHaveLength(1);
     expect(JSON.stringify(w.requests[1].body)).toContain(latest);
   });
+  it('uses a registered checkout across canonical GitHub case and trailing-slash variants', async () => {
+    const w = await fixture();
+    await w.store.exec(
+      'UPDATE projects SET repository=? WHERE id=?',
+      'https://github.com/Example/Prototype/',
+      w.project.id,
+    );
+    await w.edit(passage);
+    await w.runtime.executeJob(w.jobs[0]!, {
+      messageId: 'canonical-repository',
+      deliveryCount: 1,
+    });
+    const records = (
+      await w.investigations.list(w.user, w.project.mainArtifactId)
+    ).records;
+    expect(records).toHaveLength(1);
+    expect(records[0]!.sourceCommit).toBe('a'.repeat(40));
+  });
 });
