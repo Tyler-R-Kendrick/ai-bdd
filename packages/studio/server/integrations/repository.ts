@@ -60,9 +60,7 @@ export class RepositoryReader {
     }
     const authenticated =
       this.settings.githubToken &&
-      this.settings.githubRepositories?.includes(
-        this.repository.toLowerCase(),
-      );
+      this.settings.githubRepositories?.includes(this.repository.toLowerCase());
     const response = await this.request(
       `https://api.github.com/repos/${this.repository}${path}`,
       {
@@ -88,10 +86,7 @@ export class RepositoryReader {
         limit: 1,
       });
       if (!Array.isArray(data) || !/^[0-9a-f]{40,64}$/.test(data[0]?.sha))
-        throw new HttpError(
-          502,
-          'GitHub did not return a repository revision',
-        );
+        throw new HttpError(502, 'GitHub did not return a repository revision');
       this.ref = data[0].sha;
     }
     return this.ref!;
@@ -171,6 +166,9 @@ export class RepositoryReader {
       state: data.merged ? 'merged' : data.state,
       baseSha: data.base?.sha,
       headSha: data.head?.sha,
+      headRef: data.head?.ref,
+      headRepository: data.head?.repo?.html_url,
+      baseRepository: data.base?.repo?.html_url,
       url: `https://github.com/${this.repository}/pull/${number}`,
     };
   }

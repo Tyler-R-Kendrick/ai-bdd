@@ -1,3 +1,5 @@
+import { registerRebuildRoutes } from './integrations/rebuild-machines.ts';
+import { resolveExistingPullRequest } from './integrations/pull-request-head.ts';
 import { registerAudioRoutes } from './audio-api.ts';
 import type { AudioRenderDriver } from './audio-renderer.ts';
 import type { VideoRenderDriver } from './video-renderer.ts';
@@ -546,6 +548,56 @@ export async function createApp(
     implementationMachines.dependencies.otherWorkActive = async (id) =>
       (await accounts.otherWorkActive(id)) ||
       (await investigations!.activeOnMachine(id));
+    const rebuilds = await registerRebuildRoutes(app, {
+      store,
+      auth,
+      graphs,
+      machines: integrations.machines,
+      authorizeMachine,
+      otherWorkActive: async (id) =>
+        (await accounts.otherWorkActive(id)) ||
+        (await investigations!.activeOnMachine(id)) ||
+        (await implementationMachines.activeOnMachine(id)),
+      assertReady: async (artifact) => {
+        await documentImplementationReady(store, artifact);
+        await investigations!.assertReady(artifact.id);
+      },
+      resolvePullRequest: (user, repository, url, signal) =>
+        resolveExistingPullRequest(
+          {
+            store,
+            settings,
+            ...(settings.repositoryIdentity
+              ? {
+                  repositoryRead: (user, repository, input, signal) =>
+                    identity.readRepository(user, repository, input, signal),
+                }
+              : {}),
+          },
+          user,
+          repository,
+          url,
+          signal,
+        ),
+      notify: (projectId, id) => {
+        const notify = () => collab.notify(projectId, id);
+        if (store.db.inTransaction()) store.db.afterCommit(notify);
+        else void notify().catch(() => {});
+      },
+    });
+    integrations.machines.hooks.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id)) ||
+      (await implementationMachines.activeOnMachine(id)) ||
+      (await rebuilds.activeOnMachine(id));
+    investigations.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await implementationMachines.activeOnMachine(id)) ||
+      (await rebuilds.activeOnMachine(id));
+    implementationMachines.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id)) ||
+      (await rebuilds.activeOnMachine(id));
     const connectorCandidates = [
       resolve(import.meta.dirname, '../connector.mjs'),
       resolve(import.meta.dirname, '../dist/connector.mjs'),
@@ -572,6 +624,7 @@ export async function createApp(
         });
       }
       await spikes.observe(user, previous, current);
+      await rebuilds.observe(user, previous, current);
     };
     const drafting = new ImplementationDrafting({
       store,
@@ -1974,12 +2027,14 @@ export async function createApp(
       investigations,
       implementationMachines,
       accounts,
+      rebuilds,
       maintenance: async () => {
         await accounts.cleanupRevoked(5);
         await investigations!.expire();
         await implementationMachines.expire();
         await audio.cleanupStaged(10);
         await video.cleanupStaged(10);
+        await rebuilds.tick();
       },
       spikes,
       drafting,

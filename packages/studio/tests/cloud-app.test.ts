@@ -571,5 +571,15 @@ describe('assembled cloud domain guards', () => {
     );
     expect(draft.statusCode, draft.body).toBe(200);
     expect(draft.json()).toEqual({ jobs: [] });
+    const rebuild = await request(
+      'GET',
+      `/api/artifacts/${id}/implementation/rebuild`,
+    );
+    expect(rebuild.statusCode, rebuild.body).toBe(200);
+    expect(rebuild.json()).toMatchObject({
+      baseline: null,
+      runs: [],
+      changes: 0,
+    });
   });
 });
