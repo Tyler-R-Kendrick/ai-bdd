@@ -4,9 +4,9 @@ import {
   validCodePath,
   entryFile,
   type CodeProject,
-} from "./code-project.ts";
+} from './code-project.ts';
 const encoder = new TextEncoder(),
-  decoder = new TextDecoder("utf-8", { fatal: true });
+  decoder = new TextDecoder('utf-8', { fatal: true });
 const table = Array.from({ length: 256 }, (_, i) => {
   let value = i;
   for (let bit = 0; bit < 8; bit++)
@@ -81,7 +81,7 @@ export function exportCodeZip(project: CodeProject): Uint8Array {
 async function inflate(bytes: Uint8Array, expected: number) {
   const stream = new Blob([new Uint8Array(bytes).buffer])
     .stream()
-    .pipeThrough(new DecompressionStream("deflate-raw"));
+    .pipeThrough(new DecompressionStream('deflate-raw'));
   const reader = stream.getReader(),
     parts: Uint8Array[] = [];
   let size = 0;
@@ -91,7 +91,7 @@ async function inflate(bytes: Uint8Array, expected: number) {
       if (next.done) break;
       size += next.value.length;
       if (size > expected || size > CODE_SOURCE_LIMIT)
-        throw new Error("ZIP entry exceeds its declared size");
+        throw new Error('ZIP entry exceeds its declared size');
       parts.push(next.value);
     }
   } catch (error) {
@@ -103,7 +103,7 @@ async function inflate(bytes: Uint8Array, expected: number) {
 /** Reads bounded UTF-8 STORE/DEFLATE project archives; verifies path, size, duplicate and CRC integrity. */
 export async function importCodeZip(bytes: Uint8Array): Promise<CodeProject> {
   if (bytes.length > 4_000_000 || bytes.length < 22)
-    throw new Error("Choose a project ZIP smaller than 4 MB");
+    throw new Error('Choose a project ZIP smaller than 4 MB');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let end = -1;
   for (
@@ -118,18 +118,18 @@ export async function importCodeZip(bytes: Uint8Array): Promise<CodeProject> {
       end = at;
       break;
     }
-  if (end < 0) throw new Error("The ZIP central directory is missing");
+  if (end < 0) throw new Error('The ZIP central directory is missing');
   if (
     view.getUint16(end + 4, true) ||
     view.getUint16(end + 6, true) ||
     view.getUint16(end + 8, true) !== view.getUint16(end + 10, true)
   )
-    throw new Error("Multi-volume ZIP archives are unsupported");
+    throw new Error('Multi-volume ZIP archives are unsupported');
   const count = view.getUint16(end + 10, true),
     directorySize = view.getUint32(end + 12, true),
     directoryOffset = view.getUint32(end + 16, true);
   if (count > 150 || directoryOffset + directorySize !== end)
-    throw new Error("Invalid or oversized ZIP directory");
+    throw new Error('Invalid or oversized ZIP directory');
   let at = directoryOffset,
     total = 0;
   const files: Record<string, string> = {},
@@ -137,14 +137,14 @@ export async function importCodeZip(bytes: Uint8Array): Promise<CodeProject> {
   let entry: string | undefined;
   try {
     const metadata = JSON.parse(decoder.decode(bytes.subarray(end + 22)));
-    if (metadata.studioProject === 1 && typeof metadata.entry === "string")
+    if (metadata.studioProject === 1 && typeof metadata.entry === 'string')
       entry = metadata.entry;
   } catch {
     /* Generic ZIP comments are not project metadata. */
   }
   for (let index = 0; index < count; index++) {
     if (at + 46 > end || view.getUint32(at, true) !== 0x02014b50)
-      throw new Error("Invalid ZIP directory entry");
+      throw new Error('Invalid ZIP directory entry');
     const flags = view.getUint16(at + 8, true),
       method = view.getUint16(at + 10, true),
       crc = view.getUint32(at + 16, true),
@@ -156,12 +156,12 @@ export async function importCodeZip(bytes: Uint8Array): Promise<CodeProject> {
       local = view.getUint32(at + 42, true),
       attributes = view.getUint32(at + 38, true);
     if (at + 46 + nameLength + extra + comment > end)
-      throw new Error("Truncated ZIP entry");
+      throw new Error('Truncated ZIP entry');
     const name = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength));
     at += 46 + nameLength + extra + comment;
-    if (name.endsWith("/")) {
+    if (name.endsWith('/')) {
       if (!validCodePath(name.slice(0, -1)))
-        throw new Error("Unsafe ZIP directory path");
+        throw new Error('Unsafe ZIP directory path');
       continue;
     }
     if (
@@ -169,7 +169,7 @@ export async function importCodeZip(bytes: Uint8Array): Promise<CodeProject> {
       seen.has(name) ||
       ((attributes >>> 16) & 0xf000) === 0xa000
     )
-      throw new Error("Unsafe or duplicate ZIP file path");
+      throw new Error('Unsafe or duplicate ZIP file path');
     seen.add(name);
     total += size;
     if (
@@ -179,12 +179,12 @@ export async function importCodeZip(bytes: Uint8Array): Promise<CodeProject> {
       flags & 1 ||
       ![0, 8].includes(method)
     )
-      throw new Error("Unsupported, encrypted, or oversized ZIP entry");
+      throw new Error('Unsupported, encrypted, or oversized ZIP entry');
     if (
       local + 30 > directoryOffset ||
       view.getUint32(local, true) !== 0x04034b50
     )
-      throw new Error("Invalid ZIP local header");
+      throw new Error('Invalid ZIP local header');
     const localName = view.getUint16(local + 26, true),
       localExtra = view.getUint16(local + 28, true),
       start = local + 30 + localName + localExtra;
@@ -194,31 +194,31 @@ export async function importCodeZip(bytes: Uint8Array): Promise<CodeProject> {
       decoder.decode(bytes.subarray(local + 30, local + 30 + localName)) !==
         name
     )
-      throw new Error("ZIP local header does not match directory");
+      throw new Error('ZIP local header does not match directory');
     const data =
       method === 0
         ? bytes.subarray(start, start + packed)
         : await inflate(bytes.subarray(start, start + packed), size);
     if (data.length !== size || crc32(data) !== crc)
-      throw new Error("ZIP file integrity check failed");
+      throw new Error('ZIP file integrity check failed');
     const source = decoder.decode(data);
     files[name] = source;
   }
-  if (at !== end) throw new Error("Unexpected ZIP directory data");
+  if (at !== end) throw new Error('Unexpected ZIP directory data');
   entry ??= [
-    "index.html",
-    "src/main.tsx",
-    "src/main.jsx",
-    "src/App.tsx",
-    "src/App.jsx",
-    "main.tsx",
-    "App.tsx",
-    "index.js",
+    'index.html',
+    'src/main.tsx',
+    'src/main.jsx',
+    'src/App.tsx',
+    'src/App.jsx',
+    'main.tsx',
+    'App.tsx',
+    'index.js',
   ].find((name) => Object.hasOwn(files, name));
   entry ??= Object.keys(files).find(entryFile);
   if (!entry)
     throw new Error(
-      "ZIP has no HTML, JavaScript, JSX, or TypeScript entry file.",
+      'ZIP has no HTML, JavaScript, JSX, or TypeScript entry file.',
     );
   return checkCodeProject({ files, entry });
 }
