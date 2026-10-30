@@ -519,7 +519,9 @@ export class DurableJobCoordinator implements DurableJobRuntime {
           const existing = await this.receipt(job.id, name, 'publication');
           if (existing) return existing.value as T;
           await this.authorized(row, options?.requireCurrentVersion ?? true);
+          controller.signal.throwIfAborted();
           const value = await operation();
+          controller.signal.throwIfAborted();
           await this.saveReceipt(job.id, name, 'publication', value);
           await this.store.exec(
             "UPDATE studio_durable_jobs SET status='completed',output_json=?,progress_json=?,lease_owner=NULL,lease_expires=NULL,error=NULL,updated_at=? WHERE id=? AND fence=?",
@@ -529,6 +531,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
             job.id,
             job.fence,
           );
+          controller.signal.throwIfAborted();
           return value;
         });
         finalReceipts.set(name, result);
@@ -658,12 +661,15 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         await this.authorized(row, false);
       });
       const result = await handler(this.context(job, controller));
+      controller.signal.throwIfAborted();
       if ((await this.get(id))?.status !== 'completed')
         await this.renewAuthorization(job);
       await this.locked(id, async (row) => {
         if (row.status === 'completed') return; // Publication already completed atomically, including before a cleanup error.
+        controller.signal.throwIfAborted();
         this.lease(row, job);
         await this.authorized(row, false);
+        controller.signal.throwIfAborted();
         await this.store.exec(
           "UPDATE studio_durable_jobs SET status='completed',output_json=?,progress_json=?,lease_owner=NULL,lease_expires=NULL,error=NULL,updated_at=? WHERE id=? AND fence=?",
           json(result ?? null),
@@ -672,6 +678,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
           id,
           job.fence,
         );
+        controller.signal.throwIfAborted();
       });
     } catch (error) {
       await this.locked(id, async (row) => {
