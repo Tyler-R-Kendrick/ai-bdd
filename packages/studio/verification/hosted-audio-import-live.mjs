@@ -1,5 +1,7 @@
 // Bounded, explicitly opted-in production browser upload/edit/render acceptance.
 import assert from 'node:assert/strict';
+import { readLiveGitHubSessions } from './vercel-live.ts';
+if (process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE !== undefined) throw new Error('Password authentication is disabled; use GitHub session exports');
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -9,10 +11,11 @@ const origin = 'https://ai-bdd-studio.vercel.app';
 assert.equal(process.env.STUDIO_HOSTED_IMPORT_ALLOW_PRODUCTION_WRITE, '1');
 assert.equal(process.env.STUDIO_HOSTED_IMPORT_ALLOW_USAGE, '1');
 const evidence = process.env.STUDIO_HOSTED_IMPORT_EVIDENCE_DIR;
-assert(evidence && process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE);
+assert(evidence && process.env.STUDIO_HOSTED_AUDIO_GITHUB_SESSIONS_FILE && process.env.STUDIO_HOSTED_AUDIO_EMAIL);
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const report = {
-  schemaVersion: 1, origin,
+  schemaVersion: 1,
+  identity: { provider: 'github', sessionSource: 'operator-browser-export', externalOAuthExchangePerformed: false }, origin,
   sourceProvidedByOperator: process.env.STUDIO_HOSTED_AUDIO_SOURCE,
   deploymentIdProvidedByOperator: process.env.STUDIO_HOSTED_AUDIO_DEPLOYMENT_ID,
   startedAt: new Date().toISOString(), passed: false,
@@ -26,8 +29,14 @@ assert.match(report.deploymentIdProvidedByOperator ?? '', /^dpl_[A-Za-z0-9]+$/);
 await mkdir(evidence, { recursive: true });
 const progress = () => writeFile(join(evidence, 'receipt.json'), JSON.stringify(report, null, 2) + '\n');
 let browser, context, fresh, page, stage = 'launch', signedIn = false, freshSignedIn = false;
-const password = (await readFile(process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE, 'utf8')).replace(/\r?\n$/, '');
-assert(password.length >= 16);
+let suppliedSessions;
+async function installGitHubSession(context, index) {
+  suppliedSessions ??= await readLiveGitHubSessions(process.env.STUDIO_HOSTED_AUDIO_GITHUB_SESSIONS_FILE, origin);
+  const cookie = suppliedSessions[index]; assert(cookie);
+  await context.addCookies([{ name:'studio_session', value:cookie.slice('studio_session='.length), domain:new URL(origin).hostname, path:'/', httpOnly:true, secure:true, sameSite:'Strict' }]);
+  const user = await json(context.request, '/api/me');
+  assert.equal(user.email.toLowerCase(), process.env.STUDIO_HOSTED_AUDIO_EMAIL.toLowerCase());
+}
 async function json(client, path, method = 'GET', body, expected = 200) {
   assert(path.startsWith('/api/'));
   const response = await client.fetch(origin + path, {
@@ -79,8 +88,8 @@ try {
   context = await browser.newContext({ viewport: { width: 1440, height: 1100 },
     ignoreHTTPSErrors: false, serviceWorkers: 'block' });
   report.browserVersion = browser.version();
-  stage = 'owner-login';
-  await json(context.request, '/api/auth/login', 'POST', { email: process.env.STUDIO_HOSTED_AUDIO_EMAIL, password });
+  stage = 'owner-github-session';
+  await installGitHubSession(context, 0);
   signedIn = true;
   stage = 'create-owned-synthetic-project';
   const project = await json(context.request, '/api/projects', 'POST', {
@@ -148,7 +157,7 @@ try {
   }
   stage = 'fresh-session-persistence-and-download';
   fresh = await browser.newContext({ ignoreHTTPSErrors: false });
-  await json(fresh.request, '/api/auth/login', 'POST', { email: process.env.STUDIO_HOSTED_AUDIO_EMAIL, password });
+  await installGitHubSession(fresh, 1);
   freshSignedIn = true;
   const reloaded = await json(fresh.request, `/api/artifacts/${artifact.id}`);
   assert.deepEqual(reloaded.artifact.content, bundle.artifact.content);

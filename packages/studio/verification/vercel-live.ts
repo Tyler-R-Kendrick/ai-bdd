@@ -153,7 +153,10 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv): LiveConfig {
  * The application independently requires GitHub-issued session provenance. This
  * loader never creates a session or treats export metadata as live OAuth proof.
  */
-export async function readLiveGitHubSessions(path: string, origin: string): Promise<[string, string]> {
+export function readLiveGitHubSessions(path: string, origin: string, count: 1): Promise<[string]>;
+export function readLiveGitHubSessions(path: string, origin: string, count?: 2): Promise<[string, string]>;
+export async function readLiveGitHubSessions(path: string, origin: string, count: 1 | 2 = 2): Promise<string[]> {
+  requireValue(count === 1 || count === 2, 'invalid-github-session-count');
   requireValue(isAbsolute(path), 'invalid-github-session-reference');
   let file: Awaited<ReturnType<typeof open>> | undefined;
   try {
@@ -163,15 +166,15 @@ export async function readLiveGitHubSessions(path: string, origin: string): Prom
     const buffer = Buffer.alloc(32769), { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
     requireValue(bytesRead <= 32768, 'github-session-file-too-large');
     const value = object(JSON.parse(buffer.subarray(0, bytesRead).toString('utf8')));
-    requireValue(value.schemaVersion === 1 && value.provider === 'github' && value.origin === origin && Array.isArray(value.sessions) && value.sessions.length === 2, 'github-session-origin-or-provider-mismatch');
+    requireValue(value.schemaVersion === 1 && value.provider === 'github' && value.origin === origin && Array.isArray(value.sessions) && value.sessions.length === count, 'github-session-origin-or-provider-mismatch');
     const host = new URL(origin).hostname, now = Date.now() / 1000;
     const sessions = value.sessions.map((entry: unknown) => {
       const cookie = object(entry);
       requireValue(cookie.name === 'studio_session' && typeof cookie.value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(cookie.value) && cookie.domain === host && cookie.path === '/' && cookie.secure === true && cookie.httpOnly === true && cookie.sameSite === 'Strict' && Number.isFinite(cookie.expires) && cookie.expires > now && cookie.expires <= now + 8 * 86400, 'unsafe-github-session-cookie-export');
       return 'studio_session=' + cookie.value;
     });
-    requireValue(sessions[0] !== sessions[1], 'fresh-session-not-issued');
-    return sessions as [string, string];
+    requireValue(count === 1 || sessions[0] !== sessions[1], 'fresh-session-not-issued');
+    return sessions;
   } catch (error) {
     if (error instanceof CheckFailure) throw error;
     throw new CheckFailure('github-session-file-unavailable-or-invalid');

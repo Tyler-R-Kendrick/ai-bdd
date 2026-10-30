@@ -1,6 +1,8 @@
 // Explicit, bounded, model-free acceptance on the reviewed production or protected preview.
 // Credentials stay in memory and are sent only to this exact host; redirects are never followed.
 import assert from 'node:assert/strict';
+import { readLiveGitHubSessions } from './vercel-live.ts';
+if (process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE !== undefined) throw new Error('Password authentication is disabled; use GitHub session exports');
 import { readFile, writeFile, mkdir, lstat, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -35,15 +37,16 @@ if (production && process.env.STUDIO_HOSTED_AUDIO_ALLOW_PRODUCTION_WRITE !== '1'
   throw new Error('Canonical production acceptance requires its separate production write opt-in');
 if (
   (!production && !process.env.VERCEL_OIDC_TOKEN) ||
-  !process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE ||
+  !process.env.STUDIO_HOSTED_AUDIO_GITHUB_SESSIONS_FILE ||
   !process.env.STUDIO_HOSTED_AUDIO_EMAIL ||
   !process.env.STUDIO_HOSTED_AUDIO_REPORT
 )
   throw new Error(
-    'Protected identity, owner credential-file reference, email and report destination are required',
+    'Protected identity, GitHub session-file reference, email and report destination are required',
   );
 const report = {
   schemaVersion: 1,
+  identity: { provider: 'github', sessionSource: 'operator-browser-export', externalOAuthExchangePerformed: false },
   environment: production ? 'production' : 'preview',
   previewIdentityHeaderSent: !production,
   origin,
@@ -83,10 +86,6 @@ async function persistReport() {
   await rename(temp, path);
 }
 await persistReport();
-const password = (
-  await readFile(process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE, 'utf8')
-).replace(/\r?\n$/, '');
-assert(password.length >= 16, 'Owner credential file is invalid');
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
 class GateError extends Error {
   constructor(stage, status, code) {
@@ -177,19 +176,19 @@ async function request(
   }
   return { value, response };
 }
+let suppliedSessions, nextSession = 0;
 async function login(stage) {
-  const { response, value } = await request(stage, '/api/auth/login', {
-    method: 'POST',
-    body: { email: process.env.STUDIO_HOSTED_AUDIO_EMAIL, password },
-  });
-  const cookie = response.headers
-    .getSetCookie()
-    .map((value) => value.split(';', 1)[0])
-    .find((value) => value.startsWith('studio_session='));
-  if (!cookie || !value.id)
-    throw new GateError(stage, response.status, 'person-session-missing');
+  const { value: status } = await request(stage + '-provider', '/api/auth/status');
+  assert.equal(status.github, true); assert.equal(status.password, false); assert.equal(status.oidc, false);
+  suppliedSessions ??= await readLiveGitHubSessions(process.env.STUDIO_HOSTED_AUDIO_GITHUB_SESSIONS_FILE, origin);
+  const cookie = suppliedSessions[nextSession++];
+  if (!cookie) throw new GateError(stage, 0, 'two-distinct-github-sessions-required');
+  const { response, value } = await request(stage, '/api/me', { cookie });
+  if (!value.id || value.email?.toLowerCase() !== process.env.STUDIO_HOSTED_AUDIO_EMAIL.toLowerCase())
+    throw new GateError(stage, response.status, 'github-session-identity-mismatch');
   return cookie;
 }
+
 function inspectWave(bytes) {
   assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
   assert.equal(bytes.toString('ascii', 8, 12), 'WAVE');
@@ -244,7 +243,7 @@ try {
   );
   assert.equal(readiness.ready, true);
   report.readiness = { ready: readiness.ready, services: readiness.services };
-  session = await login('owner-login');
+  session = await login('owner-github-session');
   let artifact, initial;
   if (process.env.STUDIO_HOSTED_AUDIO_RESUME_FILE) {
     const previousBytes = await readFile(
@@ -439,7 +438,7 @@ try {
     matchesPublishedMetadata: true,
     wave,
   };
-  fresh = await login('fresh-owner-login');
+  fresh = await login('fresh-owner-github-session');
   const { value: reloaded } = await request(
     'fresh-session-artifact',
     `/api/artifacts/${artifact.id}`,

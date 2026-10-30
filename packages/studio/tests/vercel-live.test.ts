@@ -348,6 +348,10 @@ describe('hosted acceptance exact-origin and credential boundary', () => {
     }
     await writeFile(path, JSON.stringify(valid));
     expect(await readLiveGitHubSessions(path, origin)).toEqual(['studio_session=' + 'A'.repeat(43), 'studio_session=' + 'B'.repeat(43)]);
+    await writeFile(path, JSON.stringify({ ...valid, sessions: [valid.sessions[0]] }));
+    expect(await readLiveGitHubSessions(path, origin, 1)).toEqual(['studio_session=' + 'A'.repeat(43)]);
+    await expect(readLiveGitHubSessions(path, origin)).rejects.toThrow('github-session-origin-or-provider-mismatch');
+    await writeFile(path, JSON.stringify(valid));
     await chmod(path, 0o644);
     await expect(readLiveGitHubSessions(path, origin)).rejects.toThrow('private-github-session-file-required');
     await chmod(path, 0o600);
