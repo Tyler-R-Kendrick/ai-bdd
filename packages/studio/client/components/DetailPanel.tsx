@@ -68,6 +68,7 @@ import {
   useThreadMessages,
   type HistoryGap,
 } from './panels/useThreadMessages.ts';
+import { ConversationCards } from './integrations/ConversationCards.tsx';
 import './panels/DetailPanel.css';
 
 type Props = {
@@ -404,6 +405,7 @@ function ChatPanel({
             : 'Your team, decisions, and agent share this artifact’s context.'}
         </p>
       </div>
+      {threadId && <ConversationCards artifactId={bundle.artifact.id} artifactVersion={bundle.artifact.version} threadId={threadId} readOnly={readOnly} onChanged={()=>void onRefresh()} onError={error=>onError((error as Error).message)} />}
       {selectedThread && (
         <div className="comment-quote">
           <button onClick={() => goToAnchor(selectedThread)}>
@@ -717,7 +719,7 @@ function ChatPanel({
             {!capabilities.agent
               ? 'Team chat is available. AI is not configured.'
               : intent === 'research'
-                ? 'Research uses the artifact and model knowledge. No live web search.'
+                ? 'Research retrieves sources from the exact brief and publishes a cited child document.'
                 : intent === 'edit'
                   ? 'Agent edits are proposals you review before applying.'
                   : '⌘ / Ctrl Enter to send · saved with this artifact'}

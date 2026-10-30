@@ -1,108 +1,172 @@
-# Studio architecture and decision record
+# Studio architecture and decisions
 
-## Product boundary
+Studio is an application over ai-bdd's public acceptance SDK. A project is a
+composition of durable artifacts, led by a design document. Each artifact owns
+its source, canvas, conversations, ADRs, revisions, evidence and activity.
+The [release record](studio-readiness.md) distinguishes implementation evidence
+from acceptance against a particular deployment.
 
-Studio is a separate application package over ai-bdd's public SDK. It keeps the existing compilation, deterministic replay, judging, source grounding, and evidence verification behavior intact. The new application makes a project a composition of artifacts; each artifact owns its discussion, ADR, revision history, links, and test-run references.
+## Product references
 
-The collaboration reference is [Chopin](https://githubnext.com/projects/chopin/) and its [open-source implementation](https://github.com/githubnext/chopin). The published reference combines rich documents, multiplayer presence, comments, durable decisions, agents, and MCP. Those are the baseline mechanisms, not a license to claim undocumented feature parity. [CucumberStudio](https://smartbear.com/product/cucumberstudio/) informs living specifications; [TesterArmy e2e](https://e2e.tester.army/) informs mixed agentic/deterministic execution and visual evidence. [fx0](https://fx0.vercel.dev/), [Open Design](https://open-design.ai/), [HyperFrames Studio](https://hyperframes.studio/), and [Rikyu](https://rikyu.ai/) inform the media-specific workspace interaction.
+[Chopin](https://githubnext.com/projects/chopin/) informs multiplayer planning,
+attributed decisions, agent participation, research children and implementation
+handoff. Its public README and linked workflows were inspected on 2026-10-29/30.
+[fx0](https://fx0.vercel.dev/) informs artifact chat and code iteration.
+[CucumberStudio](https://smartbear.com/product/cucumberstudio/) informs living
+specifications and inline tests. [TesterArmy](https://e2e.tester.army/) informs
+grounded execution, confirmation, replay and visual evidence.
 
-## Structure
+[Open Design](https://open-design.ai/),
+[HyperFrames](https://hyperframes.studio/) and [Rikyū](https://rikyu.ai/) inform
+media-specific editors. These are independently implemented workflows.
+The Open Design adapter calls an independently installed signed local runtime.
 
-```text
-Browser
-  ├─ Project/artifact navigation and typed media editors
-  ├─ Rich text ↔ Yjs sync/awareness over authenticated WebSockets
-  └─ Chat / ADR / test / history panels ↔ same-origin JSON API
-                                     │
-Fastify application                  │
-  ├─ Session and project-role authorization
-  ├─ Typed content validation and version checks
-  ├─ SQLite transactions, assets, revision and audit history
-  ├─ Provider-bounded AI task orchestration
-  ├─ Trusted ai-bdd config → public SDK → driver/model adapters
-  └─ Static built client
+## Runtime composition
 
-External agent → stdio MCP adapter → bearer-authenticated JSON API
-```
+The browser's editors, authenticated WebSockets, external MCP clients and
+user-controlled ACP connectors share the authorized Fastify API. Canonical
+relational state uses a SQL adapter. Assets and workspaces use a private object
+adapter. A transactional outbox dispatches immutable job identities to a
+replaceable queue; fenced workers call configured providers and the existing
+acceptance SDK.
 
-No artifact can select a server module or shell command. The only executable test configuration is an operator-supplied path. Generated code runs inside an opaque-origin iframe with restricted network access, not in the API process.
+The selected cloud composition uses Vercel behind adapters: PostgreSQL stores
+relational state and coordination, private Blob stores immutable objects,
+Queues deliver job identities, and a container service contains Chromium and
+FFmpeg. Static client delivery and queue ingress are separate from the API
+container. Local mode retains explicit SQLite/disk adapters. The deployment
+runbook records exact bindings and platform availability.
 
-## ADR: isolate the application from the engine
+## ADR: preserve the engine
 
-**Decision.** Add `@ai-bdd/studio` and consume the SDK's public API. Keep existing package boundaries and CLI behavior.
+Studio consumes public SDK operations rather than replacing compilation, source
+grounding, deterministic replay, confirmation or evidence integrity. Only an
+operator-selected runner configuration supplies executable adapters. Artifact
+content cannot choose a server module or shell command. Generated frontend code
+runs in an opaque-origin sandbox.
 
-**Reason.** The repository already has a tested engine. UI work should expose its real plans and results instead of inventing a second test protocol or replacing stable behavior.
+## ADR: durable artifact identity owns context
 
-**Consequence.** Application code and its test/build configuration live in the new package; the existing repository checks still run. The trusted runner config can reuse existing driver/model packages.
+Creation atomically inserts the initial revision, dedicated ADR and main
+discussion. References use stable IDs. Thread cursors bind artifact and thread;
+typed asset references bind project ownership. Renaming cannot move a
+conversation. Append-only history uses bounded cursor pages, independently of
+the interactive recent-message window.
 
-## ADR: use durable artifact identity for every context
+## ADR: merge prose and version media
 
-**Decision.** Use UUID identities for projects, artifacts, discussions, ADRs, runs, and assets. A project has one main design artifact. Artifact creation atomically inserts the artifact, initial revision, dedicated ADR, and main discussion thread.
+Prose uses TipTap/ProseMirror and Yjs. Stable block IDs are canonicalized in both
+JSON and actual CRDT state before persistence, including imports and agent
+writes. A candidate update is validated and committed before publication.
+Viewers never rewrite source simply by reading. Project locks serialize
+canonical updates; separate API instances converge through durable state.
 
-**Reason.** Renaming an artifact must not detach its conversations or decisions. A shared generic chat would make attribution and test traceability ambiguous.
+Other media use typed source and optimistic versions. Stale saves return 409 and
+retain the local draft. Presence has authenticated identities and bounded
+leases. Periodic access checks remove revoked passive peers.
 
-**Consequence.** Foreign keys enforce the relationships. Endpoints check project membership through the artifact rather than trusting an independently supplied project ID. An artifact's associated threads cannot be reused to post to another artifact. The main design artifact cannot be archived. ADR changes are version checked and the prior record is retained in audit details.
+## ADR: durable fenced jobs replace process-local execution
 
-Discussion pages use stable sequence ordering and cursors bound to both artifact and thread. Browser and MCP clients can load older context explicitly; an artifact export streams the complete associated chat history rather than silently truncating it to the interactive bundle's recent-message limit.
+Admission stores principal, source version, immutable hashed input, idempotency
+key and dispatch intent. Workers claim renewable leases with increasing fences.
+Completed named external steps retain durable receipts. Final SQL publication,
+its receipt and terminal job result commit atomically through the same Store.
 
-## ADR: merge rich documents, version media documents
+An external call can repeat if its worker dies before recording the receipt.
+Exactly-once provider execution is not promised. Fence-specific immutable
+staging prevents old attempts from replacing new outputs. Cancellation, rights,
+source revisions and deadlines are rechecked before publication. Durable cleanup
+intents reconcile staged objects. Starting another API process does not globally
+interrupt active work.
 
-**Decision.** Rich documents use TipTap/ProseMirror with Yjs CRDT synchronization. Other media use typed JSON content and optimistic version checks.
+The transactional dispatch outbox and fenced maintenance generation survive
+process loss. Queue payloads contain identities, not private source snapshots.
+Internal calls require bounded signed path/body/expiry authentication. A daily
+Cron bootstrap and persisted delayed tick chain recover work without multiplying
+schedules across deployment generations.
 
-**Reason.** Real-time prose editing requires merge behavior. Independently edited geometry, source files, or timeline properties should not silently replace remote changes.
+## ADR: browsers and agents share authorization
 
-**Consequence.** A received document update is tested against a candidate CRDT, converted to the supported editor schema, validated, and persisted before it is broadcast. API document replacements use the same CRDT as connected editors. Presence labels are tied to authenticated user identity. Media saves carry the last-read version; stale saves fail with HTTP 409 and leave the local draft available for recovery. Durable events trigger context refresh, while transient awareness supplies participants and cursors. Offline editing is not an independent trusted authorization mode.
+Owners administer, editors author and viewers inspect. Cookies are HttpOnly and
+SameSite; mutations check canonical origin. Hashed personal MCP tokens inherit
+current owner permissions. Source transactions recheck rights under the project
+lock after awaited work. Trusted proxy CIDRs are explicit.
 
-The supported rich-text format is a restricted data schema. It is not arbitrary executable MDX. Inline test and research nodes are data-backed components. Comments use stable block IDs plus a retained quote; deleting a block can make its anchor unavailable while the discussion and quote remain readable.
+OIDC uses durable one-use state, PKCE, nonce, verified email and admission.
+Lazy issuer discovery leaves password sign-in available during issuer outages.
+HTTP issuers require explicit development-only loopback mode. Per-user GitHub
+credentials use a stable-key encrypted vault. Refresh and permission leases
+coordinate across instances; signed webhooks fence stale grants. An operator
+token cannot grant repository access to a participant. Account linking remains
+reachable before project admission succeeds.
 
-## ADR: single-process SQLite storage
+## ADR: retain decisions separately from prose
 
-**Decision.** Use Node's SQLite implementation with WAL, foreign keys, synchronous durability, bounded payloads, and one writer process.
+Questionnaire answers and accepted suggestions retain author, source anchor/hash,
+rationale and accepted ADR identity. Acceptance atomically changes source and
+decision state. Rewriting prose cannot rewrite an accepted decision. Restricted
+MDX is data rather than executable JSX. Bounded Markdown/DOCX/HTML/PDF interchange
+uses authenticated media; XML cannot resolve external entities.
 
-**Reason.** It provides a runnable deployment without an external database account and permits atomic artifact creation and revision storage.
+Human titles are protected by default. Explicit automatic-title policy or actual
+generated creation permits bounded model-backed maintenance. Beginning a human
+rename claims the title before drafting, invalidating in-flight model work.
+Shared pause, ownership and implementation locks apply to background actions.
 
-**Consequence.** Horizontal application scaling and overlapping rolling releases are unsupported. A persistent volume is mandatory. Uploaded assets are stored in the database; runner plans, recordings, and evidence use the artifact workspace directory. Restarting marks incomplete jobs interrupted. A future multi-instance design needs a different coordination/storage decision rather than a second process pointed at this volume.
+## ADR: previews work across unavailable integration boundaries
 
-## ADR: authorize browser and agent operations identically
+esbuild bundles bounded project files and installed browser packages. Actual
+Tailwind compilation supports static utilities and local themes, refusing
+JavaScript plugins, package installation, filesystem scans and external style
+imports. Requests replay declared Pact interactions; unmatched requests fail.
+Pact consumer/provider verification runs separately in CI.
 
-**Decision.** Use HttpOnly SameSite browser session cookies and hashed personal bearer tokens for MCP. Project roles are owner, editor, or viewer. Membership controls access, including WebSocket handshakes and updates.
+JSON-render and OpenUI use their actual installed runtimes with application-owned
+catalogs. They cannot register arbitrary server capabilities. Preview fixtures
+and successful compilation never imply a live passing acceptance test.
 
-**Reason.** Agent access must not bypass the authorization boundary used by humans. Linking a repository URL is not proof of access to that repository.
+## ADR: preserve editable media and real export paths
 
-**Consequence.** Owners manage membership, editors change project artifacts, viewers read. Cookie mutations require the configured browser origin; bearer requests are independently authenticated. Login attempts are rate limited. Session/token expiration is checked during authenticated operations and existing connections are periodically rechecked. API tokens carry their owner's identity and project permissions. An external agent is therefore attributable to its token owner; it is not an independently provisioned service identity.
+Images and branding retain vector paths, raster masks/crops/adjustments and font
+contours/metrics. Portable packages embed bytes and rebind ownership on import.
+SVG, PNG and installable TrueType output have independent validation.
+See [visual authoring](studio-visual-authoring.md).
 
-Forwarded client addresses are trusted only for operator-configured `STUDIO_TRUSTED_PROXIES` IP/CIDR hops; the default is false. This keeps a client-supplied forwarding header from choosing its own login limit identity. Authenticated API budgets use the account identity and exclude static assets. Payload and storage bounds include 10 MB per upload, 512 MB of uploaded assets per project, 500 artifacts per project, and 100 projects per account.
+Video retains layers, timing, keyframes, captions, source media and audio.
+Rendering uses actual Chromium/FFmpeg behind a replaceable port. HyperFrames
+HTML interchange has explicit compatibility boundaries.
 
-Production requires HTTPS configuration, refuses demo mode, and does not expose interactive first-owner setup. OIDC uses PKCE, state, nonce, a verified email, and explicit admission. Real identity-provider behavior remains a deployment validation step. Password/email invitation delivery and identity-provider group synchronization are not implemented.
+Scenes retain mesh/material/light source and self-contained GLB/STL imports.
+CAD retains dimensioned sketches, ordered features and exact Open CASCADE B-reps
+with STEP interchange. Only the trusted compiled kernel worker permits required
+dynamic binding invokers; the application retains its stricter script policy.
+Full LGPL, exception and replaceable-source notices ship with the kernel.
+See [3D and CAD](studio-cad.md).
 
-## ADR: treat evidence as versioned output
+## ADR: prove explicit interface statements
 
-**Decision.** A test run stores the artifact version it was started against. Plans and scenario reviews use the existing engine. Evidence downloads must refer to a stored run's declared evidence, stay within its real run directory, and pass their recorded SHA-256 check.
+The [Calculus of Interfaces](https://calculus-of-interfaces.vercel.app/) informs
+the shared allocation model. Studio vendors the pinned MIT Handwired numeric
+runtime, evaluates its actual compiled circuit over 483,330 FP32 tensor cases,
+and uses Z3 to prove equivalence on the supported 1/64-pixel grid. An exact
+rational checker separately proves shell allocation for all real widths
+320–4096. The production role predicate is exhaustively checked. These claims
+exclude text measurement and asynchronous whole-system behavior.
 
-**Reason.** A green result for an old design must not appear to certify a later edit, and a file path from a result must not authorize unrelated filesystem reads.
+An optional research pipeline builds a checksum-pinned independent Magnetar
+implementation, compiles the layout guest to RV64I, and generates/verifies real
+cryptographic execution proofs. Tampered proofs and public input/output must
+fail. The adapter recomputes the verifying key from the program and binds
+explicit input/output and digests to the release gate. This implementation is
+unaudited, is not Microsoft's code and is not a production security
+certification. Only public synthetic inputs enter the research path.
 
-**Consequence.** Later artifact changes mark earlier evidence stale. Queued jobs, running jobs, failures, cancellation, interruption, and infrastructure errors are distinct from passing tests. Missing model/runner configuration is returned explicitly. No preview fixture, synthetic screenshot, or successful compilation is labeled as a live passing run.
+## Operational trust
 
-## ADR: keep previews independent of providers
-
-**Decision.** Code previews execute inside a sandboxed opaque-origin frame and use explicit contract fixtures for external HTTP boundaries. JSON-render and OpenUI previews use a bounded catalog of application-owned components.
-
-**Reason.** Unavailable integrations should not prevent interface development, and model-generated UI should not gain arbitrary application capabilities.
-
-**Consequence.** Preview responses are declared mock data. Pact consumer/provider checks verify the covered boundary in CI, separately from live provider health. Generated UI cannot register arbitrary components or execute unrestricted server logic. Full frontend package installation, production deployment of generated applications, and arbitrary server-side code execution are separate product capabilities.
-
-Public GitHub PR state refresh does not need a token. A private API token is restricted to exact `owner/repo` entries in `STUDIO_GITHUB_REPOSITORIES`; it is never sent to an arbitrary pasted host or unlisted repository. The allowlist is a deployment admission choice and must contain only repositories appropriate for the deployment's users. Built fonts/editor assets are local, a third-party license notice is emitted with the client, and executable module assets are not inlined as data URLs.
-
-## ADR: verify small mathematical statements before claiming a larger proof
-
-**Decision.** Share the responsive allocation model with an exact rational interval checker, and exhaustively verify the finite production role predicate. Keep browser tests separate. Accept a future general-purpose execution proof only through a fail-closed external verifier boundary.
-
-**Reason.** [The Calculus of Interfaces](https://calculus-of-interfaces.vercel.app/) and [handwired](https://github.com/chenglou/handwired) show how an explicitly constructed interface can become a mathematical function. They do not establish an automatic proof for this entire React application.
-
-**Consequence.** The shipped proof scope is column geometry for every real width from 320 to 4096 and all nine role/action predicate cases. It excludes font metrics, text wrapping, asynchronous backend state, arbitrary generated artifacts, and external services. The optional Magnetar adapter requires a real cryptographic verifier and binds its verdict to program, input, output, and proof digests. No Magnetar runtime is bundled, and its absence cannot produce a positive proof verdict.
-
-## Operational trust assumptions
-
-The host administrator can read the data volume, run the trusted test config, install verifier adapters, and change deployment secrets. Those are operator privileges, not privileges granted to an artifact author. Studio does not make the SQLite audit log tamper-proof against that host administrator. Protect storage and backups with the deployment's own encryption, access controls, and retention policy.
-
-The AI provider receives the selected artifact, relevant ADRs, and a bounded discussion context when a model action is invoked. Do not infer provider privacy/retention terms from this application. No raw provider credential is intentionally included in artifact or chat content. Generated research without live search is labeled accordingly; source claims require review.
+Operators control executable configurations, SQL access, secrets, providers and
+local agents. SQL audit is not tamper-proof against its administrator. Secrets
+belong in platform bindings; the chosen backup service requires encryption and
+an actual restore rehearsal. Enabled model actions send bounded artifact and
+discussion context to the selected provider. Research sends the exact submitted
+brief to its source service. Provider retention and billing depend on the
+selected account and contract, not local tests.
