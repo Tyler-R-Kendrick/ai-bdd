@@ -432,6 +432,86 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         );
       });
 
+      it('admits health and login with a bounded startup dispatch budget while retaining a larger queued backlog', async () => {
+        const w = await fixture(adapter),
+          sourceStore = await w.openStore(),
+          seed = await w.runtimeFor(sourceStore),
+          jobs = [w.job];
+        seed.register(kind, async () => {
+          throw new Error('Backlog seeding must never execute a worker');
+        });
+        for (let index = 0; index < 10; index++)
+          jobs.push(
+            await seed.enqueue({
+              kind,
+              projectId: w.project.id,
+              artifactId: w.artifact.id,
+              principalId: w.user.id,
+              artifactVersion: w.artifact.version,
+              snapshot: { approved: 'Retained backlog item ' + index },
+              idempotencyKey: randomUUID(),
+            }),
+          );
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
+        await seed.close();
+        await sourceStore.close();
+
+        const application = await w.start(),
+          health = await application.app.inject('/api/health'),
+          request = await w.login(application);
+        expect(w.dispatcher.publish.mock.calls.length).toBeGreaterThan(0);
+        expect(w.dispatcher.publish.mock.calls.length).toBeLessThanOrEqual(4);
+        expect(health.statusCode).toBe(200);
+        expect(health.json()).toEqual({ ok: true });
+        expect(health.headers['x-studio-execution-state']).toBe('degraded');
+        expect((await request('GET', '/api/me')).statusCode).toBe(200);
+        expect(await application.executionReadiness()).toEqual(degraded);
+        expect(
+          (await request('GET', '/api/capabilities')).json().execution,
+        ).toEqual(degraded);
+
+        for (const job of jobs)
+          expect(await application.runtime.get(job.id)).toMatchObject({
+            status: 'queued',
+            attempt: 0,
+            fence: 0,
+            result: null,
+            progress: null,
+            leaseOwner: null,
+          });
+        const intents = await application.store.all(
+          'SELECT job_id,status,attempts,receipt_json,error FROM studio_job_outbox',
+        );
+        expect(new Set(intents.map((row) => row.job_id))).toEqual(
+          new Set(jobs.map((job) => job.id)),
+        );
+        expect(
+          intents.filter((row) => Number(row.attempts) === 0).length,
+        ).toBeGreaterThanOrEqual(jobs.length - 4);
+        expect(intents.some((row) => row.error)).toBe(true);
+        for (const row of intents) {
+          expect(row.status).toBe('pending');
+          expect(row.receipt_json).toBeNull();
+        }
+        expect(
+          (
+            await application.store.one(
+              'SELECT count(*) AS n FROM studio_job_receipts',
+            )
+          ).n,
+        ).toBe(0);
+        expect(
+          (
+            await application.store.one(
+              'SELECT count(*) AS n FROM startup_publications',
+            )
+          ).n,
+        ).toBe(0);
+        expect(
+          (await application.store.artifact(w.artifact.id, w.user.id)).content,
+        ).toEqual(w.artifact.content);
+      });
+
       it('retains persisted dispatching degradation until authorized cancellation without claiming dispatch or output', async () => {
         const w = await fixture(adapter),
           application = await w.start();
