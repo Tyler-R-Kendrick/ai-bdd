@@ -110,6 +110,30 @@ try {
   pass(
     'production starts as non-root with read-only filesystem and dropped capabilities',
   );
+  await docker([
+    'run',
+    '--rm',
+    '--network',
+    'none',
+    '--read-only',
+    '--tmpfs',
+    '/tmp',
+    '--memory=2g',
+    '--cpus=2',
+    '--cap-drop',
+    'ALL',
+    '--security-opt',
+    'no-new-privileges:true',
+    image,
+    'node',
+    '--input-type=module',
+    '-e',
+    "import assert from 'node:assert/strict';import{generateText,Output}from'ai';import{z}from'zod';import{createLocalLanguageModel,closeLocalModels}from'./dist/server/local-model.js';assert.notEqual(process.getuid(),0);try{const model=createLocalLanguageModel({directory:process.env.STUDIO_LOCAL_MODEL_DIR});const chat=await generateText({model,system:'You are a helpful assistant. Answer briefly.',prompt:'What is 2 + 2?',maxOutputTokens:64,maxRetries:0});assert.match(chat.text,/4/);const json=await generateText({model,system:'You are a helpful assistant. Answer briefly.',prompt:'What is 2 + 2? Return JSON with integer answer.',output:Output.object({schema:z.object({answer:z.number().int()}).strict()}),maxOutputTokens:64,maxRetries:0});assert.deepEqual(json.output,{answer:4});assert.equal(json.providerMetadata['llama-cpp-cpu'].device,'cpu');assert.ok(json.providerMetadata['llama-cpp-cpu'].processRssBytes<1073741824)}finally{await closeLocalModels()}",
+  ]);
+  pass(
+    'packaged pinned CPU model generates chat and schema JSON as non-root with no network',
+  );
+
   await api('/auth/demo', 'POST', undefined, 404);
   pass('demo access is unavailable in production');
   await api('/auth/login', 'POST', {

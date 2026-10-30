@@ -1,0 +1,40 @@
+# Local CPU inference
+
+Studio's local CPU harness uses downloaded open weights, runs inference in a local native subprocess and never falls back to AI Gateway or another hosted provider. The default model is **Qwen2.5-0.5B-Instruct Q4_K_M**, an Apache-2.0 model with 397,808,192 bytes of weights. `server/local/model-manifest.json` pins its Hugging Face repository revision and SHA-256. Its license and attribution ship with the release image.
+
+This harness is separate from genuine T3. The `local-cpu` harness and `llama-cpp-cpu` provider labels describe the actual engine. Managed native T3 can use the same local model through its own supervised native adapter; selecting a local CPU model does not turn the AI SDK adapter into T3.
+
+## Preparation and runtime
+
+The release Dockerfile downloads the immutable model and verified native T3/OpenCode tools in a separate build stage. Changing application source alone does not invalidate those public-artifact download layers. The runtime contains the default Qwen weights at `/opt/studio-model`, native tools at `/opt/studio-native-tools`, and production dependencies including the pinned CPU binary. The node user can read the weights; inference does not install packages, compile native code or download models.
+
+For an existing local installation:
+
+```sh
+pnpm --filter @ai-bdd/studio model:download /absolute/studio-model
+STUDIO_LOCAL_MODEL_DIR=/absolute/studio-model pnpm --filter @ai-bdd/studio dev
+```
+
+Choose **Local CPU (offline)** in the artifact's agent runtime picker. `createLocalLanguageModel({directory, modelId?})` accepts only registered model IDs. The optional 135M SmolLM2 entry is a smaller explicit choice; preparing it requires its exact registered ID as the downloader's second argument. The default Docker build ships Qwen only. Artifact content cannot select a model URL, executable or directory.
+
+A directory has one inference subprocess shared by chat and independent decision evaluation. Requests run one at a time, with at most three waiting. A different registered model unloads the previous weights before loading. The subprocess receives a small environment without provider credentials. It has no HTTP fetch transport, uses CPU only, never builds or downloads binaries, and exits when its parent disconnects. Abort/deadline kills the isolated subprocess; the next request starts a fresh one. Idle workers exit after 30 seconds. Services retain their directory pool and release it after their jobs drain; closing one application does not kill another owner's work.
+
+The native context holds at most 4,096 tokens including source, framing and output. Generation is capped at 1,024 output tokens and 45 seconds by default, with a 60-second maximum. Overflow fails explicitly; neither the preliminary token check nor the native context may silently drop source. These bounds can reject large artifact proposals; they do not trigger a provider fallback.
+
+## Structured output and tools
+
+The engine compiles a native JSON grammar for structured output and advertised tool envelopes. The parent validates the completed result against the **original** schema with AJV and `ajv-formats`, including constraints absent from the grammar. Unknown formats are rejected before inference. Native grammar completion does not establish semantic correctness.
+
+Tool calls can name only an advertised tool and must satisfy its original argument schema before AI SDK dispatch. The server's tools retain their existing source, role, lease and repository guards. The model does not authorize operations or execute code in the inference subprocess. Tool results remain labelled untrusted data. Native text streams incrementally; tool envelopes are buffered until validated.
+
+Independent decision classification uses the same process and immutable weights through `evaluateLocalDecisions`. Its native option likelihoods are **not calibrated probabilities of correctness**. Decision thresholds, abstention, source fencing and human approval remain enforced by the independent decision service. The generative JSON sample below is distinct from native NOUL classification; the native framing needs its own balanced semantic tests.
+
+## Evidence and limits
+
+The three [saved comparison receipts](studio-evidence/local-cpu/) contain actual outputs from the same five synthetic prompts: design explanation, title/goal, accessible UI JSON, repository tool selection and a human approval rule. SmolLM2 135M and 360M each matched three cases, with different mistakes. Qwen matched all five. This small sample selected a practical default; it does not establish general accuracy.
+
+Observed native-process peak RSS on that host was approximately 435 MiB for 135M, 626 MiB for 360M, and 773 MiB for Qwen at a 4,096-token context. Sample generation took 0.36–0.86 seconds for Qwen, after a 0.47-second load. These are local observations, not deployed performance claims.
+
+`local-model.test.ts` runs actual chat, schema JSON, server tool execution, tool-result continuation/history, native decision transport, queue isolation, corrupt-file refusal, format validation, abort/recovery, owner retention and subprocess shutdown. `local-agent.test.ts` exercises actual artifact chat publication and duplicate delivery through SQL, with zero Gateway requests. Mandatory CI downloads/verifies the model and sets `STUDIO_REQUIRE_LOCAL_MODEL_TEST=1`; a missing model cannot be counted as a successful skipped inference check.
+
+The release image smoke test additionally runs packaged AI SDK chat and JSON inference as the non-root user with a read-only filesystem, no network, two CPUs and 2 GiB of memory. That gate must pass on the built image; host inference and source presence do not substitute for it.

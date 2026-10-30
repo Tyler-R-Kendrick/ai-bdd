@@ -1,0 +1,59 @@
+{
+  "file": "SmolLM2-360M-Instruct-Q4_K_M.gguf",
+  "loadMs": 210,
+  "maxRss": 656580608,
+  "cases": [
+    {
+      "id": "design-explanation",
+      "ms": 669,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "The UI developer should build a blue button labelled Start, with a clear and prominent text label, and a visually appealing design that is easy to navigate and visually appealing."
+    },
+    {
+      "id": "title-goal",
+      "ms": 1037,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\n    \"title\": \"Accessible Color Picker with Keyboard Palette\",\n    \"goal\": \"Design a color picker that allows users to select colors using a keyboard and a palette, making it more accessible and user-friendly.\"\n}"
+    },
+    {
+      "id": "render-ui",
+      "ms": 772,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\n    \"type\": \"button\",\n    \"text\": \"Save changes\",\n    \"ariaLabel\": \"Save changes\"\n}"
+    },
+    {
+      "id": "read-only-tool-selection",
+      "ms": 645,
+      "valid": true,
+      "semanticMatch": false,
+      "output": "{\n    \"name\": \"repository_file\",\n    \"path\": \"/path/to/your/repository\"\n}"
+    },
+    {
+      "id": "decision-human-approval",
+      "ms": 392,
+      "valid": true,
+      "semanticMatch": false,
+      "output": "{\n    \"allowed\": true\n}"
+    }
+  ],
+  "provenance": {
+    "repository": "bartowski/SmolLM2-360M-Instruct-GGUF",
+    "revision": "7be6f65f1db715fe5dc5a4634c0d459b4eed42ec",
+    "bytes": 270590880,
+    "sha256": "2fa3f013dcdd7b99f9b237717fa0b12d75bbb89984cc1274be1471a465bac9c2",
+    "license": "Apache-2.0"
+  },
+  "runtime": {
+    "package": "node-llama-cpp@3.22.2",
+    "llamaCppRelease": "v0.7.0",
+    "device": "cpu",
+    "contextSize": 4096,
+    "threads": 2,
+    "temperature": 0,
+    "maxOutputTokens": 256
+  },
+  "scope": "five synthetic local-host inference samples; not a general accuracy or deployed latency benchmark"
+}

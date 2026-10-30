@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch server/main.ts",
     "dev:ui": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts server/planner-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server && esbuild server/hosting/vercel-main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/vercel-main.js && node scripts/build-local-model-worker.mjs && node scripts/build-connector.mjs",
+    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts server/planner-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server && esbuild server/hosting/vercel-main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/vercel-main.js && esbuild server/local/model.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/local-model.js && node scripts/build-local-model-worker.mjs && node scripts/build-connector.mjs",
     "start": "node dist/server/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
