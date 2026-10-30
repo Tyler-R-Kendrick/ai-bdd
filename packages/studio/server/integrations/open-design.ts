@@ -8,7 +8,6 @@ import type { User } from '../../shared/domain.ts';
 import type { DesignMode } from '../../shared/integrations.ts';
 import type { IntegrationSettings } from './settings.ts';
 import { Store, HttpError } from '../store.ts';
-
 const attribution = {
   id: 'open-design',
   version: '0.5.2',
@@ -18,11 +17,22 @@ const attribution = {
 const localBoundary =
   'This run is already the selected Local Codex execution inside Open Design. Work directly in the current Open Design project. Do not invoke @open-design, the open-design MCP server, collect_brief, Open Design Cloud login, or another Open Design Plugin workflow. Do not route this request through Open Design again.';
 export type OpenDesignConnection = {
-  listTools(): Promise<{ tools: { name: string; inputSchema?: unknown }[] }>;
+  listTools(): Promise<{
+    tools: {
+      name: string;
+      inputSchema?: unknown;
+    }[];
+  }>;
   callTool(
-    input: { name: string; arguments: Record<string, any> },
+    input: {
+      name: string;
+      arguments: Record<string, any>;
+    },
     resultSchema?: undefined,
-    options?: { signal?: AbortSignal; timeout?: number },
+    options?: {
+      signal?: AbortSignal;
+      timeout?: number;
+    },
   ): Promise<any>;
   close(): Promise<void>;
 };
@@ -91,10 +101,7 @@ function unwrap(result: any): Record<string, any> {
     try {
       value = JSON.parse(text);
     } catch {
-      throw new HttpError(
-        502,
-        'Open Design returned an unsupported response',
-      );
+      throw new HttpError(502, 'Open Design returned an unsupported response');
     }
   }
   if (
@@ -106,19 +113,24 @@ function unwrap(result: any): Record<string, any> {
     throw new HttpError(502, 'Open Design returned an unsupported response');
   return value;
 }
-
 /** Only the independently installed, operator-registered local runtime is contacted. */
 export class OpenDesignService {
   private readonly busy = new Set<string>();
+  private readonly previous = new WeakMap<Flow, string>();
   private activeConnections = 0;
   constructor(
     readonly store: Store,
     readonly settings: IntegrationSettings,
     readonly connect?: () => Promise<OpenDesignConnection>,
-  ) {
-    store.db.exec(
-      `CREATE TABLE IF NOT EXISTS studio_design_flows(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,state TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL); CREATE INDEX IF NOT EXISTS studio_design_flows_artifact ON studio_design_flows(artifact_id,created_at);`,
-    );
+  ) {}
+  async initialize() {
+    const store = this.store;
+    await store.tx(async () => {
+      await store.lock('schema:studio.open-design');
+      await store.db.exec(
+        `CREATE TABLE IF NOT EXISTS studio_design_flows(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,state TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL); CREATE INDEX IF NOT EXISTS studio_design_flows_artifact ON studio_design_flows(artifact_id,created_at);`,
+      );
+    });
   }
   private async connection(): Promise<OpenDesignConnection> {
     if (this.activeConnections >= 4)
@@ -184,32 +196,70 @@ export class OpenDesignService {
       );
     }
   }
-  private save(flow: Flow) {
-    flow.updatedAt = new Date().toISOString();
-    this.store.exec(
-      'INSERT INTO studio_design_flows VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,updated_at=excluded.updated_at',
-      flow.id,
+  private async save(flow: Flow) {
+    const initial = await this.store.artifact(
       flow.artifactId,
       flow.ownerId,
-      JSON.stringify(flow),
-      flow.createdAt,
-      flow.updatedAt,
+      'write',
     );
+    await this.store.tx(async () => {
+      await this.store.lock('project:' + initial.projectId);
+      await this.store.artifact(flow.artifactId, flow.ownerId, 'write');
+      flow.updatedAt = new Date().toISOString();
+      const next = JSON.stringify(flow),
+        previous = this.previous.get(flow);
+      if (previous === undefined) {
+        const count = await this.store.one(
+          'SELECT count(*) AS n FROM studio_design_flows WHERE artifact_id=?',
+          flow.artifactId,
+        );
+        if (Number(count.n) >= 100)
+          throw new HttpError(
+            409,
+            'This artifact has reached its design-workflow limit',
+          );
+        await this.store.exec(
+          'INSERT INTO studio_design_flows(id,artifact_id,user_id,state,created_at,updated_at) VALUES(?,?,?,?,?,?)',
+          flow.id,
+          flow.artifactId,
+          flow.ownerId,
+          next,
+          flow.createdAt,
+          flow.updatedAt,
+        );
+      } else {
+        const changed = await this.store.exec(
+          'UPDATE studio_design_flows SET state=?,updated_at=? WHERE id=? AND artifact_id=? AND state=?',
+          next,
+          flow.updatedAt,
+          flow.id,
+          flow.artifactId,
+          previous,
+        );
+        if (changed.changes !== 1)
+          throw new HttpError(
+            409,
+            'This design workflow changed in another session. Reload before continuing.',
+          );
+      }
+      this.previous.set(flow, next);
+    });
   }
-  private flow(
+  private async flow(
     user: User,
     artifactId: string,
     id: string,
     write = false,
-  ): Flow {
-    this.store.artifact(artifactId, user.id, write ? 'write' : 'read');
-    const row = this.store.one(
+  ): Promise<Flow> {
+    await this.store.artifact(artifactId, user.id, write ? 'write' : 'read');
+    const row = await this.store.one(
       'SELECT state FROM studio_design_flows WHERE id=? AND artifact_id=?',
       id,
       artifactId,
     );
     if (!row) throw new HttpError(404, 'Design workflow not found');
     const flow: Flow = JSON.parse(row.state);
+    this.previous.set(flow, row.state);
     if (write && flow.ownerId !== user.id)
       throw new HttpError(
         403,
@@ -241,14 +291,14 @@ export class OpenDesignService {
       previewUrl: endpoint(flow.result?.previewUrl),
     };
   }
-  list(user: User, artifactId: string) {
-    this.store.artifact(artifactId, user.id);
-    return this.store
-      .all(
+  async list(user: User, artifactId: string) {
+    await this.store.artifact(artifactId, user.id);
+    return (
+      await this.store.all(
         'SELECT state FROM studio_design_flows WHERE artifact_id=? ORDER BY rowid DESC LIMIT 100',
         artifactId,
       )
-      .map((row) => this.public(JSON.parse(row.state), user));
+    ).map((row) => this.public(JSON.parse(row.state), user));
   }
   private async call(
     user: User,
@@ -257,7 +307,7 @@ export class OpenDesignService {
     arguments_: Record<string, any>,
     signal?: AbortSignal,
   ) {
-    this.store.artifact(flow.artifactId, user.id, 'write');
+    await this.store.artifact(flow.artifactId, user.id, 'write');
     const client = await this.connection();
     try {
       const tools = await client.listTools();
@@ -272,18 +322,18 @@ export class OpenDesignService {
           timeout: 120000,
         }),
       );
-      this.store.artifact(flow.artifactId, user.id, 'write');
+      await this.store.artifact(flow.artifactId, user.id, 'write');
       return result;
     } finally {
       await client.close().catch(() => {});
     }
   }
   async schema(user: User, artifactId: string) {
-    this.store.artifact(artifactId, user.id, 'write');
+    await this.store.artifact(artifactId, user.id, 'write');
     const client = await this.connection();
     try {
       const tools = await client.listTools();
-      this.store.artifact(artifactId, user.id, 'write');
+      await this.store.artifact(artifactId, user.id, 'write');
       return tools.tools
         .filter((tool) => tool.name === 'collect_brief')
         .map((tool) => ({
@@ -302,11 +352,13 @@ export class OpenDesignService {
     fields: Record<string, any>,
     skip = false,
   ) {
-    this.store.artifact(artifactId, user.id, 'write');
+    await this.store.artifact(artifactId, user.id, 'write');
     if (
-      this.store.one(
-        'SELECT count(*) AS n FROM studio_design_flows WHERE artifact_id=?',
-        artifactId,
+      (
+        await this.store.one(
+          'SELECT count(*) AS n FROM studio_design_flows WHERE artifact_id=?',
+          artifactId,
+        )
       ).n >= 100
     )
       throw new HttpError(
@@ -326,7 +378,7 @@ export class OpenDesignService {
       createdAt: now,
       updatedAt: now,
     };
-    this.save(flow);
+    await this.save(flow);
     try {
       // Only one call per logical brief; a failed/lost response is not silently replayed.
       const result = await this.call(user, flow, 'collect_brief', {
@@ -348,11 +400,11 @@ export class OpenDesignService {
         skip || result.confirmed === true
           ? 'brief-confirmed'
           : 'awaiting-brief';
-      this.save(flow);
+      await this.save(flow);
       return this.public(flow, user);
     } catch (error) {
       flow.status = 'brief-failed';
-      this.save(flow);
+      await this.save(flow);
       throw error;
     }
   }
@@ -362,9 +414,11 @@ export class OpenDesignService {
     id: string,
     answers: Record<string, any>,
   ) {
-    const flow = this.flow(user, artifactId, id, true);
+    const flow = await this.flow(user, artifactId, id, true);
     if (flow.status !== 'awaiting-brief' || !flow.briefDraftId || !flow.nonce)
       throw new HttpError(409, 'This brief cannot be confirmed again');
+    flow.status = 'confirming-brief';
+    await this.save(flow);
     const result = await this.call(user, flow, 'confirm_brief', {
       answers,
       briefDraftId: flow.briefDraftId,
@@ -382,21 +436,16 @@ export class OpenDesignService {
       );
     flow.briefResult = result;
     flow.status = 'brief-confirmed';
-    this.save(flow);
+    await this.save(flow);
     return this.public(flow, user);
   }
   async inspect(
     user: User,
     artifactId: string,
     id: string,
-    action:
-      | 'login-status'
-      | 'start-login'
-      | 'agents'
-      | 'profiles'
-      | 'projects',
+    action: 'login-status' | 'start-login' | 'agents' | 'profiles' | 'projects',
   ) {
-    const flow = this.flow(user, artifactId, id, true);
+    const flow = await this.flow(user, artifactId, id, true);
     if (
       !flow.workflowId ||
       ['collecting-brief', 'awaiting-brief', 'brief-failed'].includes(
@@ -434,7 +483,11 @@ export class OpenDesignService {
     user: User,
     artifactId: string,
     id: string,
-    input: { projectId: string; prompt: string; byokProfile?: string },
+    input: {
+      projectId: string;
+      prompt: string;
+      byokProfile?: string;
+    },
     resume = false,
   ) {
     if (this.busy.has(id))
@@ -450,18 +503,19 @@ export class OpenDesignService {
     user: User,
     artifactId: string,
     id: string,
-    input: { projectId: string; prompt: string; byokProfile?: string },
+    input: {
+      projectId: string;
+      prompt: string;
+      byokProfile?: string;
+    },
     resume: boolean,
   ) {
-    const flow = this.flow(user, artifactId, id, true);
+    const flow = await this.flow(user, artifactId, id, true);
     if (
       !flow.workflowId ||
       !['brief-confirmed', 'starting', 'needs-recharge'].includes(flow.status)
     )
-      throw new HttpError(
-        409,
-        'This workflow cannot start another generation',
-      );
+      throw new HttpError(409, 'This workflow cannot start another generation');
     if (flow.mode === 'byok' && !input.byokProfile)
       throw new HttpError(400, 'Choose a saved secure BYOK profile');
     if (flow.mode !== 'byok' && input.byokProfile)
@@ -527,8 +581,7 @@ export class OpenDesignService {
     if (
       !Array.isArray(projects.projects) ||
       !projects.projects.some(
-        (project: any) =>
-          (project.id ?? project.projectId) === input.projectId,
+        (project: any) => (project.id ?? project.projectId) === input.projectId,
       )
     )
       throw new HttpError(
@@ -536,7 +589,7 @@ export class OpenDesignService {
         'Choose a project returned by this Open Design workflow',
       );
     if (!flow.startArguments) {
-      const artifact = this.store.artifact(artifactId, user.id, 'write');
+      const artifact = await this.store.artifact(artifactId, user.id, 'write');
       const source = JSON.stringify(artifact.content);
       if (source.length > 70000)
         throw new HttpError(
@@ -575,7 +628,7 @@ export class OpenDesignService {
         'This workflow is not waiting for a confirmed recharge',
       );
     flow.status = 'starting';
-    this.save(flow);
+    await this.save(flow);
     const result = await this.call(user, flow, 'start_run', {
       ...flow.startArguments,
       ...(resume ? { resume: true } : {}),
@@ -587,7 +640,7 @@ export class OpenDesignService {
       flow.result = result;
       flow.status = 'needs-recharge';
       if (typeof result.runId === 'string') flow.runId = result.runId;
-      this.save(flow);
+      await this.save(flow);
       return this.public(flow, user);
     }
     if (typeof result.runId !== 'string')
@@ -598,11 +651,11 @@ export class OpenDesignService {
     flow.runId = result.runId;
     flow.result = result;
     flow.status = result.status ?? result.state ?? 'queued';
-    this.save(flow);
+    await this.save(flow);
     return this.public(flow, user);
   }
   async cancel(user: User, artifactId: string, id: string) {
-    const flow = this.flow(user, artifactId, id, true);
+    const flow = await this.flow(user, artifactId, id, true);
     if (
       !flow.runId ||
       !flow.workflowId ||
@@ -616,16 +669,14 @@ export class OpenDesignService {
     flow.result = { ...flow.result, ...result };
     if (['canceled', 'cancelled'].includes(result.status ?? result.state))
       flow.status = result.status ?? result.state;
-    this.save(flow);
+    await this.save(flow);
     return this.public(flow, user);
   }
   async poll(user: User, artifactId: string, id: string) {
-    const flow = this.flow(user, artifactId, id, true);
+    const flow = await this.flow(user, artifactId, id, true);
     if (!flow.runId || !flow.workflowId)
       throw new HttpError(409, 'This workflow has no generation to poll');
-    if (
-      ['succeeded', 'failed', 'canceled', 'cancelled'].includes(flow.status)
-    )
+    if (['succeeded', 'failed', 'canceled', 'cancelled'].includes(flow.status))
       return this.public(flow, user);
     const result = await this.call(user, flow, 'get_run', {
       runId: flow.runId,
@@ -640,7 +691,7 @@ export class OpenDesignService {
       result.status === 'insufficient_balance'
     )
       flow.status = 'needs-recharge';
-    this.save(flow);
+    await this.save(flow);
     return this.public(flow, user);
   }
 }

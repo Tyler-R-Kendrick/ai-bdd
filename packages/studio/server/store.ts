@@ -70,6 +70,10 @@ const readMessage = (row: any): OrderedMessage => ({
 });
 export const STUDIO_SCHEMA_VERSION = 2;
 export class Store {
+  fileQuotaReservations?: (
+    projectId: string,
+    exemptFileId: string,
+  ) => Promise<number>;
   artifactWriteGuard?: (artifact: Artifact, userId: string) => Promise<void>;
   repositoryAuthorizer?: (
     projectId: string,
@@ -1058,7 +1062,14 @@ export class Store {
           artifact.projectId,
         )
       ).n;
-      if (Number(used) + input.byteSize > 512 * 1024 * 1024)
+      if (
+        Number(used) +
+          Number(
+            (await this.fileQuotaReservations?.(artifact.projectId, id)) ?? 0,
+          ) +
+          input.byteSize >
+        512 * 1024 * 1024
+      )
         throw new HttpError(
           413,
           'This project has reached its 512 MB asset quota',

@@ -84,10 +84,25 @@ export class PostgresDatabase implements SqlDatabase {
     this.pool.on('error', () => {});
   }
   async initialize() {
-    if (this.options.schema)
-      await this.pool.query(
-        'CREATE SCHEMA IF NOT EXISTS "' + this.options.schema + '"',
-      );
+    if (this.options.schema) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+          ['schema:database:' + this.options.schema],
+        );
+        await client.query(
+          'CREATE SCHEMA IF NOT EXISTS "' + this.options.schema + '"',
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
     return this;
   }
   private async client<T>(
