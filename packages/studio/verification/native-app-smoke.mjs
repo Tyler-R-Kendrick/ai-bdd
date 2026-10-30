@@ -218,6 +218,7 @@ try {
   assert.equal(reply[0].threadId, threadId);
   assert.equal(completed.decisions[0].id, adrId);
   assert.deepEqual(completed.artifact.content, initial.artifact.content);
+  await stop();
   const ledger = nativeLedger(artifact.id);
   assert.ok(
     Number(ledger.n) > 0,
@@ -227,7 +228,6 @@ try {
     (await countFiles(join(data, 'objects'))) > 0,
     'Encrypted native checkpoint must use the shipping disk object adapter',
   );
-  await stop();
   await start();
   await login();
   const restored = await api(`/api/artifacts/${artifact.id}`);
@@ -256,8 +256,8 @@ try {
     );
   assert.equal(answers.length, 2);
   assert.match(answers[1].body, /\b4\b/);
-  assert.ok(Number(nativeLedger(artifact.id).n) > 0);
   await stop();
+  assert.ok(Number(nativeLedger(artifact.id).n) > 0);
   console.log(
     JSON.stringify({
       scope: 'shipping-main-http-native-t3-local-cpu',
