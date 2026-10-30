@@ -1,3 +1,7 @@
+import {
+  reportProviderFailure,
+  type ProviderFailureReporter,
+} from './provider-diagnostics.ts';
 import { dispatchDeadline } from './deadline.ts';
 import {
   QueueClient,
@@ -17,7 +21,13 @@ export type QueueTransport = Pick<QueueClient, 'send' | 'handleCallback'>;
 export class VercelQueueDispatcher implements JobDispatcher {
   readonly provider = 'vercel-queue';
   readonly #client: QueueTransport;
-  constructor(options: { region: string; client?: QueueTransport }) {
+  readonly #onFailure?: ProviderFailureReporter;
+  constructor(options: {
+    region: string;
+    client?: QueueTransport;
+    onFailure?: ProviderFailureReporter;
+  }) {
+    this.#onFailure = options.onFailure;
     this.#client =
       options.client ??
       new QueueClient({ region: options.region as VercelRegion });
@@ -33,21 +43,26 @@ export class VercelQueueDispatcher implements JobDispatcher {
       throw new Error(
         'Job dispatch delay must be between 0 and 86,400 seconds.',
       );
-    const receipt = await dispatchDeadline(
-      this.#client.send(
-        STUDIO_QUEUE_TOPIC,
-        { schemaVersion: 1, jobId },
-        {
-          idempotencyKey: `studio-dispatch:${options.dispatchId ?? jobId}`,
-          retentionSeconds: 86400,
-          delaySeconds: delay,
-        },
-      ),
-    );
-    return {
-      provider: this.provider,
-      ...(receipt.messageId ? { messageId: receipt.messageId } : {}),
-    };
+    try {
+      const receipt = await dispatchDeadline(
+        this.#client.send(
+          STUDIO_QUEUE_TOPIC,
+          { schemaVersion: 1, jobId },
+          {
+            idempotencyKey: `studio-dispatch:${options.dispatchId ?? jobId}`,
+            retentionSeconds: 86400,
+            delaySeconds: delay,
+          },
+        ),
+      );
+      return {
+        provider: this.provider,
+        ...(receipt.messageId ? { messageId: receipt.messageId } : {}),
+      };
+    } catch (error) {
+      reportProviderFailure(this.#onFailure, 'job-publish', error);
+      throw error;
+    }
   }
 }
 export function createVercelJobCallback(options: {
