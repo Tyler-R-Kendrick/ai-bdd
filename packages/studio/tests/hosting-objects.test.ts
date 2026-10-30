@@ -4,9 +4,10 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
+import { gzipSync } from 'node:zlib';
 import { DiskObjectStore } from '../server/hosting/disk-objects.ts';
 import { VercelBlobObjectStore } from '../server/hosting/vercel-objects.ts';
-import { BlobError } from '@vercel/blob';
+import { BlobError, get as getBlob } from '@vercel/blob';
 import {
   objectDigest,
   ObjectConflictError,
@@ -68,6 +69,8 @@ describe('actual Vercel Blob SDK HTTP protocol against an explicit local provide
   const lostWriteResponses = new Set<string>();
   const rejectedWrites = new Set<string>();
   const falseMetadataSizes = new Map<string, number>();
+  const compressedGets = new Set<string>();
+  const chunkedGets = new Set<string>();
   const headers: Record<string, string | undefined>[] = [];
   let origin: string;
   const server = createServer(async (request, reply) => {
@@ -163,12 +166,16 @@ describe('actual Vercel Blob SDK HTTP protocol against an explicit local provide
       reply.end();
       return;
     }
+    const transport = compressedGets.has(key) ? gzipSync(record.bytes) : record.bytes;
     reply.writeHead(200, {
       'content-type': record.contentType,
-      'content-length': record.bytes.length,
+      ...(chunkedGets.has(key)
+        ? { 'transfer-encoding': 'chunked' }
+        : { 'content-length': transport.length }),
+      ...(compressedGets.has(key) ? { 'content-encoding': 'gzip' } : {}),
       etag: objectDigest(record.bytes),
     });
-    reply.end(record.bytes);
+    reply.end(transport);
   });
   beforeAll(async () => {
     server.listen(0, '127.0.0.1');
@@ -181,6 +188,36 @@ describe('actual Vercel Blob SDK HTTP protocol against an explicit local provide
     vi.unstubAllEnvs();
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  it('reads private compressed JSON when the SDK reports zero for absent transport length', async () => {
+    const token = 'vercel_blob_rw_fixture_test-only-key';
+    const store = new VercelBlobObjectStore({ token });
+    const key = 'studio/v1/manifests/chunked.json';
+    const bytes = Buffer.from(JSON.stringify({ schemaVersion: 1, text: 'manifest bytes '.repeat(100) }));
+    const expected = await store.put(key, bytes, { contentType: 'application/json' });
+    compressedGets.add(key);
+    chunkedGets.add(key);
+    const sdk = await getBlob(origin + '/' + key, { token, access: 'private', useCache: false });
+    expect(sdk?.statusCode).toBe(200);
+    expect(sdk!.blob.size).toBe(0);
+    expect(Buffer.from(await new Response(sdk!.stream).arrayBuffer())).toEqual(bytes);
+    expect((await store.get(key, { maxBytes: bytes.length, expectedSha256: expected.sha256 }))?.bytes).toEqual(bytes);
+    await expect(store.get(key, { maxBytes: bytes.length, expectedSha256: '0'.repeat(64) })).rejects.toThrow('integrity');
+    const before = bodyReads.get(key)!;
+    await expect(store.get(key, { maxBytes: bytes.length - 1 })).rejects.toThrow('oversized');
+    expect(bodyReads.get(key)).toBe(before);
+    falseMetadataSizes.set(key, bytes.length - 1);
+    await expect(store.get(key, { maxBytes: bytes.length })).rejects.toThrow('length changed');
+    falseMetadataSizes.set(key, 1);
+    await expect(store.get(key, { maxBytes: 1 })).rejects.toThrow('bound');
+  });
+  it('rejects contradictory nonzero GET length even when decoded bytes match HEAD', async () => {
+    const store = new VercelBlobObjectStore({ token: 'vercel_blob_rw_fixture_test-only-key' });
+    const key = 'studio/v1/manifests/nonzero-transport.json';
+    const bytes = Buffer.from(JSON.stringify({ text: 'same bounded logical bytes '.repeat(100) }));
+    await store.put(key, bytes, { contentType: 'application/json' });
+    compressedGets.add(key);
+    await expect(store.get(key, { maxBytes: bytes.length, expectedSha256: objectDigest(bytes) })).rejects.toThrow('length changed');
   });
   it('uses private authenticated immutable operations and preserves bytes through the SDK', async () => {
     const store = new VercelBlobObjectStore({

@@ -109,7 +109,12 @@ export class VercelBlobObjectStore implements ObjectStore {
     metadata: Awaited<ReturnType<typeof blob.head>>,
     options: { maxBytes: number; expectedSha256?: string },
   ) {
-    if (metadata.pathname !== key || metadata.size > options.maxBytes)
+    if (
+      metadata.pathname !== key ||
+      !Number.isSafeInteger(metadata.size) ||
+      metadata.size < 0 ||
+      metadata.size > options.maxBytes
+    )
       throw new ObjectIntegrityError(
         'Object provider returned a different key or oversized object.',
       );
@@ -125,7 +130,13 @@ export class VercelBlobObjectStore implements ObjectStore {
         'Object provider returned incomplete content.',
       );
     const bytes = await boundedObjectStream(result.stream, options.maxBytes);
-    if (bytes.length !== metadata.size || result.blob.size !== metadata.size)
+    // SDK 2.8 reports zero when a chunked/compressed GET has no Content-Length.
+    // HEAD and the bounded, decoded bytes remain authoritative; a contradictory
+    // nonzero GET length is still an integrity failure.
+    if (
+      bytes.length !== metadata.size ||
+      (result.blob.size !== 0 && result.blob.size !== metadata.size)
+    )
       throw new ObjectIntegrityError(
         'Object length changed during retrieval.',
       );
