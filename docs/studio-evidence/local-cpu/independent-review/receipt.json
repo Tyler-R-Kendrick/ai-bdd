@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "11df998e94e8752b5c67553122605ab5f321c4df",
+  "scope": "built standalone adapter and copied workers on existing Node 24 image; not final Studio image",
+  "uid": 1000,
+  "network": "none",
+  "readonlyRoot": true,
+  "memoryBytes": 2147483648,
+  "cpus": 2,
+  "cases": [
+    {
+      "name": "genuine CPU chat",
+      "elapsedMs": 1826,
+      "output": "4",
+      "usage": {
+        "inputTokens": 29,
+        "inputTokenDetails": {
+          "noCacheTokens": 29,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0
+        },
+        "outputTokens": 2,
+        "outputTokenDetails": {
+          "textTokens": 2,
+          "reasoningTokens": 0
+        },
+        "totalTokens": 31
+      },
+      "providerMetadata": {
+        "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+        "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+        "runtime": "node-llama-cpp@3.22.2",
+        "device": "cpu",
+        "constrained": false,
+        "processRssBytes": 725331968
+      }
+    },
+    {
+      "name": "human-approved Pact preview goal",
+      "elapsedMs": 1039,
+      "output": {
+        "title": "Pact Integration Preview Approval",
+        "goal": "The reviewer must approve proposed changes before they modify the design document."
+      },
+      "usage": {
+        "inputTokens": 83,
+        "inputTokenDetails": {
+          "noCacheTokens": 83,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0
+        },
+        "outputTokens": 37,
+        "outputTokenDetails": {
+          "textTokens": 37,
+          "reasoningTokens": 0
+        },
+        "totalTokens": 120
+      },
+      "providerMetadata": {
+        "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+        "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+        "runtime": "node-llama-cpp@3.22.2",
+        "device": "cpu",
+        "constrained": true,
+        "processRssBytes": 753668096
+      }
+    },
+    {
+      "name": "server-defined read-only tool and returned-result history",
+      "elapsedMs": 1601,
+      "output": "The tool returned the number 42.",
+      "usage": {
+        "inputTokens": 314,
+        "inputTokenDetails": {
+          "noCacheTokens": 314,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0
+        },
+        "outputTokens": 27,
+        "outputTokenDetails": {
+          "textTokens": 27,
+          "reasoningTokens": 0
+        },
+        "totalTokens": 341
+      },
+      "providerMetadata": {
+        "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+        "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+        "runtime": "node-llama-cpp@3.22.2",
+        "device": "cpu",
+        "constrained": false,
+        "processRssBytes": 777564160
+      }
+    }
+  ],
+  "nativeLogits": {
+    "scope": "actual computation and bounded probability contract; not classifier quality",
+    "answers": [
+      {
+        "questionId": "color",
+        "kind": "boolean",
+        "value": false,
+        "probability": 0.4260305326498912,
+        "probabilities": [
+          {
+            "value": true,
+            "probability": 0.4260305326498912
+          },
+          {
+            "value": false,
+            "probability": 0.5739694673501088
+          }
+        ]
+      }
+    ],
+    "inputTokens": 55,
+    "outputTokens": 1,
+    "rss": 792453120,
+    "probabilityKind": "conditional-option-likelihood",
+    "calibrated": false
+  },
+  "maxObservedNativeRssBytes": 792453120,
+  "passed": true,
+  "artifacts": {
+    "local-model.js": "f509ea3e12229ef7fffbaf7176c5006e8ec2b54bfb78881ab9aeaa1179df287f",
+    "studio-local-worker.mjs": "b9538c8c43589d9aa7038415a3b5a6c9975af5e336b3e7611772e368ef218d45",
+    "studio-local-decisions.mjs": "e173abfac3146cb1ca804be7f2bdc1ead70ab7d48a6e0db0a7c1d50c439bb49a"
+  },
+  "baseImage": {
+    "tag": "node:24-bookworm-slim",
+    "localImageId": "9564952982df"
+  },
+  "mounts": {
+    "application": "frozen standalone generated bundle/worker copies only; no application source or credentials",
+    "dependencies": "installed public workspace node_modules read-only",
+    "weights": "operator-prepared public pinned GGUF directory read-only",
+    "hostAuthenticationMounted": false
+  },
+  "directSourceRetest": {
+    "sourceCommit": "ed2ca9bb26a7c3db11a2f57b6188422be27cae85",
+    "command": "STUDIO_REQUIRE_LOCAL_MODEL_TEST=1 STUDIO_LOCAL_TEST_MODEL_DIR=/workspace/.studio-local-model pnpm exec vitest run --config vitest.config.ts tests/local-model.test.ts tests/local-agent.test.ts --maxWorkers=1",
+    "files": 2,
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 27.64,
+    "evidence": "observed actual command stdout; no separately retained Vitest log claimed"
+  },
+  "nativeClassifierQualityAccepted": false,
+  "limits": [
+    "The full Studio Dockerfile was not built by this review.",
+    "The recorded old native predicate distribution is genuine computation but answers the synthetic blue predicate incorrectly; it is not classifier quality acceptance.",
+    "Later helper/context/recycling fixes need source-specific verification.",
+    "No hosted deployment, Gateway, paid inference, production model invocation or throughput/SLO is verified here.",
+    "RSS is the maximum of the recorded observations, not an unsampled whole-process peak."
+  ]
+}
