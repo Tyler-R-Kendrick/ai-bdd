@@ -27,9 +27,9 @@ const invoke = (
     maxRetries: 0,
   });
 describe('native T3 permission admission before work', () => {
-  it('accepts real MCP-only configuration without an unused CLI command and rejects incomplete registration', () => {
+  it('accepts owned development MCP-only registration and refuses unpriced external production models', () => {
     const env = {
-      NODE_ENV: 'production',
+      NODE_ENV: 'test',
       STUDIO_T3_MCP_URL: 'https://t3.example.invalid/mcp',
       STUDIO_T3_MCP_ACCESS_TOKEN: 'synthetic-approved-token',
       STUDIO_T3_PROJECT: '/operator/native-project',
@@ -47,6 +47,9 @@ describe('native T3 permission admission before work', () => {
       providers: [{ id: profile.provider }],
     });
     expect(integrationSettingsFromEnv(env).t3?.command).toBeUndefined();
+    expect(() =>
+      integrationSettingsFromEnv({ ...env, NODE_ENV: 'production' }),
+    ).toThrow('free-model policy');
     for (const partial of [
       { STUDIO_T3_MCP_URL: env.STUDIO_T3_MCP_URL },
       { STUDIO_T3_PROJECT: env.STUDIO_T3_PROJECT },

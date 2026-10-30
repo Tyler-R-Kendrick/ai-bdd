@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../server/app.ts';
 import { implementationPointer } from '../shared/implementation.ts';
 import { client, setup, testSettings } from './helpers.ts';
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
@@ -169,6 +170,9 @@ describe('assembled cloud domain guards', () => {
       {
         ...testSettings('/tmp/studio-decision-composition'),
         model: 'fixture/chat-model',
+        integrations: {
+          gatewayMetadataFetch: ownedFreeGatewayMetadata(['fixture/chat-model']),
+        },
       },
       {
         db: ':memory:',
@@ -527,7 +531,13 @@ describe('assembled cloud domain guards', () => {
   });
   it('exposes the selected default T3 availability and requires an explicit configured FX selection', async () => {
     const studio = await createApp(
-      { ...testSettings('/tmp/studio-profile-api'), model: 'fixture/model' },
+      {
+        ...testSettings('/tmp/studio-profile-api'),
+        model: 'fixture/model',
+        integrations: {
+          gatewayMetadataFetch: ownedFreeGatewayMetadata(['fixture/model']),
+        },
+      },
       { db: ':memory:' },
     );
     cleanup.push(() => studio.app.close());
