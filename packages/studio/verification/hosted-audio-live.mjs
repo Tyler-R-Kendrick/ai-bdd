@@ -240,53 +240,103 @@ try {
   assert.equal(readiness.ready, true);
   report.readiness = { ready: readiness.ready, services: readiness.services };
   session = await login('owner-login');
-  const suffix = randomUUID(),
-    { value: project } = await request(
-      'create-synthetic-project',
-      '/api/projects',
+  let artifact, initial;
+  if (process.env.STUDIO_HOSTED_AUDIO_RESUME_FILE) {
+    const previousBytes = await readFile(
+        process.env.STUDIO_HOSTED_AUDIO_RESUME_FILE,
+      ),
+      previous = JSON.parse(previousBytes.toString('utf8')),
+      ids = previous.resources;
+    assert.equal(previous.kind, 'model-free hosted audio durable publication');
+    for (const key of ['projectId', 'artifactId', 'jobId'])
+      assert(
+        /^[a-f0-9-]{36}$/.test(ids?.[key] ?? ''),
+        'A prior task-owned UUID is required',
+      );
+    assert(Number.isInteger(ids.artifactVersion) && ids.artifactVersion > 0);
+    const { value: bundle } = await request(
+      'resume-exact-artifact',
+      `/api/artifacts/${ids.artifactId}`,
+      { cookie: session },
+    );
+    artifact = bundle.artifact;
+    assert.equal(artifact.id, ids.artifactId);
+    assert.equal(artifact.projectId, ids.projectId);
+    assert.equal(artifact.version, ids.artifactVersion);
+    assert.equal(artifact.kind, 'audio');
+    assert.equal(artifact.title, 'Synthetic quarter-second silence');
+    assert.equal(artifact.content.duration, 0.25);
+    assert.deepEqual(artifact.content.tracks, []);
+    ({ value: initial } = await request(
+      'resume-existing-audio-job',
+      `/api/artifacts/${ids.artifactId}/audio/renders/${ids.jobId}`,
+      { cookie: session },
+    ));
+    assert.equal(initial.id, ids.jobId);
+    assert.equal(initial.format, 'wav');
+    report.resources = {
+      projectId: ids.projectId,
+      artifactId: ids.artifactId,
+      artifactVersion: ids.artifactVersion,
+      jobId: ids.jobId,
+    };
+    report.recovery = {
+      noNewEnqueue: true,
+      originalAdmissionSource: previous.deploymentSourceProvidedByOperator,
+      originalAdmissionDeployment: previous.deploymentIdProvidedByOperator,
+      originalAdmissionOrigin: previous.origin,
+      originalQueuedAt: previous.jobHistory?.[0]?.at ?? null,
+      priorTraceSha256: sha(previousBytes),
+    };
+    await persistReport();
+  } else {
+    const suffix = randomUUID(),
+      { value: project } = await request(
+        'create-synthetic-project',
+        '/api/projects',
+        {
+          method: 'POST',
+          cookie: session,
+          expected: 201,
+          body: {
+            title: 'Hosted audio release acceptance ' + suffix.slice(0, 8),
+            description:
+              'Synthetic model-free preview acceptance. No external source assets.',
+            repository: '',
+          },
+        },
+      );
+    assert(project.id);
+    report.resources.projectId = project.id;
+    await persistReport();
+    const content = {
+      schemaVersion: 1,
+      sampleRate: 48000,
+      duration: 0.25,
+      masterGainDb: 0,
+      tracks: [],
+    };
+    ({ value: artifact } = await request(
+      'create-synthetic-audio',
+      `/api/projects/${project.id}/artifacts`,
       {
         method: 'POST',
         cookie: session,
         expected: 201,
         body: {
-          title: 'Hosted audio release acceptance ' + suffix.slice(0, 8),
-          description:
-            'Synthetic model-free preview acceptance. No external source assets.',
-          repository: '',
+          kind: 'audio',
+          title: 'Synthetic quarter-second silence',
+          content,
         },
       },
-    );
-  assert(project.id);
-  report.resources.projectId = project.id;
-  await persistReport();
-  const content = {
-    schemaVersion: 1,
-    sampleRate: 48000,
-    duration: 0.25,
-    masterGainDb: 0,
-    tracks: [],
-  };
-  const { value: artifact } = await request(
-    'create-synthetic-audio',
-    `/api/projects/${project.id}/artifacts`,
-    {
-      method: 'POST',
-      cookie: session,
-      expected: 201,
-      body: {
-        kind: 'audio',
-        title: 'Synthetic quarter-second silence',
-        content,
-      },
-    },
-  );
-  assert.equal(artifact.kind, 'audio');
-  assert.equal(artifact.content.duration, 0.25);
-  report.resources.artifactId = artifact.id;
-  report.resources.artifactVersion = artifact.version;
-  await persistReport();
-  const idempotencyKey = randomUUID(),
-    { value: initial } = await request(
+    ));
+    assert.equal(artifact.kind, 'audio');
+    assert.equal(artifact.content.duration, 0.25);
+    report.resources.artifactId = artifact.id;
+    report.resources.artifactVersion = artifact.version;
+    await persistReport();
+    const idempotencyKey = randomUUID();
+    ({ value: initial } = await request(
       'enqueue-audio',
       `/api/artifacts/${artifact.id}/audio/render`,
       {
@@ -295,10 +345,11 @@ try {
         expected: 202,
         body: { version: artifact.version, format: 'wav', idempotencyKey },
       },
-    );
-  assert(initial.id);
-  report.resources.jobId = initial.id;
-  await persistReport();
+    ));
+    assert(initial.id);
+    report.resources.jobId = initial.id;
+    await persistReport();
+  }
   let job = initial;
   const deadline = Date.now() + 480000;
   let lastStatus = '',
