@@ -1,0 +1,58 @@
+{
+  "source": "46b088f4422594591adf091798888fc9c969b66a",
+  "scope": "Real Chromium component acceptance with synthetic typed endpoint fixtures; no live provider or full-App backend authority claim",
+  "stats": {
+    "startTime": "2026-10-30T03:42:17.061Z",
+    "duration": 2845.247,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "queues on an own busy device, shows actual queued state and stops with its exact epoch",
+      "expectedStatus": "passed",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 569
+        }
+      ]
+    },
+    {
+      "title": "preserves own device choice on a source conflict and excludes peer-writer controls",
+      "expectedStatus": "passed",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 525
+        }
+      ]
+    },
+    {
+      "title": "keeps mobile viewers read-only and never posts a launch or stop",
+      "expectedStatus": "passed",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 379
+        }
+      ]
+    },
+    {
+      "title": "uses the current artifact revision after incoming source updates and disables offline devices",
+      "expectedStatus": "passed",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 359
+        }
+      ]
+    }
+  ],
+  "screenshots": {
+    "desktop-queued.png": "daf8af67477c26bb24ee9bdd8c4a9e30b10b9e06bbf4d2fed307d56c6709264b",
+    "mobile-viewer.png": "76b15d50608b52ca292569862b5a3b406828169ceddc18f7b7bce06f54a42cf3"
+  }
+}
