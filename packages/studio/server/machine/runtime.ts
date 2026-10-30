@@ -20,12 +20,24 @@ export class MachineTransportError extends Error {
     super(`HTTP ${status}`);
   }
 }
-export const retryable = (error: unknown) =>
-  !(error instanceof MachineTransportError) ||
-  error.status === 408 ||
-  error.status === 425 ||
-  error.status === 429 ||
-  error.status >= 500;
+export const retryable = (error: unknown) => {
+  if (error instanceof MachineTransportError)
+    return [408, 425, 429].includes(error.status) || error.status >= 500;
+  return (
+    error instanceof TypeError ||
+    (error instanceof Error &&
+      ['TimeoutError', 'AbortError'].includes(error.name)) ||
+    [
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'ETIMEDOUT',
+      'ENETUNREACH',
+      'EHOSTUNREACH',
+      'ENOTFOUND',
+      'EAI_AGAIN',
+    ].includes(String((error as any)?.code ?? (error as any)?.cause?.code))
+  );
+};
 export const reasonCode = (error: unknown) =>
   error instanceof MachineTransportError
     ? `HTTP ${error.status}`
