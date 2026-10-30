@@ -35,6 +35,7 @@ import { documentImplementationReadiness } from '../server/document-readiness.ts
 import { testSettings } from './helpers.ts';
 import { registerDocumentReview } from '../server/document-review.ts';
 import { RemotePlanner } from '../server/integrations/remote-planner.ts';
+import { findingsExportRows } from '../server/integrations/findings-export.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
@@ -389,6 +390,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           collab,
           app,
           remote,
+          settings,
           proposal,
           requests,
           native,
@@ -608,6 +610,111 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         ).toEqual(w.proposal);
         expect(w.requests).toHaveLength(0);
       });
+      it('retains a frozen job across runtime replacement, exports attributed review history, and checks access before every export row', async () => {
+        const w = await fixture();
+        await w.agent.claimPlanner(w.user, w.id);
+        const admitted = await w.service.start(w.user, w.record.id);
+        await w.runtime.close();
+        const restarted = await createDurableJobRuntime({
+          store: w.store,
+          dispatcher: {
+            provider: 'explicit-restart-fixture',
+            publish: async () => ({ provider: 'explicit-restart-fixture' }),
+          },
+        });
+        cleanup.push(() => restarted.close());
+        const service = new FindingsReviews({
+          ...w.service.options,
+          runtime: restarted,
+        });
+        await service.initialize();
+        await restarted.executeJob(admitted.id, {
+          messageId: 'redelivered-after-restart',
+          deliveryCount: 2,
+        });
+        expect(
+          (await service.view(w.user, w.record.id)).reviews[0]?.proposal,
+        ).toEqual(w.proposal);
+        const rows = [];
+        for await (const row of findingsExportRows(w.store, w.id, async () => {
+          await w.store.artifact(w.id, w.user.id);
+        }))
+          rows.push(row);
+        expect(rows).toHaveLength(1);
+        expect(rows[0]?.value).toMatchObject({
+          requestedBy: w.user.id,
+          evidenceHash: w.record.resultHash ?? expect.any(String),
+          snapshot: { generationProfile: { harness: 'vercel-fx' } },
+        });
+        expect(JSON.stringify(rows)).toContain(report.limitations);
+        expect(JSON.stringify(rows)).not.toContain('fixture-native-key');
+        let checks = 0;
+        const interrupted = findingsExportRows(w.store, w.id, async () => {
+          if (++checks >= 3)
+            throw new HttpError(403, 'Export membership revoked');
+        });
+        await expect(interrupted.next()).rejects.toThrow('membership revoked');
+      });
+      if (adapter === 'postgres')
+        it('coalesces independent PostgreSQL instances and publishes one proposal under one shared project/source lock', async () => {
+          const w = await fixture();
+          await w.agent.claimPlanner(w.user, w.id);
+          // Reuse the exact database schema through a second actual connection pool.
+          const schema = (await w.store.one('SELECT current_schema() AS name'))
+            .name;
+          const peer = await Store.open(
+            await openDatabase({ adapter: 'postgres', url: pg!, schema }),
+          );
+          cleanup.push(() => peer.close());
+          const runtime = await createDurableJobRuntime({
+            store: peer,
+            dispatcher: {
+              provider: 'independent-findings-instance',
+              publish: async () => ({
+                provider: 'independent-findings-instance',
+              }),
+            },
+          });
+          cleanup.push(() => runtime.close());
+          const collab = new Collaboration(peer, new Auth(peer, w.settings));
+          await collab.initialize();
+          cleanup.push(() => collab.close());
+          const agent = new Agent(peer, w.settings, collab, { runtime });
+          await agent.initialize();
+          const service = new FindingsReviews({
+            ...w.service.options,
+            store: peer,
+            runtime,
+            collab,
+            models: {
+              captureProfile: (u, id) => w.models.captureProfile(u, id),
+              capabilities: (p) => w.models.capabilities(p),
+              decide: (input) => w.models.decide(input),
+            },
+            generation: {
+              captureProfile: (u, id) => agent.captureProfile(u, id),
+              modelForProfile: (p, key) => agent.modelForProfile(p, key),
+            },
+            allowed: (u, id) => agent.canParticipate(u, id),
+          });
+          await service.initialize();
+          const [first, second] = await Promise.all([
+            w.service.start(w.user, w.record.id, randomUUID(), true),
+            service.start(w.user, w.record.id, randomUUID(), true),
+          ]);
+          expect(second.id).toBe(first.id);
+          await Promise.all([
+            w.execute(first.id),
+            runtime.executeJob(second.id, {
+              messageId: 'second-instance',
+              deliveryCount: 2,
+            }),
+          ]);
+          expect(w.requests).toHaveLength(1);
+          expect(
+            (await w.service.view(w.user, w.record.id)).reviews,
+          ).toHaveLength(1);
+        });
       it.each([0.05, 0.6, 'refused', 'error'] as const)(
         'preserves native negative/abstention/refusal/error %s without generating edits or clearing requirements',
         async (answer) => {
