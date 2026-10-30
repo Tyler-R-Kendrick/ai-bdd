@@ -420,7 +420,7 @@ export function App() {
         <Spinner label="Opening your workspace…" />
       </div>
     );
-  if (user === null) return <Login onLogin={setUser} />;
+  if (user === null) return <Login />;
   const KindIcon = artifact ? kindIcons[artifact.kind] : BookOpen;
   const mediaProps = artifact
     ? { artifact, readOnly, onSave: save, onDirty: setDirty, onError: report }
@@ -1180,7 +1180,7 @@ export function App() {
           {[
             ['AI assistant', capabilities.agent],
             ['Acceptance runner', capabilities.runner],
-            ['Organization sign-in', capabilities.oidc],
+            ['GitHub sign-in', capabilities.githubSignIn],
           ].map(([name, on]) => (
             <div className="integration-row" key={String(name)}>
               <span>{name}</span>

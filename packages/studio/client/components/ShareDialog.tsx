@@ -23,14 +23,12 @@ export function ShareDialog({
   onError: (e: string) => void;
 }) {
   const [members, setMembers] = useState<any[]>([]),
-    [secret, setSecret] = useState(''),
     [busy, setBusy] = useState(false),
     [token, setToken] = useState('');
   const refresh = () => api(`/projects/${project.id}/members`).then(setMembers);
   useEffect(() => {
     if (open) {
       refresh().catch((e) => onError(e.message));
-      setSecret('');
       setToken('');
     }
   }, [open, project.id]);
@@ -74,12 +72,11 @@ export function ShareDialog({
             setBusy(true);
             try {
               const b = Object.fromEntries(new FormData(e.currentTarget));
-              const result = await api(
+              await api(
                 `/projects/${project.id}/members`,
                 'POST',
                 b,
               );
-              setSecret(result.temporaryPassword ?? '');
               await refresh();
             } catch (e) {
               onError((e as Error).message);
@@ -88,7 +85,7 @@ export function ShareDialog({
             }
           }}
         >
-          <Field label="Teammate's email">
+          <Field label="Teammate's verified GitHub email">
             <Input type="email" name="email" required />
           </Field>
           <div className="form-row">
@@ -104,16 +101,10 @@ export function ShareDialog({
             </Field>
           </div>
           <Button disabled={busy}>Add or update member</Button>
-          {secret && (
-            <div className="secret-box">
-              <strong>Temporary password</strong>
-              <code>{secret}</code>
-              <p className="small">
-                Share this password through a secure channel. No invitation
-                email was sent.
-              </p>
-            </div>
-          )}
+          <p className="small muted">
+            Members sign in with GitHub using this verified email. No
+            invitation email is sent.
+          </p>
         </form>
       )}
       <div className="settings-section">
