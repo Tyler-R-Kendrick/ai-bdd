@@ -55,7 +55,7 @@ it('bounds Unicode eligibility context to the selected native provider without m
       id: randomUUID(),
       author: 'Owner',
       role: 'user',
-      body: '境界🧪'.repeat(600),
+      body: '境界🧪\\"'.repeat(600),
       bodyHash: 'b'.repeat(64),
       truncated: false,
     })),
@@ -70,6 +70,9 @@ it('bounds Unicode eligibility context to the selected native provider without m
     encoded = conversationDecisionInput(source, 32000),
     limited = JSON.parse(encoded);
   expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(32000);
+  expect(
+    Buffer.byteLength(JSON.stringify({ input: encoded, questions: [] })),
+  ).toBeLessThanOrEqual(32000);
   expect(limited.eligibilityContext).toMatchObject({ limited: true });
   expect(limited.eligibilityContext.fullSnapshotHash).toMatch(/^[a-f0-9]{64}$/);
   expect(limited.messages.some((message: any) => message.truncated)).toBe(true);
@@ -79,7 +82,8 @@ it('bounds Unicode eligibility context to the selected native provider without m
     expect(message.bodyHash).toBe(full.bodyHash);
   }
   expect(JSON.stringify(source)).toBe(original);
-  expect(conversationDecisionInput(source, 120000)).toBe(original);
+  const small = { ...source, messages: [source.messages[0]!], decisions: [] };
+  expect(conversationDecisionInput(small, 32000)).toBe(JSON.stringify(small));
 });
 const generated = (text: string) => ({
   content: [{ type: 'text', text }],
