@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
+import { resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { constants } from 'node:fs';
+import { open } from 'node:fs/promises';
 
 export type LiveConfig = {
   origin: string;
@@ -9,7 +11,7 @@ export type LiveConfig = {
   timeoutMs: number;
   responseBytes: number;
   email?: string;
-  password?: string;
+  githubSessionsFile?: string;
   oidc?: { host: string; token: string };
 };
 type Check = {
@@ -25,6 +27,11 @@ export type LiveReport = {
   status: 'passed' | 'failed';
   counts: { passed: number; failed: number; skipped: number };
   checks: Check[];
+  identity?: {
+    provider: 'github';
+    sessionSource: 'operator-browser-export';
+    externalOAuthExchangePerformed: false;
+  };
   services?: {
     database: { reportedState: string; sqlProbeObserved: boolean };
     objects: { reportedState: string; operationsVerified: false };
@@ -89,27 +96,27 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv): LiveConfig {
     !env.STUDIO_LIVE_DEV_LOOPBACK || devLoopback,
     'invalid-loopback-gate',
   );
+  requireValue(env.STUDIO_LIVE_PASSWORD === undefined, 'password-authentication-disabled');
   const email = env.STUDIO_LIVE_EMAIL,
-    password = env.STUDIO_LIVE_PASSWORD;
+    githubSessionsFile = env.STUDIO_LIVE_GITHUB_SESSIONS_FILE;
   requireValue(
-    (email === undefined) === (password === undefined),
-    'credential-pair-required',
+    (email === undefined) === (githubSessionsFile === undefined),
+    'github-session-reference-and-email-required',
   );
-  if (email !== undefined || password !== undefined)
+  if (email !== undefined || githubSessionsFile !== undefined)
     requireValue(
       email &&
         /^\S+@\S+\.\S+$/.test(email) &&
         email.length <= 254 &&
-        password &&
-        password.length >= 16 &&
-        password.length <= 256 &&
+        githubSessionsFile && isAbsolute(githubSessionsFile) &&
+        githubSessionsFile.length <= 4096 && !/[\r\n\0]/.test(githubSessionsFile) &&
         !/[\r\n]/.test(email),
-      'invalid-live-credentials',
+      'invalid-github-session-reference',
     );
   const allowWrites = env.STUDIO_LIVE_ALLOW_WRITES === '1';
   requireValue(
-    !allowWrites || (email && password),
-    'write-gate-requires-credentials',
+    !allowWrites || (email && githubSessionsFile),
+    'write-gate-requires-github-sessions',
   );
   const token = env.STUDIO_LIVE_OIDC_TOKEN,
     host = env.STUDIO_LIVE_OIDC_HOST;
@@ -130,7 +137,7 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv): LiveConfig {
     allowWrites,
     devLoopback,
     email,
-    password,
+    githubSessionsFile,
     timeoutMs: boundedInteger(env.STUDIO_LIVE_TIMEOUT_MS, 15000, 100, 30000),
     responseBytes: boundedInteger(
       env.STUDIO_LIVE_RESPONSE_BYTES,
@@ -140,6 +147,37 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv): LiveConfig {
     ),
     ...(token && host ? { oidc: { host, token } } : {}),
   };
+}
+/**
+ * Exact-origin browser cookie exports are an operator-selected credential input.
+ * The application independently requires GitHub-issued session provenance. This
+ * loader never creates a session or treats export metadata as live OAuth proof.
+ */
+export async function readLiveGitHubSessions(path: string, origin: string): Promise<[string, string]> {
+  requireValue(isAbsolute(path), 'invalid-github-session-reference');
+  let file: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const stat = await file.stat();
+    requireValue(stat.isFile() && stat.size <= 32768 && (stat.mode & 0o077) === 0, 'private-github-session-file-required');
+    const buffer = Buffer.alloc(32769), { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+    requireValue(bytesRead <= 32768, 'github-session-file-too-large');
+    const value = object(JSON.parse(buffer.subarray(0, bytesRead).toString('utf8')));
+    requireValue(value.schemaVersion === 1 && value.provider === 'github' && value.origin === origin && Array.isArray(value.sessions) && value.sessions.length === 2, 'github-session-origin-or-provider-mismatch');
+    const host = new URL(origin).hostname, now = Date.now() / 1000;
+    const sessions = value.sessions.map((entry: unknown) => {
+      const cookie = object(entry);
+      requireValue(cookie.name === 'studio_session' && typeof cookie.value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(cookie.value) && cookie.domain === host && cookie.path === '/' && cookie.secure === true && cookie.httpOnly === true && cookie.sameSite === 'Strict' && Number.isFinite(cookie.expires) && cookie.expires > now && cookie.expires <= now + 8 * 86400, 'unsafe-github-session-cookie-export');
+      return 'studio_session=' + cookie.value;
+    });
+    requireValue(sessions[0] !== sessions[1], 'fresh-session-not-issued');
+    return sessions as [string, string];
+  } catch (error) {
+    if (error instanceof CheckFailure) throw error;
+    throw new CheckFailure('github-session-file-unavailable-or-invalid');
+  } finally {
+    await file?.close();
+  }
 }
 function securityHeaders(headers: Headers, https: boolean) {
   requireValue(
@@ -296,7 +334,7 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
     STUDIO_LIVE_TIMEOUT_MS: String(config.timeoutMs),
     STUDIO_LIVE_RESPONSE_BYTES: String(config.responseBytes),
     STUDIO_LIVE_EMAIL: config.email,
-    STUDIO_LIVE_PASSWORD: config.password,
+    STUDIO_LIVE_GITHUB_SESSIONS_FILE: config.githubSessionsFile,
     STUDIO_LIVE_OIDC_HOST: config.oidc?.host,
     STUDIO_LIVE_OIDC_TOKEN: config.oidc?.token,
   });
@@ -311,6 +349,11 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
     status: 'failed',
     counts: { passed: 0, failed: 0, skipped: 0 },
     checks,
+    ...(config.allowWrites ? { identity: {
+      provider: 'github' as const,
+      sessionSource: 'operator-browser-export' as const,
+      externalOAuthExchangePerformed: false as const,
+    } } : {}),
   };
   const overall = AbortSignal.timeout(120000);
   async function request(
@@ -522,8 +565,8 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
     requireValue(
       result.response.status === 200 &&
         body.setup === false &&
-        body.demo === false,
-      'setup-or-demo-enabled',
+        body.demo === false && body.github === true && body.password === false && body.oidc === false,
+      'github-only-authentication-required',
     );
   });
   await check('unauthenticated-api-denied', async () => {
@@ -537,8 +580,8 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
   const cookies: string[] = [];
   if (!config.allowWrites)
     for (const id of [
-      'setup-demo-route-denials',
-      'secure-owner-login',
+      'password-setup-demo-route-denials',
+      'authenticated-github-session',
       'persisted-document-fresh-session',
     ])
       checks.push({
@@ -553,7 +596,7 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
       reason: 'public-checks-must-pass-first',
     });
   else {
-    const routesSafe = await check('setup-demo-route-denials', async () => {
+    const routesSafe = await check('password-setup-demo-route-denials', async () => {
       requireValue(
         (await request('/api/auth/setup', { method: 'POST', body: {} }))
           .response.status === 403,
@@ -561,68 +604,36 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
       );
       requireValue(
         (await request('/api/auth/demo', { method: 'POST', body: {} })).response
-          .status === 404,
+          .status === 403,
         'demo-route-not-disabled',
       );
+      const password = await request('/api/auth/login', { method: 'POST', body: { email: 'disabled-password@example.test', password: 'disabled-password-proof' }, maxBytes: 65536 });
+      requireValue(password.response.status === 403 && !password.response.headers.get('set-cookie'), 'password-login-not-disabled');
     });
+    let suppliedSessions: [string, string] | undefined, nextSession = 0;
     async function login() {
-      const result = await request('/api/auth/login', {
-        method: 'POST',
-        body: { email: config.email, password: config.password },
-        maxBytes: 65536,
-      });
-      requireValue(result.response.status === 200, 'owner-login-failed');
-      const sessions = result.response.headers
-        .getSetCookie()
-        .filter((value) => value.startsWith('studio_session='));
-      requireValue(
-        sessions.length === 1,
-        'session-cookie-missing-or-ambiguous',
-      );
-      const [cookie, ...attributes] = sessions[0]!
-        .split(';')
-        .map((value) => value.trim());
-      const attrs = new Set(attributes.map((value) => value.toLowerCase()));
-      requireValue(
-        cookie && /^studio_session=[a-zA-Z0-9_-]{20,200}$/.test(cookie),
-        'unsafe-session-cookie',
-      );
-      requireValue(!cookies.includes(cookie), 'fresh-session-not-issued');
-      cookies.push(cookie);
-      requireValue(
-        attrs.has('secure') &&
-          attrs.has('httponly') &&
-          attrs.has('samesite=strict') &&
-          attrs.has('path=/') &&
-          !attributes.some((value) => /^domain=/i.test(value)),
-        'unsafe-session-cookie',
-      );
-      const user = object(result.json());
-      safeId(user.id);
-      requireValue(
-        typeof user.email === 'string' &&
-          user.email.toLowerCase() === config.email!.toLowerCase(),
-        'login-identity-mismatch',
-      );
-      requireValue(
-        result.response.headers.get('cache-control')?.includes('no-store'),
-        'login-cache-not-private',
-      );
+      if (!suppliedSessions) {
+        suppliedSessions = await readLiveGitHubSessions(config.githubSessionsFile!, config.origin);
+        cookies.push(...suppliedSessions);
+      }
+      const cookie = suppliedSessions[nextSession++];
+      requireValue(cookie, 'two-distinct-github-sessions-required');
       const me = await request('/api/me', { cookie, maxBytes: 65536 });
-      requireValue(
-        me.response.status === 200 && object(me.json()).id === user.id,
-        'session-identity-not-persisted',
-      );
+      requireValue(me.response.status === 200, 'github-session-not-authenticated');
+      const user = object(me.json());
+      safeId(user.id);
+      requireValue(typeof user.email === 'string' && user.email.toLowerCase() === config.email!.toLowerCase(), 'github-session-identity-mismatch');
+      requireValue(me.response.headers.get('cache-control')?.includes('no-store'), 'session-cache-not-private');
       return { cookie, userId: user.id as string };
     }
     let first: Awaited<ReturnType<typeof login>> | undefined;
     if (routesSafe)
-      await check('secure-owner-login', async () => {
+      await check('authenticated-github-session', async () => {
         first = await login();
       });
     else
       checks.push({
-        id: 'secure-owner-login',
+        id: 'authenticated-github-session',
         status: 'skipped',
         reason: 'disabled-setup-demo-routes-required',
       });
@@ -746,7 +757,7 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
       checks.push({
         id: 'persisted-document-fresh-session',
         status: 'skipped',
-        reason: 'secure-owner-login-required',
+        reason: 'authenticated-github-session-required',
       });
     if (cookies.length)
       await check('session-cleanup', async () => {

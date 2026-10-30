@@ -60,7 +60,7 @@ In a managed build environment using a TLS proxy, supply its public CA through a
 docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f Dockerfile.studio -t ai-bdd-studio:local .
 ```
 
-Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN`, the bootstrap owner email, and a unique bootstrap password. OIDC, model keys, and the acceptance runner are optional capabilities, configured separately. No populated secret file belongs in a commit or image.
+Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN`, the authorized first-owner `STUDIO_ADMIN_EMAIL`, and the configured GitHub sign-in adapter. The direct GitHub OAuth adapter uses `STUDIO_GITHUB_SIGNIN_CLIENT_ID` and `STUDIO_GITHUB_SIGNIN_CLIENT_SECRET` with callback `/api/auth/github/callback`. Password and generic organization OIDC login are disabled. Model integrations and the acceptance runner are separate capabilities. No populated secret file belongs in a commit or image.
 
 ```sh
 docker compose -f docker-compose.studio.yml up -d --build
@@ -88,9 +88,9 @@ The operator owns HTTPS, DNS, key storage, disk monitoring, backup retention, an
 - Editors modify artifacts, comments, ADRs, links, and run requests.
 - Viewers read the same project context without editing it.
 
-Access is project-scoped. A linked GitHub URL does not grant repository access. New password accounts receive a one-time displayed temporary password; Studio does not send invitation emails. For OIDC, configure issuer/client credentials and admit users through project membership. Use the same verified-email organization policy as the identity provider. See the [architecture notes](../../docs/studio-architecture.md) for the trust model.
+Access is project-scoped. A linked GitHub URL does not grant repository access. Admit collaborators by their verified GitHub email through project membership, then ask them to continue with GitHub. Studio issues no temporary passwords and sends no invitation email. A stable GitHub account identifier binds each admitted identity; a username or pasted repository URL is never authentication. See the [architecture notes](../../docs/studio-architecture.md) for the trust model.
 
-Changing `STUDIO_ADMIN_PASSWORD` does not reset an existing user's password. It only bootstraps a missing account. Treat API tokens as user credentials; they expire after 30 days and can be revoked from Share. Browser sessions expire after seven days.
+`STUDIO_ADMIN_PASSWORD` does not enable any authentication method. Password setup, login and changes are unavailable; historical password browser sessions are rejected. Treat API tokens as user credentials; they expire after 30 days and can be revoked from Share. Browser sessions expire after seven days.
 
 ## Test execution and live preview
 
