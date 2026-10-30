@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-30T14:41:21Z",
+  "applicationSource": "52a6c61897ebf23452dbf4365b4da6aeebd7dc65",
+  "scope": "Provisioned resources and direct live SDK probes; no hosted-application release certification.",
+  "evidenceSources": {
+    "liveProbeReports": [
+      "media-live.json",
+      "production/blob-live.json",
+      "preview/blob-live.json"
+    ],
+    "resourceMetadata": "Release operator actual CLI output and this session\u2019s completed Neon provisioning verification.",
+    "localMediaReport": "packages/studio/verification/evidence/media-container.json"
+  },
+  "vercel": {
+    "projectId": "prj_zpOn0fQVrwbRp8ZWozPiL2ER4jLa",
+    "teamId": "team_BRBUnG6uGhSsVV3EG5GFV3FM",
+    "projectName": "ai-bdd-studio",
+    "cliVersion": "65.8.0",
+    "authentication": "Official CLI device flow completed; actual resource and environment writes succeeded.",
+    "accessControlsChanged": false,
+    "canonicalProductionOrigin": "https://ai-bdd-studio.vercel.app",
+    "productionDeploymentVerified": false,
+    "repositoryVisibilityObserved": "public; no visibility change performed",
+    "canonicalAliasAcceptance": "pending production Ready and application health verification"
+  },
+  "neon": {
+    "projectId": "crimson-frog-10403185",
+    "projectName": "ai-bdd-studio",
+    "region": "aws-us-east-1",
+    "database": "studio",
+    "role": "studio_owner",
+    "pooled": true,
+    "tlsPolicy": "verify-full; application adapter enforces rejectUnauthorized:true",
+    "nativeHostedConnectionVerifiedByThisReceipt": false,
+    "production": {
+      "branchId": "br-shiny-fire-b8tn4wiv",
+      "name": "production",
+      "default": true,
+      "endpointId": "ep-royal-glade-b825vgbx",
+      "pooledHost": "ep-royal-glade-b825vgbx-pooler.c-14.us-east-1.aws.neon.tech",
+      "stateObserved": "ready",
+      "productionSchemaWritesByProvisioningTask": 0
+    },
+    "preview": {
+      "branchId": "br-little-shape-b8j8ovk8",
+      "name": "studio-preview",
+      "parentId": "br-shiny-fire-b8tn4wiv",
+      "endpointId": "ep-lingering-dust-b8fs3znp",
+      "pooledHost": "ep-lingering-dust-b8fs3znp-pooler.c-14.us-east-1.aws.neon.tech",
+      "stateObserved": "ready",
+      "minCu": 0.25,
+      "maxCu": 0.25,
+      "lifecycle": "durable preview branch; not an expiring smoke-test branch"
+    }
+  },
+  "blob": {
+    "sdkVersion": "2.8.2",
+    "region": "iad1",
+    "separateEnvironmentBindings": true,
+    "production": {
+      "storeId": "store_p68eAra1wwS7aMaW",
+      "name": "ai-bdd-studio-production",
+      "access": "private",
+      "probe": {
+        "passed": true,
+        "environment": "production",
+        "provider": "vercel-blob",
+        "verifiedAt": "2026-10-30T14:23:34.211Z",
+        "byteSize": 40,
+        "sha256": "aa462dfad10a3547785f6d11b554a81d14758ffa2bc1b32184f3cd29118e2562",
+        "checks": [
+          "private put",
+          "identical retry adoption",
+          "bounded SHA-verified read",
+          "conflicting overwrite refusal",
+          "owned probe deletion"
+        ],
+        "probeDeleted": true
+      }
+    },
+    "preview": {
+      "storeId": "store_PlAS4ZL1gsyZfvsg",
+      "name": "ai-bdd-studio-preview",
+      "access": "private",
+      "probe": {
+        "passed": true,
+        "environment": "preview",
+        "provider": "vercel-blob",
+        "verifiedAt": "2026-10-30T14:23:32.547Z",
+        "byteSize": 40,
+        "sha256": "aa462dfad10a3547785f6d11b554a81d14758ffa2bc1b32184f3cd29118e2562",
+        "checks": [
+          "private put",
+          "identical retry adoption",
+          "bounded SHA-verified read",
+          "conflicting overwrite refusal",
+          "owned probe deletion"
+        ],
+        "probeDeleted": true
+      }
+    }
+  },
+  "mediaRegistry": {
+    "repository": "studio-media",
+    "repositoryId": "repo_Yb5KxKnznVu0wlJX6V5XPD01b2tu",
+    "public": false,
+    "registry": "vcr.vercel.com/tyler-r-kendricks-projects/ai-bdd-studio/studio-media",
+    "imageId": "image_NsxoL0IdRfnJ1qqNODVMNQhKFfHA",
+    "tag": "release-92022bb",
+    "manifestDigest": "sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+    "platform": "linux/amd64",
+    "byteSize": 441397085,
+    "registryStateObserved": "Ready",
+    "runtimeImage": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689"
+  },
+  "mediaSdk": {
+    "sdkVersion": "3.9.1",
+    "probe": {
+      "schemaVersion": 1,
+      "provider": "vercel-sandbox",
+      "verifiedAt": "2026-10-30T14:01:07.601Z",
+      "runtime": {
+        "adapter": "vercel-sandbox",
+        "state": "verified",
+        "image": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+        "network": "deny-all",
+        "persistent": false,
+        "verified": true,
+        "worker": {
+          "workerVersion": "studio-media-worker-v1",
+          "files": {
+            "worker": "d1ab0829474c496e417ef6c95455e1eef50c1a1e28452f21e8e0c5fb1f10977b",
+            "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+            "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+            "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+            "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+          },
+          "versions": {
+            "node": "v24.22.2",
+            "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+            "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+            "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+          }
+        }
+      },
+      "audio": {
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "probe": {
+          "duration": 0.25,
+          "sampleRate": 48000,
+          "channels": 2,
+          "decodedBytes": 96000,
+          "codec": "pcm_s16le",
+          "format": "wav"
+        }
+      },
+      "video": {
+        "byteSize": 2196,
+        "sha256": "986bfe583b3f9b4393be1423b40289f51bc8ef99bb429e4603d6876c677f3e50"
+      },
+      "passed": true
+    },
+    "acceptanceScope": [
+      "Actual digest-pinned private-image VM runtime verification and binary hash checks.",
+      "Synthetic empty-track 0.25-second stereo WAV render and full audio probe.",
+      "Synthetic empty-clip one-second 128x96 24fps MP4 render with ftyp signature assertion."
+    ],
+    "broaderMediaRegressionClaim": false
+  },
+  "mediaSourceBinding": {
+    "retainedWorkerSource": "21f1642e7b8445029dea4e429095adfc7277c7ee",
+    "workerSha256": "d1ab0829474c496e417ef6c95455e1eef50c1a1e28452f21e8e0c5fb1f10977b",
+    "liveWorkerAndBinaryHashesMatchRetainedOciManifest": true,
+    "sourceClosureFileCount": 11,
+    "sourceClosureMatchesApplicationSource": true,
+    "sourceClosure": [
+      {
+        "path": "packages/studio/client/editors/visual/typeface.ts",
+        "sha256": "c29560b12998829e07a6bca12cf0f98d0e0b74f28082f24850a710337627661b"
+      },
+      {
+        "path": "packages/studio/server/audio-renderer.ts",
+        "sha256": "5b2dc9b8f9ad0026e3d322ec3eb5781035e170356952dea6ea6684fb8863c6ef"
+      },
+      {
+        "path": "packages/studio/server/http-error.ts",
+        "sha256": "233676a1ecbd210c45710a2cdc012edb7c5f35a4431b92e28c9188718d6e525f"
+      },
+      {
+        "path": "packages/studio/server/media/protocol.ts",
+        "sha256": "42ff9a7e217aeb96761190869819471b1c080273c5bbbf2af1a0100a8f32cc84"
+      },
+      {
+        "path": "packages/studio/server/media/worker.ts",
+        "sha256": "1c05a959337c6d7bea1b54f7976fa347649fa81b1efbf57508b5355cb3891138"
+      },
+      {
+        "path": "packages/studio/server/video-renderer.ts",
+        "sha256": "17e73f589283d11290e22e0fbeabfdab511c740d35c7f7f7d8cfef090bc3861c"
+      },
+      {
+        "path": "packages/studio/shared/audio.ts",
+        "sha256": "4b8afa76a4759bdc2e07c1212cc34fadfc4d22210558f0b8d4f4501077242020"
+      },
+      {
+        "path": "packages/studio/shared/video-appearance.ts",
+        "sha256": "7813424d580c825f1de0edeb11f12f2a6d0502761283421e5ab7da33d05d91b7"
+      },
+      {
+        "path": "packages/studio/shared/video-html.ts",
+        "sha256": "25df806338982e6863b25f5708e1e1a1cc02ff30b9618da2688894b11ac70711"
+      },
+      {
+        "path": "packages/studio/shared/video.ts",
+        "sha256": "d97c617b191255d3734aae9bc271716160c6a0f6dafe77ef7776106c3635432e"
+      },
+      {
+        "path": "packages/studio/shared/visual-design.ts",
+        "sha256": "9202ccb16e34cb9404508bd962542db9c46fe7dd053928cd56c738cdf49576a9"
+      }
+    ],
+    "lockSha256": "74f1b2abe23990f498a9acecb949ec9a57293530f23f9001525c6342c8a4b753",
+    "lockMatchesApplicationSource": true
+  },
+  "operatorNetwork": {
+    "workspaceSdkProxyRequired": true,
+    "mechanism": "Operator-only SDK network proxy preload for managed-workspace outbound calls.",
+    "proxyEndpointOrFilesystemPathsRecorded": false,
+    "applicationSourceChangedForProxy": false,
+    "sandboxWorkloadNetwork": "deny-all"
+  },
+  "configuredModels": {
+    "generativeHarness": "Explicit Vercel/fx alternative; T3 remains the default artifact harness.",
+    "gatewayDefault": "openai/gpt-5.2",
+    "fxAdditionalModels": [
+      "openai/gpt-5.4-mini",
+      "anthropic/claude-sonnet-4.6"
+    ],
+    "decisionProvider": "vercel-structured",
+    "decisionModel": "openai/gpt-5.4-mini",
+    "decisionAllowedModels": [
+      "openai/gpt-5.4-mini",
+      "openai/gpt-5.2"
+    ],
+    "decisionPickerSeparateFromGenerative": true,
+    "gatewayObservedHttpStatus": 402,
+    "inferenceVerified": false,
+    "t3Runtime": "offline until an actual trusted runtime/endpoint is registered"
+  },
+  "repositoryOAuth": {
+    "stateObserved": "disabled in production and preview",
+    "requiredTrio": [
+      "STUDIO_GITHUB_CLIENT_ID",
+      "STUDIO_GITHUB_CLIENT_SECRET",
+      "STUDIO_REPOSITORY_TOKEN_KEY"
+    ],
+    "partialEncryptionKeyRemoved": true,
+    "liveOAuthVerified": false
+  },
+  "deploymentObservation": {
+    "source": "52a6c61897ebf23452dbf4365b4da6aeebd7dc65",
+    "environment": "preview",
+    "id": "dpl_9FfYqDpLd5YQb3zKb5k3LhEcwEHx",
+    "url": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
+    "stateAtOperatorHandoff": "BUILDING",
+    "hostedApplicationVerified": false,
+    "productionDeploymentObserved": true,
+    "production": {
+      "id": "dpl_Bxr93PMmv37RAVuwgMwJ9UWAjxtj",
+      "url": "https://ai-bdd-studio-jlwl3wsph-tyler-r-kendricks-projects.vercel.app",
+      "stateAtOperatorHandoff": "BUILDING",
+      "hostedApplicationVerified": false,
+      "createdAtMinuteObserved": "2026-10-30T14:39Z"
+    }
+  },
+  "readiness": {
+    "privateBlobDirectSdk": "verified in both environments",
+    "privateVcrImageRegistration": "Ready; immutable registry manifest recorded",
+    "privateSandboxDirectSdk": "verified for the bounded synthetic probe",
+    "neonBranches": "provisioned and metadata-verified; hosted native transport not established here",
+    "hostedApplication": "not verified",
+    "queueDeliveryRecoveryAndMaintenance": "not verified",
+    "modelInference": "blocked by actual Gateway HTTP402 credit balance response",
+    "liveRepositoryOAuth": "disabled; not verified"
+  },
+  "curationActions": {
+    "readOnlyProviderActivity": true,
+    "resourceChanges": 0,
+    "credentialOrEnvironmentFilesRead": 0,
+    "secretValuesRecorded": false
+  }
+}

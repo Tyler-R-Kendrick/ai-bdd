@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "source": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentId": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "startedAt": "2026-10-30T17:43:58.370Z",
+  "kind": "actual public GitHub PR state refresh through production App",
+  "artifactId": "b5360085-4881-480f-897b-312f2f12e2d9",
+  "publicPullRequest": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25",
+  "passed": true,
+  "steps": [
+    {
+      "path": "/api/auth/login",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/artifacts/b5360085-4881-480f-897b-312f2f12e2d9",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/artifacts/b5360085-4881-480f-897b-312f2f12e2d9/links",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/artifacts/b5360085-4881-480f-897b-312f2f12e2d9",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/artifacts/b5360085-4881-480f-897b-312f2f12e2d9/links/b1002072-9ff1-47a0-91a2-378c342e0410/refresh",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/auth/login",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/artifacts/b5360085-4881-480f-897b-312f2f12e2d9",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/artifacts/b5360085-4881-480f-897b-312f2f12e2d9",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/logout",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/auth/logout",
+      "method": "POST",
+      "status": 200
+    }
+  ],
+  "modelCalls": 0,
+  "gatewayCalls": 0,
+  "repositoryOAuthConfigured": false,
+  "credentialValuesRecorded": false,
+  "linkId": "b1002072-9ff1-47a0-91a2-378c342e0410",
+  "initialState": "unknown",
+  "retainedState": "open",
+  "sessionsClosed": 2,
+  "completedAt": "2026-10-30T17:44:10.960Z"
+}

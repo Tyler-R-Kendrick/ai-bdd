@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f",
+  "gateCommits": [
+    "f6a22cb",
+    "5343bac"
+  ],
+  "scope": "Independently rebuilt normal shipping main.js and unchanged native HTTP gate, mounted on existing public Node24 OCI image; not the final full Studio image",
+  "result": {
+    "scope": "shipping-main-http-native-t3-local-cpu",
+    "checks": [
+      "non-root production main.js",
+      "default genuine native T3/OpenCode with pinned Qwen",
+      "real completed HTTP chat and native checkpoint lease release",
+      "SQLite and disk object persistence",
+      "fresh-process authenticated reply/ADR/thread read",
+      "second genuine native turn after restart",
+      "third native turn uses saved design source: blue and Start",
+      "canonical source, dedicated ADR and thread preserved",
+      "graceful SIGTERM"
+    ],
+    "passed": true
+  },
+  "process": {
+    "exitCode": 0,
+    "elapsedSeconds": 55.523
+  },
+  "constraints": {
+    "baseImageId": "sha256:9564952982df837e05d23c77e319715650fafc77b1abce39a504b920fda46a44",
+    "user": "1000:1000",
+    "networkMode": "none",
+    "readOnlyRootfs": true,
+    "memoryBytes": 2147483648,
+    "nanoCpus": 2000000000,
+    "tmpfs": {
+      "/tmp": ""
+    },
+    "capDrop": [
+      "ALL"
+    ],
+    "securityOpt": [
+      "no-new-privileges:true"
+    ],
+    "mounts": [
+      {
+        "destination": "/workspace/ai-bdd/packages/driver-playwright/node_modules",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/driver-playwright/package.json",
+        "readOnly": true
+      },
+      {
+        "destination": "/opt/studio-native-tools",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/node_modules",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/studio/node_modules",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/sdk/dist",
+        "readOnly": true
+      },
+      {
+        "destination": "/opt/studio-model",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/studio/dist/server",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/studio/dist/client",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/sdk/node_modules",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/sdk/package.json",
+        "readOnly": true
+      },
+      {
+        "destination": "/workspace/ai-bdd/packages/driver-playwright/dist",
+        "readOnly": true
+      }
+    ]
+  },
+  "artifacts": {
+    "studio-native-app-smoke.mjs": "3ab0377b53e74f688d8734583bdea87281ec354975a0d2a1ff1c7afee2566373",
+    "studio-local-decisions.mjs": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
+    "studio-local-worker.mjs": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+    "main.js": "8462fd0fb676715c0c0bba57cbaf78fce083688899743c92333f310eaa515ff0"
+  },
+  "publicLocalModel": {
+    "id": "qwen2.5-0.5b-instruct-q4-k-m",
+    "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+    "bytes": 397808192,
+    "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653"
+  },
+  "nativeTools": {
+    "t3Version": "0.1.5",
+    "t3Commit": "6d450a4284852af137b2f3407fddd89eb76e7644",
+    "openCodeVersion": "2.2.4",
+    "archiveSha256": {
+      "t3": "21d50dcc9c634221b11b58d6a94350d2c6ee36905737b054b11fa4eba295a98b",
+      "opencode": "25587c427ad9faa49ffbe3297275d0eb0a43b6f0c13255d37d75c1872696ab81"
+    },
+    "verifiedExecutables": [
+      {
+        "path": "t3/t3",
+        "bytes": 167963776,
+        "sha256": "76c5493ae5f49798fe08ac6835d0c3b596c4a40632e59365415fd2b872f3435b"
+      },
+      {
+        "path": "t3/resource-monitor/linux-x64/t3-resource-monitor",
+        "bytes": 683856,
+        "sha256": "4e4d7e5e4d7c405fba3d0074d514ef3fe54358215528d94ca15697c4471040cd"
+      },
+      {
+        "path": "opencode/bin/opencode",
+        "bytes": 252696752,
+        "sha256": "25facd7099c19018e83dce858f3ab922cd2d49ad29b144bc36968418ca6eb5aa"
+      }
+    ],
+    "mountedTree": "Complete official public installer output, including T3 libraries, dependencies, client and resource monitor; OpenCode executable"
+  },
+  "mountPolicy": {
+    "applicationSourceMounted": false,
+    "hostAuthenticationMounted": false,
+    "existingUserHomesMounted": false,
+    "providerApiKeysPassed": false,
+    "homeOverridden": false,
+    "publicDependenciesAndBuiltSdkDriverOnly": true
+  },
+  "setupFailures": [
+    {
+      "configuration": "Initial independently reconstructed tools mount contained only the three pinned binaries, omitting official T3 runtime dependencies",
+      "observed": "NativeSession.cli failed during project registration before model inference; durable job exhausted bounded retries",
+      "resolution": "Mount complete existing verified official installer output; keep unmodified main, unmodified strict gate and original tmpfs mount"
+    },
+    {
+      "hypothesis": "The default noexec /tmp mount caused the native job failure",
+      "status": "withdrawn",
+      "evidence": "A generic synthetic executable fails on noexec tmpfs, but explicit exec did not fix this native failure. The final exact gate passes with original default noexec /tmp. No product or gate mount change is warranted."
+    }
+  ],
+  "independentSourceReview": {
+    "commit": "722c0d89383fda00d802ee8f1da43c0fd2b2e02b",
+    "finding": "Complete frozen artifact/discussion source remains in the quoted background user message, followed by the frozen latest human request as a separate final user message. Existing system constraints, server tools, cancellation and durable publication fences remain applied."
+  },
+  "limits": [
+    "The full Studio Dockerfile and hosted deployment were not built or tested by this receipt.",
+    "No throughput, concurrent-user capacity, model quality beyond the three strict semantic requests, or calibrated decision accuracy is claimed.",
+    "The recorded memory setting is the enforced Docker hard limit; no unsampled peak RSS is claimed.",
+    "No Gateway, paid provider or externally hosted model call was made."
+  ]
+}

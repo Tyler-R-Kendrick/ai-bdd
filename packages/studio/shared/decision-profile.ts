@@ -7,6 +7,7 @@ const identifier = z
   .regex(/^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/);
 const instructions = z.string().trim().min(1).max(6000);
 export const decisionProviderIds = [
+  'llama-cpp-cpu',
   'openai-decisions',
   'jev',
   'vercel-structured',
@@ -127,7 +128,8 @@ export type DecisionAnswer = {
     | 'invalid-response'
     | 'cancelled'
     | 'access-revoked'
-    | 'budget-exhausted';
+    | 'budget-exhausted'
+    | 'context-overflow';
 };
 export type DecisionEvaluation = {
   id: string;
@@ -151,7 +153,15 @@ export type DecisionEvaluation = {
     minimumConfidence: number;
     configRevision: string;
     purpose: DecisionPurpose;
-    modelResolution: 'provider-reported-unresolved';
+    modelResolution: 'provider-reported-unresolved' | 'pinned-local-weights';
+    localInference?: {
+      probabilityKind: 'conditional-option-likelihood';
+      calibrated: false;
+      runtimeFingerprint: string;
+      sampledPeakRssBytes: number;
+      contextTokens: 4096;
+      inputPreserved: true;
+    };
     startedAt: string;
     finishedAt: string;
     latencyMs: number;
@@ -174,9 +184,13 @@ export type DecisionProfileView = {
     label: string;
     maxInputBytes?: number;
     maxQuestions?: number;
+    probabilityKind?: 'conditional-option-likelihood';
+    calibrated?: false;
+    contextTokens?: number;
     configured: boolean;
     reason: string | null;
     models: string[];
+    availableModels?: string[];
     mode: 'native-decision' | 'structured-generation';
   }[];
 };

@@ -1,4 +1,13 @@
+import {
+  LOCAL_MODELS,
+  localModelFingerprint,
+  localModelPresent,
+} from '../local/catalog.ts';
+import type { LocalInferenceObserver } from '../local/local-diagnostics.ts';
+import { retainLocalModel } from '../local/model.ts';
+import { localDecisionProvider } from './local.ts';
 import { createHash, randomUUID } from 'node:crypto';
+import type { IdentityExecutionContext } from '../hosting/identity-context.ts';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import type { User } from '../../shared/domain.ts';
@@ -43,14 +52,24 @@ export class DecisionModels {
   private readonly controllers = new Set<AbortController>();
   private readonly tasks = new Set<Promise<DecisionEvaluation>>();
   private closing = false;
+  private releaseLocal?: () => Promise<void>;
   constructor(
     readonly options: {
       store: Store;
       settings: DecisionSettings;
+      identityExecutionContext?: IdentityExecutionContext;
+      onLocalInferenceEvent?: LocalInferenceObserver;
       notify?: (projectId: string, artifactId: string) => Promise<void>;
     },
   ) {
     const settings = options.settings;
+    if (settings.local) {
+      this.releaseLocal = retainLocalModel(settings.local.directory);
+      this.providers.set(
+        'llama-cpp-cpu',
+        localDecisionProvider(settings.local, options.onLocalInferenceEvent),
+      );
+    }
     if (settings.openai)
       this.providers.set(
         'openai-decisions',
@@ -61,7 +80,10 @@ export class DecisionModels {
     if (settings.structured)
       this.providers.set(
         'vercel-structured',
-        structuredDecisionProvider(settings.structured),
+        structuredDecisionProvider(
+          settings.structured,
+          options.identityExecutionContext,
+        ),
       );
     this.ready = this.initialize();
     void this.ready.catch(() => {});
@@ -176,15 +198,26 @@ export class DecisionModels {
     );
     return true;
   }
-  private registration(profile: Pick<DecisionProfile, 'provider'>) {
+  private registration(profile: Pick<DecisionProfile, 'provider' | 'model'>) {
     const settings = this.options.settings;
     const config =
-      profile.provider === 'openai-decisions'
-        ? settings.openai
-        : profile.provider === 'jev'
-          ? settings.jev
-          : settings.structured;
+      profile.provider === 'llama-cpp-cpu'
+        ? undefined
+        : profile.provider === 'openai-decisions'
+          ? settings.openai
+          : profile.provider === 'jev'
+            ? settings.jev
+            : settings.structured;
     return hash({
+      ...(profile.provider === 'llama-cpp-cpu'
+        ? {
+            localRuntimeFingerprint: LOCAL_MODELS.some(
+              (item) => item.id === profile.model,
+            )
+              ? localModelFingerprint(profile.model)
+              : 'unregistered',
+          }
+        : {}),
       provider: profile.provider,
       modelCatalog: config?.models ?? [],
       baseUrl:
@@ -208,6 +241,32 @@ export class DecisionModels {
   catalog(): DecisionProfileView['providers'] {
     const settings = this.options.settings;
     return [
+      {
+        id: 'llama-cpp-cpu',
+        label: 'Local CPU · native probabilities (uncalibrated)',
+        maxInputBytes: 12000,
+        maxQuestions: 64,
+        contextTokens: 4096,
+        probabilityKind: 'conditional-option-likelihood',
+        calibrated: false,
+        configured:
+          !!settings.local &&
+          LOCAL_MODELS.some((item) =>
+            localModelPresent(settings.local, item.id),
+          ),
+        reason:
+          settings.local &&
+          LOCAL_MODELS.some((item) =>
+            localModelPresent(settings.local, item.id),
+          )
+            ? null
+            : 'The verified local model directory is not configured or its pinned weights are unavailable.',
+        models: LOCAL_MODELS.map((item) => item.id),
+        availableModels: LOCAL_MODELS.filter((item) =>
+          localModelPresent(settings.local, item.id),
+        ).map((item) => item.id),
+        mode: 'native-decision',
+      },
       {
         id: 'openai-decisions',
         maxInputBytes: 120000,
@@ -248,7 +307,12 @@ export class DecisionModels {
   }
   capabilities(profile: DecisionProfile) {
     return {
-      maxInputBytes: profile.provider === 'jev' ? 32000 : 120000,
+      maxInputBytes:
+        profile.provider === 'llama-cpp-cpu'
+          ? 12000
+          : profile.provider === 'jev'
+            ? 32000
+            : 120000,
       maxQuestions: 64,
       nativeProbabilities: profile.provider !== 'vercel-structured',
     };
@@ -472,7 +536,13 @@ export class DecisionModels {
         configRevision:
           input.profile.configRevision ?? this.registration(input.profile),
         purpose: input.purpose,
-        modelResolution: 'provider-reported-unresolved',
+        modelResolution:
+          input.profile.provider === 'llama-cpp-cpu'
+            ? 'pinned-local-weights'
+            : 'provider-reported-unresolved',
+        ...(result?.localInference
+          ? { localInference: result.localInference }
+          : {}),
         startedAt,
         finishedAt,
         latencyMs: Date.parse(finishedAt) - Date.parse(startedAt),
@@ -570,6 +640,14 @@ export class DecisionModels {
       throw new HttpError(
         503,
         registered.reason ?? 'The selected decision provider is unavailable',
+      );
+    if (
+      input.profile.provider === 'llama-cpp-cpu' &&
+      !localModelPresent(this.options.settings.local, input.profile.model)
+    )
+      throw new HttpError(
+        503,
+        'The selected local decision weights are unavailable.',
       );
     const provider = this.providers.get(input.profile.provider)!;
     const artifact = await this.store.artifact(
@@ -785,11 +863,14 @@ export class DecisionModels {
       const errorCode: DecisionAnswer['error'] | undefined = error
         ? signal.aborted
           ? 'cancelled'
-          : error instanceof z.ZodError ||
-              (error instanceof DecisionProviderError &&
-                error.code === 'invalid-response')
-            ? 'invalid-response'
-            : 'provider-error'
+          : error instanceof DecisionProviderError &&
+              error.code === 'context-overflow'
+            ? 'context-overflow'
+            : error instanceof z.ZodError ||
+                (error instanceof DecisionProviderError &&
+                  error.code === 'invalid-response')
+              ? 'invalid-response'
+              : 'provider-error'
         : undefined;
       const evaluation = this.normalize(
         row.id,
@@ -899,5 +980,8 @@ export class DecisionModels {
       controller.abort(new Error('Decision model service is shutting down'));
     await Promise.allSettled([...this.tasks]);
     await this.ready.catch(() => {});
+    const release = this.releaseLocal;
+    this.releaseLocal = undefined;
+    await release?.();
   }
 }

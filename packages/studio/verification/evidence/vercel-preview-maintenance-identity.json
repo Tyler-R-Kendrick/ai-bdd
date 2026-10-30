@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "verification": "actual protected preview container queue identity and startup recovery",
+  "sourceCommit": "26f00bd51b753079e4391812f183edad812c57b9",
+  "deploymentId": "dpl_DMY93KJJvQx8g22hTkpvPgbkPbDX",
+  "origin": "https://ai-bdd-studio-jri8s29zm-tyler-r-kendricks-projects.vercel.app",
+  "deploymentState": "READY",
+  "passed": false,
+  "health": {
+    "mode": "health",
+    "origin": "https://ai-bdd-studio-jri8s29zm-tyler-r-kendricks-projects.vercel.app",
+    "path": "/api/health",
+    "startedAt": "2026-10-30T15:20:22.755Z",
+    "finishedAt": "2026-10-30T15:20:28.176Z",
+    "status": 500,
+    "contentType": "text/plain",
+    "vercelError": "FUNCTION_INVOCATION_FAILED",
+    "redirectPresent": false,
+    "capturedBodyBytes": 96,
+    "capturedBodySha256": "793cbc7544aaa5e5a33417b8395056c00cd6a22a3e594e1766116925574580ff",
+    "allowlisted": {},
+    "protection": {
+      "transport": "exact-origin trusted OIDC header",
+      "redirects": "manual",
+      "accessControlMutated": false,
+      "shareLinkCreated": false
+    }
+  },
+  "providerFailureObservations": [
+    {
+      "observedAt": "2026-10-30T15:20:27.959Z",
+      "event": "studio_provider_dispatch_failed",
+      "provider": "vercel-queue",
+      "operation": "job-publish",
+      "errorClass": "Error",
+      "status": null,
+      "code": null,
+      "tokenEnvPresent": false,
+      "tokenFileEnvPresent": false,
+      "contextAvailable": false
+    },
+    {
+      "observedAt": "2026-10-30T15:20:27.983Z",
+      "event": "studio_provider_dispatch_failed",
+      "provider": "vercel-queue",
+      "operation": "job-publish",
+      "errorClass": "Error",
+      "status": null,
+      "code": null,
+      "tokenEnvPresent": false,
+      "tokenFileEnvPresent": false,
+      "contextAvailable": false
+    }
+  ],
+  "projectConfigurationObservation": {
+    "projectId": "prj_zpOn0fQVrwbRp8ZWozPiL2ER4jLa",
+    "oidcEnabled": true,
+    "issuerMode": "team",
+    "operation": "authenticated project metadata GET; allowlisted fields only"
+  },
+  "startupCallChain": [
+    "DurableJobCoordinator.flushOutbox",
+    "DurableJobCoordinator.recover",
+    "createApp",
+    "createHostingApplication"
+  ],
+  "durableJobObservation": {
+    "observedAt": "2026-10-30T15:21:27.381Z",
+    "jobId": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+    "kind": "audio.render",
+    "status": "queued",
+    "workerAttempts": 0,
+    "fence": 0,
+    "dispatchIntents": [
+      {
+        "id": "5017f6dc-9d69-492f-9d4f-0e7a5b093f6c",
+        "status": "pending",
+        "attempts": 2,
+        "receiptPresent": false
+      },
+      {
+        "id": "ade06e51-df59-4f3a-807c-e8c0474f1c6c",
+        "status": "pending",
+        "attempts": 1,
+        "receiptPresent": false
+      }
+    ]
+  },
+  "classification": [
+    "The SDK-compatible container credential sources were all absent despite project OIDC being enabled.",
+    "The pending outbox publication failure propagated through startup recovery and prevented backend health."
+  ],
+  "safety": {
+    "bootstrapAttempted": false,
+    "directSqlWrites": false,
+    "deploymentProtectionChanged": false,
+    "shareLinkCreated": false,
+    "credentialsRecorded": false,
+    "providerMessagesOrBodiesRecorded": false,
+    "tokenFilePathsRecorded": false,
+    "sandboxVMsCreatedByThisVerification": 0
+  },
+  "limits": [
+    "No successful queue publication, worker execution, completed maintenance tick, or successor is established by this failure receipt.",
+    "The booleans measure SDK context and environment availability; raw incoming platform headers were not inspected."
+  ]
+}

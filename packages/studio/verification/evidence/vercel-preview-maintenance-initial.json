@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "verification": "historical actual protected preview maintenance attempts before queue auth resolution",
+  "passed": false,
+  "state": "queue-publication-failure-under-investigation",
+  "initialFailure": {
+    "sourceCommit": "52a6c61897ebf23452dbf4365b4da6aeebd7dc65",
+    "deploymentId": "dpl_9FfYqDpLd5YQb3zKb5k3LhEcwEHx",
+    "requests": [
+      {
+        "mode": "health",
+        "origin": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
+        "path": "/api/health",
+        "startedAt": "2026-10-30T14:43:52.213Z",
+        "finishedAt": "2026-10-30T14:43:54.076Z",
+        "status": 200,
+        "contentType": "application/json",
+        "vercelError": null,
+        "redirectPresent": false,
+        "capturedBodyBytes": 11,
+        "capturedBodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+        "allowlisted": {
+          "ok": true
+        },
+        "protection": {
+          "transport": "exact-origin trusted OIDC header",
+          "redirects": "manual",
+          "accessControlMutated": false,
+          "shareLinkCreated": false
+        }
+      },
+      {
+        "mode": "bootstrap",
+        "origin": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
+        "path": "/api/studio-maintenance-bootstrap",
+        "startedAt": "2026-10-30T14:44:01.187Z",
+        "finishedAt": "2026-10-30T14:44:01.594Z",
+        "status": 404,
+        "contentType": "text/plain",
+        "vercelError": "NOT_FOUND",
+        "redirectPresent": false,
+        "capturedBodyBytes": 79,
+        "capturedBodySha256": "8814267561fd05e9474c1c155234bafa235045792d1424eeb87ac1606c619bd1",
+        "allowlisted": {},
+        "protection": {
+          "transport": "exact-origin trusted OIDC header",
+          "redirects": "manual",
+          "accessControlMutated": false,
+          "shareLinkCreated": false
+        }
+      },
+      {
+        "mode": "readiness",
+        "origin": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
+        "path": "/api/hosting/readiness",
+        "startedAt": "2026-10-30T14:50:22.755Z",
+        "finishedAt": "2026-10-30T14:50:27.333Z",
+        "status": 200,
+        "contentType": "application/json",
+        "vercelError": null,
+        "redirectPresent": false,
+        "capturedBodyBytes": 569,
+        "capturedBodySha256": "c1259f70f3ba787fb330eafed95d749835bd77d84e4c6948b7ffe45328c07873",
+        "allowlisted": {
+          "ready": true,
+          "draining": false
+        },
+        "protection": {
+          "transport": "exact-origin trusted OIDC header",
+          "redirects": "manual",
+          "accessControlMutated": false,
+          "shareLinkCreated": false
+        }
+      }
+    ],
+    "database": {
+      "project": "crimson-frog-10403185",
+      "branch": "br-little-shape-b8j8ovk8",
+      "database": "studio",
+      "observedAt": "2026-10-30T14:50:22.541Z",
+      "scheduleCount": 0,
+      "tickCount": 0,
+      "completedTickCount": 0
+    },
+    "classification": "Static frontend service did not produce the configured native API functions; bootstrap returned platform NOT_FOUND before activation."
+  },
+  "correction": {
+    "configCommit": "24b8552cabcc1882459e3a16f2f9d34579447cc5",
+    "buildCommandCommit": "7726c1754f8c668d2a8491d04024564bc2d94b0d",
+    "localResolverVersion": "65.8.0",
+    "oldNativeBuilders": 0,
+    "newNativeBuilders": 3,
+    "focusedChecksPassed": 12,
+    "actualHostedDeliveryVerified": false
+  },
+  "safety": {
+    "credentialsRecorded": false,
+    "authorizationHeadersRecorded": false,
+    "shareLinkCreated": false,
+    "deploymentProtectionChanged": false,
+    "bootstrapCalls": 2,
+    "sandboxVMsCreatedByVerification": 0,
+    "directDatabaseWritesByVerification": false
+  },
+  "limits": [
+    "Health and readiness verify backend startup and SQL reachability; they do not verify queue delivery or media execution.",
+    "A successful bootstrap response alone is dispatch admission; actual completion and successor must be observed in durable SQL.",
+    "This historical failure receipt does not establish successful queue delivery; a later exact deployment requires its own completed-tick and successor evidence."
+  ],
+  "failedCorrectionBuild": {
+    "sourceCommit": "fb004a7a4c8e4b5c0b6476facc1e50e3101230f8",
+    "deploymentId": "dpl_5c3QTjtfCBKwJLGf5RnLdJGauJ2k",
+    "origin": "https://ai-bdd-studio-pz6vvtw6l-tyler-r-kendricks-projects.vercel.app",
+    "state": "ERROR",
+    "buildErrorClass": "BUILD_UTILS_SPAWN_2",
+    "buildCommand": "pnpm run build",
+    "exitCode": 2,
+    "classification": "The native Node builder defaulted to the Studio package build, whose workspace SDK declarations are not prebuilt in deployment source.",
+    "bootstrapAttempted": false,
+    "correctedBy": "7726c1754f8c668d2a8491d04024564bc2d94b0d",
+    "buildFailedAt": "2026-10-30T14:54:43.547Z"
+  },
+  "runtimeCorrectionAttempt": {
+    "sourceCommit": "d7ae73326569124f339f7a550ff302f27aabe338",
+    "deploymentId": "dpl_7ZcnRAUFSk4KwrH3hzbb8AZngPMn",
+    "origin": "https://ai-bdd-studio-5voy3de1l-tyler-r-kendricks-projects.vercel.app",
+    "state": "READY",
+    "requests": [
+      {
+        "mode": "health",
+        "origin": "https://ai-bdd-studio-5voy3de1l-tyler-r-kendricks-projects.vercel.app",
+        "path": "/api/health",
+        "startedAt": "2026-10-30T15:01:11.106Z",
+        "finishedAt": "2026-10-30T15:01:21.188Z",
+        "status": 200,
+        "contentType": "application/json",
+        "vercelError": null,
+        "redirectPresent": false,
+        "capturedBodyBytes": 11,
+        "capturedBodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+        "allowlisted": {
+          "ok": true
+        },
+        "protection": {
+          "transport": "exact-origin trusted OIDC header",
+          "redirects": "manual",
+          "accessControlMutated": false,
+          "shareLinkCreated": false
+        }
+      },
+      {
+        "mode": "bootstrap",
+        "origin": "https://ai-bdd-studio-5voy3de1l-tyler-r-kendricks-projects.vercel.app",
+        "path": "/api/studio-maintenance-bootstrap",
+        "startedAt": "2026-10-30T15:01:27.904Z",
+        "finishedAt": "2026-10-30T15:01:29.733Z",
+        "status": 500,
+        "contentType": null,
+        "vercelError": null,
+        "redirectPresent": false,
+        "capturedBodyBytes": 21,
+        "capturedBodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+        "allowlisted": {},
+        "protection": {
+          "transport": "exact-origin trusted OIDC header",
+          "redirects": "manual",
+          "accessControlMutated": false,
+          "shareLinkCreated": false
+        }
+      }
+    ],
+    "schedulerObservation": {
+      "observedAt": "2026-10-30T15:02:07.390Z",
+      "deploymentId": "dpl_7ZcnRAUFSk4KwrH3hzbb8AZngPMn",
+      "generation": "9633821a-095d-4341-83b1-ead73506220e",
+      "tickId": "53626cfe-e600-4ce2-9c68-812a57952a0a",
+      "bucket": 29889541,
+      "status": "pending",
+      "dispatched": 0,
+      "leaseUntil": 0
+    },
+    "classification": "Native bootstrap and signed private backend activation executed; schedule intent persisted, but queue publication failed before a dispatch receipt.",
+    "failureStackClasses": [
+      "Internal durable operation failed with status 500",
+      "Maintenance dispatch is temporarily unavailable."
+    ],
+    "finiteDiagnosticCommit": "d2e916b092021e7ddfce2006775f668669f0641c"
+  }
+}

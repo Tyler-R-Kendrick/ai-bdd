@@ -1,3 +1,4 @@
+import { DEFAULT_LOCAL_MODEL_ID } from '../local/catalog.ts';
 import { z } from 'zod';
 import {
   decisionProfileSchema,
@@ -15,13 +16,15 @@ export function decisionSettingsFromEnv(
   const structuredModels = modelList.parse(
     JSON.parse(env.STUDIO_DECISION_SDK_MODELS_JSON ?? '[]'),
   );
-  const provider = env.STUDIO_DECISION_PROVIDER ?? 'openai-decisions';
+  const provider = env.STUDIO_DECISION_PROVIDER ?? 'llama-cpp-cpu';
   const defaultModel =
-    provider === 'jev'
-      ? 'jev-latest'
-      : provider === 'vercel-structured'
-        ? (structuredModels[0] ?? 'unconfigured')
-        : 'gpt-6-luna';
+    provider === 'llama-cpp-cpu'
+      ? DEFAULT_LOCAL_MODEL_ID
+      : provider === 'jev'
+        ? 'jev-latest'
+        : provider === 'vercel-structured'
+          ? (structuredModels[0] ?? 'unconfigured')
+          : 'gpt-6-luna';
   const defaultProfile: DecisionProfile = decisionProfileSchema.parse({
     provider,
     model: env.STUDIO_DECISION_MODEL ?? defaultModel,
@@ -57,6 +60,9 @@ export function decisionSettingsFromEnv(
         200,
       ),
     },
+    ...(env.STUDIO_LOCAL_MODEL_DIR
+      ? { local: { directory: env.STUDIO_LOCAL_MODEL_DIR } }
+      : {}),
     configRevision: env.STUDIO_DECISION_CONFIG_REVISION ?? 'v1',
     production,
     timeoutMs,

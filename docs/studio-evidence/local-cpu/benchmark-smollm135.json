@@ -1,0 +1,59 @@
+{
+  "file": "SmolLM2-135M-Instruct-Q4_K_M.gguf",
+  "loadMs": 178,
+  "maxRss": 456249344,
+  "cases": [
+    {
+      "id": "design-explanation",
+      "ms": 211,
+      "valid": true,
+      "semanticMatch": false,
+      "output": "The UI developer should build a blue button that starts the home page by displaying a blue button icon."
+    },
+    {
+      "id": "title-goal",
+      "ms": 415,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\n    \"title\": \"Accessible Color Picker\",\n    \"goal\": \"Provide a color picker with a keyboard-operable palette.\"\n}"
+    },
+    {
+      "id": "render-ui",
+      "ms": 534,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\n    \"type\": \"button\",\n    \"text\": \"Save changes\",\n    \"ariaLabel\": \"Save changes\"\n}"
+    },
+    {
+      "id": "read-only-tool-selection",
+      "ms": 488,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\n    \"name\": \"repository_file\",\n    \"path\": \"src/main.ts\"\n}"
+    },
+    {
+      "id": "decision-human-approval",
+      "ms": 264,
+      "valid": true,
+      "semanticMatch": false,
+      "output": "{\n    \"allowed\": true\n}"
+    }
+  ],
+  "provenance": {
+    "repository": "bartowski/SmolLM2-135M-Instruct-GGUF",
+    "revision": "09816acd5d99df7be770d85ea30822623dab342c",
+    "bytes": 105454432,
+    "sha256": "2e8040ceae7815abe0dcb3540b9995eaa1fa0d2ca9e797d0a635ae4433c68c2d",
+    "license": "Apache-2.0"
+  },
+  "runtime": {
+    "package": "node-llama-cpp@3.22.2",
+    "llamaCppRelease": "v0.7.0",
+    "device": "cpu",
+    "contextSize": 4096,
+    "threads": 2,
+    "temperature": 0,
+    "maxOutputTokens": 256
+  },
+  "scope": "five synthetic local-host inference samples; not a general accuracy or deployed latency benchmark"
+}

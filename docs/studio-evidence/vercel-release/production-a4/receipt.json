@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "verification": "actual production platform acceptance and autonomous maintenance",
+  "sourceCommit": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deployment": {
+    "id": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+    "target": "production",
+    "readyState": "READY",
+    "gitSource": {
+      "ref": "codex/studio-12-vercel-release",
+      "repoId": 1412029937,
+      "sha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+      "type": "github",
+      "prId": null
+    },
+    "aliases": [
+      "ai-bdd-studio.vercel.app",
+      "ai-bdd-studio-tyler-r-kendricks-projects.vercel.app",
+      "ai-bdd-studio-git-codex-studi-37dbb5-tyler-r-kendricks-projects.vercel.app"
+    ]
+  },
+  "sourceBinding": "Official Vercel deployment API metadata; not application runtime attestation",
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "readonly": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "elapsedMs": 4735,
+      "execution": "configured",
+      "body": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/api/hosting/readiness",
+      "status": 200,
+      "elapsedMs": 1060,
+      "execution": null,
+      "body": {
+        "ready": true,
+        "draining": false,
+        "provider": "vercel",
+        "database": "postgres",
+        "objects": "vercel-blob",
+        "jobs": "vercel-queue",
+        "ephemeralStaging": true,
+        "region": "iad1",
+        "services": {
+          "database": {
+            "state": "verified",
+            "verifiedAt": "2026-10-30T16:54:58.321Z"
+          },
+          "objects": {
+            "state": "configured"
+          },
+          "identity": {
+            "adapter": "private-native-function",
+            "state": "configured",
+            "verified": false
+          },
+          "media": {
+            "adapter": "vercel-sandbox",
+            "state": "configured",
+            "image": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+            "network": "deny-all",
+            "persistent": false,
+            "verified": false
+          },
+          "jobs": {
+            "state": "configured",
+            "verified": false,
+            "semantics": "at-least-once; fenced SQL publication"
+          }
+        }
+      }
+    }
+  ],
+  "platform": {
+    "sourceCommit": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+    "deploymentId": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+    "startedAt": "2026-10-30T16:55:32.793Z",
+    "finishedAt": "2026-10-30T16:55:50.738Z",
+    "schemaVersion": 1,
+    "target": "https://ai-bdd-studio.vercel.app",
+    "mode": "hosted-https",
+    "scope": "authenticated-persistence",
+    "status": "passed",
+    "counts": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "checks": [
+      {
+        "id": "root-spa",
+        "status": "passed"
+      },
+      {
+        "id": "spa-assets",
+        "status": "passed"
+      },
+      {
+        "id": "health",
+        "status": "passed"
+      },
+      {
+        "id": "vercel-sql-readiness",
+        "status": "passed"
+      },
+      {
+        "id": "setup-disabled-demo-off",
+        "status": "passed"
+      },
+      {
+        "id": "unauthenticated-api-denied",
+        "status": "passed"
+      },
+      {
+        "id": "setup-demo-route-denials",
+        "status": "passed"
+      },
+      {
+        "id": "secure-owner-login",
+        "status": "passed"
+      },
+      {
+        "id": "persisted-document-fresh-session",
+        "status": "passed"
+      },
+      {
+        "id": "session-cleanup",
+        "status": "passed"
+      }
+    ],
+    "services": {
+      "database": {
+        "reportedState": "verified",
+        "sqlProbeObserved": true
+      },
+      "objects": {
+        "reportedState": "configured",
+        "operationsVerified": false
+      },
+      "jobs": {
+        "reportedState": "configured",
+        "deliveryVerified": false
+      },
+      "media": {
+        "reportedState": "configured",
+        "executionVerified": false
+      }
+    },
+    "synthetic": {
+      "projectId": "f4693306-329c-41f9-8162-f007f970ea7a",
+      "artifactId": "b5360085-4881-480f-897b-312f2f12e2d9",
+      "retained": true
+    }
+  },
+  "maintenance": {
+    "bootstrap": {
+      "startedAt": "2026-10-30T16:56:03.985Z",
+      "finishedAt": "2026-10-30T16:56:07.454Z",
+      "origin": "https://ai-bdd-studio.vercel.app",
+      "path": "/api/studio-maintenance-bootstrap",
+      "method": "GET",
+      "status": 200,
+      "redirectPresent": false,
+      "accepted": true,
+      "bootstrapCallsForThisDeployment": 1
+    },
+    "database": {
+      "project": "crimson-frog-10403185",
+      "branch": "br-shiny-fire-b8tn4wiv",
+      "database": "studio",
+      "queries": "SELECT only"
+    },
+    "observationsReceipt": "maintenance.json",
+    "completedTickIdentities": 2,
+    "dispatchedSuccessorPresent": true
+  },
+  "limits": {
+    "modelCalls": 0,
+    "gatewayCalls": 0,
+    "mediaJobsCreated": 0,
+    "deploymentWrites": 0,
+    "environmentWrites": 0,
+    "providerSuccessNotInferredFromConfiguredReadiness": true,
+    "restartExercised": false,
+    "capacityOrSloVerified": false
+  }
+}

@@ -6,6 +6,7 @@ import { mkdtemp, writeFile, readFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { observeCompletion } from './observe-completion.mjs';
 const execute = promisify(execFile),
   image = process.env.STUDIO_MEDIA_TEST_IMAGE ?? 'ai-bdd-studio-media:review',
   reportPath = process.env.STUDIO_MEDIA_TEST_REPORT;
@@ -122,10 +123,16 @@ async function run(payload, assets = [], options = {}) {
     assert.equal(inspection.HostConfig.ReadonlyRootfs, true);
     assert.deepEqual(inspection.HostConfig.CapDrop, ['ALL']);
     const completion = docker(['start', '--attach', name]);
+    // docker start can reject before the separate kill command resolves. Observe
+    // it now so Node does not terminate on an expected cancellation rejection.
+    const cancelled = options.cancel ? observeCompletion(completion) : undefined;
     if (options.cancel) {
       await new Promise((resolve) => setTimeout(resolve, 700));
       await docker(['kill', name]);
-      await assert.rejects(completion);
+      const outcome = await cancelled;
+      assert.equal(outcome.ok, false);
+      assert.equal(outcome.error.code, 137);
+      await assert.rejects(readFile(join(directory, 'result.json')));
       checks.push('cancel kills actual worker container before publication');
       return;
     }

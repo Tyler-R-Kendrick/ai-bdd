@@ -1,0 +1,19 @@
+# Local-model preview: retained failed admission
+
+The official Ready preview `dpl_GNaAqe3D4yTw65oBHD6dfGjgwiuD` ran source `af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f` at `https://ai-bdd-studio-4pxdjtzly-tyler-r-kendricks-projects.vercel.app`. This receipt records a real failure, not successful hosted inference or production readiness.
+
+The guarded protocol verified application health/readiness, owner login, default native T3 Code with the pinned local Qwen model, the explicit CPU alternative, and an independent local decision profile before admitting any model work. It saved the synthetic design source, retained one human arithmetic question, and proved the decision threshold could change to 0.71 and reload independently of chat before restoring 0.7.
+
+Exactly one chat admission was made. Its request/job IDs were persisted before polling. The durable worker attempted that job three times, then failed at `2026-10-30T18:12:31.066Z`. Both the durable and agent rows retained the static message `The bounded durable retry limit was reached`; its SHA-256 appears in `http-failed.json`. That generic message does not identify the original exception. No assistant answer, design-review inference, extra source-facts request, or screenshot success is claimed. The one owned verification session was logged out.
+
+Read-only SQL limited to this synthetic artifact/project found one native state row, generation three, a released lease, and no checkpoint pointer. The native implementation writes its first checkpoint before model inference, so these observations locate the failure before that checkpoint; they do not distinguish native startup from checkpoint upload. No auth rows, private object keys, tokens, native enrollment URLs, or credential values are recorded.
+
+The native acceptance protocol stopped without cancelling, replacing, or resubmitting its failed job. A corrected source must be reviewed and deployed before that native acceptance is repeated. Original results remain available for comparison with any later passing receipt. No AI Gateway or paid provider was configured as an available model in the accepted catalogs.
+
+## Separately selected CPU and decision diagnostics
+
+The release lead separately authorized one CPU chat and one decision review to distinguish native T3 startup from the shared local inference path. A **new document** in the same synthetic project retained its own ADR and discussion thread. Its saved source was `The page has a blue button labelled Start. A human must approve agent proposals.` The human question requested the color and label without supplying the answers. Only this new document explicitly selected `local-cpu / llama-cpp-cpu / qwen2.5-0.5b-instruct-q4-k-m`; the original failed native artifact's T3 profile remained unchanged and was rechecked through a fresh owner session. This was an explicit separate selection, never an automatic fallback.
+
+The one CPU chat admission also failed after three approximately 45-second attempts, with no retained assistant answer. The independently admitted decision-review **job wrapper completed**, but its actual evaluation was `cancelled` after 29,937 ms: all five answers had `error` status and null values, with no native inference fingerprint, RSS, token usage, or option-likelihood vectors. `decision-cancelled.json` retains that actual result. A completed wrapper is not successful inference, and these error/null answers are not semantic abstentions.
+
+`explicit-cpu-diagnostic-failed.json` retains both request/job identities, the two independent admissions, fresh-session source/ADR/thread/profile persistence, application-level anonymous 401 denial, and cleanup of both owned sessions. No extra model job, source edit, screenshot, successful local inference, or accuracy claim is implied. These observations show the hosted failure also affects the direct CPU path; its underlying cause remains to be fixed and verified on a reviewed deployment.

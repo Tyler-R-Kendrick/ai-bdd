@@ -44,6 +44,20 @@ jobs:
           node-version: 24.x
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Cache the immutable local CPU model
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/studio-local-model
+          key: studio-cpu-${{ runner.os }}-${{ hashFiles('packages/studio/server/local/model-manifest.json') }}
+      - name: Verify or download the SHA-pinned local model
+        run: node packages/studio/scripts/download-local-model.mjs "$RUNNER_TEMP/studio-local-model"
+      - name: Cache the immutable native T3 and OpenCode executables
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/studio-native-tools
+          key: studio-native-${{ runner.os }}-${{ hashFiles('packages/studio/server/local/native-t3-tools.json') }}
+      - name: Verify or install the SHA-pinned native T3 tools
+        run: node packages/studio/scripts/install-native-t3-tools.mjs "$RUNNER_TEMP/studio-native-tools"
       - name: Build existing engine packages and Studio
         run: pnpm build
       - name: Studio typecheck
@@ -67,11 +81,22 @@ jobs:
           } finally { await pool.end(); }
           JS
       - name: API, mandatory PostgreSQL multi-instance/recovery, collaboration, Pact, MCP, and verifier tests
+        env:
+          STUDIO_LOCAL_TEST_MODEL_DIR: ${{ runner.temp }}/studio-local-model
+          STUDIO_REQUIRE_LOCAL_MODEL_TEST: '1'
+          STUDIO_TEST_T3_BINARY: ${{ runner.temp }}/studio-native-tools/t3/t3
+          STUDIO_TEST_OPENCODE_BINARY: ${{ runner.temp }}/studio-native-tools/opencode/bin/opencode
+          STUDIO_LOCAL_ADAPTER_MODULE: ${{ github.workspace }}/packages/studio/server/local/model.ts
         run: pnpm --filter @ai-bdd/studio test
       - name: Exact shell allocation and role policy verification
         run: pnpm --filter @ai-bdd/studio verify
       - name: Browser acceptance
         run: pnpm --filter @ai-bdd/studio test:e2e
+      - name: Real local CPU picker, persisted chat and decision receipt browser acceptance
+        env:
+          STUDIO_LOCAL_TEST_MODEL_DIR: ${{ runner.temp }}/studio-local-model
+          STUDIO_REQUIRE_LOCAL_MODEL_TEST: '1'
+        run: pnpm --filter @ai-bdd/studio exec playwright test --config playwright.local-cpu.config.ts
       - name: Preserve failed traces and screenshots
         if: failure()
         uses: actions/upload-artifact@v4
@@ -85,7 +110,6 @@ jobs:
           retention-days: 14
 
   image:
-    needs: studio
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

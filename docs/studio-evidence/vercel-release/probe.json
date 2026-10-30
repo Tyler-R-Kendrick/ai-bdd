@@ -1,0 +1,148 @@
+{
+  "source": "52a6c61897ebf23452dbf4365b4da6aeebd7dc65",
+  "environment": "production",
+  "capturesOnly": true,
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "entryPath": "/index.html",
+  "rootBoundary": "GET / returns Vercel NOT_FOUND404 on current deployed source; explicit /index.html used for this capture",
+  "startedAt": "2026-10-30T15:03:29.856Z",
+  "browser": "Chromium system binary",
+  "pageErrors": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 ()"
+  ],
+  "httpErrors": [
+    {
+      "origin": "https://ai-bdd-studio.vercel.app",
+      "path": "/api/me",
+      "status": 401
+    }
+  ],
+  "requestFailures": [],
+  "externalRequests": [],
+  "webSockets": [
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "socketErrors": [],
+      "closed": false
+    }
+  ],
+  "webSocketHandshakes": [
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "status": 101
+    }
+  ],
+  "routeFailures": [],
+  "checks": [
+    "Real UI owner sign-in",
+    "Reopened prior UI-created production acceptance project",
+    "Verified main design document of prior UI-created production project",
+    "Reload restored edited document, team chat, anchored discussion, and dedicated ADR",
+    "Desktop capture waits for the real persisted anchored comment message",
+    "390px mobile document remains usable without horizontal page overflow after the navigation transition settles",
+    "Mobile artifact panel exposes persisted discussion UI"
+  ],
+  "hosting": {
+    "ready": true,
+    "provider": "vercel",
+    "database": "postgres",
+    "objects": "vercel-blob",
+    "jobs": "vercel-queue",
+    "databaseState": "verified",
+    "objectsState": "configured",
+    "jobsState": "configured",
+    "mediaState": "configured",
+    "mediaVerified": false
+  },
+  "projectId": "ea75ddea-717c-4273-ba94-4dc2ad47af8b",
+  "artifactId": "62842027-5680-442b-9889-ee842779bfc4",
+  "mobile": {
+    "viewport": 390,
+    "document": 390
+  },
+  "finalArtifactVersion": 15,
+  "aiRequested": false,
+  "liveModelOrRendererVerified": false,
+  "finishedAt": "2026-10-30T15:03:50.537Z",
+  "ownSessionLogoutStatus": 200,
+  "captureReview": {
+    "reviewed": true,
+    "notes": "Images inspected individually; persisted comment visible; no loading composer; mobile navigation fully offscreen before document capture.",
+    "screenshots": [
+      {
+        "file": "desktop.png",
+        "width": 1600,
+        "height": 1000,
+        "bytes": 167786,
+        "sha256": "88899d50bda25fcd75191acded75a75d74bad2cbcd8c2eea1026ba688e306d33"
+      },
+      {
+        "file": "mobile.png",
+        "width": 390,
+        "height": 844,
+        "bytes": 63994,
+        "sha256": "490156650b6fd439b4c7a6e946526bb5ad17cb26833673652eec2d37a1d5da4f"
+      },
+      {
+        "file": "mobile-chat.png",
+        "width": 390,
+        "height": 844,
+        "bytes": 37597,
+        "sha256": "4fc2927fd0a65e6e082128fca8cddf3e3f4ed828362444f316541f9aedae206e"
+      }
+    ]
+  }
+}

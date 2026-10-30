@@ -22,6 +22,11 @@ import {
 } from '../media/vercel-sandbox.ts';
 import { CachedAudioSourceProbe } from '../media/probe-cache.ts';
 import { decisionSettingsFromEnv } from '../decisions/settings.ts';
+import {
+  identityScopeFromEnv,
+  PrivateIdentityLeaseClient,
+} from './identity-lease.ts';
+import { NativeIdentityExecutionContext } from './native-identity-context.ts';
 /** The provider selection exists only here. Domain services receive replaceable ports. */
 export async function createHostingApplication(
   env: NodeJS.ProcessEnv,
@@ -32,6 +37,19 @@ export async function createHostingApplication(
   } = {},
 ) {
   const config = hostingConfigFromEnv(env);
+  const identityClient =
+    config.provider === 'vercel' && env.STUDIO_IDENTITY_URL
+      ? new PrivateIdentityLeaseClient({
+          bindingUrl: env.STUDIO_IDENTITY_URL,
+          secret: env.STUDIO_JOB_SECRET ?? '',
+          scope: identityScopeFromEnv(env),
+        })
+      : undefined;
+  const identityExecutionContext = identityClient
+    ? new NativeIdentityExecutionContext({
+        acquire: () => identityClient.acquire(),
+      })
+    : undefined;
   if (
     env.STUDIO_MEDIA_RUNTIME &&
     !['local-cpu', 'vercel-sandbox'].includes(env.STUDIO_MEDIA_RUNTIME)
@@ -51,6 +69,7 @@ export async function createHostingApplication(
           mediaSandboxConfigFromEnv(env),
           undefined,
           (code) => console.warn(code),
+          identityExecutionContext,
         )
       : null;
   if (
@@ -95,7 +114,11 @@ export async function createHostingApplication(
     const jobs =
       config.jobs.adapter === 'local'
         ? new LocalJobDispatcher()
-        : new VercelQueueDispatcher({ region: config.jobs.region });
+        : new VercelQueueDispatcher({
+            region: config.jobs.region,
+            onFailure: (diagnostic) => console.warn(JSON.stringify(diagnostic)),
+            identityExecutionContext,
+          });
     const hosting: HostingServices = {
       objects,
       jobs,
@@ -123,6 +146,8 @@ export async function createHostingApplication(
       store,
       runtime,
       hosting,
+      identityExecutionContext,
+      startupDispatchLimit: config.provider === 'vercel' ? 0 : undefined,
       decisionSettings: decisionSettingsFromEnv(env, settings.production),
       ...(media
         ? {
@@ -144,7 +169,11 @@ export async function createHostingApplication(
         );
       const scheduler = await new DurableScheduler(
         store,
-        new VercelSchedulerDispatcher({ region: config.jobs.region }),
+        new VercelSchedulerDispatcher({
+          region: config.jobs.region,
+          onFailure: (diagnostic) => console.warn(JSON.stringify(diagnostic)),
+          identityExecutionContext,
+        }),
       ).initialize();
       await registerInternalRoutes(result.app, {
         secret: env.STUDIO_JOB_SECRET,
@@ -177,12 +206,21 @@ export async function createHostingApplication(
         services: {
           database: { state: 'verified', verifiedAt },
           objects: { state: 'configured' },
+          ...(config.provider === 'vercel'
+            ? {
+                identity: {
+                  adapter: 'private-native-function',
+                  state: identityExecutionContext ? 'configured' : 'unconfigured',
+                  verified: false,
+                },
+              }
+            : {}),
           media: media?.diagnostics() ?? {
             adapter: 'local-cpu',
             state: 'configured',
           },
           jobs: {
-            state: 'configured',
+            ...(await result.executionReadiness()),
             semantics: 'at-least-once; fenced SQL publication',
           },
         },

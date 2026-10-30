@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "origin": "https://ai-bdd-studio-enjdwsu1u-tyler-r-kendricks-projects.vercel.app",
+  "startedAt": "2026-10-30T16:13:32.696Z",
+  "deploymentSourceProvidedByOperator": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentIdProvidedByOperator": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+  "kind": "model-free hosted audio durable publication",
+  "passed": true,
+  "state": "completed",
+  "steps": [
+    {
+      "stage": "health",
+      "method": "GET",
+      "path": "/api/health",
+      "httpStatus": 200,
+      "durationMs": 4660,
+      "at": "2026-10-30T16:13:37.358Z"
+    },
+    {
+      "stage": "readiness",
+      "method": "GET",
+      "path": "/api/hosting/readiness",
+      "httpStatus": 200,
+      "durationMs": 1030,
+      "at": "2026-10-30T16:13:38.393Z"
+    },
+    {
+      "stage": "owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "httpStatus": 200,
+      "durationMs": 1149,
+      "at": "2026-10-30T16:13:39.543Z"
+    },
+    {
+      "stage": "resume-exact-artifact",
+      "method": "GET",
+      "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301",
+      "httpStatus": 200,
+      "durationMs": 1086,
+      "at": "2026-10-30T16:13:40.630Z"
+    },
+    {
+      "stage": "resume-existing-audio-job",
+      "method": "GET",
+      "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+      "httpStatus": 200,
+      "durationMs": 1000,
+      "at": "2026-10-30T16:13:41.633Z"
+    },
+    {
+      "stage": "download-published-wav",
+      "method": "GET",
+      "path": "/api/files/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+      "httpStatus": 200,
+      "durationMs": 1214,
+      "at": "2026-10-30T16:13:42.849Z"
+    },
+    {
+      "stage": "export-persisted-publication",
+      "method": "GET",
+      "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/export",
+      "httpStatus": 200,
+      "durationMs": 846,
+      "at": "2026-10-30T16:13:43.743Z"
+    },
+    {
+      "stage": "fresh-owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "httpStatus": 200,
+      "durationMs": 798,
+      "at": "2026-10-30T16:13:45.201Z"
+    },
+    {
+      "stage": "fresh-session-artifact",
+      "method": "GET",
+      "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301",
+      "httpStatus": 200,
+      "durationMs": 1163,
+      "at": "2026-10-30T16:13:46.365Z"
+    },
+    {
+      "stage": "fresh-session-render-list",
+      "method": "GET",
+      "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders",
+      "httpStatus": 200,
+      "durationMs": 957,
+      "at": "2026-10-30T16:13:47.323Z"
+    },
+    {
+      "stage": "fresh-session-file",
+      "method": "GET",
+      "path": "/api/files/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+      "httpStatus": 200,
+      "durationMs": 1243,
+      "at": "2026-10-30T16:13:48.567Z"
+    },
+    {
+      "stage": "anonymous-file-denial",
+      "method": "GET",
+      "path": "/api/files/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+      "httpStatus": 401,
+      "durationMs": 786,
+      "at": "2026-10-30T16:13:49.395Z"
+    },
+    {
+      "stage": "anonymous-artifact-denial",
+      "method": "GET",
+      "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301",
+      "httpStatus": 401,
+      "durationMs": 305,
+      "at": "2026-10-30T16:13:49.701Z"
+    },
+    {
+      "stage": "close-first-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "httpStatus": 200,
+      "durationMs": 329,
+      "at": "2026-10-30T16:13:50.031Z"
+    },
+    {
+      "stage": "close-fresh-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "httpStatus": 200,
+      "durationMs": 1108,
+      "at": "2026-10-30T16:13:51.140Z"
+    }
+  ],
+  "resources": {
+    "projectId": "3821d32e-587a-4621-bd9a-75bb62f2be9b",
+    "artifactId": "16f74f4b-40c1-4707-ab61-d65149cb3301",
+    "artifactVersion": 1,
+    "jobId": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+    "fileId": "3cb03628-bdbb-4c93-81cc-f313255b85b6"
+  },
+  "jobHistory": [
+    {
+      "at": "2026-10-30T16:13:41.634Z",
+      "status": "completed",
+      "progress": 1,
+      "finishedAt": "2026-10-30T16:12:37.402Z"
+    }
+  ],
+  "modelsInvokedByThisScript": 0,
+  "externalAssetSources": 0,
+  "redirectsFollowed": 0,
+  "credentialValuesRecorded": false,
+  "readiness": {
+    "ready": true,
+    "services": {
+      "database": {
+        "state": "verified",
+        "verifiedAt": "2026-10-30T16:13:37.180Z"
+      },
+      "objects": {
+        "state": "configured"
+      },
+      "identity": {
+        "adapter": "private-native-function",
+        "state": "configured",
+        "verified": false
+      },
+      "media": {
+        "adapter": "vercel-sandbox",
+        "state": "configured",
+        "image": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+        "network": "deny-all",
+        "persistent": false,
+        "verified": false
+      },
+      "jobs": {
+        "state": "configured",
+        "verified": false,
+        "semantics": "at-least-once; fenced SQL publication"
+      }
+    }
+  },
+  "recovery": {
+    "noNewEnqueue": true,
+    "originalAdmissionSource": "ff297243772cb39ad46169b86be4d3289955433c",
+    "originalAdmissionDeployment": "dpl_BiuAyCudYtsvsK9GeEmZoQ2pZ6AD",
+    "originalAdmissionOrigin": "https://ai-bdd-studio-6ohooihxc-tyler-r-kendricks-projects.vercel.app",
+    "originalQueuedAt": "2026-10-30T15:04:40.486Z",
+    "priorTraceSha256": "9860e9fd68dd8870b34f443a230b50ea031029a2a6b3a6b7f8995dbc7da79b62"
+  },
+  "runtimeFingerprint": "studio-media-v1:studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+  "finishedAt": "2026-10-30T16:12:37.402Z",
+  "output": {
+    "byteSize": 48078,
+    "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+    "matchesPublishedMetadata": true,
+    "wave": {
+      "codec": 1,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bitsPerSample": 16,
+      "dataBytes": 48000,
+      "duration": 0.25,
+      "silent": true
+    }
+  },
+  "freshSessionPersistence": true,
+  "unauthorizedDenied": true,
+  "completedAt": "2026-10-30T16:13:51.141Z",
+  "syntheticResourcesRetainedForReview": true
+}

@@ -1,0 +1,119 @@
+{
+  "source": "52a6c61897ebf23452dbf4365b4da6aeebd7dc65",
+  "environment": "production",
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "entryPath": "/index.html",
+  "rootBoundary": "GET / returns Vercel NOT_FOUND404 on current deployed source; explicit /index.html used for this capture",
+  "startedAt": "2026-10-30T14:58:20.615Z",
+  "browser": "Chromium system binary",
+  "pageErrors": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 ()"
+  ],
+  "httpErrors": [
+    {
+      "origin": "https://ai-bdd-studio.vercel.app",
+      "path": "/api/me",
+      "status": 401
+    }
+  ],
+  "requestFailures": [],
+  "externalRequests": [],
+  "webSockets": [
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "socketErrors": [],
+      "closed": true
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "socketErrors": [],
+      "closed": false
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "socketErrors": [],
+      "closed": false
+    }
+  ],
+  "webSocketHandshakes": [
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/projects/ea75ddea-717c-4273-ba94-4dc2ad47af8b/events",
+      "status": 101
+    },
+    {
+      "origin": "wss://ai-bdd-studio.vercel.app",
+      "path": "/api/collaboration/62842027-5680-442b-9889-ee842779bfc4",
+      "status": 101
+    }
+  ],
+  "routeFailures": [],
+  "checks": [
+    "Real UI owner sign-in",
+    "Reopened prior UI-created production acceptance project",
+    "Verified main design document of prior UI-created production project",
+    "Edited design requirement persisted through live document synchronization",
+    "Authored artifact-scoped team chat; no AI/provider call requested",
+    "Created a real selected-paragraph discussion",
+    "Reload restored edited document, team chat, anchored discussion, and dedicated ADR"
+  ],
+  "hosting": {
+    "ready": true,
+    "provider": "vercel",
+    "database": "postgres",
+    "objects": "vercel-blob",
+    "jobs": "vercel-queue",
+    "databaseState": "verified",
+    "objectsState": "configured",
+    "jobsState": "configured",
+    "mediaState": "configured",
+    "mediaVerified": false
+  },
+  "projectId": "ea75ddea-717c-4273-ba94-4dc2ad47af8b",
+  "artifactId": "62842027-5680-442b-9889-ee842779bfc4",
+  "finishedAt": "2026-10-30T14:59:17.196Z",
+  "ownSessionLogoutStatus": 200,
+  "harnessFailure": "Responsive panel label changed during mobile screenshot setup after all seven authoring/readback checks; focused read-only capture follows separately."
+}

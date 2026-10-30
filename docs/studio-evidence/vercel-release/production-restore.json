@@ -1,0 +1,609 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "scope": "Actual production SQL snapshot restore plus copied-byte recovery of exactly two synthetic media files within the retained private Blob store.",
+  "coreReceipt": "production-restore-core.json",
+  "snapshot": {
+    "id": "snap-dawn-credit-b8ku233q",
+    "name": "production-snapshot-20261030-a4",
+    "sourceBranchId": "br-shiny-fire-b8tn4wiv",
+    "createdAt": "2026-10-30T17:03:58Z",
+    "retained": true,
+    "expirationConfigured": false
+  },
+  "recovery": {
+    "branchId": "br-silent-sun-b8undf4g",
+    "branchName": "production-recovery-20261030",
+    "endpointId": "ep-odd-snow-b82wp52t",
+    "restoredFrom": "snap-dawn-credit-b8ku233q",
+    "finalize": false,
+    "finalizationNeverInvoked": true,
+    "retained": true,
+    "minCu": 0.25,
+    "maxCu": 0.25,
+    "suspendTimeoutSeconds": 0,
+    "suspendMode": "inherited-provider-default",
+    "autoSuspensionObserved": true,
+    "endpointStateAfterCleanup": "idle",
+    "observedAt": "2026-10-30T17:52:45Z"
+  },
+  "originalSqlCloneProof": {
+    "selectedBundleSha256": "bbaf904fabc5e8612c0be943ec25b7b3fb825919acc3d744b9cc5c75593e5efc",
+    "exactMatchBeforeAndAfterOriginalReferenceApp": true,
+    "projects": 2,
+    "artifacts": 3,
+    "chatMessages": 2,
+    "adrs": 3,
+    "completedMediaJobs": 2,
+    "publicationReceipts": 2
+  },
+  "privateByteBackup": {
+    "schemaVersion": 1,
+    "status": "passed",
+    "sourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+    "snapshotId": "snap-dawn-credit-b8ku233q",
+    "startedAt": "2026-10-30T17:32:02.528Z",
+    "operations": [
+      {
+        "operation": "read-original",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99"
+      },
+      {
+        "operation": "write-and-read-backup",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "key": "studio/v1/recovery/backup/snap-dawn-credit-b8ku233q/1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99"
+      },
+      {
+        "operation": "write-from-backup-and-read-restored",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "key": "studio/v1/recovery/restored/snap-dawn-credit-b8ku233q/1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99"
+      },
+      {
+        "operation": "read-original",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f"
+      },
+      {
+        "operation": "write-and-read-backup",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "key": "studio/v1/recovery/backup/snap-dawn-credit-b8ku233q/be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f"
+      },
+      {
+        "operation": "write-from-backup-and-read-restored",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "key": "studio/v1/recovery/restored/snap-dawn-credit-b8ku233q/be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f"
+      }
+    ],
+    "files": [
+      {
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "mime": "video/mp4",
+        "originalKeySha256": "a30d494dd7ffa54903af9dc729a71e5d6512330fdec0e887f25895b7331e4586",
+        "backupKey": "studio/v1/recovery/backup/snap-dawn-credit-b8ku233q/1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "restoredKey": "studio/v1/recovery/restored/snap-dawn-credit-b8ku233q/1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "originalVerified": true,
+        "backupVerified": true,
+        "restoredVerified": true,
+        "restoredReadSource": "fresh-private-backup-get"
+      },
+      {
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "mime": "audio/wav",
+        "originalKeySha256": "0ca4de4603d7da9299c595d14188e5a7f13c13be24255f7b3c6fce2222bdc8a5",
+        "backupKey": "studio/v1/recovery/backup/snap-dawn-credit-b8ku233q/be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "restoredKey": "studio/v1/recovery/restored/snap-dawn-credit-b8ku233q/be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "originalVerified": true,
+        "backupVerified": true,
+        "restoredVerified": true,
+        "restoredReadSource": "fresh-private-backup-get"
+      }
+    ],
+    "completedAt": "2026-10-30T17:37:30.700Z",
+    "manifest": {
+      "status": "passed",
+      "manifestKey": "studio/v1/recovery/backup/snap-dawn-credit-b8ku233q/manifest.json",
+      "byteSize": 2017,
+      "sha256": "75b60de7a2bfeac7a88e3ce8d42ac8b7c6ad948a3028c80fd22b0e4ab0d79048",
+      "headByteSize": 2017,
+      "sdkGetDeclaredByteSize": 0,
+      "privateRead": true,
+      "readBackVerified": true,
+      "verification": "bounded SDK stream + HEAD size + exact SHA256",
+      "shippingAdapterLengthCheck": "reported-get-size-differs-from-content",
+      "fixedAdapterReadReceipt": {
+        "verifiedAt": "2026-10-30T17:37:30.700Z",
+        "startedAt": "2026-10-30T17:37:27.541Z",
+        "operation": "existing-private-production-JSON-read",
+        "key": "studio/v1/recovery/backup/snap-dawn-credit-b8ku233q/manifest.json",
+        "byteSize": 2017,
+        "sha256": "75b60de7a2bfeac7a88e3ce8d42ac8b7c6ad948a3028c80fd22b0e4ab0d79048",
+        "contentType": "application/json",
+        "passed": true,
+        "writes": 0,
+        "deletes": 0,
+        "payloadPublished": false
+      },
+      "adapterFixCommit": "8b4ea1bad7479bc0fb5fc92d3c1be9024144e3d1",
+      "originalAdapterSourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758"
+    },
+    "initialAdapterDiagnostic": {
+      "exceptionType": "ObjectIntegrityError",
+      "reason": "SDK get size0 while HEAD and bounded stream are2017 bytes",
+      "payloadObjectsPassedShippingAdapter": true,
+      "manifestPassedBoundedSdkHeadAndSha": true,
+      "observedAt": "2026-10-30T17:32:15.926Z"
+    }
+  },
+  "retainedAssets": {
+    "blobStoreId": "store_p68eAra1wwS7aMaW",
+    "payloadObjects": 4,
+    "manifestObjects": 1,
+    "payloadBytes": 101338,
+    "manifestBytes": 2017,
+    "totalBytes": 103355,
+    "private": true,
+    "allowOverwrite": false,
+    "addRandomSuffix": false,
+    "originalObjectDeleteOrOverwritePerformed": false
+  },
+  "intentionalRecoverySqlDelta": {
+    "branchId": "br-silent-sun-b8undf4g",
+    "table": "files",
+    "column": "storage_key",
+    "rowsUpdated": 2,
+    "fileIds": [
+      "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "98561d0b-c169-4321-873a-179fdd7f3753"
+    ],
+    "newKeyNamespace": "studio/v1/recovery/restored/snap-dawn-credit-b8ku233q/",
+    "allOtherSelectedDataMatchesOriginalBaselineBeforeAndAfterApp": true,
+    "productionOriginalKeysShaAndSizePreservedBySelect": true
+  },
+  "deployment": {
+    "id": "dpl_DtMN4qDBBV3Y4i4TXArjooVhuFPV",
+    "url": "https://ai-bdd-studio-ebzdmgr4n-tyler-r-kendricks-projects.vercel.app",
+    "projectId": "prj_zpOn0fQVrwbRp8ZWozPiL2ER4jLa",
+    "target": null,
+    "gitSource": {
+      "type": "github",
+      "repoId": 1412029937,
+      "ref": "codex/production-restore-a4",
+      "sha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758"
+    },
+    "readyState": "READY",
+    "readyBeforeProbe": true,
+    "removedAfterProof": true,
+    "stateAfterCleanup": "deleted"
+  },
+  "appReadReceipt": {
+    "schemaVersion": 1,
+    "sourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+    "checks": [
+      {
+        "id": "anonymous-fixture-denial",
+        "requests": 8,
+        "status": "passed"
+      },
+      {
+        "id": "fresh-owner-login-1",
+        "fresh": true,
+        "status": "passed"
+      },
+      {
+        "id": "restored-project-1",
+        "projectsVerified": 2,
+        "status": "passed"
+      },
+      {
+        "id": "restored-artifact-62842027-5680-442b-9889-ee842779bfc4-1",
+        "artifactId": "62842027-5680-442b-9889-ee842779bfc4",
+        "kind": "design",
+        "contentSha256": "12cf2b6aff05ffba5accdf17f2a44912d0c27321a1d81f4ae5989944f47cddd3",
+        "messagesVerified": 2,
+        "decisionsVerified": 1,
+        "status": "passed"
+      },
+      {
+        "id": "restored-artifact-b612863a-2bea-4ff9-a74d-d2cfc27427ef-1",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "kind": "video",
+        "contentSha256": "4c78b4d09d141e916cd1229efcec352006840153318586a6990c7e864f8b0fd9",
+        "messagesVerified": 0,
+        "decisionsVerified": 1,
+        "status": "passed"
+      },
+      {
+        "id": "restored-artifact-f5a5f464-b465-485e-bb67-fa2e56384391-1",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "kind": "audio",
+        "contentSha256": "68da5d2e93d9363be43c95a610245e422d3e2c261841573814ee676cdafdae0a",
+        "messagesVerified": 0,
+        "decisionsVerified": 1,
+        "status": "passed"
+      },
+      {
+        "id": "restored-media-job-4bf1e47f-d55c-44fd-b864-ef2931ae299d-1",
+        "jobId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "kind": "video",
+        "jobStatus": "completed",
+        "artifactVersion": 1,
+        "format": "mp4",
+        "status": "passed"
+      },
+      {
+        "id": "restored-media-job-98561d0b-c169-4321-873a-179fdd7f3753-1",
+        "jobId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "kind": "audio",
+        "jobStatus": "completed",
+        "artifactVersion": 1,
+        "format": "wav",
+        "status": "passed"
+      },
+      {
+        "id": "private-immutable-file-4bf1e47f-d55c-44fd-b864-ef2931ae299d-1",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "mime": "video/mp4",
+        "status": "passed"
+      },
+      {
+        "id": "private-immutable-file-98561d0b-c169-4321-873a-179fdd7f3753-1",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "mime": "audio/wav",
+        "status": "passed"
+      },
+      {
+        "id": "fresh-owner-login-2",
+        "fresh": true,
+        "status": "passed"
+      },
+      {
+        "id": "restored-project-2",
+        "projectsVerified": 2,
+        "status": "passed"
+      },
+      {
+        "id": "restored-artifact-62842027-5680-442b-9889-ee842779bfc4-2",
+        "artifactId": "62842027-5680-442b-9889-ee842779bfc4",
+        "kind": "design",
+        "contentSha256": "12cf2b6aff05ffba5accdf17f2a44912d0c27321a1d81f4ae5989944f47cddd3",
+        "messagesVerified": 2,
+        "decisionsVerified": 1,
+        "status": "passed"
+      },
+      {
+        "id": "restored-artifact-b612863a-2bea-4ff9-a74d-d2cfc27427ef-2",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "kind": "video",
+        "contentSha256": "4c78b4d09d141e916cd1229efcec352006840153318586a6990c7e864f8b0fd9",
+        "messagesVerified": 0,
+        "decisionsVerified": 1,
+        "status": "passed"
+      },
+      {
+        "id": "restored-artifact-f5a5f464-b465-485e-bb67-fa2e56384391-2",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "kind": "audio",
+        "contentSha256": "68da5d2e93d9363be43c95a610245e422d3e2c261841573814ee676cdafdae0a",
+        "messagesVerified": 0,
+        "decisionsVerified": 1,
+        "status": "passed"
+      },
+      {
+        "id": "restored-media-job-4bf1e47f-d55c-44fd-b864-ef2931ae299d-2",
+        "jobId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "kind": "video",
+        "jobStatus": "completed",
+        "artifactVersion": 1,
+        "format": "mp4",
+        "status": "passed"
+      },
+      {
+        "id": "restored-media-job-98561d0b-c169-4321-873a-179fdd7f3753-2",
+        "jobId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "kind": "audio",
+        "jobStatus": "completed",
+        "artifactVersion": 1,
+        "format": "wav",
+        "status": "passed"
+      },
+      {
+        "id": "private-immutable-file-4bf1e47f-d55c-44fd-b864-ef2931ae299d-2",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "mime": "video/mp4",
+        "status": "passed"
+      },
+      {
+        "id": "private-immutable-file-98561d0b-c169-4321-873a-179fdd7f3753-2",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "mime": "audio/wav",
+        "status": "passed"
+      }
+    ],
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/projects",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/62842027-5680-442b-9889-ee842779bfc4",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "POST",
+        "path": "/api/auth/login",
+        "status": 200,
+        "responseBytes": 130
+      },
+      {
+        "method": "GET",
+        "path": "/api/projects",
+        "status": 200,
+        "responseBytes": 1340
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/62842027-5680-442b-9889-ee842779bfc4",
+        "status": 200,
+        "responseBytes": 4841
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "status": 200,
+        "responseBytes": 2240
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+        "status": 200,
+        "responseBytes": 1908
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 2591
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 48078
+      },
+      {
+        "method": "POST",
+        "path": "/api/auth/login",
+        "status": 200,
+        "responseBytes": 130
+      },
+      {
+        "method": "GET",
+        "path": "/api/projects",
+        "status": 200,
+        "responseBytes": 1340
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/62842027-5680-442b-9889-ee842779bfc4",
+        "status": 200,
+        "responseBytes": 4841
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "status": 200,
+        "responseBytes": 2240
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+        "status": 200,
+        "responseBytes": 1908
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 2591
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 48078
+      }
+    ],
+    "status": "passed",
+    "origin": "https://ai-bdd-studio-ebzdmgr4n-tyler-r-kendricks-projects.vercel.app",
+    "restoredBranchId": "br-silent-sun-b8undf4g",
+    "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+    "snapshotPoint": {
+      "snapshotId": "snap-dawn-credit-b8ku233q",
+      "createdAt": "2026-10-30T17:03:58Z",
+      "restoredParentLsn": "0/1FE5BD8"
+    },
+    "completedAt": "2026-10-30T17:45:55.008Z"
+  },
+  "sessionBindingProof": {
+    "freshPhaseSessionsOnRecovery": 2,
+    "freshPhaseSessionsOnProduction": 0,
+    "sessionDigestsPublished": false
+  },
+  "sourceInputs": {
+    "fileCount": 1541,
+    "totalSize": 23428515,
+    "manifestSha256": "948b6b739a4f7f54ea5aaa3e6802e665185f3cf4be2ab1713bed41527b7f8255",
+    "allIncludedFilesTrackedAtSource": true,
+    "allIncludedSha1Match": true,
+    "credentialPathsExcluded": true
+  },
+  "cleanup": {
+    "removedEnvKeys": [
+      "BLOB_READ_WRITE_TOKEN",
+      "DATABASE_URL",
+      "STUDIO_ADMIN_EMAIL",
+      "STUDIO_ADMIN_PASSWORD"
+    ],
+    "successfulPreviewDeleted": true,
+    "copiedBytePreviewDeletionVerified": true,
+    "remoteGitRefDeleted": true,
+    "remoteGitRefDeletionVerified": true,
+    "scopedEnvironmentRemovalVerified": true,
+    "globalCriticalBindingsPresent": {
+      "production": [
+        "BLOB_READ_WRITE_TOKEN",
+        "DATABASE_URL",
+        "STUDIO_ADMIN_EMAIL",
+        "STUDIO_ADMIN_PASSWORD"
+      ],
+      "preview": [
+        "BLOB_READ_WRITE_TOKEN",
+        "DATABASE_URL",
+        "STUDIO_ADMIN_EMAIL",
+        "STUDIO_ADMIN_PASSWORD"
+      ]
+    },
+    "remainingTaskScopedOverrides": 0,
+    "removedOwnedDeploymentIds": [
+      "dpl_7pki3WU6cg32jp7onyeZHaxmUwNL",
+      "dpl_4dMJ7R9L7FmSeV82Mg7EueyXSihW",
+      "dpl_DtMN4qDBBV3Y4i4TXArjooVhuFPV"
+    ],
+    "providerConfirmedAllOwnedDeploymentsAbsent": true,
+    "removedRemoteRef": "refs/heads/codex/production-restore-a4",
+    "noProtectionBypassOrAccessControlChanges": true,
+    "recoveryComputeAutoSuspended": true
+  },
+  "productionControlPlanePreserved": {
+    "branchId": "br-shiny-fire-b8tn4wiv",
+    "branchName": "production",
+    "default": true,
+    "endpointId": "ep-royal-glade-b825vgbx",
+    "endpointBranchId": "br-shiny-fire-b8tn4wiv",
+    "productionBranchResetRenameRestoreFinalizeOrDeletePerformed": false
+  },
+  "optionalChecks": {
+    "sharedPreviewSessionAbsence": {
+      "status": "not-run",
+      "reason": "Automatic approval review rejected an out-of-scope credential-related read against the unrelated shared-preview branch.",
+      "countClaimed": false,
+      "stoppedAfterExplicitReviewNotice": true,
+      "escalationPerformed": false
+    }
+  },
+  "modelAndJobEffects": {
+    "modelInferenceRequests": 0,
+    "queueBootstrapMaintenanceOrRenderAdmissionRequests": 0,
+    "appRequestMethods": "GET and POST /api/auth/login only",
+    "blobWrites": "Only four snapshot-owned immutable backup/restored payload keys and one private recovery manifest.",
+    "scope": "Requests and operations initiated by this rehearsal"
+  },
+  "limits": [
+    "This is a bounded rehearsal for the selected synthetic records and two media objects.",
+    "Blob backup and restored copies remain in the same retained private store; no independent provider-loss, store-loss, cross-region or high-availability recovery claim.",
+    "The recovery branch intentionally differs from the original exact SQL snapshot only in the two approved file storage pointers, plus normal application initialization and new session rows.",
+    "Initial CLI metadata-only deployment returned401 and was removed; final hosted proofs used actual pinned GitSource."
+  ],
+  "recordedAt": "2026-10-30T17:55:04.875026+00:00",
+  "completedAt": "2026-10-30T17:52:45Z"
+}

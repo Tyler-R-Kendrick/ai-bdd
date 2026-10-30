@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "productionDeploymentId": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+  "canonicalOrigin": "https://ai-bdd-studio.vercel.app",
+  "rootBrowserProbeCompletedAt": "2026-10-30T17:11:58Z",
+  "scope": "Read-only SQL metadata verification for the separate browser-import fixture created after the recovery snapshot; this fixture is not part of the restore baseline.",
+  "sourceUpload": {
+    "id": "7f79a20f-3a58-4cf3-812e-d405713dc789",
+    "uploadStatus": "complete",
+    "projectId": "de70e273-e9ec-4a48-93a1-32af9f7a2b13",
+    "artifactId": "aef5bf91-a003-4f3c-bfa9-69f22ff887be",
+    "ticketByteSize": 48044,
+    "fileByteSize": 48044,
+    "sha256": "58cae15f4f0507961d007aa4a906c435ca574c943ec208fcac4af19e25516473",
+    "mime": "audio/wav",
+    "ticketFileKeyMatches": true,
+    "scopeMatches": true,
+    "scopeFormat": "studio/v1/uploads/{projectId}/{ticketId}"
+  },
+  "render": {
+    "id": "19935137-4d0b-454e-bed6-c9f7e2f004ab",
+    "artifactId": "aef5bf91-a003-4f3c-bfa9-69f22ff887be",
+    "artifactVersion": 2,
+    "format": "wav",
+    "renderStatus": "completed",
+    "fileId": "19935137-4d0b-454e-bed6-c9f7e2f004ab",
+    "durableStatus": "completed",
+    "attempts": 1,
+    "fence": 1,
+    "outputByteSize": 48078,
+    "outputSha256": "e33448dd10de45b96c50a0c3586c11509d7e10afe80b844f6510b616a6bac25e",
+    "outputMime": "audio/wav",
+    "outputScopeMatches": true,
+    "publicationReceipts": 1
+  },
+  "sourceScopeAssertions": {
+    "id": "7f79a20f-3a58-4cf3-812e-d405713dc789",
+    "ticket_key_scope_matches": true,
+    "file_key_matches_ticket": true,
+    "file_scope_matches_ticket": true,
+    "expected_project_artifact": true,
+    "status": "complete",
+    "expected_byte_size": true,
+    "expected_sha256": true
+  },
+  "mutationsPerformed": false
+}

@@ -1,0 +1,62 @@
+{
+  "scope": "Actual local CPU browser acceptance; no external model provider fixture",
+  "source": "992e1f865734d4b1139e648182f5d9b743d0f394",
+  "model": "qwen2.5-0.5b-instruct-q4-k-m",
+  "weightsSha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+  "nativeDecisionHelperSha256": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
+  "clientEntry": "assets/index-_fHAtON7.js",
+  "clientEntrySha256": "bdf271fd220b67ff38450ae40b57cbf98dc13ea764b1d32d9d4580e8fd8ea67b",
+  "browser": "Chromium154.0.8037.57",
+  "viewports": [
+    "1440x1000",
+    "390x844"
+  ],
+  "checks": [
+    "actual picker saved LocalCPU/Qwen",
+    "native finite decision evaluated and receipt read via authenticated API",
+    "real generated blue/Start design answer",
+    "one completed durable Agent job",
+    "exact generated body retained through reload/mobile/freshlogin",
+    "dedicated artifact ADR and thread IDs retained",
+    "canonical document content unchanged",
+    "no page errors, HTTP500s, external browser requests or horizontal page overflow"
+  ],
+  "screenshots": [
+    {
+      "file": "local-runtime-picker.png",
+      "sha256": "b703ed4e42f0cbb6b08eef0c2cdd4ba1af8c173f9c46ed389ee30a809cdb0f2c"
+    },
+    {
+      "file": "local-design-chat.png",
+      "sha256": "d85e96cb4624aceb5b78941c72ef9c83fa115aa4d4e79233a8c0cad7e45bf6ee"
+    },
+    {
+      "file": "local-design-chat-mobile.png",
+      "sha256": "37a699d02c956688032c77635ce4d1fe8aa28d8d07789faca67c91b6b65b7145"
+    }
+  ],
+  "sourceScope": "Isolated local CPU source with final-human-message role correction (root722c0d8, local93ae9fa); shipping root release is independently checked.",
+  "prompt": "What color and label does this design require for the button?",
+  "persistedReply": "The design requires a blue button labeled \"Start\" for the button.",
+  "runs": {
+    "passed": 2,
+    "lastPlaywrightTotalSeconds": 7.7,
+    "lastCaseSeconds": 6.2,
+    "requiredModel": true,
+    "providerFixture": false
+  },
+  "clientIndexSha256": "0cec71431da2613a5faf89e0ceadcb85edb1711280d30ee55e1849d0c80d2eda",
+  "nativeWorkerSha256": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+  "qualityLimitations": [
+    {
+      "prompt": "Based on this design, describe the button the developer should build in one sentence.",
+      "observed": "An earlier rerun after the final-human-message role correction omitted blue and failed the strict blue assertion. It is not a passing case in this receipt.",
+      "interpretation": "This focused passing explicit-facts question does not establish complete broad-summary fidelity or general model accuracy."
+    }
+  ],
+  "historicalEvidence": {
+    "directory": "historical-43d6845",
+    "source": "43d68455c3f32611cf006cf2c83798b199170252",
+    "scope": "Earlier pre-correction passing browser run and its original screenshots/receipt; not evidence of the later broad-summary rerun."
+  }
+}

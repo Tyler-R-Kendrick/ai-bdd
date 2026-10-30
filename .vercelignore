@@ -1,0 +1,51 @@
+# Local credentials, repository metadata, and task worktrees are never source inputs.
+**/.env*
+**/.studio.env*
+**/.vercel
+**/.git
+**/.aws
+**/.codex
+**/.agents
+.claude/worktrees
+work
+
+# Install and build from the committed workspace manifests and pinned lockfile.
+# Keep source, public assets, and WASM imports; rebuild generated output remotely.
+**/node_modules
+**/dist
+**/.pnpm-store
+**/.cache
+**/.vite
+**/.turbo
+**/.next
+**/.stryker-tmp
+**/.determinism-*
+
+# Local execution state, generated reports, and logs.
+**/.ai-bdd
+**/.studio
+**/.studio-machine.json
+**/coverage
+**/test-results
+**/playwright-report
+**/reports
+**/logs
+**/*.log
+**/*.received.*
+packages/testing/.quickstart
+packages/studio/verification/proofs
+packages/studio/pacts
+output
+
+# Private local key material and databases do not belong in deployment source.
+**/*.pem
+**/*.key
+**/*.p12
+**/*.sqlite
+**/*.sqlite-*
+
+# Retain the committed container-context policies omitted by CLI defaults.
+!Dockerfile.studio
+!.dockerignore
+!packages/studio/.dockerignore
+!packages/studio/media.Dockerfile.dockerignore

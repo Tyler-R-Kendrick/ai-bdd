@@ -9,43 +9,6 @@
       "installCommand": "pnpm install --frozen-lockfile",
       "buildCommand": "pnpm exec vite build",
       "outputDirectory": "dist/client",
-      "bindings": [
-        {
-          "type": "service",
-          "service": "backend",
-          "format": "url",
-          "env": "STUDIO_BACKEND_URL"
-        }
-      ],
-      "functions": {
-        "api/studio-jobs.ts": {
-          "maxDuration": 300,
-          "experimentalTriggers": [
-            {
-              "type": "queue/v2beta",
-              "topic": "studio-jobs-v1",
-              "maxDeliveries": 10,
-              "retryAfterSeconds": 30,
-              "maxConcurrency": 8
-            }
-          ]
-        },
-        "api/studio-maintenance.ts": {
-          "maxDuration": 120,
-          "experimentalTriggers": [
-            {
-              "type": "queue/v2beta",
-              "topic": "studio-maintenance-v1",
-              "maxDeliveries": 10,
-              "retryAfterSeconds": 30,
-              "maxConcurrency": 1
-            }
-          ]
-        },
-        "api/studio-maintenance-bootstrap.ts": {
-          "maxDuration": 120
-        }
-      },
       "headers": [
         {
           "source": "/(.*)",
@@ -128,14 +91,119 @@
       "root": ".",
       "runtime": "container",
       "entrypoint": "Dockerfile.studio",
-      "command": ["node", "dist/server/vercel-main.js"]
+      "command": ["node", "dist/server/vercel-main.js"],
+      "bindings": [
+        {
+          "type": "service",
+          "service": "identity",
+          "format": "url",
+          "env": "STUDIO_IDENTITY_URL"
+        }
+      ]
+    },
+    "identity": {
+      "root": "packages/studio",
+      "runtime": "node",
+      "entrypoint": "api/studio-identity.ts",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "buildCommand": "node --check api/studio-identity.ts",
+      "functions": {
+        "api/studio-identity.ts": {
+          "maxDuration": 30
+        }
+      }
+    },
+    "jobs": {
+      "root": "packages/studio",
+      "runtime": "node",
+      "entrypoint": "api/studio-jobs.ts",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "STUDIO_BACKEND_URL"
+        }
+      ],
+      "functions": {
+        "api/studio-jobs.ts": {
+          "maxDuration": 300,
+          "experimentalTriggers": [
+            {
+              "type": "queue/v2beta",
+              "topic": "studio-jobs-v1",
+              "maxDeliveries": 10,
+              "retryAfterSeconds": 30,
+              "maxConcurrency": 8
+            }
+          ]
+        }
+      },
+      "buildCommand": "node --check api/studio-jobs.ts"
+    },
+    "maintenance": {
+      "root": "packages/studio",
+      "runtime": "node",
+      "entrypoint": "api/studio-maintenance.ts",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "STUDIO_BACKEND_URL"
+        }
+      ],
+      "functions": {
+        "api/studio-maintenance.ts": {
+          "maxDuration": 120,
+          "experimentalTriggers": [
+            {
+              "type": "queue/v2beta",
+              "topic": "studio-maintenance-v1",
+              "maxDeliveries": 10,
+              "retryAfterSeconds": 30,
+              "maxConcurrency": 1
+            }
+          ]
+        }
+      },
+      "buildCommand": "node --check api/studio-maintenance.ts"
+    },
+    "bootstrap": {
+      "root": "packages/studio",
+      "runtime": "node",
+      "entrypoint": "api/studio-maintenance-bootstrap.ts",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "STUDIO_BACKEND_URL"
+        }
+      ],
+      "functions": {
+        "api/studio-maintenance-bootstrap.ts": {
+          "maxDuration": 120
+        }
+      },
+      "buildCommand": "node --check api/studio-maintenance-bootstrap.ts"
     }
   },
   "rewrites": [
     {
+      "source": "/",
+      "destination": {
+        "service": "frontend",
+        "path": "/index.html"
+      }
+    },
+    {
       "source": "/api/studio-maintenance-bootstrap",
       "destination": {
-        "service": "frontend"
+        "service": "bootstrap"
       }
     },
     {

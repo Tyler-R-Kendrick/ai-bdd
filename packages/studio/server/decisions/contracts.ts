@@ -1,3 +1,4 @@
+import type { LocalModelSettings } from '../local/catalog.ts';
 import type { User } from '../../shared/domain.ts';
 import type {
   DecisionAnswer,
@@ -21,6 +22,7 @@ export type DecisionSettings = {
   defaultProfile: DecisionProfile;
   openai?: { baseUrl: string; apiKey: string; models: string[] };
   jev?: { baseUrl: string; apiKey: string; models: string[] };
+  local?: LocalModelSettings;
   structured?: { baseUrl?: string; apiKey?: string; models: string[] };
 };
 export type ProviderAnswer = {
@@ -38,6 +40,7 @@ export type ProviderDecision = {
   answers: ProviderAnswer[];
   providerRequestId: string | null;
   usage: DecisionEvaluation['provenance']['usage'];
+  localInference?: DecisionEvaluation['provenance']['localInference'];
 };
 export type DecisionInvocation = DecisionRequest & {
   user: User;

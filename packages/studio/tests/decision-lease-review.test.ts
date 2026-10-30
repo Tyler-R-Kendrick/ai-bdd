@@ -101,6 +101,7 @@ it.each([45000, 600])(
           ...decisionSettingsFromEnv(
             {
               NODE_ENV: 'test',
+              STUDIO_DECISION_PROVIDER: 'openai-decisions',
               STUDIO_OPENAI_DECISIONS_KEY: 'explicit-local-fixture-only',
               STUDIO_OPENAI_DECISIONS_BASE_URL: `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`,
               STUDIO_DECISION_TIMEOUT_MS: '10000',

@@ -1,0 +1,751 @@
+{
+  "schemaVersion": 1,
+  "kind": "hosted downloaded local-model chat and decisions",
+  "origin": "https://ai-bdd-studio-4pxdjtzly-tyler-r-kendricks-projects.vercel.app",
+  "environment": "preview",
+  "previewIdentityHeaderSent": true,
+  "deploymentSourceProvidedByOperator": "af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f",
+  "deploymentIdProvidedByOperator": "dpl_GNaAqe3D4yTw65oBHD6dfGjgwiuD",
+  "startedAt": "2026-10-30T18:09:47.075Z",
+  "state": "incomplete",
+  "passed": false,
+  "fixture": {
+    "question": "What is 2 + 2? Reply with only the numeral.",
+    "source": "Implement a tiny calculator. When a user submits 2 + 2, display 4. Acceptance: the displayed result equals 4. Keep the existing T3 Code authoring runtime; no change in tools is required."
+  },
+  "resources": {
+    "projectId": "dcf1fa68-a4ff-4241-9028-ebf778de28c7",
+    "artifactId": "62c36c51-c9ad-49ac-aa39-f5e1856f71b0",
+    "threadId": "d7880b18-b775-4d64-bd6b-fdd2ccbf6545",
+    "userMessageId": "57ddacba-07a3-45a9-aa6f-342e913277d1",
+    "chatRequestId": "50cdba5c-5ae6-45b5-a158-a444f4e46d0c",
+    "chatJobId": "aa7aa065-e88f-4c5a-b732-916cefe5df59"
+  },
+  "steps": [
+    {
+      "stage": "health",
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "durationMs": 882,
+      "at": "2026-10-30T18:09:47.958Z"
+    },
+    {
+      "stage": "readiness",
+      "method": "GET",
+      "path": "/api/hosting/readiness",
+      "status": 200,
+      "durationMs": 798,
+      "at": "2026-10-30T18:09:48.761Z"
+    },
+    {
+      "stage": "owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "durationMs": 1094,
+      "at": "2026-10-30T18:09:49.856Z"
+    },
+    {
+      "stage": "create-owned-synthetic-project",
+      "method": "POST",
+      "path": "/api/projects",
+      "status": 201,
+      "durationMs": 1322,
+      "at": "2026-10-30T18:09:51.180Z"
+    },
+    {
+      "stage": "read-owned-artifact",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0",
+      "status": 200,
+      "durationMs": 1231,
+      "at": "2026-10-30T18:09:52.412Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent/profile",
+      "status": 200,
+      "durationMs": 525,
+      "at": "2026-10-30T18:09:52.938Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/decision/profile",
+      "status": 200,
+      "durationMs": 712,
+      "at": "2026-10-30T18:09:53.651Z"
+    },
+    {
+      "stage": "keep-title-human",
+      "method": "PATCH",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/title-policy",
+      "status": 200,
+      "durationMs": 584,
+      "at": "2026-10-30T18:09:54.237Z"
+    },
+    {
+      "stage": "keep-participation-manual",
+      "method": "PUT",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/policy",
+      "status": 200,
+      "durationMs": 435,
+      "at": "2026-10-30T18:09:54.673Z"
+    },
+    {
+      "stage": "save-explicit-fixture-source",
+      "method": "PATCH",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0",
+      "status": 200,
+      "durationMs": 648,
+      "at": "2026-10-30T18:09:55.322Z"
+    },
+    {
+      "stage": "read-saved-source",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0",
+      "status": 200,
+      "durationMs": 507,
+      "at": "2026-10-30T18:09:55.830Z"
+    },
+    {
+      "stage": "save-independent-threshold",
+      "method": "PUT",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/decision/profile",
+      "status": 200,
+      "durationMs": 755,
+      "at": "2026-10-30T18:09:56.587Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent/profile",
+      "status": 200,
+      "durationMs": 343,
+      "at": "2026-10-30T18:09:56.931Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/decision/profile",
+      "status": 200,
+      "durationMs": 353,
+      "at": "2026-10-30T18:09:57.285Z"
+    },
+    {
+      "stage": "restore-normal-threshold",
+      "method": "PUT",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/decision/profile",
+      "status": 200,
+      "durationMs": 479,
+      "at": "2026-10-30T18:09:57.766Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent/profile",
+      "status": 200,
+      "durationMs": 340,
+      "at": "2026-10-30T18:09:58.107Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/decision/profile",
+      "status": 200,
+      "durationMs": 342,
+      "at": "2026-10-30T18:09:58.450Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent/profile",
+      "status": 200,
+      "durationMs": 328,
+      "at": "2026-10-30T18:09:58.780Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/decision/profile",
+      "status": 200,
+      "durationMs": 337,
+      "at": "2026-10-30T18:09:59.118Z"
+    },
+    {
+      "stage": "retain-human-chat-question",
+      "method": "POST",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/messages",
+      "status": 201,
+      "durationMs": 595,
+      "at": "2026-10-30T18:09:59.714Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent/profile",
+      "status": 200,
+      "durationMs": 336,
+      "at": "2026-10-30T18:10:00.051Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/decision/profile",
+      "status": 200,
+      "durationMs": 347,
+      "at": "2026-10-30T18:10:00.399Z"
+    },
+    {
+      "stage": "request-native-local-chat",
+      "method": "POST",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent",
+      "status": 200,
+      "durationMs": 1326,
+      "at": "2026-10-30T18:10:01.726Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 352,
+      "at": "2026-10-30T18:10:02.079Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 327,
+      "at": "2026-10-30T18:10:05.410Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 325,
+      "at": "2026-10-30T18:10:08.740Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 335,
+      "at": "2026-10-30T18:10:12.077Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 327,
+      "at": "2026-10-30T18:10:15.407Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 322,
+      "at": "2026-10-30T18:10:18.735Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 548,
+      "at": "2026-10-30T18:10:22.288Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 343,
+      "at": "2026-10-30T18:10:25.638Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 381,
+      "at": "2026-10-30T18:10:29.024Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 307,
+      "at": "2026-10-30T18:10:32.335Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 394,
+      "at": "2026-10-30T18:10:35.733Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 333,
+      "at": "2026-10-30T18:10:39.069Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 342,
+      "at": "2026-10-30T18:10:42.414Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 558,
+      "at": "2026-10-30T18:10:45.975Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 307,
+      "at": "2026-10-30T18:10:49.285Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 354,
+      "at": "2026-10-30T18:10:52.640Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 312,
+      "at": "2026-10-30T18:10:55.954Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 664,
+      "at": "2026-10-30T18:10:59.620Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 883,
+      "at": "2026-10-30T18:11:03.505Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 316,
+      "at": "2026-10-30T18:11:06.824Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 834,
+      "at": "2026-10-30T18:11:10.661Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 297,
+      "at": "2026-10-30T18:11:13.961Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 342,
+      "at": "2026-10-30T18:11:17.304Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 306,
+      "at": "2026-10-30T18:11:20.613Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 486,
+      "at": "2026-10-30T18:11:24.101Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 318,
+      "at": "2026-10-30T18:11:27.423Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 304,
+      "at": "2026-10-30T18:11:30.730Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 317,
+      "at": "2026-10-30T18:11:34.050Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 343,
+      "at": "2026-10-30T18:11:37.396Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 391,
+      "at": "2026-10-30T18:11:40.790Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 365,
+      "at": "2026-10-30T18:11:44.158Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 311,
+      "at": "2026-10-30T18:11:47.472Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 336,
+      "at": "2026-10-30T18:11:50.811Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 399,
+      "at": "2026-10-30T18:11:54.211Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 316,
+      "at": "2026-10-30T18:11:57.529Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 560,
+      "at": "2026-10-30T18:12:01.092Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 701,
+      "at": "2026-10-30T18:12:04.794Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 307,
+      "at": "2026-10-30T18:12:08.103Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 312,
+      "at": "2026-10-30T18:12:11.418Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 307,
+      "at": "2026-10-30T18:12:14.727Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 298,
+      "at": "2026-10-30T18:12:18.027Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 686,
+      "at": "2026-10-30T18:12:21.714Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 650,
+      "at": "2026-10-30T18:12:25.367Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 293,
+      "at": "2026-10-30T18:12:28.661Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/integrations/jobs",
+      "status": 200,
+      "durationMs": 363,
+      "at": "2026-10-30T18:12:32.026Z"
+    },
+    {
+      "stage": "close-owned-verification-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200,
+      "durationMs": 313,
+      "at": "2026-10-30T18:12:32.341Z"
+    }
+  ],
+  "jobHistory": [
+    {
+      "stage": "native-local-chat",
+      "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+      "status": "queued",
+      "at": "2026-10-30T18:10:02.080Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+      "status": "running",
+      "at": "2026-10-30T18:10:05.411Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+      "status": "queued",
+      "at": "2026-10-30T18:10:52.641Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+      "status": "running",
+      "at": "2026-10-30T18:10:55.954Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+      "status": "queued",
+      "at": "2026-10-30T18:11:40.791Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+      "status": "running",
+      "at": "2026-10-30T18:11:44.159Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+      "status": "failed",
+      "at": "2026-10-30T18:12:32.027Z",
+      "finishedAt": "2026-10-30T18:12:31.066Z"
+    }
+  ],
+  "explicitInferenceAdmissions": {
+    "chat": 1,
+    "designReview": 0
+  },
+  "externalModelProvidersAllowed": false,
+  "credentialsRecorded": false,
+  "redirectsFollowed": 0,
+  "projectTitle": "Hosted local AI acceptance 0fe2c274",
+  "localCatalogs": {
+    "agent": {
+      "profile": {
+        "harness": "t3-code",
+        "provider": "studioLocal",
+        "model": "studio-local/qwen2.5-0.5b-instruct-q4-k-m"
+      },
+      "harnesses": [
+        {
+          "id": "t3-code",
+          "configured": true,
+          "providers": [
+            {
+              "id": "studioLocal",
+              "models": [
+                "studio-local/qwen2.5-0.5b-instruct-q4-k-m"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local-cpu",
+          "configured": true,
+          "providers": [
+            {
+              "id": "llama-cpp-cpu",
+              "models": [
+                "qwen2.5-0.5b-instruct-q4-k-m"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "vercel-fx",
+          "configured": false,
+          "providers": []
+        }
+      ]
+    },
+    "decision": {
+      "profile": {
+        "provider": "llama-cpp-cpu",
+        "model": "qwen2.5-0.5b-instruct-q4-k-m",
+        "minimumConfidence": 0.7,
+        "policyVersion": "decision-policy-v1",
+        "configRevision": "6b0061724b6d4e243a0d01671cc8795082371b399b21f74f0e81e4ab0eae7fb5"
+      },
+      "providers": [
+        {
+          "id": "llama-cpp-cpu",
+          "configured": true,
+          "models": [
+            "qwen2.5-0.5b-instruct-q4-k-m",
+            "smollm2-135m-instruct-q4-k-m"
+          ]
+        },
+        {
+          "id": "openai-decisions",
+          "configured": false,
+          "models": []
+        },
+        {
+          "id": "jev",
+          "configured": false,
+          "models": []
+        },
+        {
+          "id": "vercel-structured",
+          "configured": false,
+          "models": []
+        }
+      ]
+    }
+  },
+  "sourceVersion": 2,
+  "sourceHash": "ab2f7246879d0d0544f7b0e9258146a7f06dd4822e41cc48c8a52d6edb5580bd",
+  "profilePersistence": {
+    "independentOfChat": true,
+    "changedFields": [
+      "minimumConfidence"
+    ],
+    "savedAndReloadedThreshold": 0.71,
+    "restoredEvaluationThreshold": 0.7,
+    "generativeUnchanged": true,
+    "chatProfile": {
+      "harness": "t3-code",
+      "provider": "studioLocal",
+      "model": "studio-local/qwen2.5-0.5b-instruct-q4-k-m"
+    },
+    "decisionProfile": {
+      "provider": "llama-cpp-cpu",
+      "model": "qwen2.5-0.5b-instruct-q4-k-m",
+      "minimumConfidence": 0.7,
+      "configRevision": "6b0061724b6d4e243a0d01671cc8795082371b399b21f74f0e81e4ab0eae7fb5",
+      "policyVersion": "decision-policy-v1"
+    }
+  },
+  "jobFailure": {
+    "id": "aa7aa065-e88f-4c5a-b732-916cefe5df59",
+    "status": "failed",
+    "errorPresent": true,
+    "errorSha256": "cfa18e14d7903a4fa7e7861c757edb5d33494ddb1d1578ae1133223dddf9afa5"
+  },
+  "failure": {
+    "phase": "poll-chat",
+    "code": "terminal-job-failure",
+    "httpStatus": null
+  },
+  "ownedSessionCleanup": {
+    "created": 1,
+    "closed": 1
+  },
+  "completedAt": "2026-10-30T18:12:32.342Z",
+  "syntheticResourcesRetainedForReview": true
+}

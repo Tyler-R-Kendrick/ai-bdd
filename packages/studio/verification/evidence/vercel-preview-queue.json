@@ -1,0 +1,283 @@
+{
+  "schemaVersion": 1,
+  "verification": "actual protected Vercel preview identity, durable queue maintenance, and existing-job recovery",
+  "passed": true,
+  "sourceCommit": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentId": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+  "origin": "https://ai-bdd-studio-enjdwsu1u-tyler-r-kendricks-projects.vercel.app",
+  "verifiedAt": "2026-10-30T16:15:45.905Z",
+  "requests": {
+    "health": {
+      "mode": "health",
+      "origin": "https://ai-bdd-studio-enjdwsu1u-tyler-r-kendricks-projects.vercel.app",
+      "path": "/api/health",
+      "startedAt": "2026-10-30T16:12:08.997Z",
+      "finishedAt": "2026-10-30T16:12:13.775Z",
+      "status": 200,
+      "contentType": "application/json",
+      "vercelError": null,
+      "redirectPresent": false,
+      "capturedBodyBytes": 11,
+      "capturedBodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "allowlisted": {
+        "ok": true
+      },
+      "protection": {
+        "transport": "exact-origin trusted OIDC header",
+        "redirects": "manual",
+        "accessControlMutated": false,
+        "shareLinkCreated": false
+      }
+    },
+    "bootstrap": {
+      "mode": "bootstrap",
+      "origin": "https://ai-bdd-studio-enjdwsu1u-tyler-r-kendricks-projects.vercel.app",
+      "path": "/api/studio-maintenance-bootstrap",
+      "startedAt": "2026-10-30T16:12:28.116Z",
+      "finishedAt": "2026-10-30T16:12:30.500Z",
+      "status": 200,
+      "contentType": "application/json",
+      "vercelError": null,
+      "redirectPresent": false,
+      "capturedBodyBytes": 17,
+      "capturedBodySha256": "11a49f853eb8befe94fef278d487125cd20930b9e41c4c0934394443e7f00878",
+      "allowlisted": {
+        "accepted": true
+      },
+      "protection": {
+        "transport": "exact-origin trusted OIDC header",
+        "redirects": "manual",
+        "accessControlMutated": false,
+        "shareLinkCreated": false
+      }
+    },
+    "readiness": {
+      "mode": "readiness",
+      "origin": "https://ai-bdd-studio-enjdwsu1u-tyler-r-kendricks-projects.vercel.app",
+      "path": "/api/hosting/readiness",
+      "startedAt": "2026-10-30T16:15:45.036Z",
+      "finishedAt": "2026-10-30T16:15:45.905Z",
+      "status": 200,
+      "contentType": "application/json",
+      "vercelError": null,
+      "redirectPresent": false,
+      "capturedBodyBytes": 673,
+      "capturedBodySha256": "676e7eeca7bcf64c50e56d94595414ffe23bb455d8f25850ba287b7e1fecdff4",
+      "allowlisted": {
+        "ready": true,
+        "draining": false,
+        "identityState": "configured",
+        "jobsState": "configured"
+      },
+      "protection": {
+        "transport": "exact-origin trusted OIDC header",
+        "redirects": "manual",
+        "accessControlMutated": false,
+        "shareLinkCreated": false
+      }
+    }
+  },
+  "database": {
+    "project": "crimson-frog-10403185",
+    "branch": "br-little-shape-b8j8ovk8",
+    "database": "studio",
+    "directQueries": "SELECT only"
+  },
+  "maintenance": {
+    "bootstrapCallsForThisDeployment": 1,
+    "bootstrapAcceptedAt": "2026-10-30T16:12:30.500Z",
+    "observationWindowMs": 149308,
+    "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+    "completedTickIdentities": 4,
+    "dispatchedSuccessorPresent": true,
+    "observations": [
+      [
+        {
+          "observed_at": "2026-10-30T16:12:48.880Z",
+          "deployment_id": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+          "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+          "tick_id": "17f58360-7b5a-4201-a504-854d50f48c48",
+          "bucket": "29889612",
+          "status": "complete",
+          "dispatched": "1",
+          "lease_until": "0"
+        },
+        {
+          "observed_at": "2026-10-30T16:12:48.880Z",
+          "deployment_id": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+          "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+          "tick_id": "59daa877-4fdc-4b7e-9167-eb5b26795dec",
+          "bucket": "29889613",
+          "status": "pending",
+          "dispatched": "1",
+          "lease_until": "0"
+        }
+      ],
+      [
+        {
+          "observed_at": "2026-10-30T16:15:18.188Z",
+          "deployment_id": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+          "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+          "tick_id": "17f58360-7b5a-4201-a504-854d50f48c48",
+          "bucket": "29889612",
+          "status": "complete",
+          "dispatched": "1",
+          "lease_until": "0"
+        },
+        {
+          "observed_at": "2026-10-30T16:15:18.188Z",
+          "deployment_id": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+          "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+          "tick_id": "59daa877-4fdc-4b7e-9167-eb5b26795dec",
+          "bucket": "29889613",
+          "status": "complete",
+          "dispatched": "1",
+          "lease_until": "0"
+        },
+        {
+          "observed_at": "2026-10-30T16:15:18.188Z",
+          "deployment_id": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+          "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+          "tick_id": "ce924a46-3c74-48e1-9113-07a617f4f05d",
+          "bucket": "29889614",
+          "status": "complete",
+          "dispatched": "1",
+          "lease_until": "0"
+        },
+        {
+          "observed_at": "2026-10-30T16:15:18.188Z",
+          "deployment_id": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+          "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+          "tick_id": "42d68f60-1812-4900-9953-39ed5af33067",
+          "bucket": "29889615",
+          "status": "complete",
+          "dispatched": "1",
+          "lease_until": "0"
+        },
+        {
+          "observed_at": "2026-10-30T16:15:18.188Z",
+          "deployment_id": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+          "generation": "fc4b5b63-37e9-480f-ae50-4f23c1f0852d",
+          "tick_id": "029fd0e5-9e44-4101-9bc4-372caa6cc609",
+          "bucket": "29889616",
+          "status": "pending",
+          "dispatched": "1",
+          "lease_until": "0"
+        }
+      ]
+    ]
+  },
+  "recoveredJob": {
+    "jobId": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+    "originalAdmissionSource": "ff297243772cb39ad46169b86be4d3289955433c",
+    "status": "completed",
+    "workerAttempts": 1,
+    "fence": 1,
+    "publicationReceiptCount": 1,
+    "additionalJobEnqueued": false,
+    "observations": [
+      [
+        {
+          "observed_at": "2026-10-30T16:12:52.099Z",
+          "id": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+          "kind": "audio.render",
+          "status": "completed",
+          "attempts": "1",
+          "fence": "1",
+          "output_present": true,
+          "publication_receipts": "1",
+          "dispatch_intent_id": "66695b2f-2838-4156-9820-5dd42d884632",
+          "dispatch_status": "dispatched",
+          "dispatch_attempts": "0",
+          "receipt_present": false
+        },
+        {
+          "observed_at": "2026-10-30T16:12:52.099Z",
+          "id": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+          "kind": "audio.render",
+          "status": "completed",
+          "attempts": "1",
+          "fence": "1",
+          "output_present": true,
+          "publication_receipts": "1",
+          "dispatch_intent_id": "a0d19900-9975-4525-984b-1d843ec05a7f",
+          "dispatch_status": "dispatched",
+          "dispatch_attempts": "1",
+          "receipt_present": true
+        },
+        {
+          "observed_at": "2026-10-30T16:12:52.099Z",
+          "id": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+          "kind": "audio.render",
+          "status": "completed",
+          "attempts": "1",
+          "fence": "1",
+          "output_present": true,
+          "publication_receipts": "1",
+          "dispatch_intent_id": "111bbd16-3695-409d-b8b8-9f16ebe55757",
+          "dispatch_status": "dispatched",
+          "dispatch_attempts": "1",
+          "receipt_present": true
+        },
+        {
+          "observed_at": "2026-10-30T16:12:52.099Z",
+          "id": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+          "kind": "audio.render",
+          "status": "completed",
+          "attempts": "1",
+          "fence": "1",
+          "output_present": true,
+          "publication_receipts": "1",
+          "dispatch_intent_id": "ade06e51-df59-4f3a-807c-e8c0474f1c6c",
+          "dispatch_status": "dispatched",
+          "dispatch_attempts": "2",
+          "receipt_present": true
+        },
+        {
+          "observed_at": "2026-10-30T16:12:52.099Z",
+          "id": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+          "kind": "audio.render",
+          "status": "completed",
+          "attempts": "1",
+          "fence": "1",
+          "output_present": true,
+          "publication_receipts": "1",
+          "dispatch_intent_id": "5017f6dc-9d69-492f-9d4f-0e7a5b093f6c",
+          "dispatch_status": "dispatched",
+          "dispatch_attempts": "3",
+          "receipt_present": true
+        }
+      ]
+    ]
+  },
+  "mediaValidation": {
+    "performedBy": "independent hosted audio verifier",
+    "originalEvidenceCommit": "bf50cc3",
+    "evidenceJson": "docs/studio-evidence/vercel-release/hosted-audio-recovery.json",
+    "evidenceMarkdown": "docs/studio-evidence/vercel-release/hosted-audio-recovery.md",
+    "scope": "same recovered job, actual WAV bytes and metadata, two fresh authenticated sessions, anonymous App401"
+  },
+  "checks": [
+    "exact approved preview reached Ready with the expected source",
+    "protected health returned200 and SQL-backed readiness reported private identity configured",
+    "one authenticated bootstrap returned accepted",
+    "four unique maintenance ticks completed and a dispatched successor remained",
+    "the preserved job recovered without a new admission and committed one publication receipt",
+    "post-recovery readiness cleared the degraded dispatch state"
+  ],
+  "safety": {
+    "deploymentProtectionChanged": false,
+    "shareLinkCreated": false,
+    "credentialsRecorded": false,
+    "requestHeadersOrBodiesRecorded": false,
+    "directSqlWrites": false,
+    "modelCallsInitiated": false,
+    "additionalJobsEnqueued": false
+  },
+  "limits": [
+    "This is preview acceptance for the exact recorded source and deployment; it does not establish production promotion.",
+    "dispatched is a boolean. Unique completed SQL ticks do not imply exactly-once transport sends or delivery.",
+    "External operations may repeat after uncertain acknowledgements; SQL leases and publication receipts fence durable results.",
+    "Actual audio byte and fresh-session checks are retained in the separate referenced media verifier receipt."
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "file": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+  "loadMs": 468,
+  "maxRss": 810778624,
+  "cases": [
+    {
+      "id": "design-explanation",
+      "ms": 419,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "The UI developer should build a blue button labeled \"Start\" on the home page."
+    },
+    {
+      "id": "title-goal",
+      "ms": 863,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\"title\": \"Accessible Color Picker with Keyboard-Operable Palette\", \"goal\": \"To create a color picker that is accessible to users with disabilities, allowing them to select colors using a keyboard and a palette.\"}"
+    },
+    {
+      "id": "render-ui",
+      "ms": 782,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\n    \"type\": \"button\",\n    \"text\": \"Save changes\",\n    \"ariaLabel\": \"Save changes\"\n}"
+    },
+    {
+      "id": "read-only-tool-selection",
+      "ms": 679,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\n    \"name\": \"repository_file\",\n    \"path\": \"src/main.ts\"\n}"
+    },
+    {
+      "id": "decision-human-approval",
+      "ms": 358,
+      "valid": true,
+      "semanticMatch": true,
+      "output": "{\"allowed\": false}"
+    }
+  ],
+  "provenance": {
+    "repository": "bartowski/Qwen2.5-0.5B-Instruct-GGUF",
+    "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+    "bytes": 397808192,
+    "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+    "license": "Apache-2.0"
+  },
+  "runtime": {
+    "package": "node-llama-cpp@3.22.2",
+    "llamaCppRelease": "v0.7.0",
+    "device": "cpu",
+    "contextSize": 4096,
+    "threads": 2,
+    "temperature": 0,
+    "maxOutputTokens": 256
+  },
+  "scope": "five synthetic local-host inference samples; not a general accuracy or deployed latency benchmark"
+}

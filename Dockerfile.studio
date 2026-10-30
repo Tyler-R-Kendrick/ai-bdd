@@ -1,4 +1,21 @@
 # syntax=docker/dockerfile:1.7
+# Immutable public artifacts are cached independently of application source changes.
+FROM node:24-bookworm-slim AS local-assets
+WORKDIR /artifacts
+ENV NODE_USE_ENV_PROXY=1 DO_NOT_TRACK=1
+COPY packages/studio/server/local/model-manifest.json packages/studio/server/local/model-manifest.json
+COPY packages/studio/server/local/MODEL-LICENSE.txt packages/studio/server/local/MODEL-LICENSE.txt
+COPY packages/studio/scripts/download-local-model.mjs packages/studio/scripts/download-local-model.mjs
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    node packages/studio/scripts/download-local-model.mjs /local-model
+COPY packages/studio/server/local/native-t3-tools.json packages/studio/server/local/native-t3-tools.json
+COPY packages/studio/server/local/licenses/ packages/studio/server/local/licenses/
+COPY packages/studio/scripts/install-native-t3-tools.mjs packages/studio/scripts/install-native-t3-tools.mjs
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    node packages/studio/scripts/install-native-t3-tools.mjs /native-tools
+
 FROM node:24-bookworm-slim AS build
 WORKDIR /build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 DO_NOT_TRACK=1 SCARF_NO_ANALYTICS=true NODE_USE_ENV_PROXY=1
@@ -32,6 +49,8 @@ FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     STUDIO_HOST=0.0.0.0 \
     STUDIO_DATA_DIR=/data \
+    STUDIO_LOCAL_MODEL_DIR=/opt/studio-model \
+    STUDIO_T3_MANAGED_TOOLS_DIR=/opt/studio-native-tools \
     AI_BDD_CHROMIUM_PATH=/usr/bin/chromium \
     DO_NOT_TRACK=1 \
     SCARF_NO_ANALYTICS=true \
@@ -42,6 +61,10 @@ RUN apt-get update \
  && mkdir /data && chown node:node /data
 ENV XDG_CONFIG_HOME=/tmp/studio-config XDG_CACHE_HOME=/tmp/studio-cache
 WORKDIR /app
+COPY --from=local-assets /local-model/ /opt/studio-model/
+COPY --from=local-assets /native-tools/ /opt/studio-native-tools/
+RUN chmod 0555 /opt/studio-model && chmod 0444 /opt/studio-model/* \
+ && chmod -R a+rX /opt/studio-native-tools
 COPY --from=build --chown=node:node /release/ ./
 USER node
 VOLUME ["/data"]

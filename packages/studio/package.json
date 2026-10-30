@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch server/main.ts",
     "dev:ui": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts server/planner-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server && esbuild server/hosting/vercel-main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/vercel-main.js && node scripts/build-connector.mjs",
+    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts server/planner-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server && esbuild server/hosting/vercel-main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/vercel-main.js && esbuild server/local/model.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/local-model.js && node scripts/build-local-model-worker.mjs && node scripts/build-connector.mjs",
     "start": "node dist/server/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
@@ -18,7 +18,8 @@
     "mcp:dev": "tsx server/mcp.ts",
     "machine:connect": "node dist/server/machine-worker.js",
     "verify:live": "tsx server/integrations/live-check.ts",
-    "planner:connect": "node dist/server/planner-worker.js"
+    "planner:connect": "node dist/server/planner-worker.js",
+    "model:download": "node scripts/download-local-model.mjs"
   },
   "dependencies": {
     "@ai-bdd/driver-playwright": "workspace:*",
@@ -55,6 +56,7 @@
     "@tiptap/react": "^3.32.1",
     "@tiptap/starter-kit": "^3.32.1",
     "@vercel/blob": "2.8.2",
+    "@vercel/oidc": "4.0.5",
     "@vercel/queue": "0.10.0",
     "@vercel/sandbox": "3.9.1",
     "@xyflow/react": "^12.12.0",
@@ -65,6 +67,7 @@
     "fastify": "^5.12.7",
     "fflate": "0.8.3",
     "fix-webm-duration": "^1.0.6",
+    "jose": "6.2.14",
     "katex": "^0.18.10",
     "lib0": "^0.2.119",
     "lucide-react": "^1.64.0",
@@ -84,7 +87,10 @@
     "y-protocols": "^1.0.7",
     "y-websocket": "^3.1.0",
     "yjs": "^13.6.33",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "node-llama-cpp": "3.22.2",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
   },
   "devDependencies": {
     "@ai-bdd/testing": "workspace:*",

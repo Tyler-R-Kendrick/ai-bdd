@@ -1,0 +1,104 @@
+{
+  "actualNative": true,
+  "localModel": "qwen2.5-0.5b-instruct-q4-k-m",
+  "nativeTools": "disabled at local text provider",
+  "tests": [
+    {
+      "name": "same-session encrypted restore and native idempotent replay",
+      "text": "2 + 2 = 4",
+      "cpuCalls": 1,
+      "replayAdditionalCalls": 0
+    },
+    {
+      "name": "expired owned OAuth session receives fresh Supervised approval before read-only recomputation",
+      "additionalCpuCalls": 1,
+      "namespaceGeneration": 1,
+      "oldNativeHistoryRetained": true
+    },
+    {
+      "name": "actual native structured response",
+      "output": {
+        "answer": 42
+      }
+    },
+    {
+      "name": "actual native Studio SDK tool, result history and final answer",
+      "serverCalls": 1,
+      "steps": 2,
+      "text": "The stored answer is 42."
+    },
+    {
+      "name": "actual generateTitleGoal follows grocery request",
+      "output": {
+        "title": "Build a grocery list that groups weekly groceries by aisle and lets me check off purchased items",
+        "goal": "Create a design document that includes a grocery list that organizes weekly groceries by aisle and allows for easy checking off of purchased items."
+      }
+    },
+    {
+      "name": "actual generateTitleGoal preserves Pact human approval intent",
+      "output": {
+        "title": "Pact Workspace Design",
+        "goal": "A collaborative acceptance-test workspace for Pact, AI proposes specifications and code changes, a human must approve every proposed edit before it is applied."
+      }
+    }
+  ],
+  "nativeState": {
+    "files": 14,
+    "bytes": 1293816,
+    "databases": [
+      {
+        "path": "data/opencode/opencode.db",
+        "bytes": 299008
+      },
+      {
+        "path": "native/userdata/server-owner.sqlite",
+        "bytes": 0
+      },
+      {
+        "path": "native/userdata/statev2.sqlite",
+        "bytes": 983040
+      }
+    ]
+  },
+  "quality": {
+    "originalSerializedPrompt": {
+      "request": "6 times 7",
+      "expected": 42,
+      "actual": 14,
+      "passed": false
+    },
+    "directModel": {
+      "expected": 42,
+      "actual": 42,
+      "passed": true
+    },
+    "rolePreservingPrompt": {
+      "expected": 42,
+      "actual": 42,
+      "passed": true
+    },
+    "pactOriginalPrompt": {
+      "title": "Create a Collaborative Acceptance-Test Workspace",
+      "goal": "Develop a workspace for acceptance testing where AI proposes specifications and code changes, and a human must approve every proposed edit before it is applied.",
+      "explicitNameRetained": false,
+      "humanApprovalRetained": true
+    },
+    "pactNameOnlyPrompt": {
+      "title": "Pact Workspace Design",
+      "goal": "Create a collaborative acceptance-test workspace for AI to propose and approve code changes.",
+      "explicitNameRetained": true,
+      "humanApprovalRetained": false
+    },
+    "pactNamedIntentPrompt": {
+      "title": "Pact Workspace Design",
+      "goal": "A collaborative acceptance-test workspace for Pact, AI proposes specifications and code changes, a human must approve every proposed edit before it is applied.",
+      "explicitNameRetained": true,
+      "humanApprovalRetained": true
+    }
+  },
+  "cpuCalls": 9,
+  "passed": true,
+  "caseSelection": "full",
+  "directCpuCalls": 1,
+  "nativeCpuCalls": 8
+}

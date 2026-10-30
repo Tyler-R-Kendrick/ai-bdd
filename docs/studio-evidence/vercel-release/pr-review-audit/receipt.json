@@ -1,0 +1,1216 @@
+{
+  "schemaVersion": 1,
+  "audit": "Existing stacked-PR screenshot pins and self-review presence",
+  "recordedAt": "2026-10-30T18:08:49.863128+00:00",
+  "repository": "Tyler-R-Kendrick/ai-bdd",
+  "sourceAtStart": "af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f",
+  "method": [
+    "Read gh pr view public body/head/base/owner-comments metadata for PR14 through PR25.",
+    "Parse Markdown image embeds in owner comments; count includes repeated/superseded image embeds.",
+    "Resolve each pinned revision through local Git and read the exact committed object.",
+    "Check PNG signature and positive IHDR dimensions; record byte length and SHA-256.",
+    "Check for explicit self-review text and record its comment URL.",
+    "Read the PR descriptions and owner comments for stated source, synthetic/protocol/live scopes and limits."
+  ],
+  "results": {
+    "pullRequests": 12,
+    "screenshotEmbeds": 87,
+    "validPinnedPngs": 87,
+    "pullRequestsWithExplicitSelfReview": 12,
+    "missingOrInvalidObjects": 0
+  },
+  "limits": [
+    "This audit does not constitute a new visual inspection of all 87 images; existing comments retain their authors visual-review claims.",
+    "Git-object resolution and PNG checks are not an HTTP availability test of every image URL.",
+    "Metadata was retrieved once at the listed times; later PR heads, comments and descriptions may change.",
+    "Screenshot appearance cannot establish hidden backend effects, inference correctness or deployed acceptance.",
+    "Self-review comments are not independent reviewer approvals."
+  ],
+  "historicalClarification": {
+    "pullRequest": 19,
+    "screenshotSource": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+    "headAtRetrieval": "b479a67731c78360ff55c909583e556a626ef6ac",
+    "existingFinalComment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/19#issuecomment-6512475738",
+    "observedDiff": {
+      "filesChanged": 2,
+      "insertions": 3,
+      "deletions": 1,
+      "productChange": "Remove premature setReady(false) from the unchanged preview draft debounce.",
+      "testChange": "Three browser assertions retain the already-loaded preview status."
+    },
+    "assessment": "The existing screenshot URLs remain source-labelled and pictured controls are unchanged; a final-head clarification is recommended because the earlier final comment names e227d57."
+  },
+  "activeReleaseBoundary": {
+    "pullRequest": 25,
+    "headAtRetrieval": "af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f",
+    "assessment": "Description is pending replacement after final local-model hosted and CI acceptance. Existing screenshots remain limited to their individually labelled source and environment."
+  },
+  "pullRequests": [
+    {
+      "number": 14,
+      "screenshotCount": 1,
+      "ownerCommentCount": 2,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "c1195c6",
+          "path": "docs/studio-evidence/01-artifact-api.png",
+          "bytes": 124662,
+          "width": 1440,
+          "height": 1096,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/14#issuecomment-6508182530",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/c1195c6/docs/studio-evidence/01-artifact-api.png",
+          "resolvedCommit": "c1195c6f98a78a4b179ef31d376a73e2be473f90",
+          "sha256": "c53b1344f32388795d45fad4e753d8d9456ea7ba19e3c36d36074938f855ddf7"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/14",
+      "headAtRetrieval": "0b85719bae835d414299e90b9e63e1649409231e",
+      "baseAtRetrieval": "main",
+      "retrievedAt": "2026-10-30T18:06:56.688357+00:00",
+      "ownerMetadataSnapshotSha256": "b4dee8a0430c5e452f95903d8b6271f10ef7f99f3c9aeb89467b4369d6b396dc",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/14#issuecomment-6508182530",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/14#issuecomment-6509221745"
+      ]
+    },
+    {
+      "number": 15,
+      "screenshotCount": 14,
+      "ownerCommentCount": 3,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/02-workspace.png",
+          "bytes": 159490,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856043",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/02-workspace.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "f47c2ffdc41cfc255c8136d4cbbae6a5ae4c4e4a428a57ffe08211dbeedee1a3"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/03-workspace-mobile.png",
+          "bytes": 60786,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856043",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/03-workspace-mobile.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "cb33f71e03d21bae1867ae90492d5cdcd9d516016decc5f20632687c48f8e0a8"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/04-project-canvas.png",
+          "bytes": 117334,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856043",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/04-project-canvas.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "69f37f10fc8b4daf90c88a37825975053dd284dc0efdbdd4c8836961734d4a9f"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/05-artifact-decisions.png",
+          "bytes": 173906,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856043",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/05-artifact-decisions.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "bfd763995baf66296d3c0722ce99da94c0b6bb535ef0ebaa7fb112d3d70d430b"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/06-code-preview.png",
+          "bytes": 101099,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856043",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/06-code-preview.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "ad61086933dbcd8a92a10c73d6a5a533862b4631bb520d2b9d009739db94c7ad"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/09-image-canvas.png",
+          "bytes": 107341,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/09-image-canvas.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "083b68dc2f6248315dd18d4834cb5c8c690fbe2d0f24d9e56885a4ffeccf65d8"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/10-brand-canvas.png",
+          "bytes": 109722,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/10-brand-canvas.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "dafde9b9ba117cb3c50909ee9aa28619b9007e18f832c2740e941b61320e4037"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/11-video-timeline.png",
+          "bytes": 111147,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/11-video-timeline.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "bd92b52b6007789565719887ab72262ffe7ccbc53a1e8d1875097aedce85338f"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/12-scene-editor.png",
+          "bytes": 435107,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/12-scene-editor.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "3219f872ceb4630d86cc7b1b0b35a3a8ef3c187d511ea27b59344cecd230a673"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/13-cad-editor.png",
+          "bytes": 361585,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/13-cad-editor.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "b6d85d27824cfc0147c1dfa64e83e65fbabeaca63e0cbe8fc73f605946d639a5"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/14-rich-document.png",
+          "bytes": 106126,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/14-rich-document.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "d280915f36cd8ff4cac28216a13e2be3d989c4129df75e1a1db955a40bcb052b"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/07-json-render.png",
+          "bytes": 122125,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/07-json-render.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "ca274a203bd86ec4a88bff805bb77da0cba5ddc56e06f0ecf1d5f25d9be4936b"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/08-openui.png",
+          "bytes": 134799,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/08-openui.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "62f635183ccc7a4ae2de7c311fe952d211706dbf3c43335b21781a60cb3a2f6e"
+        },
+        {
+          "rev": "6e8bd4b",
+          "path": "docs/studio-evidence/15-chat-history.png",
+          "bytes": 150259,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/6e8bd4b/docs/studio-evidence/15-chat-history.png",
+          "resolvedCommit": "6e8bd4b0284902a5bbea69cc88d3ea6e70ba8516",
+          "sha256": "9badf328c0aa10e15226da6bf185d6857e246dfe46c22bc786017966fbc89993"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15",
+      "headAtRetrieval": "94504f6cdd121e78cb7f666ef8fde8c0dc66ebc4",
+      "baseAtRetrieval": "codex/studio-01-foundation",
+      "retrievedAt": "2026-10-30T18:06:56.944362+00:00",
+      "ownerMetadataSnapshotSha256": "388bcd8af99d020fe4798ca3948fc952c0643d3bda4240beac7f9a15ef901a40",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856043",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/15#issuecomment-6508856914"
+      ]
+    },
+    {
+      "number": 16,
+      "screenshotCount": 2,
+      "ownerCommentCount": 5,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "9dadf4c5cc28060097541e5b88481600def5d1fb",
+          "path": "docs/studio-evidence/16-release-verification.png",
+          "bytes": 140386,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/16#issuecomment-6509213983",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/9dadf4c5cc28060097541e5b88481600def5d1fb/docs/studio-evidence/16-release-verification.png",
+          "resolvedCommit": "9dadf4c5cc28060097541e5b88481600def5d1fb",
+          "sha256": "1f6a2ce9fc5f408300683a0ecca83cb47f01a1db14ba63d181edf3fbf44e34bd"
+        },
+        {
+          "rev": "cb01449dd427642a294640ff97e52af49cdec905",
+          "path": "docs/studio-evidence/16-release-verification.png",
+          "bytes": 140341,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/16#issuecomment-6509515687",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/cb01449dd427642a294640ff97e52af49cdec905/docs/studio-evidence/16-release-verification.png",
+          "resolvedCommit": "cb01449dd427642a294640ff97e52af49cdec905",
+          "sha256": "cb15843d4ba25e8ec0e20a0dd86efe37c078bad82eb71e8302ba9749d25733f1"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/16",
+      "headAtRetrieval": "cb01449dd427642a294640ff97e52af49cdec905",
+      "baseAtRetrieval": "codex/studio-02-workspace",
+      "retrievedAt": "2026-10-30T18:06:56.776358+00:00",
+      "ownerMetadataSnapshotSha256": "80e7ba3e69569bd89280b01b0a85ca77b3cd6d6c869eb5cb025d54a135cbe709",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/16#issuecomment-6509213983",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/16#issuecomment-6509515687",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/16#issuecomment-6509640859"
+      ]
+    },
+    {
+      "number": 17,
+      "screenshotCount": 1,
+      "ownerCommentCount": 2,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "f76ac20cc0d0f0b863a1f5b3303c7b6957ab9ff3",
+          "path": "docs/studio-evidence/continuation/source-compiler.png",
+          "bytes": 44681,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/17#issuecomment-6511458241",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/f76ac20cc0d0f0b863a1f5b3303c7b6957ab9ff3/docs/studio-evidence/continuation/source-compiler.png?raw=true",
+          "resolvedCommit": "f76ac20cc0d0f0b863a1f5b3303c7b6957ab9ff3",
+          "sha256": "269e5a31e818f01a640a345d7792d5e779589141d26f12cc3eecd91f68dd2f7b"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/17",
+      "headAtRetrieval": "5220dfe144f5d844d57abaf9fbc9967267047495",
+      "baseAtRetrieval": "codex/studio-03-release",
+      "retrievedAt": "2026-10-30T18:06:56.848360+00:00",
+      "ownerMetadataSnapshotSha256": "af8e8c4a23a081506e06c4201a2a1215daa4e80927349343d6962dab9f7210a5",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/17#issuecomment-6511458241",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/17#issuecomment-6511906590"
+      ]
+    },
+    {
+      "number": 18,
+      "screenshotCount": 2,
+      "ownerCommentCount": 2,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "a16ce12f3e621d2483019df59933cdb995e096bf",
+          "path": "docs/studio-evidence/continuation/documents-review-desktop.png",
+          "bytes": 144539,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/18#issuecomment-6511662667",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/a16ce12f3e621d2483019df59933cdb995e096bf/docs/studio-evidence/continuation/documents-review-desktop.png?raw=true",
+          "resolvedCommit": "a16ce12f3e621d2483019df59933cdb995e096bf",
+          "sha256": "b6e12134763cbe30356350eb98c6a3a42e38f1970e03471b5aadb0df83f1ad79"
+        },
+        {
+          "rev": "a16ce12f3e621d2483019df59933cdb995e096bf",
+          "path": "docs/studio-evidence/continuation/documents-review-mobile.png",
+          "bytes": 52980,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/18#issuecomment-6511662667",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/a16ce12f3e621d2483019df59933cdb995e096bf/docs/studio-evidence/continuation/documents-review-mobile.png?raw=true",
+          "resolvedCommit": "a16ce12f3e621d2483019df59933cdb995e096bf",
+          "sha256": "1db3239f98fcd06f1bdbfb20e5a8eb222595a5fb10c3a93e6e050f01e3bfe8a9"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/18",
+      "headAtRetrieval": "5e4b478ad11e7f8fe0d8d5d865cf440c98d89567",
+      "baseAtRetrieval": "codex/studio-04-integration",
+      "retrievedAt": "2026-10-30T18:06:56.864360+00:00",
+      "ownerMetadataSnapshotSha256": "18ebecc4b97a422e622ffdc5f526de15ffbed90e0577aa4060b5107344058e19",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/18#issuecomment-6511662667",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/18#issuecomment-6512326981"
+      ]
+    },
+    {
+      "number": 19,
+      "screenshotCount": 4,
+      "ownerCommentCount": 2,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "path": "docs/studio-evidence/code-workspace/17-react-typescript-project.png",
+          "bytes": 147143,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/19#issuecomment-6512319081",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e227d57c809b3ed1794bbca418055ca5383ea99b/docs/studio-evidence/code-workspace/17-react-typescript-project.png?raw=true",
+          "resolvedCommit": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "sha256": "4f2834b966813c3aaba2e170df9deab4f1eeb312dd347034066ce59bdd61d87d"
+        },
+        {
+          "rev": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "path": "docs/studio-evidence/code-workspace/18-pact-provider-state-preview.png",
+          "bytes": 109074,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/19#issuecomment-6512319081",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e227d57c809b3ed1794bbca418055ca5383ea99b/docs/studio-evidence/code-workspace/18-pact-provider-state-preview.png?raw=true",
+          "resolvedCommit": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "sha256": "ab51dc9d4a38b75e541b72335d66edee4f5c626d0af6ae0cb0ee485fafb5c2b9"
+        },
+        {
+          "rev": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "path": "docs/studio-evidence/code-workspace/19-source-compiler-diagnostic.png",
+          "bytes": 107394,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/19#issuecomment-6512319081",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e227d57c809b3ed1794bbca418055ca5383ea99b/docs/studio-evidence/code-workspace/19-source-compiler-diagnostic.png?raw=true",
+          "resolvedCommit": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "sha256": "8c93658412acc7d8c12ccd941a0185c0432e4ddfe23c7b6336d56dee8be026c3"
+        },
+        {
+          "rev": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "path": "docs/studio-evidence/code-workspace/20-react-typescript-mobile.png",
+          "bytes": 46689,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/19#issuecomment-6512319081",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e227d57c809b3ed1794bbca418055ca5383ea99b/docs/studio-evidence/code-workspace/20-react-typescript-mobile.png?raw=true",
+          "resolvedCommit": "e227d57c809b3ed1794bbca418055ca5383ea99b",
+          "sha256": "6a47b951c50d7b6fee965d31f28902695e0f1c97a3a1f810eeb160cc0b49c5d8"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/19",
+      "headAtRetrieval": "b479a67731c78360ff55c909583e556a626ef6ac",
+      "baseAtRetrieval": "codex/studio-05-documents",
+      "retrievedAt": "2026-10-30T18:06:57.056364+00:00",
+      "ownerMetadataSnapshotSha256": "ee9ced02bc3e9eeedeaba28357ac5ee9f67748535c52e0e96b100803d5c9f74a",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/19#issuecomment-6512319081"
+      ]
+    },
+    {
+      "number": 20,
+      "screenshotCount": 3,
+      "ownerCommentCount": 3,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2",
+          "path": "docs/studio-evidence/typeface-authoring.png",
+          "bytes": 142598,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/20#issuecomment-6512383436",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2/docs/studio-evidence/typeface-authoring.png?raw=true",
+          "resolvedCommit": "d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2",
+          "sha256": "6affb53c19d39451b1a52158d8a83e6ca2cc0cd611023ba8cbbd97c82a7a6e48"
+        },
+        {
+          "rev": "d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2",
+          "path": "docs/studio-evidence/vector-brand-authoring.png",
+          "bytes": 108482,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/20#issuecomment-6512383436",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2/docs/studio-evidence/vector-brand-authoring.png?raw=true",
+          "resolvedCommit": "d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2",
+          "sha256": "d1c912969d63eff22e7d2651eee2165ef751e6ce5c74ab70d1dd662114ee99a5"
+        },
+        {
+          "rev": "d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2",
+          "path": "docs/studio-evidence/raster-design-tools.png",
+          "bytes": 120150,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/20#issuecomment-6512383436",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2/docs/studio-evidence/raster-design-tools.png?raw=true",
+          "resolvedCommit": "d5eb9d52f0d476d11bf40c331a3957f9b8f44cb2",
+          "sha256": "32b620d0be309f46d164ca96e5d37781adc892e2a3a2ce45ed9aad42cfe35777"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/20",
+      "headAtRetrieval": "29fa8632699b2f5c343a0332a8a71a54b6c190f4",
+      "baseAtRetrieval": "codex/studio-06-code",
+      "retrievedAt": "2026-10-30T18:06:56.956362+00:00",
+      "ownerMetadataSnapshotSha256": "ad3e42ad12cf791d256acc89d4e68cacb08f0e3563ece9c6224d6b60f5ca98a1",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/20#issuecomment-6512383436",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/20#issuecomment-6513427009"
+      ]
+    },
+    {
+      "number": 21,
+      "screenshotCount": 2,
+      "ownerCommentCount": 2,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "abc9e61be2c6d9118384a0a72dde4d6fff63f4bd",
+          "path": "docs/studio-evidence/spatial-authoring/cad-exact.png",
+          "bytes": 378733,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/21#issuecomment-6512439201",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/abc9e61be2c6d9118384a0a72dde4d6fff63f4bd/docs/studio-evidence/spatial-authoring/cad-exact.png?raw=true",
+          "resolvedCommit": "abc9e61be2c6d9118384a0a72dde4d6fff63f4bd",
+          "sha256": "a5daf0d5b823392006a7b06fc2ca4c19bf304f899036367931e68892fdbab6f4"
+        },
+        {
+          "rev": "abc9e61be2c6d9118384a0a72dde4d6fff63f4bd",
+          "path": "docs/studio-evidence/spatial-authoring/scene-import.png",
+          "bytes": 421479,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/21#issuecomment-6512439201",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/abc9e61be2c6d9118384a0a72dde4d6fff63f4bd/docs/studio-evidence/spatial-authoring/scene-import.png?raw=true",
+          "resolvedCommit": "abc9e61be2c6d9118384a0a72dde4d6fff63f4bd",
+          "sha256": "d89e6f2fbeecde1f271b49d673c1169c1db4655e946c66415b88e96bdbaf0344"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/21",
+      "headAtRetrieval": "09226d6cf02405bb6aa1822be4179c2bb1009ae9",
+      "baseAtRetrieval": "codex/studio-07-visual",
+      "retrievedAt": "2026-10-30T18:06:56.912361+00:00",
+      "ownerMetadataSnapshotSha256": "3c047e735109d15a86e05497b53a1c03a7b40ea5a72458f54a71d294c6023f6e",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/21#issuecomment-6512439201",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/21#issuecomment-6513429174"
+      ]
+    },
+    {
+      "number": 22,
+      "screenshotCount": 4,
+      "ownerCommentCount": 2,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "path": "docs/studio-evidence/video-authoring/video-timeline-desktop.png",
+          "bytes": 109891,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/22#issuecomment-6512712527",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/9817335bc067f40a450eee3c0db82e8f05067d06/docs/studio-evidence/video-authoring/video-timeline-desktop.png?raw=true",
+          "resolvedCommit": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "sha256": "06aed3ba1d5b45b04a98e0b05d1c935014a733a377022c53c382805a8cf07d76"
+        },
+        {
+          "rev": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "path": "docs/studio-evidence/video-authoring/video-keyframes-desktop.png",
+          "bytes": 113254,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/22#issuecomment-6512712527",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/9817335bc067f40a450eee3c0db82e8f05067d06/docs/studio-evidence/video-authoring/video-keyframes-desktop.png?raw=true",
+          "resolvedCommit": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "sha256": "7d7e8144dfc283882ffe81613dedb3df2bcf4af169f354ee9433fe6b624facc6"
+        },
+        {
+          "rev": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "path": "docs/studio-evidence/video-authoring/video-timeline-mobile.png",
+          "bytes": 34946,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/22#issuecomment-6512712527",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/9817335bc067f40a450eee3c0db82e8f05067d06/docs/studio-evidence/video-authoring/video-timeline-mobile.png?raw=true",
+          "resolvedCommit": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "sha256": "fc264b56fe83b72f34bbf63d103d594bb7227d30d8ae1b297ec9a08fb5fe3fd5"
+        },
+        {
+          "rev": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "path": "docs/studio-evidence/video-authoring/integration-policy-desktop.png",
+          "bytes": 154374,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/22#issuecomment-6512712527",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/9817335bc067f40a450eee3c0db82e8f05067d06/docs/studio-evidence/video-authoring/integration-policy-desktop.png?raw=true",
+          "resolvedCommit": "9817335bc067f40a450eee3c0db82e8f05067d06",
+          "sha256": "cda474e6e28f8d70312094acbd1569a72d4206dd5fd08991c562b691461d8a88"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/22",
+      "headAtRetrieval": "15215578e0775b6506351e4545eb418bb16400a9",
+      "baseAtRetrieval": "codex/studio-08-spatial",
+      "retrievedAt": "2026-10-30T18:06:57.036364+00:00",
+      "ownerMetadataSnapshotSha256": "5bf61d87aad200b1c33fcd328c825a3ebd4d1bf03794990f495c02f77878869c",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/22#issuecomment-6512712527",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/22#issuecomment-6513431415"
+      ]
+    },
+    {
+      "number": 23,
+      "screenshotCount": 16,
+      "ownerCommentCount": 5,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/full-product/agent-profile-default-t3-offline.png",
+          "bytes": 136858,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513672972",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/full-product/agent-profile-default-t3-offline.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "7cc4b4e8102d58b29134b0dd41df7fe5ddfdb74bc98248a5c114af40d3ee4667"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/full-product/decision-profile-independent-desktop.png",
+          "bytes": 147015,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513672972",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/full-product/decision-profile-independent-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "996c9bf1c7270d4048510be43eb75492b4087208bd8b01c249f1910f7e6d683c"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/final-all-browser/questionnaire-accepted-desktop.png",
+          "bytes": 175948,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513672972",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/final-all-browser/questionnaire-accepted-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "f9b5b134e6e399cd0f2e7e2851fdd7e8988d8096efe65e988250b01174d2ac50"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/final-all-browser/design-review-stale-mobile.png",
+          "bytes": 72130,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513672972",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/final-all-browser/design-review-stale-mobile.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "131f1c40d637b331c7bfd5f2e6f829e50fbf6266381b355c80d562bd65a22ded"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/audio-authoring/audio-waveform-desktop.png",
+          "bytes": 136954,
+          "width": 1440,
+          "height": 1200,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513677351",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/audio-authoring/audio-waveform-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "e90d8c3fd1192cdd47afdd8796067dae3b2394a8d4095fac7166282a2611feda"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/audio-authoring/audio-verified-mix-desktop.png",
+          "bytes": 144643,
+          "width": 1440,
+          "height": 1200,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513677351",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/audio-authoring/audio-verified-mix-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "82f2dd00ea9ef61aa5a41a7855beb7498c2640333fd48cca631a2eac7786df58"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/final-all-browser/midi-complete-desktop.png",
+          "bytes": 139181,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513677351",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/final-all-browser/midi-complete-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "d8d7e0f80d59e0175ae78856a31cf28fa8da1c6d0345af1727e74c6d400b6153"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/final-all-browser/midi-viewer-mobile.png",
+          "bytes": 32693,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513677351",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/final-all-browser/midi-viewer-mobile.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "0c0d0d1f6c1789a4001aafe0955e2f76cd39e97f0d167bf193a4dba4524f33af"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/living-documents/living-document-changes-desktop.png",
+          "bytes": 115438,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513681064",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/living-documents/living-document-changes-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "909ce94a8af3c5c14865b87228531d92c20b1e0b0ed8f3ab486a0a9d37487f33"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/living-documents/living-document-verified-desktop.png",
+          "bytes": 116386,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513681064",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/living-documents/living-document-verified-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "c3cf7be4e7151a5d48eebac68d641369d3c1c5e5dbe8575bac2dc6ed93a4e4fd"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/living-documents/living-document-automatic-desktop.png",
+          "bytes": 121763,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513681064",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/living-documents/living-document-automatic-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "42dfb555a7ba3c3be1b77bfd02c0855e9775555b89c8fa90febaa264152e83db"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/living-documents/living-document-viewer-mobile.png",
+          "bytes": 50681,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513681064",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/living-documents/living-document-viewer-mobile.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "32ef90837c0ae67069352a70d99d085775e75e089a9120f0bc8e8ce7ae652261"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/full-product/investigation-request-desktop.png",
+          "bytes": 157259,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513684103",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/full-product/investigation-request-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "e829fdffbb7fb685c08ea616c2f39875788bee45259f1907a3d14675871e9019"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/full-product/investigation-inline-desktop.png",
+          "bytes": 123951,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513684103",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/full-product/investigation-inline-desktop.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "62fe5ea27368ec5925e48d57f10bf5f145b2dc6130c81198a0d5d7a3cec21424"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/full-product/investigation-inline-mobile-viewer.png",
+          "bytes": 48150,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513684103",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/full-product/investigation-inline-mobile-viewer.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "676930082aee45a228595038aec46401ba25a9bb1e7c6979631a9d5b36c7607e"
+        },
+        {
+          "rev": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "path": "docs/studio-evidence/continuation/full-product/investigation-decision-mobile-viewer.png",
+          "bytes": 48348,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513684103",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/fe21dd4c6f59d6bb66c95e906fdaad07f60789b1/docs/studio-evidence/continuation/full-product/investigation-decision-mobile-viewer.png?raw=true",
+          "resolvedCommit": "fe21dd4c6f59d6bb66c95e906fdaad07f60789b1",
+          "sha256": "4b43394d80e646224a90c987ee49143d3a7a475ded0bddc5ca362fb850a69eab"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23",
+      "headAtRetrieval": "79edefbbf4f8c9bd62de5ac740f6cb1170332ec5",
+      "baseAtRetrieval": "codex/studio-09-media-agents",
+      "retrievedAt": "2026-10-30T18:06:57.144366+00:00",
+      "ownerMetadataSnapshotSha256": "13141c377066f78a8aba4e4abb8c55a0a1b406785854c3c61d32715075aaa965",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513672972",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513677351",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513681064",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6513684103",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/23#issuecomment-6515031744"
+      ]
+    },
+    {
+      "number": 24,
+      "screenshotCount": 28,
+      "ownerCommentCount": 9,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/chopin-findings/findings-human-review.png",
+          "bytes": 164403,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514821971",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/chopin-findings/findings-human-review.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "8f49df6e099ccdb1761da429808bf61b92228023f443bd586b05aa8d9c6595ea"
+        },
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/chopin-findings/findings-applied.png",
+          "bytes": 170397,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514821971",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/chopin-findings/findings-applied.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "80e767d5b1f215860e2205002020212395c99a92b76cd2ad47d5091b98993ebe"
+        },
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/chopin-findings/findings-live-document.png",
+          "bytes": 136147,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514821971",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/chopin-findings/findings-live-document.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "7b280daffaeb45fd5257296e9958daa8f5b30b68c496002f402de2032266e8bd"
+        },
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/chopin-findings/findings-human-incorporation.png",
+          "bytes": 163907,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514821971",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/chopin-findings/findings-human-incorporation.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "4bc73d737c4ec71ecfdee16a3e86e985198cef16c5ca96c210876f582c9729c8"
+        },
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/artifact-lifecycle/archive-browse-desktop.png",
+          "bytes": 150766,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514912671",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/artifact-lifecycle/archive-browse-desktop.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "9171f6ba3d907f1b8d11070c4bd1eaef92e87c08fffa32e376867826ef23f6c0"
+        },
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/artifact-lifecycle/archive-delete-confirmation-desktop.png",
+          "bytes": 168659,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514912671",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/artifact-lifecycle/archive-delete-confirmation-desktop.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "7acfe50b8aef0fb9836e560527902346e89c5260a6058bce3330a2edbeb87039"
+        },
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/artifact-lifecycle/archive-retained-evidence-desktop.png",
+          "bytes": 161119,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514912671",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/artifact-lifecycle/archive-retained-evidence-desktop.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "2cd9d739fe264b00e45c86fa2bed3ee4a5538a4c2c46e1075ee49f15e67d7261"
+        },
+        {
+          "rev": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "path": "docs/studio-evidence/continuation/artifact-lifecycle/archive-viewer-mobile.png",
+          "bytes": 48764,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514912671",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/bfc8ec9f3249b0586be6c2155d03b78883093291/docs/studio-evidence/continuation/artifact-lifecycle/archive-viewer-mobile.png?raw=true",
+          "resolvedCommit": "bfc8ec9f3249b0586be6c2155d03b78883093291",
+          "sha256": "2ab23963b7427e76b9c84f6fa2d20f394746024f7ac4dd1bf29b06cf4f45cf53"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/connector-setup/terminal.png",
+          "bytes": 184169,
+          "width": 1440,
+          "height": 1045,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515033035",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/connector-setup/terminal.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "ac971cc8afb531bc4491dd3e49e9d4df9c7e4a1e0cb185653e6bd2c095dafe57"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/account-planner/desktop-queued.png",
+          "bytes": 17403,
+          "width": 640,
+          "height": 207,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515033035",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/account-planner/desktop-queued.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "daf8af67477c26bb24ee9bdd8c4a9e30b10b9e06bbf4d2fed307d56c6709264b"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/account-planner/mobile-viewer.png",
+          "bytes": 12153,
+          "width": 358,
+          "height": 169,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515033035",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/account-planner/mobile-viewer.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "76b15d50608b52ca292569862b5a3b406828169ceddc18f7b7bce06f54a42cf3"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/remote-agents/remote-stream-and-run.png",
+          "bytes": 169728,
+          "width": 1440,
+          "height": 1100,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037265",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/remote-agents/remote-stream-and-run.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "752bb1f8595fdf563e93014160db0978e2e188fc64170846815bf5a0f5b091cf"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/remote-agents/remote-written-answers.png",
+          "bytes": 156409,
+          "width": 1440,
+          "height": 1100,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037265",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/remote-agents/remote-written-answers.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "0625509f8d3224289190e119d29245fb03bf862e934e889df9272eff6072e6a5"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/remote-agents/remote-completed-history.png",
+          "bytes": 177757,
+          "width": 1440,
+          "height": 1100,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037265",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/remote-agents/remote-completed-history.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "95c85ae15a8a5275874335baa9a70b4285672c30342c226c4d0f243aa602d5e4"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/remote-agents/remote-earlier-history.png",
+          "bytes": 160901,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037265",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/remote-agents/remote-earlier-history.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "abc3b47dc3b66b94f8152bdeebbfe9da220d0713b3c33f81ae420003bb1a2b12"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/remote-agents/remote-mobile-read-only.png",
+          "bytes": 51646,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037265",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/remote-agents/remote-mobile-read-only.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "bd6bbbf07fb39993e0fdb094ea5eb38cf6deddab7b3e3d01ecfc446ae319cc57"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/continuation/title-goal/title-goal-explicit-consent-desktop.png",
+          "bytes": 123153,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037781",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/continuation/title-goal/title-goal-explicit-consent-desktop.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "946df449174a706cce69385b3671534ce60e6b320ba262784971be5dd2c6e239"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/continuation/title-goal/title-goal-seeded-desktop.png",
+          "bytes": 100656,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037781",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/continuation/title-goal/title-goal-seeded-desktop.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "c6b708cb1ddfa5b90ec3bdc3ba7e5e91638ef6ba74ce363f358ec31eeab6c2b2"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/continuation/title-goal/title-goal-viewer-mobile.png",
+          "bytes": 34543,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037781",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/continuation/title-goal/title-goal-viewer-mobile.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "044cec0816167a6b40864eddee5a0e8cb3b3dc752312c3ca2a0fbb4ee5a8afe8"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/continuation/title-goal/title-goal-manual-source-preserved-desktop.png",
+          "bytes": 97062,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515037781",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/continuation/title-goal/title-goal-manual-source-preserved-desktop.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "356ca4728e409314b9fe3e354e177474949518a95fb850c895b8d50797da8576"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/continuation/video-codec-acceptance/studio-video-complete.png",
+          "bytes": 112742,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515040654",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/continuation/video-codec-acceptance/studio-video-complete.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "c60ae9b542259e880933a79355809cdb55b61ff0b0519bd9ab0e8ff3bdf84609"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/continuation/video-codec-acceptance/studio-video-unsupported-codec.png",
+          "bytes": 114327,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515040654",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/continuation/video-codec-acceptance/studio-video-unsupported-codec.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "2d3ea57e38921f853123e23a13b14126f298a8310e89f4aa6f494e1ec75d7ddc"
+        },
+        {
+          "rev": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "path": "docs/studio-evidence/continuation/video-codec-acceptance/studio-video-mobile.png",
+          "bytes": 36521,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515040654",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0/docs/studio-evidence/continuation/video-codec-acceptance/studio-video-mobile.png?raw=1",
+          "resolvedCommit": "e6e912ef7f0ba48f3e6a37b0fbe50fdb873b3bd0",
+          "sha256": "ae5dcd7a82b2393de21437137a1bcb7f4571c153b85534a8dcbfe8fb9ac26d5b"
+        },
+        {
+          "rev": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "path": "docs/studio-evidence/continuation/final-parity-browser/passage-research-brief-desktop.png",
+          "bytes": 113694,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515349873",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/92022bb2ed96eff7840c8b239f5755d3386e6a12/docs/studio-evidence/continuation/final-parity-browser/passage-research-brief-desktop.png?raw=1",
+          "resolvedCommit": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "sha256": "05953d21f6a746eb004e131bc42628faf9107d689a80cafce94ba2d1b68e71e8"
+        },
+        {
+          "rev": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "path": "docs/studio-evidence/continuation/final-parity-browser/passage-research-highlight-desktop.png",
+          "bytes": 100902,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515349873",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/92022bb2ed96eff7840c8b239f5755d3386e6a12/docs/studio-evidence/continuation/final-parity-browser/passage-research-highlight-desktop.png?raw=1",
+          "resolvedCommit": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "sha256": "7f0f4dd7e8bf0d0ed630cfa93bf2849ef237930ab048792042472bf9469f68f9"
+        },
+        {
+          "rev": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "path": "docs/studio-evidence/continuation/final-parity-browser/passage-investigation-ready-desktop.png",
+          "bytes": 114211,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515349873",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/92022bb2ed96eff7840c8b239f5755d3386e6a12/docs/studio-evidence/continuation/final-parity-browser/passage-investigation-ready-desktop.png?raw=1",
+          "resolvedCommit": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "sha256": "dcc49bc647f28420b23cd315b94ce90d928df21c79c8c82feb4751a2a74d0be0"
+        },
+        {
+          "rev": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "path": "docs/studio-evidence/continuation/final-parity-browser/passage-investigation-queued-desktop.png",
+          "bytes": 113538,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515349873",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/92022bb2ed96eff7840c8b239f5755d3386e6a12/docs/studio-evidence/continuation/final-parity-browser/passage-investigation-queued-desktop.png?raw=1",
+          "resolvedCommit": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "sha256": "4118c4b9c99f53da37c1253941bb672d673ce3fe52297e8d71a65e3412685570"
+        },
+        {
+          "rev": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "path": "docs/studio-evidence/continuation/final-parity-browser/passage-investigation-viewer-mobile.png",
+          "bytes": 45537,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515349873",
+          "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/blob/92022bb2ed96eff7840c8b239f5755d3386e6a12/docs/studio-evidence/continuation/final-parity-browser/passage-investigation-viewer-mobile.png?raw=1",
+          "resolvedCommit": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+          "sha256": "db32b558ed4a2dcea6d241b02672cfaa1650b46188e66a85c9ee21c6241c525b"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24",
+      "headAtRetrieval": "92022bb2ed96eff7840c8b239f5755d3386e6a12",
+      "baseAtRetrieval": "codex/studio-10-cloud",
+      "retrievedAt": "2026-10-30T18:06:57.520374+00:00",
+      "ownerMetadataSnapshotSha256": "f57b5022f402d4cc41a99a7ef448802c6c710ca66526e6ad01296aca4ef48bd7",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514821971",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6514912671",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/24#issuecomment-6515581500"
+      ]
+    },
+    {
+      "number": 25,
+      "screenshotCount": 10,
+      "ownerCommentCount": 4,
+      "selfReviewPresent": true,
+      "links": [
+        {
+          "rev": "26f00bd51b753079e4391812f183edad812c57b9",
+          "path": "docs/studio-evidence/vercel-release/desktop.png",
+          "bytes": 167786,
+          "width": 1600,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6526264090",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/26f00bd51b753079e4391812f183edad812c57b9/docs/studio-evidence/vercel-release/desktop.png",
+          "resolvedCommit": "26f00bd51b753079e4391812f183edad812c57b9",
+          "sha256": "88899d50bda25fcd75191acded75a75d74bad2cbcd8c2eea1026ba688e306d33"
+        },
+        {
+          "rev": "26f00bd51b753079e4391812f183edad812c57b9",
+          "path": "docs/studio-evidence/vercel-release/mobile.png",
+          "bytes": 63994,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6526264090",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/26f00bd51b753079e4391812f183edad812c57b9/docs/studio-evidence/vercel-release/mobile.png",
+          "resolvedCommit": "26f00bd51b753079e4391812f183edad812c57b9",
+          "sha256": "490156650b6fd439b4c7a6e946526bb5ad17cb26833673652eec2d37a1d5da4f"
+        },
+        {
+          "rev": "26f00bd51b753079e4391812f183edad812c57b9",
+          "path": "docs/studio-evidence/vercel-release/mobile-chat.png",
+          "bytes": 37597,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6526264090",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/26f00bd51b753079e4391812f183edad812c57b9/docs/studio-evidence/vercel-release/mobile-chat.png",
+          "resolvedCommit": "26f00bd51b753079e4391812f183edad812c57b9",
+          "sha256": "4fc2927fd0a65e6e082128fca8cddf3e3f4ed828362444f316541f9aedae206e"
+        },
+        {
+          "rev": "a670287",
+          "path": "docs/studio-evidence/vercel-release/audio-ui/hosted-audio-completed-desktop.png",
+          "bytes": 126238,
+          "width": 1440,
+          "height": 1100,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6528416234",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/a670287/docs/studio-evidence/vercel-release/audio-ui/hosted-audio-completed-desktop.png",
+          "resolvedCommit": "a67028747600b520953c59342ffcdf04775fa516",
+          "sha256": "15993b5e839ca4ab970195683968f43aff6f154b0e589cf67921f8a8bbe1e0cd"
+        },
+        {
+          "rev": "a670287",
+          "path": "docs/studio-evidence/vercel-release/audio-ui/hosted-audio-completed-mobile.png",
+          "bytes": 46654,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6528416234",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/a670287/docs/studio-evidence/vercel-release/audio-ui/hosted-audio-completed-mobile.png",
+          "resolvedCommit": "a67028747600b520953c59342ffcdf04775fa516",
+          "sha256": "03126dcd7ddadb188118dd70daeafa7e829f4d7ebc29404bfc73dfb5b17d1226"
+        },
+        {
+          "rev": "db7d236",
+          "path": "docs/studio-evidence/vercel-release/production-import-ui/imported-audio-1440.png",
+          "bytes": 144233,
+          "width": 1440,
+          "height": 1100,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6528857618",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/db7d236/docs/studio-evidence/vercel-release/production-import-ui/imported-audio-1440.png",
+          "resolvedCommit": "db7d236ac3f8e1d2dff5747ac571464419774337",
+          "sha256": "373adcef57c67ef515b2a5513b8afc89223cf32006fa258047959ae17a06e17b"
+        },
+        {
+          "rev": "db7d236",
+          "path": "docs/studio-evidence/vercel-release/production-import-ui/imported-audio-390.png",
+          "bytes": 45386,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6528857618",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/db7d236/docs/studio-evidence/vercel-release/production-import-ui/imported-audio-390.png",
+          "resolvedCommit": "db7d236ac3f8e1d2dff5747ac571464419774337",
+          "sha256": "a7800b6bf7a8bc579c3b977ac3f8d85b272c2f3d2ebf830cbf24b98195e1c7f7"
+        },
+        {
+          "rev": "893ee0f",
+          "path": "docs/studio-evidence/local-cpu/local-runtime-picker.png",
+          "bytes": 144261,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6529751535",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/893ee0f/docs/studio-evidence/local-cpu/local-runtime-picker.png",
+          "resolvedCommit": "893ee0f13b74704b9e9a34d08cfc722eb79aab13",
+          "sha256": "a2478a5d4092cc0765fe9bf505885ab3308c70a5cb3c79bd789104e3aabc6e9c"
+        },
+        {
+          "rev": "893ee0f",
+          "path": "docs/studio-evidence/local-cpu/local-design-chat.png",
+          "bytes": 116729,
+          "width": 1440,
+          "height": 1000,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6529751535",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/893ee0f/docs/studio-evidence/local-cpu/local-design-chat.png",
+          "resolvedCommit": "893ee0f13b74704b9e9a34d08cfc722eb79aab13",
+          "sha256": "0876f4c78252c54f788f88f640e4cbb199dd309cfe6e95a3405e2b2582a81f25"
+        },
+        {
+          "rev": "893ee0f",
+          "path": "docs/studio-evidence/local-cpu/local-design-chat-mobile.png",
+          "bytes": 40953,
+          "width": 390,
+          "height": 844,
+          "comment": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6529751535",
+          "url": "https://raw.githubusercontent.com/Tyler-R-Kendrick/ai-bdd/893ee0f/docs/studio-evidence/local-cpu/local-design-chat-mobile.png",
+          "resolvedCommit": "893ee0f13b74704b9e9a34d08cfc722eb79aab13",
+          "sha256": "1c5bb185d16dd4cc1c162b27205c094d15d50ddd63020dc28dd308722b04d550"
+        }
+      ],
+      "url": "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25",
+      "headAtRetrieval": "af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f",
+      "baseAtRetrieval": "codex/studio-11-chopin-parity",
+      "retrievedAt": "2026-10-30T18:06:57.304369+00:00",
+      "ownerMetadataSnapshotSha256": "0adef24ce1196815d893010475fd39f1c1b8334b2f02f7570fcce1ae9a32c59c",
+      "selfReviewCommentUrls": [
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6526264090",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6528416234",
+        "https://github.com/Tyler-R-Kendrick/ai-bdd/pull/25#issuecomment-6528857618"
+      ]
+    }
+  ]
+}

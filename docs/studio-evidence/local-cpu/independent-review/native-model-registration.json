@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "fae4d6fc43498ed89851efa73c8ce2c7825e446b",
+  "scope": "Actual native T3/OpenCode model registration with a controlled empty discovery boundary; no fabricated MCP capabilities or generated model response",
+  "problem": "The managed native OpenCode provider relied on asynchronous discovery to expose an already configured pinned local model. An empty startup inventory therefore failed strict selected-model admission.",
+  "fix": "Register exactly the same validated profile.model through the official OpenCodeSettings.customModels field. All native authentication, provider/model identity, runtime-mode, project and provenance checks remain applied.",
+  "upstream": {
+    "commit": "6d450a4284852af137b2f3407fddd89eb76e7644",
+    "schema": "https://github.com/pingdotgg/t3code/blob/6d450a4284852af137b2f3407fddd89eb76e7644/packages/contracts/src/model.ts#L112",
+    "providerSettings": "https://github.com/pingdotgg/t3code/blob/6d450a4284852af137b2f3407fddd89eb76e7644/packages/provider-opencode/src/settings.ts#L52",
+    "coldInventory": "https://github.com/pingdotgg/t3code/blob/6d450a4284852af137b2f3407fddd89eb76e7644/packages/provider-opencode/src/server/status.ts#L411",
+    "merge": "https://github.com/pingdotgg/t3code/blob/6d450a4284852af137b2f3407fddd89eb76e7644/packages/provider-core/src/server/snapshotProbe.ts#L139"
+  },
+  "boundaryFixture": {
+    "owner": "Disposable fresh service account and program-owned loopback proxy only",
+    "fault": "GET /api/model returns JSON {data:[]}; all other real OpenCode requests and native MCP responses are forwarded unchanged",
+    "negative": "Before behavior removes only the official customModels registration; no model output or capabilities are supplied by the fixture",
+    "positive": "Uses the registered production native runtime with the same discovery fault",
+    "externalNetwork": "none",
+    "existingUserHomesOrCredentialsMounted": false,
+    "dependencies": "Preserved public pnpm --prod --legacy deployment closure only",
+    "freshUid": 1000,
+    "readOnlyRoot": true,
+    "memoryBytes": 2147483648,
+    "cpus": 2,
+    "tmpfs": "original default /tmp"
+  },
+  "cases": {
+    "control": {
+      "process": {
+        "exitCode": 0,
+        "elapsedSeconds": 37.079
+      },
+      "result": {
+        "scope": "actual-native-manual-model-registration-with-empty-discovery",
+        "registered": false,
+        "passed": true,
+        "cpuCalls": 0,
+        "ledger": {
+          "rows": 1,
+          "released": 1,
+          "checkpoints": 0
+        },
+        "guardFailures": [
+          {
+            "stage": "mcp-transport",
+            "reason": "http-status"
+          },
+          {
+            "stage": "provider-selection",
+            "reason": "model-missing"
+          }
+        ]
+      },
+      "emptyCatalogRequests": 1,
+      "dockerCommand": [
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "run",
+        "--rm",
+        "--name",
+        "studio-registration-portable-control",
+        "--network=none",
+        "--read-only",
+        "--tmpfs",
+        "/tmp",
+        "--memory=2g",
+        "--cpus=2",
+        "--user",
+        "1000:1000",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges:true",
+        "--workdir",
+        "/app",
+        "--mount",
+        "type=bind,src=/tmp/ai-bdd-native-prod-closure,dst=/app,readonly",
+        "--mount",
+        "type=bind,src=/tmp/ai-bdd-native-registration-portable,dst=/app/dist/server,readonly",
+        "--mount",
+        "type=bind,src=/tmp/studio-t3-installer-repro,dst=/opt/studio-native-tools,readonly",
+        "--mount",
+        "type=bind,src=/workspace/.studio-local-model,dst=/opt/studio-model,readonly",
+        "-e",
+        "STUDIO_SMOKE_NATIVE_APP=1",
+        "-e",
+        "STUDIO_LOCAL_MODEL_DIR=/opt/studio-model",
+        "-e",
+        "STUDIO_T3_MANAGED_TOOLS_DIR=/opt/studio-native-tools",
+        "node:24-bookworm-slim",
+        "node",
+        "dist/server/control.mjs"
+      ]
+    },
+    "registered": {
+      "process": {
+        "exitCode": 0,
+        "elapsedSeconds": 24.365
+      },
+      "result": {
+        "scope": "actual-native-manual-model-registration-with-empty-discovery",
+        "registered": true,
+        "passed": true,
+        "output": "4",
+        "cpuCalls": 1,
+        "ledger": {
+          "rows": 1,
+          "released": 1,
+          "checkpoints": 1
+        },
+        "guardFailures": [
+          {
+            "stage": "mcp-transport",
+            "reason": "http-status"
+          }
+        ]
+      },
+      "emptyCatalogRequests": 4,
+      "dockerCommand": [
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "run",
+        "--rm",
+        "--name",
+        "studio-registration-portable-registered",
+        "--network=none",
+        "--read-only",
+        "--tmpfs",
+        "/tmp",
+        "--memory=2g",
+        "--cpus=2",
+        "--user",
+        "1000:1000",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges:true",
+        "--workdir",
+        "/app",
+        "--mount",
+        "type=bind,src=/tmp/ai-bdd-native-prod-closure,dst=/app,readonly",
+        "--mount",
+        "type=bind,src=/tmp/ai-bdd-native-registration-portable,dst=/app/dist/server,readonly",
+        "--mount",
+        "type=bind,src=/tmp/studio-t3-installer-repro,dst=/opt/studio-native-tools,readonly",
+        "--mount",
+        "type=bind,src=/workspace/.studio-local-model,dst=/opt/studio-model,readonly",
+        "-e",
+        "STUDIO_SMOKE_NATIVE_APP=1",
+        "-e",
+        "STUDIO_LOCAL_MODEL_DIR=/opt/studio-model",
+        "-e",
+        "STUDIO_T3_MANAGED_TOOLS_DIR=/opt/studio-native-tools",
+        "-e",
+        "STUDIO_FIXTURE_REGISTERED=1",
+        "node:24-bookworm-slim",
+        "node",
+        "dist/server/registered.mjs"
+      ]
+    }
+  },
+  "artifacts": {
+    "studio-local-decisions.mjs": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
+    "studio-local-worker.mjs": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+    "registered.mjs": "3ffaccf4c11d8a717b72b01e4892e17846c7e0a30f7f750504895fa6b07af799",
+    "control.mjs": "a5ae78d89ce716bf5e440ffb594c60aeb77f4d11204ed813575ed1af241de6d7"
+  },
+  "validation": {
+    "typecheckPassed": true,
+    "focusedOxlintPassed": true,
+    "guardAndRedactionTestsPassed": 30
+  },
+  "limits": [
+    "This verifies official manual registration during empty discovery and genuine local native generation; it is not a full Studio image or hosted release acceptance.",
+    "The separate hosted CPU inference deadline remains unresolved by this registration fix.",
+    "A nonfatal optional MCP transport-status observation is present in both cases; it did not prevent successful native admission or generation in the registered case.",
+    "No broader model quality, capacity or latency SLO is claimed."
+  ]
+}

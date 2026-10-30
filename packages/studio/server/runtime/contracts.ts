@@ -70,6 +70,12 @@ export interface DurableJobContext {
 export type DurableJobHandler = (
   context: DurableJobContext,
 ) => Promise<unknown>;
+/** Configuration and a persisted dispatch failure are distinct from proven queue delivery. */
+export type DispatchReadiness = {
+  state: 'configured' | 'degraded';
+  reason?: 'outbox-dispatch-pending';
+  verified: false;
+};
 export interface DurableJobRuntime {
   enqueue(input: EnqueueJob): Promise<DurableJob>;
   get(id: string): Promise<DurableJob | null>;
@@ -78,7 +84,16 @@ export interface DurableJobRuntime {
   onStatus?(kind: string, listener: (job: DurableJob) => Promise<void>): void;
   executeJob(id: string, delivery: JobDelivery): Promise<void>;
   cancel(id: string, user: User): Promise<void>;
-  flushOutbox(limit?: number): Promise<void>;
+  /** A supplied jobId restricts publication to that job; it must not drain other intents. */
+  flushOutbox(limit?: number, jobId?: string): Promise<void>;
+  /** Async-scope only: keep SQL admissions but leave publication to maintenance. */
+  deferDispatch?<T>(
+    operation: () => Promise<T>,
+    options?: { onAdmitted?: (jobIds: readonly string[]) => void },
+  ): Promise<T>;
+  /** Observes persisted failed dispatch intents; does not certify delivery or execution. */
+  dispatchReadiness?(): Promise<DispatchReadiness>;
+  /** Zero reconciles SQL intents/leases without calling the external publisher. */
   recover(options?: { dispatchLimit?: number }): Promise<void>;
   close(): Promise<void>;
 }

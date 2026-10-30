@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
+import { localModelById, type LocalModelSettings } from '../local/catalog.ts';
+import { managedT3SettingsFromEnv, type ManagedT3Settings } from '../local/managed-t3-settings.ts';
 
 export type IntegrationSettings = {
+  localModel?: LocalModelSettings;
+  managedT3?: ManagedT3Settings;
   gatewayBaseUrl?: string;
   searchUrl?: string;
   searchToken?: string;
@@ -10,7 +14,8 @@ export type IntegrationSettings = {
   plannerVisuals?: boolean;
   fxModels?: string[];
   t3?: {
-    command: string;
+    /** Legacy registration metadata; generation never starts a CLI subprocess. */
+    command?: string;
     args: string[];
     project: string;
     providers: { id: string; label: string; models: string[] }[];
@@ -65,15 +70,22 @@ export function integrationSettingsFromEnv(
     openDesign = parsed;
   }
   let t3: IntegrationSettings['t3'];
-  if (env.STUDIO_T3_COMMAND || env.STUDIO_T3_PROJECT) {
+  if (
+    env.STUDIO_T3_COMMAND ||
+    env.STUDIO_T3_PROJECT ||
+    env.STUDIO_T3_MCP_URL ||
+    env.STUDIO_T3_MCP_ACCESS_TOKEN ||
+    env.STUDIO_T3_PROVIDERS_JSON ||
+    env.STUDIO_T3_ARGS
+  ) {
     if (
-      !env.STUDIO_T3_COMMAND ||
-      !isAbsolute(env.STUDIO_T3_COMMAND) ||
+      (env.STUDIO_T3_COMMAND && !isAbsolute(env.STUDIO_T3_COMMAND)) ||
+      (!env.STUDIO_T3_COMMAND && !env.STUDIO_T3_MCP_URL) ||
       !env.STUDIO_T3_PROJECT ||
       !isAbsolute(env.STUDIO_T3_PROJECT)
     )
       throw new Error(
-        'T3 requires absolute STUDIO_T3_COMMAND and STUDIO_T3_PROJECT paths selected by the operator',
+        'T3 requires an operator-selected absolute STUDIO_T3_PROJECT and native MCP endpoint; legacy CLI-only registration requires an absolute command but cannot generate',
       );
     const providers = z
       .array(
@@ -88,7 +100,7 @@ export function integrationSettingsFromEnv(
       .max(30)
       .parse(JSON.parse(env.STUDIO_T3_PROVIDERS_JSON ?? '[]'));
     t3 = {
-      command: env.STUDIO_T3_COMMAND,
+      ...(env.STUDIO_T3_COMMAND ? { command: env.STUDIO_T3_COMMAND } : {}),
       project: env.STUDIO_T3_PROJECT,
       args: z
         .array(z.string().max(2000))
@@ -105,7 +117,17 @@ export function integrationSettingsFromEnv(
         : {}),
     };
   }
+  const localDirectory = env.STUDIO_LOCAL_MODEL_DIR;
+  if (localDirectory && !isAbsolute(localDirectory)) throw new Error('STUDIO_LOCAL_MODEL_DIR must be an absolute operator-selected directory');
+  const modelId = env.STUDIO_LOCAL_MODEL_ID;
+  if (modelId && !localModelById(modelId))
+    throw new Error('STUDIO_LOCAL_MODEL_ID must select an operator-registered local model');
+  const managedT3 = managedT3SettingsFromEnv(env, !!localDirectory);
+  if (managedT3 && t3?.providers.some(provider => provider.id === 'studioLocal'))
+    throw new Error('studioLocal is reserved for the managed native T3 provider');
   return {
+    ...(localDirectory ? { localModel: { directory: localDirectory, ...(modelId ? { modelId } : {}) } } : {}),
+    ...(managedT3 ? { managedT3 } : {}),
     t3,
     fxModels: z
       .array(z.string().min(1).max(200))

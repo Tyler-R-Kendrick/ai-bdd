@@ -1,0 +1,42 @@
+{
+  "source": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentId": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+  "origin": "https://ai-bdd-studio-enjdwsu1u-tyler-r-kendricks-projects.vercel.app",
+  "at": "2026-10-30T16:12:11.857Z",
+  "requests": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "durationMs": 3011,
+      "executionState": "degraded",
+      "ok": true
+    },
+    {
+      "path": "/api/hosting/readiness",
+      "status": 200,
+      "durationMs": 1037,
+      "executionState": null,
+      "ready": true,
+      "services": {
+        "database": {
+          "state": "verified"
+        },
+        "objects": {
+          "state": "configured"
+        },
+        "identity": {
+          "state": "configured",
+          "verified": false
+        },
+        "media": {
+          "state": "configured",
+          "verified": false
+        },
+        "jobs": {
+          "state": "degraded",
+          "verified": false
+        }
+      }
+    }
+  ]
+}

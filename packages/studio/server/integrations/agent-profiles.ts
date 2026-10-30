@@ -8,6 +8,8 @@ import {
 import type { Auth, Settings } from '../auth.ts';
 import { HttpError, type Store } from '../store.ts';
 import type { IntegrationSettings } from './settings.ts';
+import { LOCAL_MODEL_ID, LOCAL_MODELS, LOCAL_PROVIDER_ID, localModelPresent } from '../local/catalog.ts';
+import { managedT3ToolsPresent } from '../local/native-t3-runtime.ts';
 const fallback: AgentProfile = {
   harness: 't3-code',
   provider: 'project-default',
@@ -34,27 +36,33 @@ export class AgentProfiles {
     );
     if (row) return agentProfileSchema.parse(row);
     const provider = this.integrations.t3?.providers[0];
-    return provider
+    const managed = this.managedAvailable();
+    return provider && (!managed || !!this.integrations.t3?.mcp?.accessToken)
       ? {
           harness: 't3-code',
           provider: provider.id,
           model: provider.models[0]!,
         }
-      : { ...fallback };
+      : managed
+        ? { harness: 't3-code', provider: 'studioLocal', model: 'studio-local/' + (this.integrations.localModel?.modelId ?? LOCAL_MODEL_ID) }
+        : { ...fallback };
   }
   catalog(): AgentProfileView['harnesses'] {
     const t3 = this.integrations.t3;
+    const managed = this.managedAvailable();
+    const external = !!t3?.mcp?.accessToken && !!t3.providers.length;
+    const configured = external || managed;
     const harnesses: AgentProfileView['harnesses'] = [
       {
         id: 't3-code',
         label: 'T3 Code',
-        configured: !!t3 && t3.providers.length > 0,
+        configured,
         reason:
-          t3 && t3.providers.length > 0
+          configured
             ? null
-            : 'The workspace has no registered T3 Code runtime with a concrete provider and model. Choose another harness explicitly or connect the operator-owned T3 environment.',
+            : 'T3 Code requires a registered native MCP endpoint, an approved Supervised client and a concrete provider/model. CLI-only generation is disabled. Choose another harness explicitly or connect the operator-owned T3 environment.',
         providers: [
-          ...(t3?.providers.length
+          ...(t3?.providers.length || managed
             ? []
             : [
                 {
@@ -63,8 +71,16 @@ export class AgentProfiles {
                   models: ['project-default'],
                 },
               ]),
-          ...(t3?.providers ?? []),
+          ...(external || !managed ? t3?.providers ?? [] : []),
+          ...(managed ? [{ id: 'studioLocal', label: 'Managed local CPU through native T3 / OpenCode', models: this.localModels().map(id => 'studio-local/' + id) }] : []),
         ],
+      },
+      {
+        id: 'local-cpu',
+        label: 'Local CPU (offline)',
+        configured: localModelPresent(this.integrations.localModel),
+        reason: localModelPresent(this.integrations.localModel) ? null : 'The operator must prepare the pinned local model and configure STUDIO_LOCAL_MODEL_DIR. Inference never downloads files or falls back to a hosted provider.',
+        providers: [{ id: LOCAL_PROVIDER_ID, label: 'llama.cpp CPU (Apache-2.0)', models: this.localModels() }],
       },
       {
         id: 'vercel-fx',
@@ -101,6 +117,14 @@ export class AgentProfiles {
         ],
       });
     return harnesses;
+  }
+  private managedAvailable() {
+    const config = this.integrations.managedT3;
+    return !!config && localModelPresent(this.integrations.localModel) && managedT3ToolsPresent(config.toolsDirectory);
+  }
+  private localModels() {
+    const available = LOCAL_MODELS.filter(model => localModelPresent(this.integrations.localModel, model.id)).map(model => model.id);
+    return available.length ? available : [LOCAL_MODEL_ID];
   }
   assertAvailable(profile: AgentProfile) {
     const harness = this.catalog().find(

@@ -1,0 +1,445 @@
+{
+  "schemaVersion": 1,
+  "status": "passed-original-reference-phase",
+  "sourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "scope": "SQL snapshot restore and shipping-App reads using retained original private objects; copied-byte extension is recorded separately",
+  "snapshot": {
+    "id": "snap-dawn-credit-b8ku233q",
+    "name": "production-snapshot-20261030-a4",
+    "sourceBranchId": "br-shiny-fire-b8tn4wiv",
+    "createdAt": "2026-10-30T17:03:58Z",
+    "manual": true,
+    "expirationConfigured": false
+  },
+  "recovery": {
+    "branchId": "br-silent-sun-b8undf4g",
+    "branchName": "production-recovery-20261030",
+    "restoredFrom": "snap-dawn-credit-b8ku233q",
+    "finalize": false,
+    "finalizationNeverInvoked": true,
+    "endpointId": "ep-odd-snow-b82wp52t",
+    "minCu": 0.25,
+    "maxCu": 0.25,
+    "suspendTimeoutSeconds": 0,
+    "suspendMode": "provider-default"
+  },
+  "sourceInputs": {
+    "fileCount": 1541,
+    "totalSize": 23428515,
+    "manifestSha256": "948b6b739a4f7f54ea5aaa3e6802e665185f3cf4be2ab1713bed41527b7f8255",
+    "allIncludedFilesTrackedAtSource": true,
+    "allIncludedSha1Match": true,
+    "credentialPathsExcluded": true
+  },
+  "selectedSqlFixtureBundleSha256": "bbaf904fabc5e8612c0be943ec25b7b3fb825919acc3d744b9cc5c75593e5efc",
+  "selectedSqlExactMatchBeforeAndAfterApp": true,
+  "fixtureCounts": {
+    "projects": 2,
+    "artifacts": 3,
+    "chatMessages": 2,
+    "adrs": 3,
+    "mediaJobs": 2,
+    "privateFiles": 2
+  },
+  "deployment": {
+    "id": "dpl_4dMJ7R9L7FmSeV82Mg7EueyXSihW",
+    "url": "https://ai-bdd-studio-2l8r4qv6c-tyler-r-kendricks-projects.vercel.app",
+    "environment": "preview",
+    "readyBeforeProbe": true,
+    "gitSource": {
+      "type": "github",
+      "repoId": 1412029937,
+      "ref": "codex/production-restore-a4",
+      "sha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758"
+    },
+    "removedAfterPhase": true
+  },
+  "appReadReceipt": {
+    "schemaVersion": 1,
+    "sourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+    "checks": [
+      {
+        "id": "anonymous-fixture-denial",
+        "status": "passed",
+        "requests": 8
+      },
+      {
+        "id": "fresh-owner-login-1",
+        "status": "passed",
+        "fresh": true
+      },
+      {
+        "id": "restored-project-1",
+        "status": "passed",
+        "projectsVerified": 2
+      },
+      {
+        "id": "restored-artifact-62842027-5680-442b-9889-ee842779bfc4-1",
+        "status": "passed",
+        "artifactId": "62842027-5680-442b-9889-ee842779bfc4",
+        "kind": "design",
+        "contentSha256": "12cf2b6aff05ffba5accdf17f2a44912d0c27321a1d81f4ae5989944f47cddd3",
+        "messagesVerified": 2,
+        "decisionsVerified": 1
+      },
+      {
+        "id": "restored-artifact-b612863a-2bea-4ff9-a74d-d2cfc27427ef-1",
+        "status": "passed",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "kind": "video",
+        "contentSha256": "4c78b4d09d141e916cd1229efcec352006840153318586a6990c7e864f8b0fd9",
+        "messagesVerified": 0,
+        "decisionsVerified": 1
+      },
+      {
+        "id": "restored-artifact-f5a5f464-b465-485e-bb67-fa2e56384391-1",
+        "status": "passed",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "kind": "audio",
+        "contentSha256": "68da5d2e93d9363be43c95a610245e422d3e2c261841573814ee676cdafdae0a",
+        "messagesVerified": 0,
+        "decisionsVerified": 1
+      },
+      {
+        "id": "restored-media-job-4bf1e47f-d55c-44fd-b864-ef2931ae299d-1",
+        "status": "passed",
+        "jobId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "kind": "video",
+        "artifactVersion": 1,
+        "format": "mp4",
+        "jobStatus": "completed"
+      },
+      {
+        "id": "restored-media-job-98561d0b-c169-4321-873a-179fdd7f3753-1",
+        "status": "passed",
+        "jobId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "kind": "audio",
+        "artifactVersion": 1,
+        "format": "wav",
+        "jobStatus": "completed"
+      },
+      {
+        "id": "private-immutable-file-4bf1e47f-d55c-44fd-b864-ef2931ae299d-1",
+        "status": "passed",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "mime": "video/mp4"
+      },
+      {
+        "id": "private-immutable-file-98561d0b-c169-4321-873a-179fdd7f3753-1",
+        "status": "passed",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "mime": "audio/wav"
+      },
+      {
+        "id": "fresh-owner-login-2",
+        "status": "passed",
+        "fresh": true
+      },
+      {
+        "id": "restored-project-2",
+        "status": "passed",
+        "projectsVerified": 2
+      },
+      {
+        "id": "restored-artifact-62842027-5680-442b-9889-ee842779bfc4-2",
+        "status": "passed",
+        "artifactId": "62842027-5680-442b-9889-ee842779bfc4",
+        "kind": "design",
+        "contentSha256": "12cf2b6aff05ffba5accdf17f2a44912d0c27321a1d81f4ae5989944f47cddd3",
+        "messagesVerified": 2,
+        "decisionsVerified": 1
+      },
+      {
+        "id": "restored-artifact-b612863a-2bea-4ff9-a74d-d2cfc27427ef-2",
+        "status": "passed",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "kind": "video",
+        "contentSha256": "4c78b4d09d141e916cd1229efcec352006840153318586a6990c7e864f8b0fd9",
+        "messagesVerified": 0,
+        "decisionsVerified": 1
+      },
+      {
+        "id": "restored-artifact-f5a5f464-b465-485e-bb67-fa2e56384391-2",
+        "status": "passed",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "kind": "audio",
+        "contentSha256": "68da5d2e93d9363be43c95a610245e422d3e2c261841573814ee676cdafdae0a",
+        "messagesVerified": 0,
+        "decisionsVerified": 1
+      },
+      {
+        "id": "restored-media-job-4bf1e47f-d55c-44fd-b864-ef2931ae299d-2",
+        "status": "passed",
+        "jobId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "kind": "video",
+        "artifactVersion": 1,
+        "format": "mp4",
+        "jobStatus": "completed"
+      },
+      {
+        "id": "restored-media-job-98561d0b-c169-4321-873a-179fdd7f3753-2",
+        "status": "passed",
+        "jobId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "kind": "audio",
+        "artifactVersion": 1,
+        "format": "wav",
+        "jobStatus": "completed"
+      },
+      {
+        "id": "private-immutable-file-4bf1e47f-d55c-44fd-b864-ef2931ae299d-2",
+        "status": "passed",
+        "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "byteSize": 2591,
+        "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+        "mime": "video/mp4"
+      },
+      {
+        "id": "private-immutable-file-98561d0b-c169-4321-873a-179fdd7f3753-2",
+        "status": "passed",
+        "fileId": "98561d0b-c169-4321-873a-179fdd7f3753",
+        "byteSize": 48078,
+        "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+        "mime": "audio/wav"
+      }
+    ],
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/projects",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/62842027-5680-442b-9889-ee842779bfc4",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 401,
+        "responseBytes": 31
+      },
+      {
+        "method": "POST",
+        "path": "/api/auth/login",
+        "status": 200,
+        "responseBytes": 130
+      },
+      {
+        "method": "GET",
+        "path": "/api/projects",
+        "status": 200,
+        "responseBytes": 1340
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/62842027-5680-442b-9889-ee842779bfc4",
+        "status": 200,
+        "responseBytes": 4841
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "status": 200,
+        "responseBytes": 2240
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+        "status": 200,
+        "responseBytes": 1908
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 2591
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 48078
+      },
+      {
+        "method": "POST",
+        "path": "/api/auth/login",
+        "status": 200,
+        "responseBytes": 130
+      },
+      {
+        "method": "GET",
+        "path": "/api/projects",
+        "status": 200,
+        "responseBytes": 1340
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/62842027-5680-442b-9889-ee842779bfc4",
+        "status": 200,
+        "responseBytes": 4841
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+        "status": 200,
+        "responseBytes": 2240
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+        "status": 200,
+        "responseBytes": 1908
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 442
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+        "status": 200,
+        "responseBytes": 2591
+      },
+      {
+        "method": "GET",
+        "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+        "status": 200,
+        "responseBytes": 48078
+      }
+    ],
+    "status": "passed",
+    "origin": "https://ai-bdd-studio-2l8r4qv6c-tyler-r-kendricks-projects.vercel.app",
+    "restoredBranchId": "br-silent-sun-b8undf4g",
+    "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+    "snapshotPoint": {
+      "snapshotId": "snap-dawn-credit-b8ku233q",
+      "createdAt": "2026-10-30T17:03:58Z",
+      "restoredParentLsn": "0/1FE5BD8"
+    },
+    "completedAt": "2026-10-30T17:22:39.939Z",
+    "reportNormalization": {
+      "domainMediaStatusMovedToJobStatus": true,
+      "checkExecutionsUnchanged": true
+    }
+  },
+  "sessionBindingProof": {
+    "newRecoverySessions": 2,
+    "newProductionSessions": 0,
+    "sessionDigestsPublished": false,
+    "sharedPreviewCheck": "not-run-automatic-approval-review-rejected-as-out-of-scope-credential-related-read"
+  },
+  "retiredInitialPreview": [
+    {
+      "deploymentId": "dpl_7pki3WU6cg32jp7onyeZHaxmUwNL",
+      "url": "https://ai-bdd-studio-bttwem45n-tyler-r-kendricks-projects.vercel.app",
+      "gitSource": null,
+      "sourceSha": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+      "failureCode": "login-failed",
+      "loginStatus": 401,
+      "ownerPasswordMatchesRestoredHash": true,
+      "cleanup": "deleted"
+    }
+  ],
+  "phaseCleanup": {
+    "previewDeploymentsDeleted": [
+      "dpl_7pki3WU6cg32jp7onyeZHaxmUwNL",
+      "dpl_4dMJ7R9L7FmSeV82Mg7EueyXSihW"
+    ],
+    "branchScopedEnvironmentKeysRemoved": [
+      "DATABASE_URL",
+      "BLOB_READ_WRITE_TOKEN",
+      "STUDIO_ADMIN_PASSWORD",
+      "STUDIO_ADMIN_EMAIL"
+    ],
+    "remoteRefDeleted": "refs/heads/codex/production-restore-a4"
+  },
+  "privateFiles": [
+    {
+      "id": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+      "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+      "byteSize": 2591,
+      "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+      "mime": "video/mp4"
+    },
+    {
+      "id": "98561d0b-c169-4321-873a-179fdd7f3753",
+      "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+      "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+      "byteSize": 48078,
+      "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+      "mime": "audio/wav"
+    }
+  ],
+  "noInferenceOrJobAdmissionRequests": true,
+  "limitations": [
+    "This phase reused original retained private objects; it is not the copied-byte restore proof.",
+    "No independent provider/store-loss or high-availability recovery claim.",
+    "Recovery-branch initialization and owner login wrote branch-local SQL only."
+  ]
+}

@@ -1,0 +1,177 @@
+/** Dedicated offline CPU inference. This worker never executes model-generated tools. */
+import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { lstat, realpath } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { availableParallelism } from 'node:os';
+// Runtime downloads are forbidden; model/binary preparation belongs to the controlled build.
+globalThis.fetch = async () => {
+  throw new Error('Local inference has no HTTP transport');
+};
+const port = { postMessage: (value) => process.send?.(value) };
+const phase = (name, counts = {}) => port.postMessage({ type: 'phase', phase: name, rss: process.memoryUsage().rss,
+  ...(Number.isSafeInteger(counts.availableParallelism) ? { availableParallelism: counts.availableParallelism } : {}),
+  ...(Number.isSafeInteger(counts.inputTokens) ? { inputTokens: counts.inputTokens } : {}),
+  ...(Number.isSafeInteger(counts.outputTokens) ? { outputTokens: counts.outputTokens } : {}),
+});
+process.once('disconnect', () => process.exit(0));
+let workerData;
+let refusingMemory = false;
+function checkMemory() {
+  const configured = workerData?.rssCeilingBytes;
+  // The private IPC test may lower this ceiling; no caller can raise the production 1 GiB limit.
+  const ceiling = Number.isSafeInteger(configured)
+    ? Math.min(1073741824, Math.max(16777216, configured))
+    : 1073741824;
+  if (refusingMemory || process.memoryUsage().rss <= ceiling) return;
+  refusingMemory = true;
+  try {
+    process.send?.({ type: 'error', code: 'memory' }, () => process.exit(1));
+  } catch {
+    process.exit(1);
+  }
+}
+const memoryTimer = setInterval(checkMemory, 100);
+memoryTimer.unref();
+
+let model, llama, loadedPath;
+async function load() {
+  const root = await realpath(workerData.directory);
+  const file = workerData.file;
+  const path = join(root, file.path);
+  if (model && loadedPath === path) { phase('model-loaded'); return; }
+  const info = await lstat(path);
+  if (
+    !info.isFile() ||
+    info.isSymbolicLink() ||
+    info.size !== file.bytes ||
+    dirname(await realpath(path)) !== root
+  )
+    throw new Error('assets');
+  const hash = createHash('sha256');
+  for await (const bytes of createReadStream(path)) hash.update(bytes);
+  if (hash.digest('hex') !== file.sha256) throw new Error('assets');
+  phase('weights-verified');
+  const runtime = await import('node-llama-cpp');
+  await model?.dispose();
+  model = undefined;
+  loadedPath = undefined;
+  llama ??= await runtime.getLlama({
+    gpu: false,
+    build: 'never',
+    skipDownload: true,
+    // Never oversubscribe a single-affinity host: native prefill can otherwise exhaust its deadline.
+    maxThreads: Math.min(2, availableParallelism()),
+    progressLogs: false,
+    logLevel: 'error',
+    logger: () => {},
+  });
+  phase('binding-loaded');
+  model = await llama.loadModel({ modelPath: path, gpuLayers: 0, useMmap: false });
+  loadedPath = path;
+  phase('model-loaded');
+}
+process.on('message', async (request) => {
+  workerData = request.configuration;
+  checkMemory();
+  if (refusingMemory) return;
+  phase('worker-start', { availableParallelism: availableParallelism() });
+  let context, response;
+  try {
+    await load();
+    phase('inference-start');
+    if (request.command === 'decide') {
+      const { evaluateLocalDecisions } = await import(
+        './studio-local-decisions.mjs'
+      );
+      response = {
+        type: 'decision',
+        result: await evaluateLocalDecisions({ model, input: request.input, onPhase: phase }),
+      };
+      return;
+    }
+    const { LlamaChatSession } = await import('node-llama-cpp');
+    phase('grammar-start');
+    const grammar = request.schema
+      ? await llama.createGrammarForJsonSchema(request.schema)
+      : undefined;
+    phase('grammar-ready');
+    const tokens = model.tokenize(
+      request.system +
+        '\n' +
+        JSON.stringify(request.history) +
+        '\n' +
+        request.prompt,
+    ).length;
+    // Reserve native chat framing and output; never silently shift or drop source context.
+    if (tokens + request.maxTokens + 128 > 4096) throw new Error('context');
+    phase('prompt-validated', { inputTokens: tokens });
+    phase('context-create');
+    context = await model.createContext({
+      contextSize: 4096,
+      threads: Math.min(2, availableParallelism()),
+      batchSize: 128,
+      flashAttention: false,
+    });
+    phase('context-created');
+    const session = new LlamaChatSession({
+      contextSequence: context.getSequence(),
+      systemPrompt: request.system,
+      contextShift: {
+        strategy: () => {
+          throw new Error('context');
+        },
+      },
+    });
+    if (request.history.length)
+      session.setChatHistory([
+        { type: 'system', text: request.system },
+        ...request.history.map((item) =>
+          item.role === 'assistant'
+            ? { type: 'model', response: [item.text] }
+            : { type: 'user', text: item.text },
+        ),
+      ]);
+    phase('session-ready');
+    phase('prefill-start');
+    let decoding = false, outputTokens = 0;
+    const result = await session.promptWithMeta(request.prompt, {
+      maxTokens: request.maxTokens,
+      temperature: 0,
+      grammar,
+      onTextChunk: (text) => port.postMessage({ type: 'delta', text }),
+      onToken: (tokens) => {
+        outputTokens += tokens.length;
+        if (!decoding && outputTokens > 0) { decoding = true; phase('decode-start', { outputTokens }); }
+      },
+      customStopTriggers: request.stopSequences,
+    });
+    // Native parse verifies grammar completion; independent parent validation checks the original schema too.
+    if (grammar) grammar.parse(result.responseText);
+    const meter = session.sequence.tokenMeter.getState();
+    phase('response-ready', { inputTokens: meter.usedInputTokens, outputTokens: meter.usedOutputTokens });
+    response = {
+      type: 'result',
+      text: result.responseText,
+      inputTokens: meter.usedInputTokens,
+      outputTokens: meter.usedOutputTokens,
+      limited: result.stopReason === 'maxTokens',
+      rss: process.memoryUsage().rss,
+    };
+  } catch (error) {
+    const code =
+      error?.message === 'assets' || error?.message === 'context'
+        ? error.message
+        : 'inference';
+    // No library error strings, prompts, paths, or generated text in error metadata.
+    response = { type: 'error', code };
+  } finally {
+    if (context) {
+      phase('context-dispose-start');
+      await context.dispose();
+      phase('context-disposed');
+    }
+    if (response?.type === 'result' || response?.type === 'decision') phase('complete');
+    port.postMessage(response);
+  }
+});

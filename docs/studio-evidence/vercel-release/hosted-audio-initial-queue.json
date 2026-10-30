@@ -1,0 +1,426 @@
+{
+  "schemaVersion": 1,
+  "result": "blocked-before-export-execution; task-owned queued job cancelled",
+  "origin": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
+  "deploymentSourceProvidedByOperator": "52a6c61",
+  "deploymentIdProvidedByOperator": "dpl_9FfYqDpLd5YQb3zKb5k3LhEcwEHx",
+  "completedExportVerified": false,
+  "blocker": {
+    "source": "Release operator actual ServicesV2 native-function inventory inspection",
+    "reason": "The Vite frontend service packaged no native queue consumer. The accepted durable job remained queued.",
+    "fixInProgress": "Explicit Node services for jobs, maintenance and bootstrap; a new Ready deployment is required before another full export attempt."
+  },
+  "attempt": {
+    "schemaVersion": 1,
+    "origin": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
+    "startedAt": "2026-10-30T14:47:06.423Z",
+    "deploymentSourceProvidedByOperator": "52a6c61",
+    "deploymentIdProvidedByOperator": "dpl_9FfYqDpLd5YQb3zKb5k3LhEcwEHx",
+    "kind": "model-free hosted audio durable publication",
+    "passed": false,
+    "steps": [
+      {
+        "stage": "health",
+        "method": "GET",
+        "path": "/api/health",
+        "httpStatus": 200,
+        "durationMs": 5120,
+        "at": "2026-10-30T14:47:11.544Z"
+      },
+      {
+        "stage": "readiness",
+        "method": "GET",
+        "path": "/api/hosting/readiness",
+        "httpStatus": 200,
+        "durationMs": 1110,
+        "at": "2026-10-30T14:47:12.655Z"
+      },
+      {
+        "stage": "owner-login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "httpStatus": 200,
+        "durationMs": 2168,
+        "at": "2026-10-30T14:47:14.823Z"
+      },
+      {
+        "stage": "create-synthetic-project",
+        "method": "POST",
+        "path": "/api/projects",
+        "httpStatus": 201,
+        "durationMs": 1094,
+        "at": "2026-10-30T14:47:15.917Z"
+      },
+      {
+        "stage": "create-synthetic-audio",
+        "method": "POST",
+        "path": "/api/projects/a2c44a16-37e0-4bd1-bf73-ad1f5210612f/artifacts",
+        "httpStatus": 201,
+        "durationMs": 496,
+        "at": "2026-10-30T14:47:16.413Z"
+      },
+      {
+        "stage": "enqueue-audio",
+        "method": "POST",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/render",
+        "httpStatus": 202,
+        "durationMs": 1073,
+        "at": "2026-10-30T14:47:17.487Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 797,
+        "at": "2026-10-30T14:47:21.285Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 736,
+        "at": "2026-10-30T14:47:25.023Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 904,
+        "at": "2026-10-30T14:47:28.930Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 384,
+        "at": "2026-10-30T14:47:32.316Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 742,
+        "at": "2026-10-30T14:47:36.061Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 832,
+        "at": "2026-10-30T14:47:39.894Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 332,
+        "at": "2026-10-30T14:47:43.230Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 1722,
+        "at": "2026-10-30T14:47:47.955Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 1192,
+        "at": "2026-10-30T14:47:52.149Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 387,
+        "at": "2026-10-30T14:47:55.537Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 683,
+        "at": "2026-10-30T14:47:59.222Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 398,
+        "at": "2026-10-30T14:48:02.623Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 373,
+        "at": "2026-10-30T14:48:05.998Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 370,
+        "at": "2026-10-30T14:48:09.371Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 924,
+        "at": "2026-10-30T14:48:13.297Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 370,
+        "at": "2026-10-30T14:48:16.668Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 362,
+        "at": "2026-10-30T14:48:20.031Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 362,
+        "at": "2026-10-30T14:48:23.396Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 381,
+        "at": "2026-10-30T14:48:26.780Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 358,
+        "at": "2026-10-30T14:48:30.141Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 695,
+        "at": "2026-10-30T14:48:33.838Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 382,
+        "at": "2026-10-30T14:48:37.222Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 379,
+        "at": "2026-10-30T14:48:40.603Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 404,
+        "at": "2026-10-30T14:48:44.008Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 852,
+        "at": "2026-10-30T14:48:47.861Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 432,
+        "at": "2026-10-30T14:48:51.296Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 355,
+        "at": "2026-10-30T14:48:54.654Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 359,
+        "at": "2026-10-30T14:48:58.015Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 347,
+        "at": "2026-10-30T14:49:01.364Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 387,
+        "at": "2026-10-30T14:49:04.755Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 693,
+        "at": "2026-10-30T14:49:08.452Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 350,
+        "at": "2026-10-30T14:49:11.804Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 1260,
+        "at": "2026-10-30T14:49:16.067Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/ecc34ac2-9df8-4192-9356-336cd635c1c3/audio/renders/0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+        "httpStatus": 200,
+        "durationMs": 839,
+        "at": "2026-10-30T14:49:19.909Z"
+      }
+    ],
+    "resources": {
+      "projectId": "a2c44a16-37e0-4bd1-bf73-ad1f5210612f",
+      "artifactId": "ecc34ac2-9df8-4192-9356-336cd635c1c3",
+      "artifactVersion": 1,
+      "jobId": "0e537b7e-efc0-4078-9bbb-4d24421b6bab"
+    },
+    "jobHistory": [
+      {
+        "at": "2026-10-30T14:47:17.488Z",
+        "status": "queued",
+        "progress": 0,
+        "finishedAt": null
+      },
+      {
+        "at": "2026-10-30T14:49:19.910Z",
+        "status": "cancelled",
+        "progress": 0,
+        "finishedAt": "2026-10-30T14:49:18.131Z"
+      }
+    ],
+    "modelsInvokedByThisScript": 0,
+    "externalAssetSources": 0,
+    "redirectsFollowed": 0,
+    "credentialValuesRecorded": false,
+    "readiness": {
+      "ready": true,
+      "services": {
+        "database": {
+          "state": "verified",
+          "verifiedAt": "2026-10-30T14:47:11.347Z"
+        },
+        "objects": {
+          "state": "configured"
+        },
+        "media": {
+          "adapter": "vercel-sandbox",
+          "state": "configured",
+          "image": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+          "network": "deny-all",
+          "persistent": false,
+          "verified": false
+        },
+        "jobs": {
+          "state": "configured",
+          "semantics": "at-least-once; fenced SQL publication"
+        }
+      }
+    },
+    "jobFailure": {
+      "status": "cancelled",
+      "errorPresent": true,
+      "errorSha256": "40737dcf4638321e417f7e09654df56d0fdf039c008d232d3cfd08ba9ac055c7"
+    },
+    "failure": {
+      "stage": "audio-job",
+      "httpStatus": 200,
+      "code": "terminal-job-failure"
+    },
+    "completedAt": "2026-10-30T14:49:19.910Z",
+    "syntheticResourcesRetainedForReview": true
+  },
+  "supportedCancellation": {
+    "schemaVersion": 1,
+    "origin": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
+    "projectId": "a2c44a16-37e0-4bd1-bf73-ad1f5210612f",
+    "artifactId": "ecc34ac2-9df8-4192-9356-336cd635c1c3",
+    "jobId": "0e537b7e-efc0-4078-9bbb-4d24421b6bab",
+    "cancelledAt": "2026-10-30T14:49:20.977Z",
+    "before": "queued",
+    "after": "cancelled",
+    "freshAuthenticatedSessionVerified": true,
+    "fileId": null,
+    "downloadUrl": null,
+    "reason": "Release operator confirmed missing native consumer in ServicesV2 deployment; cancelled only the task-owned synthetic job.",
+    "productionDataTouched": false
+  },
+  "notVerifiedByThisAttempt": [
+    "App queue-to-Sandbox execution",
+    "Hosted durable media output publication to Blob/SQL",
+    "Published WAV RIFF/SHA and file download",
+    "Fresh-session persistence of a completed export",
+    "Anonymous denial of the output file"
+  ]
+}

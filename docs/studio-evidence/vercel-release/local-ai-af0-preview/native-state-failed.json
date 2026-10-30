@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "bounded native-state SQL corroboration after failed hosted admission",
+  "observedAt": "2026-10-30T18:15:36.903Z",
+  "source": "af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f",
+  "deploymentId": "dpl_GNaAqe3D4yTw65oBHD6dfGjgwiuD",
+  "projectId": "crimson-frog-10403185",
+  "branchId": "br-little-shape-b8j8ovk8",
+  "database": "studio",
+  "scope": {
+    "studioProjectId": "dcf1fa68-a4ff-4241-9028-ebf778de28c7",
+    "artifactId": "62c36c51-c9ad-49ac-aa39-f5e1856f71b0"
+  },
+  "stateAggregate": [
+    {
+      "state_count": "1",
+      "checkpoint_count": "0",
+      "released_lease_count": "1",
+      "maximum_generation": "3"
+    }
+  ],
+  "scopeWasReadOnly": true,
+  "authDataRead": false,
+  "objectKeysOrNativeCredentialsRecorded": false,
+  "inferenceCompletionClaimed": false
+}

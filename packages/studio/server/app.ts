@@ -49,6 +49,8 @@ import {
   documentImplementationReadiness,
 } from './document-readiness.ts';
 import { ArtifactTitles } from './integrations/titles.ts';
+import { createTargetedPublication } from './runtime/targeted-publication.ts';
+import { cleanupManagedT3Checkpoints } from './local/native-t3-runtime.ts';
 import {
   registerConversationRoutes,
   conversationExportTables,
@@ -72,9 +74,16 @@ import { registerVideoRoutes } from './video.ts';
 import { uploadedMediaType } from './media-files.ts';
 import Fastify, { type FastifyRequest } from 'fastify';
 import type { SqlDatabase } from './persistence/types.ts';
-import type { DurableJobRuntime } from './runtime/contracts.ts';
-import { createDurableJobRuntime } from './runtime/jobs.ts';
+import type {
+  DurableJobRuntime,
+  DispatchReadiness,
+} from './runtime/contracts.ts';
+import {
+  createDurableJobRuntime,
+  OutboxDispatchPendingError,
+} from './runtime/jobs.ts';
 import type { HostingServices } from './hosting/ports.ts';
+import type { IdentityExecutionContext } from './hosting/identity-context.ts';
 import { DiskObjectStore } from './hosting/disk-objects.ts';
 import { ObjectWorkspaceStore } from './hosting/workspaces.ts';
 import { LocalJobDispatcher } from './hosting/local-queue.ts';
@@ -115,7 +124,10 @@ export async function createApp(
     database?: SqlDatabase;
     store?: Store;
     runtime?: DurableJobRuntime;
+    /** Zero reconciles durable SQL only; external dispatch belongs to maintenance. */
+    startupDispatchLimit?: number;
     hosting?: HostingServices;
+    identityExecutionContext?: IdentityExecutionContext;
     logger?: boolean;
     clientDir?: string;
     connectorFile?: string;
@@ -125,6 +137,12 @@ export async function createApp(
     audioSourceProbe?: typeof probeAudio;
   } = {},
 ) {
+  const startupLimit = options.startupDispatchLimit;
+  if (
+    startupLimit !== undefined &&
+    (!Number.isInteger(startupLimit) || startupLimit < 0 || startupLimit > 100)
+  )
+    throw new Error('Startup dispatch limit must be between 0 and 100');
   const app = Fastify({
     logger: options.logger
       ? {
@@ -173,13 +191,27 @@ export async function createApp(
       );
     startupCleanup.unshift(() => runtime.close());
     localDispatcher?.bind(runtime.executeJob);
+    const followupPublication = createTargetedPublication({
+      runtime,
+      onError: (category) =>
+        app.log.warn(
+          { category },
+          'Targeted follow-up publication remains recoverable',
+        ),
+    });
+    startupCleanup.unshift(() => followupPublication.close());
     const auth = new Auth(store, settings);
     await auth.initialize();
     const collab = new Collaboration(store, auth);
     startupCleanup.unshift(() => collab.close());
     await collab.initialize();
+    const onLocalInferenceEvent: import('./local/local-diagnostics.ts').LocalInferenceObserver = (event) => {
+      app.log[event.state === 'failure' ? 'warn' : 'info']({ localInference: event }, 'Local CPU inference');
+    };
     const decisions = new DecisionModels({
+      onLocalInferenceEvent,
       store,
+      identityExecutionContext: options.identityExecutionContext,
       settings:
         options.decisionSettings ??
         decisionSettingsFromEnv(process.env, settings.production),
@@ -203,9 +235,16 @@ export async function createApp(
     const runner = new Runner(store, settings, collab, { runtime, hosting }),
       agent = new Agent(store, settings, collab, {
         runtime,
+        objects: hosting.objects,
+        onLocalInferenceEvent,
+        onNativeT3Event: (event) => {
+          app.log[event.state === 'failure' ? 'warn' : 'info']({ nativeT3: event }, 'Managed native T3 runtime');
+        },
         decisions,
+        identityExecutionContext: options.identityExecutionContext,
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       });
+    startupCleanup.unshift(() => agent.close());
     await agent.initialize();
     const remotePlanner = new RemotePlanner({
       store,
@@ -476,7 +515,7 @@ export async function createApp(
           agent.profiles.assertAvailable(profile);
           return profile;
         },
-        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+        modelForProfile: (profile, key, artifactId) => agent.modelForProfile(profile, key, artifactId),
       },
     });
     const video = await registerVideoRoutes(app, {
@@ -528,7 +567,7 @@ export async function createApp(
           agent.profiles.assertAvailable(profile);
           return profile;
         },
-        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+        modelForProfile: (profile, key, artifactId) => agent.modelForProfile(profile, key, artifactId),
       },
       allowed: (user, id) => agent.canParticipate(user, id),
       remote: remotePlanner,
@@ -733,10 +772,39 @@ export async function createApp(
         await store.role(projectId, principal.id, action);
         return operation();
       });
-    await runtime.recover();
-    await runtime.flushOutbox();
-    app.get('/api/health', async () => {
+    let startupDispatchPending = false;
+    try {
+      if (startupLimit === undefined) {
+        // Preserve the standalone/local startup behavior.
+        await runtime.recover();
+        await runtime.flushOutbox();
+      } else {
+        // Cloud startup can reconcile SQL without contacting any provider.
+        await runtime.recover({ dispatchLimit: startupLimit });
+        if (startupLimit > 0) await runtime.flushOutbox(startupLimit);
+      }
+    } catch (error) {
+      if (!(error instanceof OutboxDispatchPendingError)) throw error;
+      // Only external publication degradation with a persisted retry can leave
+      // authoring available. SQL, schema and domain access failures remain fatal.
+      startupDispatchPending = true;
+    }
+    const executionReadiness = async (): Promise<DispatchReadiness> =>
+      runtime.dispatchReadiness
+        ? runtime.dispatchReadiness()
+        : startupDispatchPending
+          ? {
+              state: 'degraded',
+              reason: 'outbox-dispatch-pending',
+              verified: false,
+            }
+          : { state: 'configured', verified: false };
+    app.get('/api/health', async (_request, reply) => {
       await store.one('SELECT 1');
+      reply.header(
+        'x-studio-execution-state',
+        (await executionReadiness()).state,
+      );
       return { ok: true };
     });
     app.get('/api/capabilities', async (req) => {
@@ -753,6 +821,7 @@ export async function createApp(
         research: true,
         machines: true,
         magnetar: false,
+        execution: await executionReadiness(),
       };
     });
     const previews = new Map<
@@ -1413,14 +1482,38 @@ export async function createApp(
             .strict(),
           req.body,
         );
-      const m = await projectWrite(req, a.projectId, 'write', async () => {
-        const saved = await store.message(u, a.id, b.threadId, b.body);
-        await conversation.observe(u, a.id, b.threadId);
+      const processMessage = async () => {
+        const saved = await projectWrite(req, a.projectId, 'write', async () => {
+          const message = await store.message(u, a.id, b.threadId, b.body);
+          await conversation.observe(u, a.id, b.threadId);
+          return message;
+        });
+        for (const operation of [
+          ...(startupLimit === 0 ? [] : [() => runtime.flushOutbox()]),
+          () => agent.observeMessage(u, a.id, b.threadId, b.body),
+        ]) {
+          try {
+            await operation();
+          } catch (error) {
+            // The human text already committed. Only a confirmed durable retry
+            // can leave its acknowledgment successful after a dispatch failure.
+            if (!(error instanceof OutboxDispatchPendingError)) throw error;
+          }
+        }
         return saved;
-      });
-      await runtime.flushOutbox();
-      await agent.observeMessage(u, a.id, b.threadId, b.body);
+      };
+      const admitted: string[] = [],
+        m =
+          startupLimit === 0 && runtime.deferDispatch
+            ? await runtime.deferDispatch(processMessage, {
+                onAdmitted: (ids) => admitted.push(...ids),
+              })
+            : await processMessage();
       await collab.notify(a.projectId, a.id);
+      // Healthy follow-ups are published promptly after the human acknowledgment.
+      // Only fresh, committed IDs are eligible; a crash leaves maintenance intact.
+      if (admitted.length)
+        reply.raw.once('finish', () => followupPublication.publish(admitted));
       return reply.code(201).send(m);
     });
     app.post<{
@@ -2154,6 +2247,7 @@ export async function createApp(
       );
     }
     app.addHook('onClose', async () => {
+      await followupPublication.close();
       await remotePlanner?.close();
       await runtime.close();
       await agent.close();
@@ -2193,6 +2287,7 @@ export async function createApp(
         await accounts.cleanupRevoked(5);
         await accountPlanners.expire(5);
         await lifecycle.cleanup(3);
+        await cleanupManagedT3Checkpoints(store, hosting.objects, 3);
         await investigations!.expire();
         await implementationMachines.expire();
         await audio.cleanupStaged(10);
@@ -2204,6 +2299,7 @@ export async function createApp(
       drafting,
       runtime,
       hosting,
+      executionReadiness,
     };
   } catch (error) {
     await app.close().catch(() => {});

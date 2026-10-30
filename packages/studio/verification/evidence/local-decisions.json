@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "scope": "Actual local CPU decision acceptance; no hosted deployment or general model-accuracy claim",
+  "sourceCommit": "778d738a77fa958b8db789c1793a2846f110c9af",
+  "recordedAt": "2026-10-30T17:30:21.959Z",
+  "node": "v24.19.0",
+  "provider": "llama-cpp-cpu",
+  "adapterVersion": "node-llama-cpp@3.22.2/chat-option-likelihood-v2",
+  "model": {
+    "id": "qwen2.5-0.5b-instruct-q4-k-m",
+    "repository": "bartowski/Qwen2.5-0.5B-Instruct-GGUF",
+    "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+    "weightBytes": 397808192,
+    "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+    "license": "Apache-2.0"
+  },
+  "sourceHashes": {
+    "packages/studio/server/local/studio-local-decisions.mjs": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
+    "packages/studio/server/local/model-manifest.json": "554b62a79c01ffa6918956e39a2b0ae095f991730dc6e9ac83a1d2274bff0700",
+    "packages/studio/server/decisions/local.ts": "1d5455675e3da765632842764a5288364bf513cdf47b566646f05c246401b450",
+    "packages/studio/server/decisions/models.ts": "49821bdf50269a8e881ee747134f2597dd1d4d4833d300ef3afad18e9f47b6ad",
+    "packages/studio/tests/local-decisions.test.ts": "7d42df6c31166686f74cb14ca6978ba9f70585406f1620c310fdf06756379000",
+    "packages/studio/server/local/model.ts": "d95ffe0327207fe734de916b1fec967e133245c49aa29e418ce56e3d520a87ca",
+    "packages/studio/server/local/studio-local-worker.mjs": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+    "packages/studio/server/local/catalog.ts": "f1fe2214ce3022bdabc77af34844c48ccef31998432e9f0d9f04d1e99ef0cc79"
+  },
+  "command": "STUDIO_REQUIRE_LOCAL_MODEL_TEST=1 STUDIO_LOCAL_TEST_MODEL_DIR=<verified-model-directory> STUDIO_TEST_POSTGRES_URL=<disposable-local-postgres17> pnpm --dir packages/studio exec vitest run --config vitest.config.ts tests/local-decisions.test.ts --reporter=json",
+  "execution": {
+    "startedAt": "2026-10-30T17:27:49.648Z",
+    "finishedAt": "2026-10-30T17:28:07.349Z",
+    "passed": 7,
+    "failed": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "genuine offline CPU finite decisions (no provider transport) classifies balanced factual and human-approval predicates using the real chat wrapper and native token likelihoods",
+        "status": "passed",
+        "durationMs": 2627.081611
+      },
+      {
+        "name": "genuine offline CPU finite decisions (no provider transport) distinguishes finite color and work-intent choices without selecting a fixed option position",
+        "status": "passed",
+        "durationMs": 2984.9056020000003
+      },
+      {
+        "name": "genuine offline CPU finite decisions (no provider transport) scores explicit release-risk rubric bins from real native likelihoods",
+        "status": "passed",
+        "durationMs": 2487.065879999999
+      },
+      {
+        "name": "genuine offline CPU finite decisions (no provider transport) sqlite real profiles, API and durable probability receipts persists an independent picker through authenticated API, records immutable local provenance, and caches without another admission",
+        "status": "passed",
+        "durationMs": 1731.3674250000004
+      },
+      {
+        "name": "genuine offline CPU finite decisions (no provider transport) sqlite real profiles, API and durable probability receipts retains uncertain ordinal-bin distributions as abstentions and rejects complete-input context overflow without truncation",
+        "status": "passed",
+        "durationMs": 2627.623535999999
+      },
+      {
+        "name": "genuine offline CPU finite decisions (no provider transport) postgres real profiles, API and durable probability receipts persists an independent picker through authenticated API, records immutable local provenance, and caches without another admission",
+        "status": "passed",
+        "durationMs": 1894.6012389999996
+      },
+      {
+        "name": "genuine offline CPU finite decisions (no provider transport) postgres real profiles, API and durable probability receipts retains uncertain ordinal-bin distributions as abstentions and rejects complete-input context overflow without truncation",
+        "status": "passed",
+        "durationMs": 2690.803522
+      }
+    ]
+  },
+  "verified": {
+    "balancedPredicates": [
+      "blue present",
+      "blue absent",
+      "human approval explicitly absent",
+      "human approval explicitly present"
+    ],
+    "finiteChoices": [
+      "blue versus red position",
+      "red versus blue position",
+      "integration research versus implementation",
+      "approved implementation versus research"
+    ],
+    "ordinalBins": [
+      "explicit HIGH release risk",
+      "explicit LOW release risk"
+    ],
+    "uncertainty": "Both complex acceptance-coverage examples abstain at the default .7 threshold; distributions and ordinal expectations remain visible, with the complete example above the vague example.",
+    "persistence": [
+      "SQLite and real PostgreSQL17",
+      "authenticated GET/PUT independent decision model picker",
+      "generative profile unchanged",
+      "anonymous API rejected",
+      "immutable weight/runtime registration in frozen profile",
+      "durable probability provenance and history",
+      "same idempotency and cache reuse without another SQL admission",
+      "registration changes rejected",
+      "5000-digit-token complete source rejected with typed context-overflow",
+      "following ordinary inference recovers"
+    ],
+    "resources": {
+      "contextTokens": 4096,
+      "weightsBelow500MB": true,
+      "perChildSampledRssAssertionBytes": 1073741824,
+      "sampling": "native-operation boundaries; the shared worker separately enforces a sampled 1 GiB recycle ceiling",
+      "oneSharedModelPool": true
+    },
+    "network": "Inference executes only in the offline child; global fetch is disabled there and runtime/model downloads are disabled. No Gateway inference or paid model call."
+  },
+  "limitations": [
+    "Conditional label likelihoods are not calibrated probabilities of correctness.",
+    "A small fixture corpus is not broad accuracy validation.",
+    "The complete acceptance-coverage example can rank an intermediate bin above its intended highest bin. It abstains at .7 and does not grant approval or readiness.",
+    "RSS guards are sampled; the release container provides the hard OS memory limit.",
+    "This receipt validates local CPU/SQLite/PostgreSQL execution, not hosted Vercel deployment."
+  ]
+}
