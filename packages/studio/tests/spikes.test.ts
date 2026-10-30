@@ -15,6 +15,8 @@ import {
   SpeculativeSpikes,
 } from '../server/integrations/spikes.ts';
 import { testSettings } from './helpers.ts';
+import { DecisionModels } from '../server/decisions/models.ts';
+import { decisionProfileSchema } from '../shared/decision-profile.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
@@ -24,12 +26,14 @@ async function fixture(
   provider: 'sqlite' | 'postgres' = 'sqlite',
   enabled = true,
   consent = true,
+  decisionMode = false,
 ) {
   vi.stubEnv('AI_GATEWAY_API_KEY', 'explicit-classifier-http-fixture');
   const directory = await mkdtemp('/workspace/ai-bdd/work/spike-classifier-');
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
   const requests: any[] = [];
   let beforeReply: (() => Promise<void>) | undefined;
+  let decisionAnswer: number | 'refused' | 'error' = 0.95;
   const server = createServer(async (req, res) => {
     let body = '';
     for await (const chunk of req) body += chunk;
@@ -40,6 +44,30 @@ async function fixture(
     });
     await beforeReply?.();
     res.setHeader('content-type', 'application/json');
+    if (req.url?.endsWith('/decisions')) {
+      if (decisionAnswer === 'error') {
+        res.statusCode = 503;
+        res.end(JSON.stringify({ error: 'fixture outage' }));
+        return;
+      }
+      const request = JSON.parse(body);
+      res.end(
+        JSON.stringify({
+          model: request.model,
+          answers: request.questions.map((q: any) =>
+            decisionAnswer === 'refused'
+              ? { name: q.name, type: 'refusal' }
+              : {
+                  name: q.name,
+                  type: 'predicate',
+                  probability: decisionAnswer,
+                },
+          ),
+          usage: { input_tokens: 10, output_tokens: 4, total_tokens: 14 },
+        }),
+      );
+      return;
+    }
     res.end(
       JSON.stringify({
         content: [
@@ -114,6 +142,29 @@ async function fixture(
       },
     },
     judge = createSpikeJudge(settings)!;
+  const models = decisionMode
+    ? new DecisionModels({
+        store,
+        settings: {
+          production: false,
+          timeoutMs: 3000,
+          defaultProfile: decisionProfileSchema.parse({
+            provider: 'openai-decisions',
+            model: 'gpt-6-luna',
+            minimumConfidence: 0.7,
+          }),
+          openai: {
+            baseUrl: `http://127.0.0.1:${(server.address() as any).port}/v1`,
+            apiKey: 'separate-native-decision-fixture-key',
+            models: ['gpt-6-luna'],
+          },
+        },
+      })
+    : undefined;
+  if (models) {
+    await models.initialize();
+    cleanup.push(() => models.close());
+  }
   const machines = new MachineService(store, { notify: async () => {} } as any);
   await machines.initialize();
   const paired = await machines.pair(
@@ -129,7 +180,9 @@ async function fixture(
       auth: {} as any,
       machines,
       objects: new DiskObjectStore(join(directory, 'objects')),
-      spikes: { enabled, judge },
+      spikes: decisionMode
+        ? { enabled, decisionDriven: true }
+        : { enabled, judge },
       notify: async (_project, id) => {
         expect(store.db.inTransaction()).toBe(false);
         notifications.push(id);
@@ -147,7 +200,7 @@ async function fixture(
     runtime,
     investigations,
     enabled,
-    judge,
+    ...(decisionMode ? { decisions: models } : { judge }),
     quietMs: 0,
   });
   await spikes.initialize();
@@ -171,6 +224,10 @@ async function fixture(
     requests,
     investigations,
     notifications,
+    models,
+    setDecisionAnswer: (answer: number | 'refused' | 'error') => {
+      decisionAnswer = answer;
+    },
     edit,
     setBeforeReply: (hook: () => Promise<void>) => (beforeReply = hook),
   };
@@ -342,4 +399,113 @@ describe('saved-source speculative prototype classifier', () => {
     expect(records).toHaveLength(1);
     expect(records[0]!.sourceCommit).toBe('a'.repeat(40));
   });
+});
+
+describe('independent decision-profile prototype advice over native HTTP', () => {
+  for (const provider of ['sqlite', 'postgres'] as const)
+    it.skipIf(provider === 'postgres' && !process.env.STUDIO_TEST_POSTGRES_URL)(
+      `captures the separate profile, preserves native provenance and admits only a positive exact-source advisory (${provider})`,
+      async () => {
+        const w = await fixture(provider, true, true, true);
+        await w.edit(passage);
+        await w.models!.profile(
+          w.user,
+          w.project.mainArtifactId,
+          decisionProfileSchema.parse({
+            provider: 'openai-decisions',
+            model: 'gpt-6-luna',
+            minimumConfidence: 0.99,
+          }),
+        );
+        await w.runtime.executeJob(w.jobs[0]!, {
+          messageId: 'native',
+          deliveryCount: 1,
+        });
+        await w.runtime.executeJob(w.jobs[0]!, {
+          messageId: 'native-duplicate',
+          deliveryCount: 2,
+        });
+        expect(w.requests).toHaveLength(1);
+        expect(w.requests[0]).toMatchObject({
+          url: '/v1/decisions',
+          headers: {
+            authorization: 'Bearer separate-native-decision-fixture-key',
+          },
+          body: { model: 'gpt-6-luna' },
+        });
+        const evaluations = await w.models!.history(
+          w.user,
+          w.project.mainArtifactId,
+        );
+        expect(evaluations).toHaveLength(1);
+        expect(evaluations[0]).toMatchObject({
+          status: 'answered',
+          answers: [
+            {
+              questionId: 'worthwhile',
+              status: 'answered',
+              value: true,
+              probability: 0.95,
+              confidence: null,
+            },
+          ],
+          provenance: {
+            purpose: 'spike-worthiness',
+            minimumConfidence: 0.7,
+            provider: 'openai-decisions',
+            mode: 'native-decision',
+          },
+        });
+        const records = (
+          await w.investigations.list(w.user, w.project.mainArtifactId)
+        ).records;
+        expect(records).toHaveLength(1);
+        expect(records[0]).toMatchObject({
+          mode: 'spike',
+          ownerId: w.user.id,
+          status: 'queued',
+        });
+        expect(records[0]!.brief).toContain(passage);
+        expect((await w.runtime.get(w.jobs[0]!))?.result).toMatchObject({
+          evaluationId: evaluations[0]!.id,
+          decisionStatus: 'answered',
+          answerStatus: 'answered',
+          investigationId: records[0]!.id,
+        });
+      },
+    );
+  for (const [answer, status] of [
+    [0.55, 'abstained'],
+    [0.02, 'answered'],
+    ['refused', 'refused'],
+    ['error', 'error'],
+  ] as const)
+    it(`retains ${status} as a distinct result and never fabricates a positive investigation (${answer})`, async () => {
+      const w = await fixture('sqlite', true, true, true);
+      w.setDecisionAnswer(answer);
+      await w.edit(passage);
+      await w.runtime.executeJob(w.jobs[0]!, {
+        messageId: 'not-positive',
+        deliveryCount: 1,
+      });
+      const evaluations = await w.models!.history(
+        w.user,
+        w.project.mainArtifactId,
+      );
+      expect(evaluations).toHaveLength(1);
+      expect(evaluations[0]!.status).toBe(status);
+      expect(evaluations[0]!.answers[0]!.status).toBe(status);
+      if (answer === 0.02)
+        expect(evaluations[0]!.answers[0]!.value).toBe(false);
+      else expect(evaluations[0]!.answers[0]!.value).toBeNull();
+      expect((await w.runtime.get(w.jobs[0]!))?.result).toMatchObject({
+        investigationId: null,
+        evaluationId: evaluations[0]!.id,
+        decisionStatus: status,
+        answerStatus: status,
+      });
+      expect(
+        await w.store.all('SELECT id FROM studio_investigations'),
+      ).toHaveLength(0);
+    });
 });

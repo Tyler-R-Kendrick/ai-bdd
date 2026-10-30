@@ -46,6 +46,7 @@ export type InvestigationDependencies = {
   nativeDocumentBlocks?: boolean;
   spikes?: {
     enabled: boolean;
+    decisionDriven?: boolean;
     judge?: (input: {
       passage: string;
       context: string;
@@ -1161,7 +1162,11 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
     artifactId: string,
     input: { version: number; blockIndex: number; digest: string },
   ) {
-    if (!this.dependencies.spikes?.enabled || !this.dependencies.spikes.judge)
+    if (
+      !this.dependencies.spikes?.enabled ||
+      (!this.dependencies.spikes.judge &&
+        !this.dependencies.spikes.decisionDriven)
+    )
       return null;
     await this.ready;
     const initial = await this.unlocked(artifactId, user.id),
@@ -1211,6 +1216,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
     if (!candidate) return null;
     const { initial, block } = candidate,
       config = this.dependencies.spikes!;
+    if (!judged && !config.judge) return null;
     const judgment =
       judged ??
       (await config.judge!({

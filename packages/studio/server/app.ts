@@ -12,7 +12,7 @@ import { probeAudio } from './audio-renderer.ts';
 import { investigationExportRows } from './integrations/investigation-export.ts';
 import { registerAgentProfileRoutes } from './integrations/agent-profiles.ts';
 import { registerImplementationMachineRoutes } from './integrations/implementation-machines.ts';
-import { SpeculativeSpikes, createSpikeJudge } from './integrations/spikes.ts';
+import { SpeculativeSpikes } from './integrations/spikes.ts';
 import {
   ImplementationDrafting,
   registerImplementationDraftRoutes,
@@ -462,14 +462,13 @@ export async function createApp(
       agent,
       settings,
     });
-    const spikeJudge = createSpikeJudge(settings),
-      spikesEnabled = process.env.STUDIO_SPECULATIVE_SPIKES === '1';
+    const spikesEnabled = process.env.STUDIO_SPECULATIVE_SPIKES === '1';
     investigations = await registerInvestigationRoutes(app, {
       store,
       auth,
       machines: integrations.machines,
       objects: hosting.objects,
-      spikes: { enabled: spikesEnabled, judge: spikeJudge },
+      spikes: { enabled: spikesEnabled, decisionDriven: true },
       implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       notify: (projectId, id) => {
         void collab.notify(projectId, id).catch(() => {});
@@ -541,7 +540,7 @@ export async function createApp(
       runtime,
       investigations,
       enabled: spikesEnabled,
-      judge: spikeJudge,
+      decisions,
     });
     await spikes.initialize();
     store.sourceObserver = async (user, previous, current) => {
