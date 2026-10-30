@@ -1,3 +1,10 @@
+import { RemotePlanner } from './integrations/remote-planner.ts';
+import { ImplementationGraphs } from './integrations/implementation.ts';
+import { registerImplementationRoutes } from './integrations/implementation-routes.ts';
+import {
+  documentImplementationReady,
+  documentImplementationReadiness,
+} from './document-readiness.ts';
 import { ArtifactTitles } from './integrations/titles.ts';
 import {
   registerConversationRoutes,
@@ -111,11 +118,37 @@ export async function createApp(
   localDispatcher?.bind(runtime.executeJob);
   const auth = new Auth(store, settings);
   await auth.initialize();
-  const collab = new Collaboration(store, auth),
-    runner = new Runner(store, settings, collab, { runtime, hosting }),
-    agent = new Agent(store, settings, collab, { runtime });
+  const collab = new Collaboration(store, auth);
   await collab.initialize();
+  const graphs = new ImplementationGraphs({
+    store,
+    notify: ({ projectId, artifactId }) => collab.notify(projectId, artifactId),
+    assertReady: async (artifact) => {
+      await documentImplementationReady(store, artifact);
+    },
+  });
+  await graphs.initialize();
+  store.artifactWriteGuard = (artifact) =>
+    graphs.assertPlanEditable(artifact.id);
+  const runner = new Runner(store, settings, collab, { runtime, hosting }),
+    agent = new Agent(store, settings, collab, {
+      runtime,
+      implementationLocked: async (id) => !!(await graphs.editingLock(id)),
+    });
   await agent.initialize();
+  const remotePlanner = settings.integrations?.remotePlanner
+    ? new RemotePlanner({
+        store,
+        settings,
+        authenticate: (req) => auth.user(req),
+        claim: (user, id) => agent.claimPlanner(user, id),
+        allowed: (user, id) => agent.canParticipate(user, id),
+      })
+    : undefined;
+  if (remotePlanner) {
+    await remotePlanner.initialize();
+    agent.options.remote = remotePlanner;
+  }
   await runner.initialize();
   const titles = new ArtifactTitles({
     store,
@@ -186,6 +219,9 @@ export async function createApp(
     const status = (error as any).statusCode ?? 500;
     if (status >= 500) req.log.error({ err: error }, 'Request failed');
     return reply.code(status).send({
+      ...(status === 409 && Array.isArray((error as any).blockers)
+        ? { blockers: (error as any).blockers.slice(0, 200) }
+        : {}),
       error:
         status < 500
           ? (error as Error).message
@@ -210,6 +246,7 @@ export async function createApp(
     return payload;
   });
   await auth.routes(app);
+  remotePlanner?.register(app);
   const identity = await registerRepositoryIdentity(app, {
     store,
     auth,
@@ -245,6 +282,19 @@ export async function createApp(
     assertOrigin: (req) => auth.assertOrigin(req),
   });
   await registerDocumentReview(app, { store, auth, collab });
+  await registerImplementationRoutes(app, { auth, graphs });
+  app.get<{ Params: { id: string } }>(
+    '/api/artifacts/:id/implementation/readiness',
+    async (req) => {
+      const user = await auth.user(req),
+        artifact = await store.artifact(req.params.id, user.id);
+      return store.tx(async () => {
+        await store.lock('project:' + artifact.projectId);
+        const current = await store.artifact(artifact.id, user.id);
+        return documentImplementationReadiness(store, current);
+      });
+    },
+  );
   const conversation = await registerConversationRoutes(app, {
     store,
     auth,
@@ -292,7 +342,8 @@ export async function createApp(
   app.get('/api/capabilities', async (req) => {
     await auth.user(req);
     return {
-      agent: !!settings.model,
+      agent: !!settings.model || !!remotePlanner,
+      remotePlanner: !!remotePlanner,
       runner: !!settings.runnerConfig,
       oidc: !!settings.oidcIssuer,
       github: true,
@@ -1389,7 +1440,30 @@ export async function createApp(
           renderCursor = row.sequence;
         }
       }
-      yield '],"integrationHistory":[';
+      yield '],"implementation":{';
+      await checkAccess();
+      const implementationSnapshot = await graphs.read(user, a.id);
+      yield '"snapshot":' +
+        JSON.stringify(implementationSnapshot) +
+        ',"events":[';
+      let implementationBefore = Number.MAX_SAFE_INTEGER,
+        firstEvent = true;
+      while (true) {
+        await checkAccess();
+        const events = await graphs.history(user, a.id, {
+          before: implementationBefore,
+          limit: 100,
+        });
+        if (!events.length) break;
+        for (const event of events) {
+          if (event.revision > implementationSnapshot.revision) continue;
+          yield (firstEvent ? '' : ',') + JSON.stringify(event);
+          firstEvent = false;
+        }
+        implementationBefore = events.at(-1)!.revision;
+        if (events.length < 100) break;
+      }
+      yield ']},"integrationHistory":[';
       let firstIntegration = true;
       for await (const row of integrationExportRows(store, user, a.id)) {
         await checkAccess();
@@ -1502,6 +1576,7 @@ export async function createApp(
     );
   }
   app.addHook('onClose', async () => {
+    await remotePlanner?.close();
     await runtime.close();
     await agent.close();
     await video.close();
@@ -1522,6 +1597,8 @@ export async function createApp(
     identity,
     titles,
     conversation,
+    graphs,
+    remotePlanner,
     runtime,
     hosting,
   };
