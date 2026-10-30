@@ -1,3 +1,6 @@
+import { createServer } from 'node:http';
+import { once } from 'node:events';
+import { decisionProfileSchema } from '../shared/decision-profile.ts';
 import { randomUUID } from 'node:crypto';
 import { openDatabase } from '../server/persistence/index.ts';
 import { yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
@@ -14,6 +17,132 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
 describe('assembled cloud domain guards', () => {
+  it('persists an independent decision profile and executes an advisory review through the actual application runtime', async () => {
+    const requests: any[] = [];
+    const provider = createServer(async (req, res) => {
+      let raw = '';
+      for await (const chunk of req) raw += chunk;
+      const body = JSON.parse(raw);
+      requests.push({ path: req.url, body });
+      res.setHeader('content-type', 'application/json');
+      res.end(
+        JSON.stringify({
+          model: body.model,
+          answers: body.questions.map((q: any) => ({
+            name: q.name,
+            type: 'predicate',
+            probability: 0.95,
+          })),
+          usage: { input_tokens: 10, output_tokens: 4, total_tokens: 14 },
+        }),
+      );
+    });
+    provider.listen(0, '127.0.0.1');
+    await once(provider, 'listening');
+    cleanup.push(
+      () =>
+        new Promise<void>((resolve) => {
+          provider.closeAllConnections();
+          provider.close(() => resolve());
+        }),
+    );
+    const studio = await createApp(
+      {
+        ...testSettings('/tmp/studio-decision-composition'),
+        model: 'fixture/chat-model',
+      },
+      {
+        db: ':memory:',
+        decisionSettings: {
+          production: false,
+          timeoutMs: 3000,
+          defaultProfile: decisionProfileSchema.parse({
+            provider: 'openai-decisions',
+            model: 'gpt-6-luna',
+          }),
+          openai: {
+            baseUrl: `http://127.0.0.1:${(provider.address() as any).port}/v1`,
+            apiKey: 'explicit-composition-http-fixture',
+            models: ['gpt-6-luna'],
+          },
+        },
+      },
+    );
+    cleanup.push(() => studio.app.close());
+    const { user, cookie } = await setup(studio.app),
+      request = client(studio.app, cookie),
+      project = await studio.store.createProject(
+        user,
+        'Advisory review',
+        'Measure integration timeout behavior before implementation.',
+      ),
+      id = project.mainArtifactId;
+    const profile = await request(
+      'GET',
+      `/api/artifacts/${id}/decision/profile`,
+    );
+    expect(profile.statusCode, profile.body).toBe(200);
+    expect(profile.json()).toMatchObject({
+      independentOfChat: true,
+      profile: { provider: 'openai-decisions', model: 'gpt-6-luna' },
+    });
+    const saved = await request(
+      'PUT',
+      `/api/artifacts/${id}/decision/profile`,
+      {
+        provider: 'openai-decisions',
+        model: 'gpt-6-luna',
+        minimumConfidence: 0.85,
+      },
+    );
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(
+      (await request('GET', `/api/artifacts/${id}/agent/profile`)).json()
+        .profile.harness,
+    ).toBe('t3-code');
+    const before = await studio.store.artifact(id, user.id),
+      view = await request('GET', `/api/artifacts/${id}/decision-review`);
+    expect(view.statusCode, view.body).toBe(200);
+    expect(view.json().available).toBe(true);
+    const started = await request(
+      'POST',
+      `/api/artifacts/${id}/decision-review`,
+      { requestId: randomUUID(), blockIds: [view.json().passages[0].id] },
+    );
+    expect(started.statusCode, started.body).toBe(200);
+    await vi.waitFor(
+      async () =>
+        expect((await studio.runtime.get(started.json().id))?.status).toBe(
+          'completed',
+        ),
+      { timeout: 5000 },
+    );
+    expect(requests).toHaveLength(1);
+    expect(requests[0].path).toBe('/v1/decisions');
+    const history = await request(
+      'GET',
+      `/api/artifacts/${id}/decision/evaluations`,
+    );
+    expect(history.statusCode, history.body).toBe(200);
+    expect(history.json().evaluations).toHaveLength(1);
+    expect(history.json().evaluations[0].provenance).toMatchObject({
+      provider: 'openai-decisions',
+      requestedModel: 'gpt-6-luna',
+      minimumConfidence: 0.85,
+      purpose: 'semantic-design-gap',
+      mode: 'native-decision',
+    });
+    expect((await studio.store.artifact(id, user.id)).content).toEqual(
+      before.content,
+    );
+    expect((await studio.store.artifact(id, user.id)).version).toBe(
+      before.version,
+    );
+    expect(
+      (await request('GET', `/api/artifacts/${id}/agent/profile`)).json()
+        .profile.harness,
+    ).toBe('t3-code');
+  });
   it('refuses human approval of an empty canonical plan and exposes the concrete source blocker', async () => {
     const studio = await createApp(testSettings('/tmp/studio-empty-plan'), {
       db: ':memory:',
@@ -268,6 +397,10 @@ describe('assembled cloud domain guards', () => {
     expect(profile.statusCode, profile.body).toBe(200);
     expect(profile.json().profile.harness).toBe('t3-code');
     expect(
+      (await request('GET', `/api/artifacts/${id}/title-policy`)).json()
+        .available,
+    ).toBe(false);
+    expect(
       (await request('GET', `/api/artifacts/${id}`)).json().agentAvailable,
     ).toBe(false);
     const thread = (await studio.store.threads(id))[0]!;
@@ -289,6 +422,10 @@ describe('assembled cloud domain guards', () => {
       model: 'fixture/model',
     });
     expect(saved.statusCode, saved.body).toBe(200);
+    expect(
+      (await request('GET', `/api/artifacts/${id}/title-policy`)).json()
+        .available,
+    ).toBe(true);
     expect(
       (await request('GET', `/api/artifacts/${id}`)).json().agentAvailable,
     ).toBe(true);

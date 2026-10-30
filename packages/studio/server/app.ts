@@ -1,3 +1,11 @@
+import { DecisionModels } from './decisions/models.ts';
+import { registerDecisionRoutes } from './decisions/routes.ts';
+import { decisionSettingsFromEnv } from './decisions/settings.ts';
+import type { DecisionSettings } from './decisions/contracts.ts';
+import {
+  DesignReviews,
+  registerDesignReviewRoutes,
+} from './decisions/design-review.ts';
 import { registerAccountMachineRoutes } from './integrations/account-machines.ts';
 import { registerConnectorDownload } from './connector-download.ts';
 import { probeAudio } from './audio-renderer.ts';
@@ -92,6 +100,7 @@ export async function createApp(
     logger?: boolean;
     clientDir?: string;
     connectorFile?: string;
+    decisionSettings?: DecisionSettings;
   } = {},
 ) {
   const app = Fastify({
@@ -146,6 +155,15 @@ export async function createApp(
     const collab = new Collaboration(store, auth);
     startupCleanup.unshift(() => collab.close());
     await collab.initialize();
+    const decisions = new DecisionModels({
+      store,
+      settings:
+        options.decisionSettings ??
+        decisionSettingsFromEnv(process.env, settings.production),
+      notify: (projectId, id) => collab.notify(projectId, id),
+    });
+    startupCleanup.unshift(() => decisions.close());
+    await decisions.initialize();
     let investigations: InvestigationService | undefined;
     const graphs = new ImplementationGraphs({
       store,
@@ -187,6 +205,20 @@ export async function createApp(
         ? (input) => agent.generateTitle(input)
         : undefined,
       captureProfile: (user, id) => agent.captureProfile(user, id),
+      available: async (user, id) => {
+        const profile = await agent.captureProfile(user, id);
+        try {
+          agent.profiles.assertAvailable(profile);
+          return true;
+        } catch (error) {
+          if (
+            error instanceof HttpError &&
+            [409, 503].includes(error.statusCode)
+          )
+            return false;
+          throw error;
+        }
+      },
       allowed: (user, id) => agent.canParticipate(user, id),
       notify: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
       onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
@@ -283,6 +315,26 @@ export async function createApp(
       profiles: agent.profiles,
       notify: (projectId, id) => collab.notify(projectId, id),
     });
+    registerDecisionRoutes(app, { auth, models: decisions });
+    const designReviews = new DesignReviews({
+      store,
+      runtime,
+      models: decisions,
+      harnesses: async (user, id) => {
+        const selected = await agent.captureProfile(user, id);
+        return agent.profiles
+          .catalog()
+          .filter((harness) => harness.configured)
+          .map((harness) => ({
+            id: harness.id,
+            label:
+              harness.label +
+              (harness.id === selected.harness ? ' (currently selected)' : ''),
+          }));
+      },
+    });
+    await designReviews.initialize();
+    registerDesignReviewRoutes(app, auth, designReviews);
     remotePlanner?.register(app);
     const identity = await registerRepositoryIdentity(app, {
       store,
@@ -386,6 +438,15 @@ export async function createApp(
       settings,
       enabled: process.env.STUDIO_CONVERSATION_CARDS === '1',
       startResearch: (input) => agent.startResearch(input),
+      decisionModels: decisions,
+      generation: {
+        captureProfile: async (user, id) => {
+          const profile = await agent.captureProfile(user, id);
+          agent.profiles.assertAvailable(profile);
+          return profile;
+        },
+        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+      },
     });
     const video = await registerVideoRoutes(app, {
       store,
@@ -1833,6 +1894,7 @@ export async function createApp(
       await remotePlanner?.close();
       await runtime.close();
       await agent.close();
+      await decisions.close();
       await video.close();
       await runner.close();
       await collab.close();
@@ -1849,6 +1911,8 @@ export async function createApp(
       video,
       integrations,
       identity,
+      decisions,
+      designReviews,
       titles,
       conversation,
       graphs,
