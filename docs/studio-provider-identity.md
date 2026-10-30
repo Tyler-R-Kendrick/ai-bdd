@@ -1,0 +1,20 @@
+# Scoped provider execution identity
+
+The container composition can use the private native identity service to acquire a fresh, verified execution lease for each provider SDK operation. This is an application adapter, not a claim that Vercel automatically injects a token or Node request context into this container. The native handler and lease client own authenticated transport, nonce/deployment/scope checks, bounded responses and signed JWKS verification. The execution bridge accepts only their runtime-branded `ValidatedIdentityLease` objects.
+
+`IdentityExecutionContext.run(operation)` is a provider-neutral optional port. Without it, existing native SDK authentication remains unchanged. The Vercel implementation is `NativeIdentityExecutionContext` in `server/hosting/native-identity-context.ts`. It interoperates with the shipped `@vercel/oidc` Node getter through `Symbol.for('@vercel/request-context').get().headers`. That implementation boundary is pinned by the actual SDK tests; it is not a new Vercel Container configuration option.
+
+The bridge uses `AsyncLocalStorage` to expose the validated token only during the callback. It preserves the prior native getter and native metadata, acquires no credential from public request headers, and changes no environment variable. Each operation fetches a new private lease; no global token cache exists. Concurrent callbacks have separate scopes. Expired grants fail closed, callback settlement clears its lease reference, and detached descendants or retained header objects cannot subsequently read the delegated token. The delegated header is non-enumerable so ordinary JSON/spread does not disclose it. This is an ambient execution boundary for trusted server code, not a defense against trusted code deliberately copying a token while authorized.
+
+The native broker grant lasts at most 300 seconds and requires the upstream JWT to remain valid beyond the grant plus a safety margin. Closing the local grant does not shorten that JWT's cryptographic lifetime. The Sandbox adapter bounds commands below that grant and enters a fresh scope for each create, file read/write, command and stop operation. Queue and scheduler publishing enter their own scopes. Gateway language models enter at every SDK generation/stream attempt, including the installed AI SDK's v2/v3-to-v4 compatibility adapters. Agent title/graph/research adjuncts share the wrapped model factory; structured decision generation uses its independent wrapped provider. Existing explicit Blob signing credentials and external-provider keys retain their separate contracts.
+
+Composition passes `identityExecutionContext` into Agent/DecisionModels and the Queue/Scheduler constructor options. `VercelSandboxMediaRuntime` accepts the optional context as its fourth constructor argument, after the existing diagnostic callback. Model/protocol ports contain no document, repository or user-authorization decisions. Their callers retain source, role, cancellation, lease and publication fences.
+
+Local validation uses the actual private HMAC/RSA/JWKS broker fixture and real Queue/Gateway/Sandbox SDK HTTP transports. It checks rotated and overlapping distinct leases, native OIDC classification and routing, refusal before provider execution, scope expiry, detached/retained-header closure and native fallback. A separate Sandbox operation fixture checks every SDK method enters a fresh scope without sending credentials into the VM. `identity-model-adapter.test.ts` exercises actual AI SDK v3 adaptation, streaming, private receivers, real v4 Gateway HTTP and optional-noop behavior. These are local protocol and integration checks, not a successful paid model call, hosted Sandbox run or deployed identity handoff receipt.
+
+```sh
+pnpm --filter @ai-bdd/studio exec vitest run --config vitest.config.ts \
+  tests/identity-lease.test.ts tests/identity-execution-context.test.ts \
+  tests/identity-model-adapter.test.ts tests/oidc-sdk-file.test.ts \
+  tests/hosting-queue.test.ts tests/media-sandbox.test.ts tests/decision-models.test.ts
+```
