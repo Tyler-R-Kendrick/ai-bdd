@@ -1,3 +1,4 @@
+import { rebuildExportRows } from './integrations/rebuild-export.ts';
 import { registerRebuildRoutes } from './integrations/rebuild-machines.ts';
 import { resolveExistingPullRequest } from './integrations/pull-request-head.ts';
 import { registerAudioRoutes } from './audio-api.ts';
@@ -549,6 +550,7 @@ export async function createApp(
       (await accounts.otherWorkActive(id)) ||
       (await investigations!.activeOnMachine(id));
     const rebuilds = await registerRebuildRoutes(app, {
+      captureAuthoringProfile: (_user, id) => agent.profiles.selected(id),
       store,
       auth,
       graphs,
@@ -585,6 +587,8 @@ export async function createApp(
         else void notify().catch(() => {});
       },
     });
+    implementationMachines.dependencies.artifactWorkActive = (id) =>
+      rebuilds.activeOnArtifact(id);
     integrations.machines.hooks.otherWorkActive = async (id) =>
       (await accounts.otherWorkActive(id)) ||
       (await investigations!.activeOnMachine(id)) ||
@@ -1871,7 +1875,13 @@ export async function createApp(
           implementationBefore = events.at(-1)!.revision;
           if (events.length < 100) break;
         }
-        yield ']},"investigations":[';
+        yield ']},"rebuilds":[';
+        let firstRebuild = true;
+        for await (const row of rebuildExportRows(store, a.id, checkAccess)) {
+          yield (firstRebuild ? '' : ',') + JSON.stringify(row);
+          firstRebuild = false;
+        }
+        yield '],"investigations":[';
         let firstInvestigation = true;
         for await (const row of investigationExportRows(
           store,

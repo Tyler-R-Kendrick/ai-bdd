@@ -261,6 +261,7 @@ describe('assembled cloud domain guards', () => {
       /lease_owner|fixture-key|Authorization/,
     );
     expect(exported.json().audioRenders).toEqual([]);
+    expect(exported.json().rebuilds).toEqual([]);
     expect(history.json().evaluations[0].provenance).toMatchObject({
       provider: 'openai-decisions',
       requestedModel: 'gpt-6-luna',
