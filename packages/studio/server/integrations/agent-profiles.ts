@@ -52,7 +52,7 @@ export class AgentProfiles {
         reason:
           t3?.mcp?.accessToken && t3.providers.length > 0
             ? null
-            : 'T3 requires a registered native MCP endpoint, an approved Supervised client and a concrete provider/model. CLI-only generation is disabled. Choose another harness explicitly or connect the operator-owned T3 environment.',
+            : 'T3 Code requires a registered native MCP endpoint, an approved Supervised client and a concrete provider/model. CLI-only generation is disabled. Choose another harness explicitly or connect the operator-owned T3 environment.',
         providers: [
           ...(t3?.providers.length
             ? []
