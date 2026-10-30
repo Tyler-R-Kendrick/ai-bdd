@@ -11,7 +11,12 @@ export type DatabaseOptions =
   | { adapter: 'sqlite'; file: string }
   | ({ adapter: 'postgres' } & PostgresOptions);
 export async function openDatabase(options: DatabaseOptions) {
-  return options.adapter === 'sqlite'
-    ? new SqliteDatabase(options.file)
-    : await new PostgresDatabase(options).initialize();
+  if (options.adapter === 'sqlite') return new SqliteDatabase(options.file);
+  const database = new PostgresDatabase(options);
+  try {
+    return await database.initialize();
+  } catch (error) {
+    await database.close();
+    throw error;
+  }
 }

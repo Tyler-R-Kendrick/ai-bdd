@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { Store } from '../server/store.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app.ts';
 import { implementationPointer } from '../shared/implementation.ts';
@@ -7,6 +10,24 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
 describe('assembled cloud domain guards', () => {
+  it('releases database and background resources when application initialization fails', async () => {
+    const directory = await mkdtemp('/workspace/ai-bdd/work/startup-cleanup-'),
+      file = join(directory, 'studio.sqlite');
+    cleanup.push(() => rm(directory, { recursive: true, force: true }));
+    await expect(
+      createApp(
+        {
+          ...testSettings(directory),
+          oidcIssuer: 'http://organization.example.test',
+          oidcClientId: 'fixture',
+          oidcClientSecret: 'fixture-only',
+        },
+        { db: file },
+      ),
+    ).rejects.toThrow('OIDC requires HTTPS');
+    const reopened = await Store.open(file);
+    await reopened.close();
+  });
   it('keeps source, ADR and repository writes locked to a claimed graph while discussion remains usable', async () => {
     const studio = await createApp(testSettings('/tmp/studio-cloud-domain'), {
       db: ':memory:',
