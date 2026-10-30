@@ -4,8 +4,30 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, lstat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-const origin =
-  'https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app';
+const selected = new URL(
+  process.env.STUDIO_HOSTED_AUDIO_ORIGIN ?? 'https://invalid.example',
+);
+if (
+  selected.protocol !== 'https:' ||
+  selected.port ||
+  selected.username ||
+  selected.password ||
+  selected.pathname !== '/' ||
+  selected.search ||
+  selected.hash ||
+  !/^ai-bdd-studio-[a-z0-9]+-tyler-r-kendricks-projects\.vercel\.app$/.test(
+    selected.hostname,
+  )
+)
+  throw new Error('An explicit approved project preview origin is required');
+const origin = selected.origin,
+  source = process.env.STUDIO_HOSTED_AUDIO_SOURCE,
+  deploymentId = process.env.STUDIO_HOSTED_AUDIO_DEPLOYMENT_ID;
+if (
+  !/^[a-f0-9]{7,40}$/.test(source ?? '') ||
+  !/^dpl_[a-zA-Z0-9]+$/.test(deploymentId ?? '')
+)
+  throw new Error('Reviewed source and deployment identity are required');
 if (process.env.STUDIO_HOSTED_AUDIO_ALLOW_USAGE !== '1')
   throw new Error('Hosted audio acceptance requires explicit usage opt-in');
 if (
@@ -21,8 +43,8 @@ const report = {
   schemaVersion: 1,
   origin,
   startedAt: new Date().toISOString(),
-  deploymentSourceProvidedByOperator: '52a6c61',
-  deploymentIdProvidedByOperator: 'dpl_9FfYqDpLd5YQb3zKb5k3LhEcwEHx',
+  deploymentSourceProvidedByOperator: source,
+  deploymentIdProvidedByOperator: deploymentId,
   kind: 'model-free hosted audio durable publication',
   passed: false,
   steps: [],
@@ -369,10 +391,20 @@ try {
   );
   assert.equal(sha(again), digest);
   report.freshSessionPersistence = true;
-  await request('anonymous-file-denial', job.downloadUrl, { expected: 401 });
-  await request('anonymous-artifact-denial', `/api/artifacts/${artifact.id}`, {
-    expected: 401,
-  });
+  const { value: anonymousFile } = await request(
+    'anonymous-file-denial',
+    job.downloadUrl,
+    { expected: 401 },
+  );
+  assert.equal(anonymousFile.error, 'Sign in to continue');
+  const { value: anonymousArtifact } = await request(
+    'anonymous-artifact-denial',
+    `/api/artifacts/${artifact.id}`,
+    {
+      expected: 401,
+    },
+  );
+  assert.equal(anonymousArtifact.error, 'Sign in to continue');
   report.unauthorizedDenied = true;
   await request('close-first-owned-session', '/api/auth/logout', {
     method: 'POST',
