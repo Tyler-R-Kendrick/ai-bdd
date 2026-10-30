@@ -180,6 +180,32 @@
 .inv-decisions p {
   white-space: pre-wrap;
 }
+.findings-review {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, #dedbd5);
+  overflow-wrap: anywhere;
+}
+.findings-review article {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border, #dedbd5);
+  border-radius: 8px;
+}
+.findings-review label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.findings-review blockquote {
+  margin: 6px 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border, #dedbd5);
+  color: var(--muted-foreground, #6f6c65);
+}
 @media (max-width: 650px) {
   .investigation-panel {
     padding: 10px;

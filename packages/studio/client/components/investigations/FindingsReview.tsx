@@ -79,8 +79,8 @@ export function FindingsReview({
       )}
       {view && !view.owner && (
         <p role="status">
-          Waiting for an existing Planner owner. Claim Planner ownership in chat
-          to continue.
+          Waiting for an existing Planner owner. Send a Planner request in chat
+          to establish ownership.
         </p>
       )}
       {view?.owner && <small>Planner owner: {view.owner.name}</small>}
