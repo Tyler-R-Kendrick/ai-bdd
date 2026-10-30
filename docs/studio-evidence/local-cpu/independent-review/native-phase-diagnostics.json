@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "6064c3dd162a81b860d32c3c8b1b34c710c3d72d",
+  "scope": "Independent normal shipping main.js on existing Node24 OCI with public read-only runtime mounts; not final full Studio image or hosted release",
+  "result": {
+    "scope": "shipping-main-http-native-t3-local-cpu",
+    "checks": [
+      "non-root production main.js",
+      "default genuine native T3/OpenCode with pinned Qwen",
+      "real completed HTTP chat and native checkpoint lease release",
+      "SQLite and disk object persistence",
+      "fresh-process authenticated reply/ADR/thread read",
+      "second genuine native turn after restart",
+      "third native turn uses saved design source: blue and Start",
+      "canonical source, dedicated ADR and thread preserved",
+      "graceful SIGTERM"
+    ],
+    "passed": true
+  },
+  "process": {
+    "exitCode": 0,
+    "elapsedSeconds": 63.241
+  },
+  "artifacts": {
+    "studio-native-app-smoke.mjs": "3ab0377b53e74f688d8734583bdea87281ec354975a0d2a1ff1c7afee2566373",
+    "studio-local-decisions.mjs": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
+    "studio-local-worker.mjs": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+    "main.js": "5fc21afa37de6951d971df3653cf34539ebd4c3c9be55d2c12ed235189795503"
+  },
+  "constraintsRequested": {
+    "uid": 1000,
+    "network": "none",
+    "readOnlyRoot": true,
+    "memoryBytes": 2147483648,
+    "cpus": 2,
+    "capDrop": [
+      "ALL"
+    ],
+    "securityOpt": [
+      "no-new-privileges:true"
+    ],
+    "tmpfs": "original default /tmp (noexec)"
+  },
+  "unitChecks": {
+    "files": 3,
+    "passed": 13,
+    "optionalPostgresSkipped": 1,
+    "diagnosticsChecks": 3,
+    "typecheckPassed": true,
+    "focusedOxlintPassed": true
+  },
+  "diagnosticsContract": {
+    "finitePhases": true,
+    "nativeMessagesLogged": false,
+    "pathsUrlsPromptsCredentialsLogged": false,
+    "rawErrorsOrCausesLogged": false,
+    "observerFailureChangesOperation": false,
+    "configuredAgentToAppLogger": true
+  },
+  "syntheticProxyProbe": {
+    "node": "v24.19.0",
+    "scope": "parent Node child process with child-only synthetic loopback proxy; no external network or real credentials",
+    "nodeUseEnvProxy": true,
+    "noProxy": "empty in synthetic fixture only",
+    "targetRequests": 0,
+    "proxyConnectRequests": 1,
+    "proxyHttpRequests": 0,
+    "responseErrorClass": "TypeError",
+    "externalNetworkRequests": 0,
+    "realCredentialsPassed": false,
+    "conclusion": "Environment proxy routing can intercept an owned loopback fetch when loopback is absent from NO_PROXY. This is a synthetic reproduction, not evidence of the actual Vercel failure cause."
+  },
+  "remaining": "Actual hosted failure cause remains unknown until the instrumented candidate emits its finite native phase events."
+}
