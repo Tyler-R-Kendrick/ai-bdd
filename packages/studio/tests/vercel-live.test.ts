@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import {
   createServer,
   type IncomingMessage,
@@ -439,5 +440,15 @@ describe('hosted acceptance exact-origin and credential boundary', () => {
       (await studio.store.one('SELECT count(*) AS n FROM studio_durable_jobs'))
         .n,
     ).toBe(0);
+    const replacement = await githubSignIn(studio.app), another = await githubSignIn(studio.app);
+    const otherFile = await writeSessions(origin, [replacement.cookie, another.cookie]);
+    const rejected = await runVercelLive(config(origin, {
+      STUDIO_LIVE_ALLOW_WRITES: '1',
+      STUDIO_LIVE_GITHUB_USER_ID: randomUUID(),
+      STUDIO_LIVE_GITHUB_SESSIONS_FILE: otherFile,
+    }));
+    expect(rejected.checks).toContainEqual({ id: 'authenticated-github-session', status: 'failed', reason: 'github-session-identity-mismatch' });
+    expect(rejected.synthetic).toBeUndefined();
+    expect((await studio.store.one('SELECT count(*) AS n FROM projects')).n).toBe(1);
   });
 });
