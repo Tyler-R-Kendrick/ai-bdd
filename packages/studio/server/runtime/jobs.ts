@@ -185,10 +185,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     if (!this.handlers.has(input.kind))
       throw new Error('Register the durable job kind before enqueueing work');
     if (!input.idempotencyKey || input.idempotencyKey.length > 300)
-      throw new HttpError(
-        400,
-        'A bounded stable idempotency key is required',
-      );
+      throw new HttpError(400, 'A bounded stable idempotency key is required');
     const source = json(input.snapshot),
       checksum = digest(source),
       attempts = input.maxAttempts ?? 3;
@@ -285,16 +282,12 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       );
     });
   }
-  private async locked<T>(
-    jobId: string,
-    operation: (row: any) => Promise<T>,
-  ) {
+  private async locked<T>(jobId: string, operation: (row: any) => Promise<T>) {
     const scope = await this.store.one(
       'SELECT project_id FROM studio_durable_jobs WHERE id=?',
       jobId,
     );
-    if (!scope)
-      throw new JobLeaseLostError('The durable job no longer exists');
+    if (!scope) throw new JobLeaseLostError('The durable job no longer exists');
     return this.store.tx(async () => {
       await this.store.db.lock('project:' + scope.project_id);
       await this.store.db.lock('job:' + jobId);
@@ -302,15 +295,13 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         'SELECT * FROM studio_durable_jobs WHERE id=?',
         jobId,
       );
-      if (!row)
-        throw new JobLeaseLostError('The durable job no longer exists');
+      if (!row) throw new JobLeaseLostError('The durable job no longer exists');
       const result = await operation(row);
       const after = await this.store.one(
         'SELECT * FROM studio_durable_jobs WHERE id=?',
         jobId,
       );
-      if (after && row.status !== after.status)
-        await this.statusChanged(after);
+      if (after && row.status !== after.status) await this.statusChanged(after);
       return result;
     });
   }
@@ -338,6 +329,37 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       throw new TerminalJobError(
         'The approved source revision is stale; no replacement was published',
       );
+  }
+  /** Renew repository permission only outside SQL; every caller then rechecks its lease and ACL under the project lock. */
+  private async preflight(row: {
+    artifact_id: string;
+    principal_id: string;
+    project_id: string;
+  }) {
+    if (this.store.db.inTransaction())
+      throw new Error(
+        'Durable repository permission renewal must run outside SQL transactions',
+      );
+    const artifact = await this.store.artifact(
+      row.artifact_id,
+      row.principal_id,
+      'write',
+    );
+    if (artifact.projectId !== row.project_id)
+      throw new TerminalJobError(
+        'The job source no longer belongs to its admitted project',
+      );
+  }
+  private async renewAuthorization(job: DurableJob) {
+    const row = await this.store.one(
+      'SELECT * FROM studio_durable_jobs WHERE id=?',
+      job.id,
+    );
+    if (!row) throw new JobLeaseLostError('The durable job no longer exists');
+    // A stale or duplicate worker never continuously refreshes another attempt's repository grant.
+    this.lease(row, job);
+    // A nested deterministic guard reuses the outer commit's preflight. Its caller still performs the SQL-only ACL check.
+    if (!this.store.db.inTransaction()) await this.preflight(row);
   }
   private async claim(id: string) {
     return this.locked(id, async (row) => {
@@ -424,18 +446,19 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         throw new TerminalJobError('Use a bounded stable step name');
     };
     const finalReceipts = new Map<string, unknown>();
-    const check = async (version = false) =>
-      this.locked(job.id, async (row) => {
+    const check = async (version = false) => {
+      await this.renewAuthorization(job);
+      await this.locked(job.id, async (row) => {
         this.lease(row, job);
         await this.authorized(row, version);
       });
+    };
     return {
       job,
       snapshot: job.snapshot,
       fence: job.fence,
       signal: controller.signal,
-      assertCurrent: (options) =>
-        check(options?.requireCurrentVersion ?? true),
+      assertCurrent: (options) => check(options?.requireCurrentVersion ?? true),
       progress: async (value) => {
         if (
           !Number.isFinite(value.percent) ||
@@ -444,6 +467,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
           (value.label?.length ?? 0) > 300
         )
           throw new TerminalJobError('Progress exceeds its bounds');
+        await this.renewAuthorization(job);
         await this.locked(job.id, async (row) => {
           this.lease(row, job);
           await this.authorized(row, false);
@@ -457,22 +481,21 @@ export class DurableJobCoordinator implements DurableJobRuntime {
           );
         });
       },
-      step: async <T>(
-        name: string,
-        operation: (key: string) => Promise<T>,
-      ) => {
+      step: async <T>(name: string, operation: (key: string) => Promise<T>) => {
         nameCheck(name);
         controller.signal.throwIfAborted();
+        await this.renewAuthorization(job);
         const cached = await this.locked(job.id, async (row) => {
           this.lease(row, job);
           const receipt = await this.receipt(job.id, name, 'step');
-          if (!receipt) await this.authorized(row, false);
+          await this.authorized(row, false);
           return receipt;
         });
         if (cached) return cached.value as T;
         // The stable key may be passed to providers supporting their own idempotency, but no universal provider guarantee is assumed.
         const result = await operation(`${job.id}:${name}`);
         controller.signal.throwIfAborted();
+        await this.renewAuthorization(job);
         return this.locked(job.id, async (row) => {
           this.lease(row, job);
           await this.authorized(row, false);
@@ -490,6 +513,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         nameCheck(name);
         if (finalReceipts.has(name)) return finalReceipts.get(name) as T;
         controller.signal.throwIfAborted();
+        await this.renewAuthorization(job);
         const result = await this.locked(job.id, async (row) => {
           this.lease(row, job);
           const existing = await this.receipt(job.id, name, 'publication');
@@ -531,7 +555,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
   };
   private async run(id: string, delivery: JobDelivery) {
     const before = await this.store.one(
-      'SELECT kind,status FROM studio_durable_jobs WHERE id=?',
+      'SELECT * FROM studio_durable_jobs WHERE id=?',
       id,
     );
     if (!before || terminal(before.status)) return;
@@ -540,6 +564,18 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       throw new Error(
         'This instance has not registered the durable job handler',
       );
+    let admissionError: unknown;
+    const due =
+      before.status === 'queued'
+        ? Number(before.available_at) <= this.clock()
+        : Number(before.lease_expires) <= this.clock();
+    if (due) {
+      try {
+        await this.preflight(before);
+      } catch (error) {
+        admissionError = error;
+      }
+    }
     const claimed = await this.claim(id);
     if (!claimed) return;
     let job: DurableJob;
@@ -547,10 +583,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       job = this.read(claimed);
     } catch {
       await this.locked(id, async (row) => {
-        if (
-          row.lease_owner === this.instanceId &&
-          row.fence === claimed.fence
-        )
+        if (row.lease_owner === this.instanceId && row.fence === claimed.fence)
           await this.store.exec(
             "UPDATE studio_durable_jobs SET status='failed',fence=fence+1,error=?,lease_owner=NULL,lease_expires=NULL,updated_at=? WHERE id=?",
             'The immutable job snapshot failed its integrity check',
@@ -567,6 +600,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       terminalReason: string | undefined,
       renewal: Promise<void> | undefined;
     const renew = async () => {
+      await this.renewAuthorization(job);
       await this.locked(id, async (row) => {
         this.lease(row, job);
         await this.authorized(row, false);
@@ -610,16 +644,22 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     const deadline = delivery.deadlineAt
       ? setTimeout(
           () =>
-            controller.abort(
-              new Error('The delivery deadline is approaching'),
-            ),
+            controller.abort(new Error('The delivery deadline is approaching')),
           Math.max(0, delivery.deadlineAt - Date.now() - 1000),
         )
       : undefined;
     deadline?.unref();
     try {
       controller.signal.throwIfAborted();
+      if (admissionError) throw admissionError;
+      await this.renewAuthorization(job);
+      await this.locked(id, async (row) => {
+        this.lease(row, job);
+        await this.authorized(row, false);
+      });
       const result = await handler(this.context(job, controller));
+      if ((await this.get(id))?.status !== 'completed')
+        await this.renewAuthorization(job);
       await this.locked(id, async (row) => {
         if (row.status === 'completed') return; // Publication already completed atomically, including before a cleanup error.
         this.lease(row, job);
@@ -679,10 +719,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         } else {
           const available =
             this.clock() +
-            Math.min(
-              60000,
-              1000 * 2 ** Math.min(6, Number(row.attempts) - 1),
-            );
+            Math.min(60000, 1000 * 2 ** Math.min(6, Number(row.attempts) - 1));
           await this.store.exec(
             "UPDATE studio_durable_jobs SET status='queued',lease_owner=NULL,lease_expires=NULL,available_at=?,error=?,updated_at=? WHERE id=?",
             available,
@@ -705,6 +742,10 @@ export class DurableJobCoordinator implements DurableJobRuntime {
   }
   async cancel(id: string, user: User) {
     await this.ready;
+    const job = await this.get(id);
+    if (!job) throw new HttpError(404, 'Durable job not found');
+    // Cancellation renews the caller's capability, never the job principal's revoked grant.
+    await this.store.artifact(job.artifactId, user.id, 'write');
     await this.locked(id, async (row) => {
       await this.store.artifact(row.artifact_id, user.id, 'write');
       if (terminal(row.status)) return;
@@ -715,9 +756,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         id,
       );
     });
-    this.controllers
-      .get(id)
-      ?.abort(new Error('Cancelled by a project member'));
+    this.controllers.get(id)?.abort(new Error('Cancelled by a project member'));
   }
   async flushOutbox(limit = 20, jobId?: string) {
     await this.ready;
