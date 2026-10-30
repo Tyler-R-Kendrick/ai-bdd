@@ -246,7 +246,9 @@ export class ArtifactTitles {
     await ctx.assertCurrent();
     const initial = await eligible();
     if (!provider || !initial.valid)
-      return ctx.commit('title-result', async () => ({ skipped: true }));
+      return ctx.commit('title-result', async () => ({ skipped: true }), {
+        requireCurrentVersion: false,
+      });
     const generated = await ctx.step('model-title', async (idempotencyKey) => {
       const value = await provider({
         artifact: initial.artifact,
@@ -285,47 +287,54 @@ export class ArtifactTitles {
             })
             .strict()
             .parse(generated);
-    const result = await ctx.commit('title-result', async () => {
-      const current = await eligible();
-      if (!current.valid) return { skipped: true };
-      await store.artifactWriteGuard?.(current.artifact, user.id);
-      const title = proposal.title;
-      let seeded = false;
-      if (s.seedGoal && 'goal' in proposal) {
-        await store.updateArtifact(
-          { ...user, name: 'Studio agent' },
-          current.artifact.id,
-          current.artifact.version,
-          seedDocumentGoal(current.artifact, title, proposal.goal!),
-          title,
-          () =>
-            this.options.onGoalSeed?.(
-              { ...user, name: 'Studio agent' },
-              current.artifact,
-              current.artifact.content.doc,
-            ),
-        );
-        seeded = true;
-      } else
+    // The locked callback checks the exact version/hash and naming epoch. A
+    // superseded automatic request records a skip instead of a failed job;
+    // current membership/lease checks still precede this callback.
+    const result = await ctx.commit(
+      'title-result',
+      async () => {
+        const current = await eligible();
+        if (!current.valid) return { skipped: true };
+        await store.artifactWriteGuard?.(current.artifact, user.id);
+        const title = proposal.title;
+        let seeded = false;
+        if (s.seedGoal && 'goal' in proposal) {
+          await store.updateArtifact(
+            { ...user, name: 'Studio agent' },
+            current.artifact.id,
+            current.artifact.version,
+            seedDocumentGoal(current.artifact, title, proposal.goal!),
+            title,
+            () =>
+              this.options.onGoalSeed?.(
+                { ...user, name: 'Studio agent' },
+                current.artifact,
+                current.artifact.content.doc,
+              ),
+          );
+          seeded = true;
+        } else
+          await store.exec(
+            'UPDATE artifacts SET title=?,updated_at=? WHERE id=?',
+            title,
+            new Date().toISOString(),
+            current.artifact.id,
+          );
         await store.exec(
-          'UPDATE artifacts SET title=?,updated_at=? WHERE id=?',
-          title,
-          new Date().toISOString(),
+          'UPDATE studio_title_state SET epoch=epoch+1 WHERE artifact_id=?',
           current.artifact.id,
         );
-      await store.exec(
-        'UPDATE studio_title_state SET epoch=epoch+1 WHERE artifact_id=?',
-        current.artifact.id,
-      );
-      await store.audit(
-        current.artifact.projectId,
-        current.artifact.id,
-        'Studio agent',
-        'artifact.title-maintained',
-        JSON.stringify({ title, goalSeeded: seeded, requestedBy: user.id }),
-      );
-      return { title, goalSeeded: seeded };
-    });
+        await store.audit(
+          current.artifact.projectId,
+          current.artifact.id,
+          'Studio agent',
+          'artifact.title-maintained',
+          JSON.stringify({ title, goalSeeded: seeded, requestedBy: user.id }),
+        );
+        return { title, goalSeeded: seeded };
+      },
+      { requireCurrentVersion: false },
+    );
     if (!('skipped' in result))
       await notify?.(ctx.job.projectId, ctx.job.artifactId);
     return result;

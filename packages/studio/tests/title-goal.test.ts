@@ -218,6 +218,16 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(w.requests[0].headers['ai-language-model-id']).toBe(
           'fixture/title-a',
         );
+        const prompt = JSON.parse(
+          w.requests[0].body.prompt.find(
+            (message: any) => message.role === 'user',
+          ).content[0].text,
+        );
+        expect(prompt.artifact).toEqual({
+          id: w.artifact.id,
+          title: w.artifact.title,
+          kind: w.artifact.kind,
+        });
         expect((await w.runtime.get(id))?.result).toMatchObject({
           title: w.response.title,
           goalSeeded: true,
@@ -322,6 +332,8 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(JSON.stringify((await w.state()).content)).not.toContain(
           w.response.goal,
         );
+        expect((await w.runtime.get(id))?.status).toBe('completed');
+        expect((await w.runtime.get(id))?.result).toEqual({ skipped: true });
       });
       it('rechecks writer membership and source locks after provider work', async () => {
         const w = await fixture();
