@@ -2191,6 +2191,7 @@ export async function createApp(
       rebuilds,
       maintenance: async () => {
         await accounts.cleanupRevoked(5);
+        await accountPlanners.expire(5);
         await lifecycle.cleanup(3);
         await investigations!.expire();
         await implementationMachines.expire();
