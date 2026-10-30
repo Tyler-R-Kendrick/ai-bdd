@@ -1,4 +1,4 @@
-import { mkdir, readdir, rm, readFile, stat } from 'node:fs/promises';
+import { mkdir, readdir, rm, readFile, stat, realpath } from 'node:fs/promises';
 import { join, resolve, basename } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -165,10 +165,21 @@ export async function runRebuildOnce(
     busy = false,
     completed = false;
   try {
+    timer = setInterval(() => {
+      if (busy) return;
+      busy = true;
+      void call('heartbeat', { leaseToken, generation })
+        .catch(() => controller.abort())
+        .finally(() => {
+          busy = false;
+        });
+    }, 10000);
+    timer.unref();
     const checkouts: (RebuildPullRequest & {
       path: string;
     })[] = [];
     for (const pr of prs) {
+      signal.throwIfAborted();
       const tree = await prepareWorktree({
         cwd: options.cwd,
         stateDirectory: options.stateDirectory,
@@ -193,34 +204,31 @@ export async function runRebuildOnce(
       );
     const digest = (bytes: Buffer | string) =>
       createHash('sha256').update(bytes).digest('hex');
+    const launchArgs=[...options.args];
     let argumentFileSha256: string | null = null;
     if (options.args[0] && !options.args[0].startsWith('-'))
       try {
-        const path = resolve(options.cwd, options.args[0]),
+        const path = await realpath(resolve(options.cwd, options.args[0])),
           entry = await stat(path);
-        if (entry.isFile() && entry.size <= 64 * 1024 * 1024)
+        if (entry.isFile()) {
+          if(entry.size>64*1024*1024)throw new Error('The trusted ACP entrypoint exceeds64MiB');
+          launchArgs[0]=path;
           argumentFileSha256 = digest(await readFile(path));
-      } catch {}
+        }
+      } catch(error) {
+        const missing=(error as NodeJS.ErrnoException).code==='ENOENT';
+        if(!missing || /\.(?:[cm]?[jt]s|py|rb)$/.test(options.args[0]) || /^node(?:js)?(?:\.exe)?$/.test(basename(options.command)))throw error;
+      }
     const runtime = {
       adapter: 'acp' as const,
       executableName: basename(options.command),
       executableSha256: digest(await readFile(options.command)),
-      argumentsSha256: digest(JSON.stringify(options.args)),
+      argumentsSha256: digest(JSON.stringify(launchArgs)),
       argumentFileSha256,
       model: null,
       provenance: 'connector-reported' as const,
     };
     await call('start', { leaseToken, generation, pullRequests: prs, runtime });
-    timer = setInterval(() => {
-      if (busy) return;
-      busy = true;
-      void call('heartbeat', { leaseToken, generation })
-        .catch(() => controller.abort())
-        .finally(() => {
-          busy = false;
-        });
-    }, 10000);
-    timer.unref();
     const phase = async (verifierToken?: string) => {
       const state: RebuildBridgeState = {
           version: 1,
@@ -242,6 +250,7 @@ export async function runRebuildOnce(
       await privateJson(file, state);
       client = new AcpClient({
         ...options,
+        args:launchArgs,
         cwd: checkouts[0]!.path,
         signal,
         mcpServers: [

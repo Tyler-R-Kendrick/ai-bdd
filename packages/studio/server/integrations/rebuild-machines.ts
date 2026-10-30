@@ -237,6 +237,8 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       user.id,
     );
     if (!initial) throw new HttpError(404, 'Your machine was not found');
+    // Renew external entitlement before the locked SQL-only permission recheck.
+    await this.store.role(initial.project_id,user.id,'write');
     return this.atomic(initial.project_id, async () => {
       await this.store.role(initial.project_id, user.id, 'write');
       const machine = await this.fresh(initial),
