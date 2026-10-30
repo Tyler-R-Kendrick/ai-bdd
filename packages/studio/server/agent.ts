@@ -1,6 +1,8 @@
 import { documentNodeSource } from '../shared/document-digest.ts';
 import { passagePlacementSchema } from '../shared/investigations.ts';
 import { createGateway, generateText, Output, stepCountIs, tool } from 'ai';
+import type { IdentityExecutionContext } from './hosting/identity-context.ts';
+import { identityLanguageModel } from './hosting/identity-language-model.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
@@ -71,6 +73,7 @@ type Snapshot = {
 };
 export type AgentOptions = {
   runtime: DurableJobRuntime;
+  identityExecutionContext?: IdentityExecutionContext;
   implementationLocked?: (id: string) => Promise<boolean>;
   onGeneratedArtifact?: (id: string) => Promise<void>;
   observeMessage?: (
@@ -804,11 +807,14 @@ export class Agent {
         503,
         'This model-backed adjunct requires a local T3 or Vercel/fx harness selection',
       );
-    return this.integrations.gatewayBaseUrl
-      ? createGateway({ baseURL: this.integrations.gatewayBaseUrl })(
-          profile.model,
-        )
-      : profile.model;
+    return identityLanguageModel(
+      this.integrations.gatewayBaseUrl
+        ? createGateway({ baseURL: this.integrations.gatewayBaseUrl })(
+            profile.model,
+          )
+        : profile.model,
+      this.options.identityExecutionContext,
+    );
   }
   /** Server-only generative bridge. Durable callers supply their captured profile and enforce their source/publication guards. */
   modelForProfile(profile: AgentProfile, idempotencyKey: string) {

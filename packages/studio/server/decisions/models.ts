@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import type { IdentityExecutionContext } from '../hosting/identity-context.ts';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import type { User } from '../../shared/domain.ts';
@@ -47,6 +48,7 @@ export class DecisionModels {
     readonly options: {
       store: Store;
       settings: DecisionSettings;
+      identityExecutionContext?: IdentityExecutionContext;
       notify?: (projectId: string, artifactId: string) => Promise<void>;
     },
   ) {
@@ -61,7 +63,10 @@ export class DecisionModels {
     if (settings.structured)
       this.providers.set(
         'vercel-structured',
-        structuredDecisionProvider(settings.structured),
+        structuredDecisionProvider(
+          settings.structured,
+          options.identityExecutionContext,
+        ),
       );
     this.ready = this.initialize();
     void this.ready.catch(() => {});

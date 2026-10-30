@@ -4,6 +4,10 @@ import {
 } from './provider-diagnostics.ts';
 import { dispatchDeadline } from './deadline.ts';
 import {
+  runWithIdentity,
+  type IdentityExecutionContext,
+} from './identity-context.ts';
+import {
   QueueClient,
   type MessageMetadata,
   type VercelRegion,
@@ -22,12 +26,15 @@ export class VercelQueueDispatcher implements JobDispatcher {
   readonly provider = 'vercel-queue';
   readonly #client: QueueTransport;
   readonly #onFailure?: ProviderFailureReporter;
+  readonly #identity?: IdentityExecutionContext;
   constructor(options: {
     region: string;
     client?: QueueTransport;
     onFailure?: ProviderFailureReporter;
+    identityExecutionContext?: IdentityExecutionContext;
   }) {
     this.#onFailure = options.onFailure;
+    this.#identity = options.identityExecutionContext;
     this.#client =
       options.client ??
       new QueueClient({ region: options.region as VercelRegion });
@@ -45,14 +52,16 @@ export class VercelQueueDispatcher implements JobDispatcher {
       );
     try {
       const receipt = await dispatchDeadline(
-        this.#client.send(
-          STUDIO_QUEUE_TOPIC,
-          { schemaVersion: 1, jobId },
-          {
-            idempotencyKey: `studio-dispatch:${options.dispatchId ?? jobId}`,
-            retentionSeconds: 86400,
-            delaySeconds: delay,
-          },
+        runWithIdentity(this.#identity, () =>
+          this.#client.send(
+            STUDIO_QUEUE_TOPIC,
+            { schemaVersion: 1, jobId },
+            {
+              idempotencyKey: `studio-dispatch:${options.dispatchId ?? jobId}`,
+              retentionSeconds: 86400,
+              delaySeconds: delay,
+            },
+          ),
         ),
       );
       return {

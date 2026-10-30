@@ -1,4 +1,8 @@
 import { Sandbox } from '@vercel/sandbox';
+import {
+  runWithIdentity,
+  type IdentityExecutionContext,
+} from '../hosting/identity-context.ts';
 import { Writable } from 'node:stream';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
@@ -104,6 +108,7 @@ export class VercelSandboxMediaRuntime {
     readonly config: MediaSandboxConfig,
     readonly create: MediaSandboxFactory = (params) => Sandbox.create(params),
     readonly onDiagnostic?: (code: 'media-sandbox-stop-failed') => void,
+    readonly identityExecutionContext?: IdentityExecutionContext,
   ) {
     const fingerprint = 'studio-media-v1:' + config.image;
     Object.assign(this.audioRenderDriver, { fingerprint });
@@ -144,16 +149,35 @@ export class VercelSandboxMediaRuntime {
       AbortSignal.timeout(this.config.timeoutMs),
     ]);
     signal.throwIfAborted();
-    const box = await this.create({
-      image: this.config.image,
-      persistent: false,
-      networkPolicy: 'deny-all',
-      resources: { vcpus: 2 },
-      ports: [],
-      timeout: this.config.timeoutMs,
-      signal,
-      ...this.config.credentials,
-    });
+    const created = await runWithIdentity(this.identityExecutionContext, () =>
+      this.create({
+        image: this.config.image,
+        persistent: false,
+        networkPolicy: 'deny-all',
+        resources: { vcpus: 2 },
+        ports: [],
+        timeout: this.config.timeoutMs,
+        signal,
+        ...this.config.credentials,
+      }),
+    );
+    const box = this.identityExecutionContext
+      ? new Proxy(created, {
+          get: (target, property) => {
+            const value = Reflect.get(target, property, target);
+            if (
+              ['writeFiles', 'readFile', 'runCommand', 'stop'].includes(
+                String(property),
+              )
+            )
+              return (...args: unknown[]) =>
+                this.identityExecutionContext!.run(async () =>
+                  Reflect.apply(value, target, args),
+                );
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        })
+      : created;
     let stop: Promise<unknown> | undefined;
     const terminate = () =>
       (stop ??= box.stop({ signal: AbortSignal.timeout(10000) }).catch(() => {

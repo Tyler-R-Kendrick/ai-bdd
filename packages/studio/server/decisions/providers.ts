@@ -1,4 +1,6 @@
 import { createGateway, generateText, Output } from 'ai';
+import type { IdentityExecutionContext } from '../hosting/identity-context.ts';
+import { identityLanguageModel } from '../hosting/identity-language-model.ts';
 import { z } from 'zod';
 import type {
   DecisionProvider,
@@ -207,8 +209,7 @@ export function openaiDecisionProvider(
             );
             if (
               answer.probabilities.some(
-                (entry) =>
-                  entry.label !== question.levels[entry.value]?.label,
+                (entry) => entry.label !== question.levels[entry.value]?.label,
               ) ||
               answer.score < 0 ||
               answer.score > question.levels.length - 1 ||
@@ -250,8 +251,7 @@ export function jevDecisionProvider(
 ): DecisionProvider {
   return {
     id: 'jev',
-    version:
-      '@typesafe-ai/sdk:0.7.0:b844cd1aca12855a5d24a2df52a1401c86e7d37a',
+    version: '@typesafe-ai/sdk:0.7.0:b844cd1aca12855a5d24a2df52a1401c86e7d37a',
     mode: 'native-decision',
     async evaluate(input) {
       const questions = Object.fromEntries(
@@ -269,9 +269,7 @@ export function jevDecisionProvider(
                       typeof choice.value +
                         ': ' +
                         JSON.stringify(choice.value) +
-                        (choice.description
-                          ? ' — ' + choice.description
-                          : ''),
+                        (choice.description ? ' — ' + choice.description : ''),
                     ]),
                   ),
                 }
@@ -429,6 +427,7 @@ const generatedAnswer = z
   .strict();
 export function structuredDecisionProvider(
   config: NonNullable<DecisionSettings['structured']>,
+  identityExecutionContext?: IdentityExecutionContext,
 ): DecisionProvider {
   return {
     id: 'vercel-structured',
@@ -440,7 +439,10 @@ export function structuredDecisionProvider(
         ...(config.apiKey ? { apiKey: config.apiKey } : {}),
       });
       const result = await generateText({
-        model: gateway(input.profile.model),
+        model: identityLanguageModel(
+          gateway(input.profile.model),
+          identityExecutionContext,
+        ),
         system:
           inputInstructions +
           ' Return typed answers only. Use abstained when the source does not support a choice. No reliability numbers may be invented.',

@@ -3,6 +3,10 @@ import {
   type ProviderFailureReporter,
 } from './provider-diagnostics.ts';
 import { dispatchDeadline } from './deadline.ts';
+import {
+  runWithIdentity,
+  type IdentityExecutionContext,
+} from './identity-context.ts';
 import { QueueClient, type VercelRegion } from '@vercel/queue';
 import {
   MAINTENANCE_TOPIC,
@@ -15,12 +19,15 @@ export class VercelSchedulerDispatcher implements SchedulerDispatcher {
   readonly provider = 'vercel-queue';
   readonly #client: QueueTransport;
   readonly #onFailure?: ProviderFailureReporter;
+  readonly #identity?: IdentityExecutionContext;
   constructor(options: {
     region: string;
     client?: QueueTransport;
     onFailure?: ProviderFailureReporter;
+    identityExecutionContext?: IdentityExecutionContext;
   }) {
     this.#onFailure = options.onFailure;
+    this.#identity = options.identityExecutionContext;
     this.#client =
       options.client ??
       new QueueClient({ region: options.region as VercelRegion });
@@ -32,11 +39,13 @@ export class VercelSchedulerDispatcher implements SchedulerDispatcher {
     maintenanceEnvelope.parse(tick);
     try {
       await dispatchDeadline(
-        this.#client.send(MAINTENANCE_TOPIC, tick, {
-          idempotencyKey: 'studio-tick:' + options.dispatchId,
-          retentionSeconds: 86400,
-          delaySeconds: options.delaySeconds,
-        }),
+        runWithIdentity(this.#identity, () =>
+          this.#client.send(MAINTENANCE_TOPIC, tick, {
+            idempotencyKey: 'studio-tick:' + options.dispatchId,
+            retentionSeconds: 86400,
+            delaySeconds: options.delaySeconds,
+          }),
+        ),
       );
     } catch (error) {
       reportProviderFailure(this.#onFailure, 'maintenance-publish', error);
