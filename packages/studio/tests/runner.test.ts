@@ -166,7 +166,7 @@ describe('Trusted acceptance runner adapter', () => {
         { ...testSettings(join(dir, 'data')), runnerConfig: config },
         { db: join(dir, 'data/studio.sqlite') },
       );
-      const { cookie } = await setup(studio.app),
+      const { cookie, user: owner } = await setup(studio.app),
         request = client(studio.app, cookie),
         p = await project(request, 'Real browser runner');
       const markdown = await readFile(
@@ -220,7 +220,7 @@ describe('Trusted acceptance runner adapter', () => {
       const version = (
         await studio.store.artifact(
           p.mainArtifactId,
-          (await studio.store.userByEmail('owner@example.test')).id,
+          owner.id,
         )
       ).version;
       const queued = await request(
@@ -314,7 +314,7 @@ describe('Trusted acceptance runner adapter', () => {
       // Frozen execution must not turn an edited or empty document into green evidence.
       const current = await studio.store.artifact(
         p.mainArtifactId,
-        (await studio.store.userByEmail('owner@example.test')).id,
+        owner.id,
       );
       await request('PATCH', `/api/artifacts/${p.mainArtifactId}`, {
         version: current.version,
@@ -347,7 +347,7 @@ describe('Trusted acceptance runner adapter', () => {
       expect(rejected.status).not.toBe('passed');
       const changed = await studio.store.artifact(
         p.mainArtifactId,
-        (await studio.store.userByEmail('owner@example.test')).id,
+        owner.id,
       );
       await request('PATCH', `/api/artifacts/${p.mainArtifactId}`, {
         version: changed.version,
