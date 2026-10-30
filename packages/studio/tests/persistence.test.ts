@@ -366,3 +366,60 @@ describe.skipIf(!pgURL)('real PostgreSQL cross-instance persistence', () => {
     }
   });
 });
+
+for (const provider of ['sqlite', 'postgres'] as const)
+  it.skipIf(provider === 'postgres' && !process.env.STUDIO_TEST_POSTGRES_URL)(
+    `runs nested commit callbacks after durable commit and releases the connection (${provider})`,
+    async () => {
+      const store = await Store.open(
+        provider === 'sqlite'
+          ? ':memory:'
+          : await openDatabase({
+              adapter: 'postgres',
+              url: process.env.STUDIO_TEST_POSTGRES_URL!,
+              schema: 'callbacks_' + randomUUID().replaceAll('-', ''),
+              max: 1,
+            }),
+      );
+      cleanup.push(() => store.close());
+      await store.db.exec('CREATE TABLE commit_callbacks(id TEXT PRIMARY KEY)');
+      let observed = 0;
+      await expect(
+        store.tx(async () => {
+          store.db.afterCommit(async () => {
+            observed++;
+          });
+          throw new Error('rollback');
+        }),
+      ).rejects.toThrow('rollback');
+      expect(observed).toBe(0);
+      await store.tx(async () => {
+        await store.exec(
+          'INSERT INTO commit_callbacks(id) VALUES(?)',
+          'committed',
+        );
+        await store.tx(async () => {
+          store.db.afterCommit(async () => {
+            expect(store.db.inTransaction()).toBe(false);
+            const row = await store.one(
+              'SELECT id FROM commit_callbacks WHERE id=?',
+              'committed',
+            );
+            if (row) observed++;
+            await store.tx(async () => {
+              await store.lock('callback:separate');
+              await store.exec(
+                'INSERT INTO commit_callbacks(id) VALUES(?)',
+                'after',
+              );
+            });
+          });
+        });
+        expect(observed).toBe(0);
+      });
+      expect(observed).toBe(1);
+      expect((await store.all('SELECT id FROM commit_callbacks')).length).toBe(
+        2,
+      );
+    },
+  );

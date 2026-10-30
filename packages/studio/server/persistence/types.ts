@@ -7,6 +7,8 @@ export type SqlRunResult = {
 export interface SqlDatabase {
   readonly dialect: 'sqlite' | 'postgres';
   inTransaction(): boolean;
+  /** Best-effort side effects only, after the outer SQL commit and connection release. */
+  afterCommit(callback: () => Promise<void>): void;
   one<T = any>(
     sql: string,
     params?: readonly SqlValue[],

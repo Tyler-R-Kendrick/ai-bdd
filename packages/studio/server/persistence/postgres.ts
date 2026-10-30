@@ -54,6 +54,7 @@ export class PostgresDatabase implements SqlDatabase {
   readonly context = new AsyncLocalStorage<{
     database: PostgresDatabase;
     client: PoolClient;
+    afterCommit: (() => Promise<void>)[];
   }>();
   private readonly ownsPool: boolean;
   private readonly positionalColumns = new Map<string, string[]>();
@@ -167,10 +168,14 @@ export class PostgresDatabase implements SqlDatabase {
   }
   async transaction<T>(work: () => Promise<T>): Promise<T> {
     if (this.context.getStore()?.database === this) return work();
-    return this.client(async (client) => {
+    const afterCommit: (() => Promise<void>)[] = [];
+    const result = await this.client(async (client) => {
       await client.query('BEGIN');
       try {
-        const result = await this.context.run({ database: this, client }, work);
+        const result = await this.context.run(
+          { database: this, client, afterCommit },
+          work,
+        );
         await client.query('COMMIT');
         return result;
       } catch (error) {
@@ -178,6 +183,17 @@ export class PostgresDatabase implements SqlDatabase {
         throw error;
       }
     });
+    for (const callback of afterCommit)
+      try {
+        await callback();
+      } catch {}
+    return result;
+  }
+  afterCommit(callback: () => Promise<void>) {
+    const active = this.context.getStore();
+    if (active?.database !== this)
+      throw new Error('Commit callbacks require an active transaction');
+    active.afterCommit.push(callback);
   }
   inTransaction() {
     return this.context.getStore()?.database === this;

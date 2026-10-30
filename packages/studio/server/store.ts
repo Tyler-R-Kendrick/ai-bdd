@@ -70,6 +70,11 @@ const readMessage = (row: any): OrderedMessage => ({
 });
 export const STUDIO_SCHEMA_VERSION = 2;
 export class Store {
+  sourceObserver?: (
+    user: User,
+    previous: Artifact,
+    current: Artifact,
+  ) => Promise<void>;
   contentReferenceValidator?: (input: {
     kind: ArtifactKind;
     projectId: string;
@@ -664,7 +669,9 @@ export class Store {
         `version ${version + 1}`,
       );
       await onPersist?.();
-      return await this.artifact(id, user.id);
+      const current = await this.artifact(id, user.id);
+      await this.sourceObserver?.(user, a, current);
+      return current;
     });
   }
   async state(id: string): Promise<Uint8Array | null> {
@@ -792,6 +799,7 @@ export class Store {
       'document.edited',
       `version ${a.version + 1}`,
     );
+    await this.sourceObserver?.(user, a, await this.artifact(a.id, user.id));
   }
   async threads(id: string) {
     return (

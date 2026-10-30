@@ -7,7 +7,10 @@ import type { SqlDatabase, SqlValue, SqlRunResult } from './types.ts';
 export class SqliteDatabase implements SqlDatabase {
   readonly dialect = 'sqlite' as const;
   readonly connection: DatabaseSync;
-  readonly context = new AsyncLocalStorage<{ database: SqliteDatabase }>();
+  readonly context = new AsyncLocalStorage<{
+    database: SqliteDatabase;
+    afterCommit: (() => Promise<void>)[];
+  }>();
   private pending: Promise<void> = Promise.resolve();
   private closing = false;
   constructor(readonly file: string) {
@@ -74,10 +77,11 @@ export class SqliteDatabase implements SqlDatabase {
   exec(sql: string): Promise<void> {
     return this.schedule(() => this.connection.exec(sql));
   }
-  transaction<T>(work: () => Promise<T>): Promise<T> {
+  async transaction<T>(work: () => Promise<T>): Promise<T> {
     if (this.context.getStore()?.database === this) return work();
-    return this.schedule(() =>
-      this.context.run({ database: this }, async () => {
+    const afterCommit: (() => Promise<void>)[] = [];
+    const result = await this.schedule(() =>
+      this.context.run({ database: this, afterCommit }, async () => {
         this.connection.exec('BEGIN IMMEDIATE');
         try {
           const result = await work();
@@ -89,6 +93,17 @@ export class SqliteDatabase implements SqlDatabase {
         }
       }),
     );
+    for (const callback of afterCommit)
+      try {
+        await callback();
+      } catch {}
+    return result;
+  }
+  afterCommit(callback: () => Promise<void>) {
+    const active = this.context.getStore();
+    if (active?.database !== this)
+      throw new Error('Commit callbacks require an active transaction');
+    active.afterCommit.push(callback);
   }
   inTransaction() {
     return this.context.getStore()?.database === this;
