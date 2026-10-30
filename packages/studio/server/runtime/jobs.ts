@@ -759,7 +759,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     if (failed)
       throw new Error('One or more durable dispatch intents remain pending');
   }
-  async recover() {
+  async recover(options: { dispatchLimit?: number } = {}) {
     await this.ready;
     const now = this.clock();
     const rows = await this.store.all(
@@ -781,7 +781,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
           now,
         );
       });
-    await this.flushOutbox();
+    await this.flushOutbox(options.dispatchLimit ?? 20);
   }
   async close() {
     this.closing = true;

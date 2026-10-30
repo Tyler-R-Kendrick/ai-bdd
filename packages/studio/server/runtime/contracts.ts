@@ -77,6 +77,6 @@ export interface DurableJobRuntime {
   executeJob(id: string, delivery: JobDelivery): Promise<void>;
   cancel(id: string, user: User): Promise<void>;
   flushOutbox(limit?: number): Promise<void>;
-  recover(): Promise<void>;
+  recover(options?: { dispatchLimit?: number }): Promise<void>;
   close(): Promise<void>;
 }
