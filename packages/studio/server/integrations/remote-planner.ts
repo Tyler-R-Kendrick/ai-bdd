@@ -9,6 +9,21 @@ import type { Settings } from '../auth.ts';
 import { HttpError, type Store } from '../store.ts';
 import type { DurableJobContext } from '../runtime/contracts.ts';
 import { RepositoryReader, type RepositoryReadPort } from './repository.ts';
+import {
+  remoteIncomingSchema as incoming,
+  remoteOutputSchema as outputSchema,
+  remoteFeatures,
+  remoteRepositoryTools,
+  type RemoteFeature,
+} from '../../shared/remote-agent.ts';
+import { RemoteActivityService } from './remote-activity.ts';
+import { redactRemoteError } from '../../shared/remote-stream.ts';
+export type RemotePlannerScope = {
+  user: User;
+  artifactId: string;
+  assignmentId: string;
+  epoch: number;
+};
 
 export type RemoteTurn = {
   profile: AgentProfile;
@@ -25,43 +40,6 @@ export type PlannerOutput = {
   text: string;
   content: Record<string, unknown> | null;
 };
-const outputSchema = z
-  .object({
-    text: z.string().max(50000),
-    content: z.record(z.string(), z.json()).nullable(),
-  })
-  .strict();
-const incoming = z.discriminatedUnion('type', [
-  z
-    .object({
-      type: z.literal('attach'),
-      version: z.literal(1),
-      artifactId: z.string().uuid(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('result'),
-      requestId: z.string(),
-      output: outputSchema,
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('tool'),
-      requestId: z.string(),
-      callId: z.string().max(100),
-      name: z.enum([
-        'repository_tree',
-        'repository_file',
-        'repository_pull_request',
-      ]),
-      input: z.record(z.string(), z.json()),
-    })
-    .strict(),
-  z.object({ type: z.literal('ping') }).strict(),
-  z.object({ type: z.literal('failed'), requestId: z.string() }).strict(),
-]);
 const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
 
@@ -76,8 +54,38 @@ export class RemotePlanner {
       allowed: (user: User, id: string) => Promise<boolean>;
       pollMs?: number;
       repositoryRead?: RepositoryReadPort;
+      cancelJob?: (jobId: string, user: User) => Promise<void>;
+      authenticateScoped?: (
+        request: FastifyRequest,
+      ) => Promise<RemotePlannerScope | null>;
+      assertScoped?: (scope: RemotePlannerScope) => Promise<void>;
+      activity?: RemoteActivityService;
     },
-  ) {}
+  ) {
+    this.activity =
+      options.activity ??
+      new RemoteActivityService({
+        store: options.store,
+        origin: options.settings.origin,
+        authenticate: (request) => this.principal(request),
+        cancelJob: options.cancelJob,
+        allowed: options.allowed,
+      });
+  }
+  readonly activity: RemoteActivityService;
+  private async principal(request: FastifyRequest): Promise<{
+    user: User;
+    artifactId?: string;
+    assignmentId?: string;
+    epoch?: number;
+  }> {
+    const scoped = await this.options.authenticateScoped?.(request);
+    if (scoped) {
+      await this.options.assertScoped?.(scoped);
+      return scoped;
+    }
+    return { user: await this.options.authenticate(request) };
+  }
   private readonly sockets = new Set<WebSocket>();
   async initialize() {
     await this.options.store.tx(async () => {
@@ -100,15 +108,13 @@ export class RemotePlanner {
           );
       }
     });
+    await this.activity.initialize();
   }
   register(app: FastifyInstance) {
-    app.get(
-      '/api/planner/connect',
-      { websocket: true },
-      (socket, request) => {
-        void this.connect(socket, request);
-      },
-    );
+    this.activity.register(app);
+    app.get('/api/planner/connect', { websocket: true }, (socket, request) => {
+      void this.connect(socket, request);
+    });
   }
   async invoke(
     ctx: DurableJobContext,
@@ -152,28 +158,50 @@ export class RemotePlanner {
         new Date().toISOString(),
       );
     });
-    while (true) {
-      await ctx.assertCurrent({ requireCurrentVersion: false });
-      ctx.signal.throwIfAborted();
-      const row = await store.one(
-        'SELECT status,output_json,input_sha256 FROM studio_remote_requests WHERE id=?',
-        id,
-      );
-      if (!row || row.input_sha256 !== digest(source))
-        throw new HttpError(409, 'Remote Planner request integrity changed');
-      if (row.status === 'completed')
-        return outputSchema.parse(JSON.parse(row.output_json));
-      if (row.status === 'cancelled')
-        throw new HttpError(409, 'Remote Planner request was cancelled');
-      if (row.status === 'failed')
-        throw new HttpError(
-          502,
-          'The attached remote Planner could not complete this turn',
+    await this.activity.prepare(id, ctx.job, turn.threadId);
+    try {
+      while (true) {
+        await ctx.assertCurrent({ requireCurrentVersion: false });
+        ctx.signal.throwIfAborted();
+        const row = await store.one(
+          'SELECT status,output_json,input_sha256 FROM studio_remote_requests WHERE id=?',
+          id,
         );
-      await delay(this.options.pollMs ?? 100, undefined, {
-        signal: ctx.signal,
-      });
+        if (!row || row.input_sha256 !== digest(source))
+          throw new HttpError(409, 'Remote Planner request integrity changed');
+        if (row.status === 'completed')
+          return outputSchema.parse(JSON.parse(row.output_json));
+        if (row.status === 'cancelled')
+          throw new HttpError(409, 'Remote Planner request was cancelled');
+        if (row.status === 'failed')
+          throw new HttpError(
+            502,
+            'The attached remote Planner could not complete this turn',
+          );
+        await delay(this.options.pollMs ?? 100, undefined, {
+          signal: ctx.signal,
+        });
+      }
+    } finally {
+      if (ctx.signal.aborted) {
+        await store
+          .exec(
+            "UPDATE studio_remote_requests SET status='cancelled' WHERE id=? AND status='pending'",
+            id,
+          )
+          .catch(() => {});
+        await this.activity.ended(id).catch(() => {});
+      }
     }
+  }
+  async exportPage(
+    artifactId: string,
+    after: number,
+    cutoff: number,
+    limit = 20,
+    user?: User,
+  ) {
+    return this.activity.exportPage(artifactId, after, cutoff, limit, user);
   }
   private async connect(socket: WebSocket, request: FastifyRequest) {
     this.sockets.add(socket);
@@ -183,6 +211,8 @@ export class RemotePlanner {
           artifactId: string;
           connectionId: string;
           epoch: number;
+          scope?: RemotePlannerScope;
+          features: Set<RemoteFeature>;
         }
       | undefined;
     let queuedBytes = 0,
@@ -194,11 +224,21 @@ export class RemotePlanner {
       draining = false,
       timer: ReturnType<typeof setInterval> | undefined,
       polling = false;
-    const sent = new Set<string>();
+    const sent = new Set<string>(),
+      sentInputs = new Set<string>(),
+      sentControls = new Set<string>(),
+      aborted = new Set<string>();
+    let lastHeard = Date.now(),
+      lastPing = 0;
+    socket.on('pong', () => {
+      lastHeard = Date.now();
+    });
     const store = this.options.store;
     const check = async () => {
       if (!peer) throw new HttpError(401, 'Attach a Planner first');
-      const currentUser = await this.options.authenticate(request);
+      const currentUser = peer.scope
+        ? (await this.options.assertScoped?.(peer.scope), peer.scope.user)
+        : await this.options.authenticate(request);
       if (currentUser.id !== peer.user.id)
         throw new HttpError(401, 'Planner authentication changed');
       await store.artifact(peer.artifactId, peer.user.id, 'write');
@@ -261,12 +301,27 @@ export class RemotePlanner {
       if (message.type === 'attach') {
         if (peer)
           throw new HttpError(409, 'This connection is already attached');
-        const user = await this.options.authenticate(request),
-          artifact = await store.artifact(
-            message.artifactId,
-            user.id,
-            'write',
+        const principal = await this.principal(request),
+          user = principal.user;
+        if (principal.artifactId && principal.artifactId !== message.artifactId)
+          throw new HttpError(
+            403,
+            'This Planner credential belongs to another artifact',
           );
+        const requested = String(
+            request.headers['studio-planner-features'] ?? '',
+          )
+            .split(',')
+            .map((value) => value.trim())
+            .slice(0, 16),
+          features = new Set(
+            remoteFeatures.filter((feature) => requested.includes(feature)),
+          );
+        const artifact = await store.artifact(
+          message.artifactId,
+          user.id,
+          'write',
+        );
         await store.tx(async () => {
           await store.db.lock('project:' + artifact.projectId);
           await store.artifact(artifact.id, user.id, 'write');
@@ -280,6 +335,10 @@ export class RemotePlanner {
             artifactId: artifact.id,
             connectionId: randomUUID(),
             epoch: Number(previous?.epoch ?? 0) + 1,
+            ...(principal.assignmentId
+              ? { scope: principal as RemotePlannerScope }
+              : {}),
+            features,
           };
           await store.exec(
             'INSERT INTO studio_remote_planners VALUES(?,?,?,?,?) ON CONFLICT(artifact_id) DO UPDATE SET user_id=excluded.user_id,connection_id=excluded.connection_id,epoch=excluded.epoch,expires=excluded.expires',
@@ -294,17 +353,36 @@ export class RemotePlanner {
           type: 'attached',
           version: 1,
           artifact: { id: artifact.id, title: artifact.title },
-          tools: [
-            'repository_tree',
-            'repository_file',
-            'repository_pull_request',
-          ],
+          tools: remoteRepositoryTools,
+          ...(request.headers['studio-planner-features'] !== undefined
+            ? { features: [...features] }
+            : {}),
         });
         return;
       }
       await check();
       if (message.type === 'ping') {
         await send({ type: 'pong' });
+        return;
+      }
+      if ('eventId' in message) {
+        const receipt = await this.activity.accept(
+          message,
+          peer!.features,
+          () => requestRow(message.requestId),
+        );
+        await send({
+          type: 'event-accepted',
+          requestId: message.requestId,
+          eventId: message.eventId,
+          sequence: receipt.sequence,
+        });
+        return;
+      }
+      if (message.type === 'control-result') {
+        await this.activity.controlResult(message, () =>
+          requestRow(message.requestId),
+        );
         return;
       }
       const row = await requestRow(message.requestId);
@@ -318,6 +396,7 @@ export class RemotePlanner {
             row.id,
           );
         });
+        await this.activity.ended(row.id);
         return;
       }
       if (message.type === 'result') {
@@ -343,10 +422,30 @@ export class RemotePlanner {
               row.id,
             );
           });
+        await this.activity.ended(row.id);
         await send({ type: 'result-accepted', requestId: row.id });
         return;
       }
       const turn = JSON.parse(row.input_json) as RemoteTurn;
+      const state = await this.activity.row(row.id);
+      if (
+        JSON.parse(state.stream_json).calls.some(
+          (call: any) => call.id === message.callId,
+        )
+      )
+        throw new HttpError(409, 'A tool call identity cannot repeat');
+      await this.activity.hostPart(
+        row.id,
+        'call:' + message.callId,
+        {
+          type: 'tool-call',
+          toolCallId: message.callId,
+          toolName: message.name,
+          input: message.input,
+          providerExecuted: true,
+        },
+        () => requestRow(row.id),
+      );
       await store.tx(async () => {
         await store.db.lock('project:' + row.project_id);
         await store.db.lock('job:' + row.job_id);
@@ -383,19 +482,74 @@ export class RemotePlanner {
           : undefined,
       );
       reader.pin(turn.revision);
-      const value =
-        message.name === 'repository_tree'
-          ? await reader.tree()
-          : message.name === 'repository_file'
-            ? await reader.file(z.string().max(500).parse(message.input.path))
-            : await reader.pullRequest(
-                z.number().int().positive().parse(message.input.number),
-              );
+      let value: unknown,
+        isError = false;
+      try {
+        value =
+          message.name === 'repository_tree'
+            ? await reader.tree()
+            : message.name === 'repository_file'
+              ? await reader.file(z.string().max(500).parse(message.input.path))
+              : message.name === 'repository_pull_request'
+                ? await reader.pullRequest(
+                    z.number().int().positive().parse(message.input.number),
+                  )
+                : message.name === 'repository_search'
+                  ? await reader.search(
+                      z.string().max(500).parse(message.input.query),
+                      message.input.limit === undefined
+                        ? 10
+                        : z
+                            .number()
+                            .int()
+                            .min(1)
+                            .max(20)
+                            .parse(message.input.limit),
+                    )
+                  : await reader.history({
+                      path:
+                        message.input.path === undefined
+                          ? undefined
+                          : z.string().max(500).parse(message.input.path),
+                      limit:
+                        message.input.limit === undefined
+                          ? 10
+                          : z
+                              .number()
+                              .int()
+                              .min(1)
+                              .max(20)
+                              .parse(message.input.limit),
+                    });
+      } catch (error) {
+        await requestRow(row.id);
+        isError = true;
+        value = {
+          error: redactRemoteError(
+            error instanceof Error
+              ? error.message
+              : 'The repository tool could not complete',
+          ),
+        };
+      }
+      await this.activity.hostPart(
+        row.id,
+        'result:' + message.callId,
+        {
+          type: 'tool-result',
+          toolCallId: message.callId,
+          toolName: message.name,
+          result: value,
+          ...(isError ? { isError: true } : {}),
+        },
+        () => requestRow(row.id),
+      );
       await send({
         type: 'tool-result',
         requestId: row.id,
         callId: message.callId,
         value,
+        ...(isError ? { isError: true } : {}),
       });
     };
     const drain = () => {
@@ -423,6 +577,7 @@ export class RemotePlanner {
     };
     // Install bounded input handling before any awaited authentication or source access.
     socket.on('message', (raw, binary) => {
+      lastHeard = Date.now();
       const data = Buffer.isBuffer(raw)
         ? raw
         : Array.isArray(raw)
@@ -461,7 +616,7 @@ export class RemotePlanner {
           .includes('studio.planner.v1')
       )
         throw new HttpError(426, 'Offer studio.planner.v1');
-      await this.options.authenticate(request);
+      await this.principal(request);
       ready = true;
       drain();
       timer = setInterval(() => {
@@ -469,6 +624,17 @@ export class RemotePlanner {
         polling = true;
         void (async () => {
           await check();
+          if (Date.now() - lastHeard > 120000) {
+            socket.close(1001, 'Unresponsive Planner');
+            return;
+          }
+          if (
+            Date.now() - lastPing > 15000 &&
+            socket.bufferedAmount < 1024000
+          ) {
+            socket.ping();
+            lastPing = Date.now();
+          }
           await store.exec(
             'UPDATE studio_remote_planners SET expires=? WHERE artifact_id=? AND connection_id=? AND epoch=?',
             Date.now() + 30000,
@@ -489,9 +655,57 @@ export class RemotePlanner {
                 type: 'turn',
                 requestId: row.id,
                 input: JSON.parse(row.input_json),
+                ...(peer!.features.size
+                  ? {
+                      resume: {
+                        cursor: Number(
+                          (await this.activity.row(row.id))?.cursor ?? 0,
+                        ),
+                        stateUrl: `/api/artifacts/${peer!.artifactId}/planner/requests/${row.id}`,
+                      },
+                    }
+                  : {}),
               });
               sent.add(row.id);
             }
+          for (const id of sent) {
+            const current = await this.activity.row(id);
+            if (!current) continue;
+            if (
+              (['failed', 'cancelled'].includes(current.request_status) ||
+                ['failed', 'cancelled', 'completed'].includes(
+                  current.job_status,
+                ) ||
+                Number(current.fence) !== Number(current.job_fence)) &&
+              !aborted.has(id)
+            ) {
+              if (peer!.features.size)
+                await send({
+                  type:
+                    current.request_status === 'completed' &&
+                    current.job_status === 'completed'
+                      ? 'request-closed'
+                      : 'abort',
+                  requestId: id,
+                });
+              aborted.add(id);
+              await this.activity.ended(id);
+              continue;
+            }
+            const deliveries = await this.activity.deliveries(id);
+            for (const input of deliveries.questions) {
+              const key = id + ':' + input.questionId + ':' + input.revision;
+              if (!sentInputs.has(key)) {
+                await send(input);
+                sentInputs.add(key);
+              }
+            }
+            for (const control of deliveries.controls)
+              if (!sentControls.has(control.controlId)) {
+                await send(control);
+                sentControls.add(control.controlId);
+              }
+          }
         })()
           .catch(() =>
             socket.close(4403, 'Planner access or ownership changed'),

@@ -47,7 +47,7 @@ export function redactRemoteError(source: string): string {
   }
   text = text.replace(/\\/g, '/').replace(/:\s*\/\s*\//g, '://');
   const prefixes = [
-    ...text.matchAll(/(?:[a-z][a-z\d+.-]*:\/\/|(?:^|[\s"'(<\[,:=])\/\/)/gi),
+    ...text.matchAll(/(?:[a-z][a-z\d+.-]*:\/\/|(?:^|[\s"'(<[,:=])\/\/)/gi),
   ];
   for (const prefix of prefixes.reverse()) {
     const start = prefix.index! + prefix[0].length,
