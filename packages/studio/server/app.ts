@@ -205,7 +205,11 @@ export async function createApp(
     const collab = new Collaboration(store, auth);
     startupCleanup.unshift(() => collab.close());
     await collab.initialize();
+    const onLocalInferenceEvent: import('./local/local-diagnostics.ts').LocalInferenceObserver = (event) => {
+      app.log[event.state === 'failure' ? 'warn' : 'info']({ localInference: event }, 'Local CPU inference');
+    };
     const decisions = new DecisionModels({
+      onLocalInferenceEvent,
       store,
       identityExecutionContext: options.identityExecutionContext,
       settings:
@@ -232,6 +236,7 @@ export async function createApp(
       agent = new Agent(store, settings, collab, {
         runtime,
         objects: hosting.objects,
+        onLocalInferenceEvent,
         onNativeT3Event: (event) => {
           app.log[event.state === 'failure' ? 'warn' : 'info']({ nativeT3: event }, 'Managed native T3 runtime');
         },

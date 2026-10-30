@@ -8,6 +8,7 @@ globalThis.fetch = async () => {
   throw new Error('Local inference has no HTTP transport');
 };
 const port = { postMessage: (value) => process.send?.(value) };
+const phase = (name) => port.postMessage({ type: 'phase', phase: name, rss: process.memoryUsage().rss });
 process.once('disconnect', () => process.exit(0));
 let workerData;
 let refusingMemory = false;
@@ -33,7 +34,7 @@ async function load() {
   const root = await realpath(workerData.directory);
   const file = workerData.file;
   const path = join(root, file.path);
-  if (model && loadedPath === path) return;
+  if (model && loadedPath === path) { phase('model-loaded'); return; }
   const info = await lstat(path);
   if (
     !info.isFile() ||
@@ -45,6 +46,7 @@ async function load() {
   const hash = createHash('sha256');
   for await (const bytes of createReadStream(path)) hash.update(bytes);
   if (hash.digest('hex') !== file.sha256) throw new Error('assets');
+  phase('weights-verified');
   const runtime = await import('node-llama-cpp');
   await model?.dispose();
   model = undefined;
@@ -58,16 +60,20 @@ async function load() {
     logLevel: 'error',
     logger: () => {},
   });
+  phase('binding-loaded');
   model = await llama.loadModel({ modelPath: path, gpuLayers: 0 });
   loadedPath = path;
+  phase('model-loaded');
 }
 process.on('message', async (request) => {
   workerData = request.configuration;
   checkMemory();
   if (refusingMemory) return;
+  phase('worker-start');
   let context, response;
   try {
     await load();
+    phase('inference-start');
     if (request.command === 'decide') {
       const { evaluateLocalDecisions } = await import(
         './studio-local-decisions.mjs'
@@ -142,6 +148,7 @@ process.on('message', async (request) => {
     response = { type: 'error', code };
   } finally {
     await context?.dispose();
+    if (response?.type === 'result' || response?.type === 'decision') phase('complete');
     port.postMessage(response);
   }
 });

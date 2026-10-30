@@ -1,3 +1,4 @@
+import { LocalInferenceDiagnostics, type LocalInferenceObserver } from './local-diagnostics.ts';
 import type { LanguageModel } from 'ai';
 import type {
   LocalDecisionInput,
@@ -402,6 +403,7 @@ type Task = {
   resolve(value: NativeResult | LocalDecisionResult): void;
   reject(error: unknown): void;
   timer: NodeJS.Timeout;
+  diagnostics: LocalInferenceDiagnostics;
   dispose(): void;
 };
 class CpuRuntime {
@@ -435,6 +437,7 @@ class CpuRuntime {
     value?: NativeResult | LocalDecisionResult,
   ) {
     task.dispose();
+    task.diagnostics.finish(error);
     if (this.active === task) this.active = undefined;
     else this.queue = this.queue.filter((other) => other !== task);
     if (error) task.reject(error);
@@ -445,17 +448,21 @@ class CpuRuntime {
     signal: AbortSignal | undefined,
     timeoutMs: number,
     onDelta?: (text: string) => void,
+    onEvent?: LocalInferenceObserver,
   ): Promise<NativeResult>;
   run(
     prepared: DecisionPrepared,
     signal: AbortSignal | undefined,
     timeoutMs: number,
+    onDelta?: undefined,
+    onEvent?: LocalInferenceObserver,
   ): Promise<LocalDecisionResult>;
   run(
     prepared: Prepared | DecisionPrepared,
     signal: AbortSignal | undefined,
     timeoutMs: number,
     onDelta?: (text: string) => void,
+    onEvent?: LocalInferenceObserver,
   ): Promise<NativeResult | LocalDecisionResult> {
     signal?.throwIfAborted();
     if (this.closing)
@@ -477,6 +484,7 @@ class CpuRuntime {
         onDelta,
         resolve,
         reject,
+        diagnostics: new LocalInferenceDiagnostics(prepared.command === 'decide' ? 'decide' : 'generate', onEvent),
         timer: setTimeout(
           () => fail(new LocalModelError('deadline')),
           timeoutMs,
@@ -487,6 +495,7 @@ class CpuRuntime {
         },
       };
       signal?.addEventListener('abort', abort, { once: true });
+      task.diagnostics.start();
       this.queue.push(task);
       this.pump();
     });
@@ -534,6 +543,7 @@ class CpuRuntime {
           void this.stop();
           return;
         }
+        if (message.type === 'phase' && current.diagnostics.progress(message)) return;
         if (message.type === 'delta') {
           current.onDelta?.(message.text);
           return;
@@ -564,8 +574,9 @@ class CpuRuntime {
           );
         this.pump();
       });
-      const failed = () => {
+      const failed = (code?: unknown, signal?: unknown) => {
         if (this.worker !== worker) return;
+        this.active?.diagnostics.exit(code, signal);
         this.worker = undefined;
         if (this.active)
           this.finish(this.active, new LocalModelError('inference'));
@@ -690,7 +701,7 @@ function project(result: NativeResult, prepared: Prepared): Result {
 }
 /** Native decision logits use the SAME bounded process, model cache, cancellation and directory ownership as chat. */
 export async function evaluateLocalDecisions(
-  settings: LocalModelSettings,
+  settings: LocalModelSettings & { onEvent?: LocalInferenceObserver },
   value: LocalDecisionInput,
   signal?: AbortSignal,
 ): Promise<LocalDecisionResult> {
@@ -716,13 +727,15 @@ export async function evaluateLocalDecisions(
     { command: 'decide', modelId: info.id, input },
     signal,
     45000,
+    undefined,
+    settings.onEvent,
   );
   signal?.throwIfAborted();
   return result;
 }
 /** Fixed public local model only. No gateway/client token/model URL/fallback is accepted. */
 export function createLocalLanguageModel(
-  settings: LocalModelSettings & { timeoutMs?: number },
+  settings: LocalModelSettings & { timeoutMs?: number; onEvent?: LocalInferenceObserver },
 ): Model {
   if (!isAbsolute(settings.directory))
     throw new LocalModelError('configuration', 400);
@@ -741,7 +754,7 @@ export function createLocalLanguageModel(
     supportedUrls: {},
     async doGenerate(options) {
       const prepared = prepare(options, info.id);
-      const result = await runtime.run(prepared, options.abortSignal, timeout);
+      const result = await runtime.run(prepared, options.abortSignal, timeout, undefined, settings.onEvent);
       options.abortSignal?.throwIfAborted();
       return project(result, prepared);
     },
@@ -773,6 +786,7 @@ export function createLocalLanguageModel(
                         id: 'local-text',
                         delta: text,
                       }),
+                settings.onEvent,
               )
               .then((native) => {
                 signal.throwIfAborted();

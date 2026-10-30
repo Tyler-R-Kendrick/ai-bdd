@@ -35,6 +35,7 @@ import type { RemotePlanner } from './integrations/remote-planner.ts';
 import { AgentProfiles } from './integrations/agent-profiles.ts';
 import { t3LanguageModel } from './integrations/t3-model.ts';
 import { managedT3LanguageModel } from './local/native-t3-runtime.ts';
+import type { LocalInferenceObserver } from './local/local-diagnostics.ts';
 import type { NativeT3Observer } from './local/native-t3-diagnostics.ts';
 import type { ObjectStore } from './hosting/ports.ts';
 import type { AgentProfile } from '../shared/agent-profile.ts';
@@ -81,6 +82,7 @@ export type AgentOptions = {
   runtime: DurableJobRuntime;
   objects?: ObjectStore;
   onNativeT3Event?: NativeT3Observer;
+  onLocalInferenceEvent?: LocalInferenceObserver;
   identityExecutionContext?: IdentityExecutionContext;
   implementationLocked?: (id: string) => Promise<boolean>;
   onGeneratedArtifact?: (id: string) => Promise<void>;
@@ -814,7 +816,7 @@ export class Agent {
   private model(profile: AgentProfile, key: string, artifactId?: string, fence?: () => Promise<void>) {
     this.profiles.assertAvailable(profile);
     if (profile.harness === 'local-cpu')
-      return createLocalLanguageModel({ ...this.integrations.localModel!, modelId: profile.model });
+      return createLocalLanguageModel({ ...this.integrations.localModel!, modelId: profile.model, onEvent: this.options.onLocalInferenceEvent });
     if (profile.harness === 't3-code') {
       if (profile.provider === 'studioLocal' && this.integrations.managedT3) {
         if (!this.options.objects || !this.integrations.localModel || !artifactId)
@@ -826,6 +828,7 @@ export class Agent {
           localModel: createLocalLanguageModel({
             ...this.integrations.localModel,
             modelId: profile.model.slice('studio-local/'.length),
+            onEvent: this.options.onLocalInferenceEvent,
           }),
           key: config.key,
           toolsDirectory: config.toolsDirectory,

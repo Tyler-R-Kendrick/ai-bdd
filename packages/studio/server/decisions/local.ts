@@ -1,3 +1,4 @@
+import type { LocalInferenceObserver } from '../local/local-diagnostics.ts';
 import type { DecisionProvider, DecisionSettings } from './contracts.ts';
 import { DecisionProviderError } from './providers.ts';
 import { evaluateLocalDecisions, LocalModelError } from '../local/model.ts';
@@ -9,6 +10,7 @@ import {
 /** Native option likelihoods, not generated/self-reported ratings or calibrated correctness. */
 export function localDecisionProvider(
   config: NonNullable<DecisionSettings['local']>,
+  onEvent?: LocalInferenceObserver,
 ): DecisionProvider {
   return {
     id: 'llama-cpp-cpu',
@@ -19,7 +21,7 @@ export function localDecisionProvider(
         throw new DecisionProviderError('provider-error', false);
       try {
         const result = await evaluateLocalDecisions(
-          { directory: config.directory, modelId: input.profile.model },
+          { directory: config.directory, modelId: input.profile.model, onEvent },
           { input: input.input, questions: input.questions },
           input.signal,
         );

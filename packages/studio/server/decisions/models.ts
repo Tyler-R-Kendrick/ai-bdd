@@ -3,6 +3,7 @@ import {
   localModelFingerprint,
   localModelPresent,
 } from '../local/catalog.ts';
+import type { LocalInferenceObserver } from '../local/local-diagnostics.ts';
 import { retainLocalModel } from '../local/model.ts';
 import { localDecisionProvider } from './local.ts';
 import { createHash, randomUUID } from 'node:crypto';
@@ -57,6 +58,7 @@ export class DecisionModels {
       store: Store;
       settings: DecisionSettings;
       identityExecutionContext?: IdentityExecutionContext;
+      onLocalInferenceEvent?: LocalInferenceObserver;
       notify?: (projectId: string, artifactId: string) => Promise<void>;
     },
   ) {
@@ -65,7 +67,7 @@ export class DecisionModels {
       this.releaseLocal = retainLocalModel(settings.local.directory);
       this.providers.set(
         'llama-cpp-cpu',
-        localDecisionProvider(settings.local),
+        localDecisionProvider(settings.local, options.onLocalInferenceEvent),
       );
     }
     if (settings.openai)
