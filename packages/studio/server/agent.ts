@@ -22,7 +22,6 @@ import {
   type RepositoryReadPort,
 } from './integrations/repository.ts';
 import type {
-  DurableJob,
   DurableJobContext,
   DurableJobRuntime,
 } from './runtime/contracts.ts';

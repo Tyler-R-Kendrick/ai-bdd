@@ -99,7 +99,8 @@ export async function t3Command(
       if (settled) return;
       settled = true;
       signal.removeEventListener('abort', abort);
-      error ? reject(error) : resolve(value);
+      if (error) reject(error);
+      else resolve(value);
     };
     const abort = () => {
       child.kill('SIGTERM');

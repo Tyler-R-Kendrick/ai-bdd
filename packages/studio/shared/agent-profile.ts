@@ -4,7 +4,10 @@ const identifier = z
   .trim()
   .min(1)
   .max(200)
-  .refine((value) => !/[\u0000-\u0020\u007f]/.test(value));
+  .refine((value) => [...value].every((character) => {
+    const code=character.charCodeAt(0);
+    return code > 32 && code !== 127;
+  }));
 export const agentProfileSchema = z
   .object({
     harness: z.enum(['t3-code', 'vercel-fx', 'remote-planner']),

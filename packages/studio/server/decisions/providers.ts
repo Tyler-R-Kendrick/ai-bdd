@@ -1,6 +1,5 @@
 import { createGateway, generateText, Output } from 'ai';
 import { z } from 'zod';
-import type { DecisionQuestion } from '../../shared/decision-profile.ts';
 import type {
   DecisionProvider,
   DecisionSettings,
