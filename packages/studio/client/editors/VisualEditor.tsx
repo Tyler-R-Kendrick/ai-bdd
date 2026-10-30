@@ -48,7 +48,6 @@ import {
   clamp,
   drawFrame,
   layerFont,
-  layerLines,
   newLayer,
   resized,
   svgSource,
