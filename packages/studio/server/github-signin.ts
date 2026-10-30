@@ -148,14 +148,14 @@ export async function githubSignInIdentityFromToken(accessToken: string): Promis
     const headers = { Authorization: 'Bearer ' + accessToken };
     const profile = await githubSignInRequest('https://api.github.com/user', { headers }, 65536);
     if (
-      !profile || typeof profile !== 'object' || !Number.isSafeInteger(profile.id) || profile.id <= 0 ||
-      typeof profile.login !== 'string' || !/^[A-Za-z0-9-]{1,39}$/.test(profile.login)
+      !profile || typeof profile !== 'object' || !Number.isSafeInteger(profile.id) || profile.id <= 0
     ) throw new HttpError(502, 'GitHub returned an invalid account identity');
+    const login=typeof profile.login==='string'&&profile.login.trim()?profile.login.trim().slice(0,100):'GitHub user';
     return {
       kind: 'github',
-      id: String(profile.id), login: profile.login,
+      id: String(profile.id), login,
       name: typeof profile.name === 'string' && profile.name.trim()
-        ? profile.name.trim().slice(0, 100) : profile.login,
+        ? profile.name.trim().slice(0, 100) : login,
       verifiedEmails:[],
     };
 }

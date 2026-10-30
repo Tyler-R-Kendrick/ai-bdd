@@ -1,4 +1,4 @@
-import {afterEach,describe,expect,it} from 'vitest';
+import {afterEach,describe,expect,it,vi} from 'vitest';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import {randomUUID} from 'node:crypto';
@@ -9,7 +9,7 @@ import {openDatabase} from '../server/persistence/index.ts';
 import {githubSignInResponse,injectedGitHub} from './identity/github-signin-inject-fixture.ts';
 
 const cleanup:(()=>Promise<unknown>)[]=[];
-afterEach(async()=>{for(const close of cleanup.splice(0).reverse())await close();});
+afterEach(async()=>{vi.restoreAllMocks();for(const close of cleanup.splice(0).reverse())await close();});
 const principal=(subject:string,email='owner@example.test',connectorId='scl_AdmissionFixture'):ConnectGitHubSignInIdentity=>({
   kind:'vercel-connect',issuer:'https://connect.vercel.com',connectorId,subject,name:'Managed GitHub actor',verifiedEmails:[email],
 });
@@ -81,6 +81,17 @@ describe('qualified managed GitHub identity admission',()=>{
     expect(await store.projects(fresh.id)).toEqual([]);await expect(store.role(project.id,fresh.id,'read')).rejects.toThrow();await expect(store.role(project.id,fresh.id,'admin')).rejects.toThrow();
     const own=await store.createProject(fresh,'My project','');expect(await store.role(own.id,fresh.id,'admin')).toBe('owner');
     expect(await store.role(project.id,existing.id,'admin')).toBe('owner');
+  });
+  it('rolls account creation back when binding fails, then permits a fresh authenticated retry',async()=>{
+    const {app,store}=await application(await Store.open(':memory:')),original=store.exec.bind(store);
+    const spy=vi.spyOn(store,'exec').mockImplementation(async(sql,...params)=>{
+      if(sql.startsWith('INSERT INTO github_connect_signin_identities'))throw new Error('Controlled binding failure');
+      return original(sql,...params);
+    });
+    expect((await githubSignInResponse(app,'fixture@example.test',principal('stable-retry'))).headers.location).toBe('/?signin=failed');spy.mockRestore();
+    expect((await store.one('SELECT COUNT(*) AS n FROM users')).n).toBe(0);expect((await store.one('SELECT COUNT(*) AS n FROM github_connect_signin_identities')).n).toBe(0);expect((await store.one('SELECT COUNT(*) AS n FROM sessions')).n).toBe(0);
+    const retry=await githubSignInResponse(app,'fixture@example.test',principal('stable-retry'));expect(retry.headers.location).toBe('/');
+    expect((await store.one('SELECT COUNT(*) AS n FROM users')).n).toBe(1);
   });
 });
 

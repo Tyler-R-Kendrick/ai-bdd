@@ -175,4 +175,12 @@ describe('fixed GitHub sign-in provider transport',()=>{
     }));
     await expect(new GitHubOAuthSignInProvider(configuration).authenticate({code:'code',verifier:'x'.repeat(43),redirectUri:'https://studio.example.test/api/auth/github/callback'})).rejects.not.toThrow('secret-provider-detail');
   });
+  it.each(['managed_user_org',null])('uses the authenticated numeric ID regardless of optional login metadata (%s)',async login=>{
+    vi.stubGlobal('fetch',vi.fn(async(url:string)=>{
+      if(url==='https://github.com/login/oauth/access_token')return Response.json({access_token:'fixture-access-token',token_type:'bearer'});
+      if(url==='https://api.github.com/user')return Response.json({id:123,login,email:null});
+      throw new Error('Unexpected identity endpoint');
+    }));
+    expect(await new GitHubOAuthSignInProvider(configuration).authenticate({code:'code',verifier:'x'.repeat(43),redirectUri:'https://studio.example.test/api/auth/github/callback'})).toMatchObject({id:'123',login:login??'GitHub user',verifiedEmails:[]});
+  });
 });
