@@ -251,7 +251,7 @@ export class ImplementationGraphs {
     return result;
   }
   private async event(
-    artifact: Artifact,
+    artifact: Pick<Artifact, 'id' | 'projectId'>,
     actor: ImplementationAttribution,
     kind: ImplementationEvent['kind'],
     detail: Record<string, unknown>,
@@ -703,6 +703,81 @@ export class ImplementationGraphs {
       who.key,
       requestHash,
       encode(run),
+    );
+    return run;
+  }
+  /**
+   * Trusted connector lease cleanup only. NEVER expose as an authenticated-user
+   * route/tool: it deliberately works after the original writer loses access.
+   * The caller validates lease expiry/revocation and commits its queue state and
+   * invalidation outbox in this same transaction.
+   */
+  async interruptInTransaction(
+    id: string,
+    runId: string,
+    reason: string,
+  ): Promise<ImplementationRun> {
+    if (!this.store.db.inTransaction())
+      throw new Error(
+        'Implementation interruption requires an existing project transaction',
+      );
+    if (!reason.trim() || reason.length > 5000)
+      throw new HttpError(
+        400,
+        'An interruption reason of at most 5000 characters is required',
+      );
+    const artifact = await this.store.one(
+      'SELECT id,project_id AS projectId FROM artifacts WHERE id=?',
+      id,
+    );
+    if (!artifact) throw new HttpError(404, 'Artifact not found');
+    await this.store.lock('project:' + artifact.projectId);
+    await this.store.lock('implementation:' + id);
+    const run = await this.run(runId, id);
+    if (!run) throw new HttpError(404, 'Implementation run not found');
+    // A duplicate/stale lease callback must never release a later run's lock.
+    if (run.status !== 'running') return run;
+    const head = await this.store.one(
+      'SELECT active_run_id FROM implementation_heads WHERE artifact_id=?',
+      id,
+    );
+    const graph = decode<ImplementationGraph>(
+      await this.store.one(
+        'SELECT payload FROM implementation_graphs WHERE artifact_id=? AND version=?',
+        id,
+        run.graphVersion,
+      ),
+    );
+    if (head?.active_run_id !== run.id || graph?.status !== 'locked')
+      fail(
+        'run-not-active',
+        'Only the exact active connector run may be interrupted',
+      );
+    run.status = 'revision_requested';
+    run.revisionReason = reason.trim();
+    run.finishedAt = timestamp();
+    graph.status = 'approved';
+    graph.updatedAt = run.finishedAt;
+    await this.saveRun(run);
+    await this.saveGraph(graph);
+    await this.store.exec(
+      'UPDATE implementation_heads SET active_run_id=NULL WHERE artifact_id=? AND active_run_id=?',
+      id,
+      run.id,
+    );
+    const actor: ImplementationAttribution = {
+      userId: 'system',
+      name: 'Implementation service',
+      kind: 'agent',
+      agentId: 'studio-system:implementation-lease',
+      key: encode(['system', 'agent', 'studio-system:implementation-lease']),
+    };
+    await this.event(
+      artifact,
+      actor,
+      'interrupted',
+      { reason: run.revisionReason, source: 'connector-lease-interruption' },
+      run.id,
     );
     return run;
   }

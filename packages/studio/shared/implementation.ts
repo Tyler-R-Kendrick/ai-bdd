@@ -248,6 +248,7 @@ export type ImplementationEvent = {
     | 'draft_edited'
     | 'approved'
     | 'claimed'
+    | 'interrupted'
     | ImplementationReport['command']['kind'];
   actor: ImplementationAttribution;
   at: string;

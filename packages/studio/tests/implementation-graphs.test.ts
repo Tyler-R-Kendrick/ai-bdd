@@ -344,6 +344,75 @@ for (const provider of ['sqlite', 'postgres'] as const)
         expect(await f.graph.editingLock(f.id)).toBeNull();
         expect(await f.graph.report(f.builder, f.id, report)).toEqual(ended);
       });
+      it('interrupts an expired connector run after writer revocation with system attribution and cannot unlock a replacement run', async () => {
+        const f = await fixture(provider),
+          run = await f.claimed();
+        await f.first.exec(
+          'DELETE FROM memberships WHERE project_id=? AND user_id=?',
+          f.project.id,
+          f.owner.id,
+        );
+        const request = {
+          runId: run.id,
+          idempotencyKey: 'revoked-member',
+          command: {
+            kind: 'request_revision',
+            reason: 'Expired connector lease',
+          },
+        };
+        await expect(
+          f.graph.report(f.builder, f.id, request),
+        ).rejects.toMatchObject({ statusCode: 404 });
+        await expect(
+          f.first.tx(async () => {
+            await f.graph.interruptInTransaction(
+              f.id,
+              run.id,
+              'Expired connector lease',
+            );
+            throw new Error('cleanup rollback');
+          }),
+        ).rejects.toThrow('cleanup rollback');
+        expect((await f.graph.read(f.reviewer, f.id)).activeRun?.id).toBe(
+          run.id,
+        );
+        const ended = await f.first.tx(() =>
+          f.graph.interruptInTransaction(
+            f.id,
+            run.id,
+            'Expired connector lease',
+          ),
+        );
+        expect(ended.status).toBe('revision_requested');
+        expect(ended.claimedBy).toEqual(run.claimedBy);
+        expect(await f.graph.editingLock(f.id)).toBeNull();
+        const event = (await f.graph.history(f.reviewer, f.id))[0];
+        expect(event.kind).toBe('interrupted');
+        expect(event.actor).toMatchObject({
+          kind: 'agent',
+          userId: 'system',
+          name: 'Implementation service',
+        });
+        const state = await f.graph.read(f.reviewer, f.id);
+        const next = await f.graph.claim(f.independent, f.id, {
+          expected: implementationPointer(state.graph!),
+          repository: repo,
+          branch: 'replacement',
+          commit: 'd'.repeat(40),
+        });
+        expect(
+          await f.first.tx(() =>
+            f.graph.interruptInTransaction(
+              f.id,
+              run.id,
+              'Duplicate old lease callback',
+            ),
+          ),
+        ).toEqual(ended);
+        expect((await f.graph.read(f.reviewer, f.id)).activeRun?.id).toBe(
+          next.id,
+        );
+      });
       it('uses exact draft/plan CAS, human-only approval and versioned replacement without early supersession', async () => {
         const f = await fixture(provider),
           draft = await f.draft();
