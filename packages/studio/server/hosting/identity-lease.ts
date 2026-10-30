@@ -62,7 +62,7 @@ class IdentityTokenVerifier {
   constructor(options: Options) {
     this.scope = checkedIdentityScope(options.scope);
     this.clock = options.clock ?? Date.now;
-    const jwksUrl = new URL(this.scope.issuer + '/.well-known/jwks');
+    const jwksUrl = new URL('https://oidc.vercel.com/.well-known/jwks');
     const fetcher = options.fetch ?? globalThis.fetch;
     this.keys = createRemoteJWKSet(jwksUrl, {
       timeoutDuration: 2000,

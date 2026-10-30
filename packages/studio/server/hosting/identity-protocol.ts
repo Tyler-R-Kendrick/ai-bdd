@@ -49,6 +49,7 @@ export type IdentityLeaseFailureCode =
   | 'expired'
   | 'unavailable';
 export class IdentityLeaseError extends Error {
+  readonly statusCode = 503;
   constructor(readonly code: IdentityLeaseFailureCode) {
     super('Provider identity lease is unavailable.');
     this.name = 'IdentityLeaseError';

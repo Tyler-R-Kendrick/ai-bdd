@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
@@ -14,6 +14,8 @@ import {
   IDENTITY_RESPONSE_CONTEXT,
   IDENTITY_LEASE_MS,
 } from '../server/hosting/identity-protocol.ts';
+const nativeSdk = vi.hoisted(() => ({ getToken: vi.fn() }));
+vi.mock('@vercel/oidc', () => ({ getVercelOidcToken: nativeSdk.getToken }));
 const secret = 'fixture-only-identity-service-secret-32characters';
 const scope: IdentityScope = {
   ownerId: 'team_Fixture',
@@ -28,6 +30,9 @@ const scope: IdentityScope = {
 const close: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const fn of close.splice(0).reverse()) await fn();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
 });
 let keys: Awaited<ReturnType<typeof generateKeyPair>>;
 let publicKey: Awaited<ReturnType<typeof exportJWK>>;
@@ -66,15 +71,20 @@ async function fixture() {
   let current = await token();
   let calls = 0;
   let requests = 0;
+  const jwksUrls: string[] = [];
   let transform:
     | ((request: Request, response: Response) => Promise<Response>)
     | undefined;
+  const transport = globalThis.fetch;
   const fetcher: typeof fetch = (input, init) => {
     const url = String(input);
-    return fetch(
-      url === scope.issuer + '/.well-known/jwks' ? origin + '/jwks' : input,
-      init,
-    );
+    if (url.startsWith('https://oidc.vercel.com')) {
+      if (url !== 'https://oidc.vercel.com/.well-known/jwks')
+        throw new Error('Unexpected fixture JWKS URL');
+      jwksUrls.push(url);
+      return transport(origin + '/jwks', init);
+    }
+    return transport(input, init);
   };
   const handler = createIdentityLeaseHandler({
     scope,
@@ -85,6 +95,7 @@ async function fixture() {
     },
     fetch: fetcher,
   });
+  let entrypoint = handler;
   const server = createServer(async (req, reply) => {
     try {
       if (req.url === '/jwks') {
@@ -100,7 +111,7 @@ async function fixture() {
         headers: req.headers as Record<string, string>,
         body: Buffer.concat(chunks),
       });
-      let response = await handler(request);
+      let response = await entrypoint(request);
       if (transform) response = await transform(request, response);
       reply.writeHead(response.status, Object.fromEntries(response.headers));
       reply.end(Buffer.from(await response.arrayBuffer()));
@@ -125,6 +136,10 @@ async function fixture() {
   });
   return {
     client,
+    jwksUrls,
+    useHandler: (value: typeof handler) => {
+      entrypoint = value;
+    },
     origin,
     handler,
     fetcher,
@@ -147,6 +162,12 @@ describe('private native identity lease over actual HTTP and signed JWKS', () =>
     expect(lease.expiresAt).toBeGreaterThan(Date.now() + 290_000);
     expect(JSON.stringify(lease)).not.toContain('token');
     expect(Object.keys(lease)).not.toContain('token');
+    expect(f.jwksUrls.length).toBeGreaterThan(0);
+    expect(
+      f.jwksUrls.every(
+        (url) => url === 'https://oidc.vercel.com/.well-known/jwks',
+      ),
+    ).toBe(true);
     expect(f.calls()).toBe(1);
     await f.client.acquire();
     expect(f.calls()).toBe(2);
@@ -260,5 +281,102 @@ describe('private native identity lease over actual HTTP and signed JWKS', () =>
     );
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain('PRIVATE-CREDENTIAL-ERROR');
+  });
+
+  it('isolates fresh concurrent grants and rejects cross-swapped signed responses', async () => {
+    const f = await fixture();
+    const leases = await Promise.all([
+      f.client.acquire(),
+      f.client.acquire(),
+    ]);
+    expect(leases.every(isValidatedIdentityLease)).toBe(true);
+    expect(leases[0]).not.toBe(leases[1]);
+    expect(f.calls()).toBe(2);
+    const pending: { raw: string; finish: (response: Response) => void }[] =
+      [];
+    f.transform(async (_request, response) => {
+      const raw = await response.text();
+      return new Promise<Response>((finish) => {
+        pending.push({ raw, finish });
+        if (pending.length === 2) {
+          pending[0]!.finish(
+            new Response(pending[1]!.raw, {
+              headers: internalHeaders(
+                secret,
+                IDENTITY_RESPONSE_CONTEXT,
+                pending[1]!.raw,
+              ),
+            }),
+          );
+          pending[1]!.finish(
+            new Response(pending[0]!.raw, {
+              headers: internalHeaders(
+                secret,
+                IDENTITY_RESPONSE_CONTEXT,
+                pending[0]!.raw,
+              ),
+            }),
+          );
+        }
+      });
+    });
+    const swapped = await Promise.allSettled([
+      f.client.acquire(),
+      f.client.acquire(),
+    ]);
+    expect(swapped.map((result) => result.status)).toEqual([
+      'rejected',
+      'rejected',
+    ]);
+  });
+  it('bounds an actual nonresponding private HTTP request to five seconds', async () => {
+    const f = await fixture();
+    f.transform(async () => new Promise<Response>(() => {}));
+    const start = Date.now();
+    await expect(f.client.acquire()).rejects.toMatchObject({
+      name: 'IdentityLeaseError',
+      code: 'response',
+    });
+    expect(Date.now() - start).toBeLessThan(5700);
+  }, 8000);
+  it('uses the documented native Request header only after HMAC and still verifies its JWT', async () => {
+    const f = await fixture();
+    let platformToken = await token();
+    const settings = {
+      STUDIO_IDENTITY_OWNER_ID: scope.ownerId,
+      STUDIO_IDENTITY_OWNER_SLUG: scope.ownerSlug,
+      STUDIO_IDENTITY_PROJECT_NAME: scope.projectName,
+      STUDIO_IDENTITY_ISSUER: scope.issuer,
+      STUDIO_IDENTITY_AUDIENCE: scope.audience,
+      VERCEL_PROJECT_ID: scope.projectId,
+      VERCEL_DEPLOYMENT_ID: scope.deploymentId,
+      VERCEL_ENV: scope.environment,
+      STUDIO_JOB_SECRET: secret,
+    };
+    for (const [key, value] of Object.entries(settings))
+      vi.stubEnv(key, value);
+    nativeSdk.getToken.mockRejectedValue(
+      new Error('PRIVATE-SDK-CONTEXT-ERROR'),
+    );
+    vi.stubGlobal('fetch', f.fetcher);
+    const api = await import('../api/studio-identity.ts');
+    f.useHandler(async (request) => {
+      request.headers.set('x-vercel-oidc-token', platformToken);
+      return api.default.fetch(request);
+    });
+    const unauthorized = await f.fetcher(f.origin + IDENTITY_PATH, {
+      method: 'POST',
+      body: '{}',
+    });
+    expect(unauthorized.status).toBe(401);
+    expect(nativeSdk.getToken).not.toHaveBeenCalled();
+    const lease = await f.client.acquire();
+    expect(isValidatedIdentityLease(lease)).toBe(true);
+    expect(nativeSdk.getToken).toHaveBeenCalledTimes(1);
+    platformToken = await token({ project_id: 'prj_Wrong' });
+    await expect(f.client.acquire()).rejects.toMatchObject({
+      name: 'IdentityLeaseError',
+      code: 'transport',
+    });
   });
 });

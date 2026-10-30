@@ -1,5 +1,6 @@
 const errorClasses = [
   'Error',
+  'IdentityLeaseError',
   'TypeError',
   'AbortError',
   'TimeoutError',
@@ -16,6 +17,16 @@ const errorClasses = [
   'ConsumerRegistryNotConfiguredError',
 ] as const;
 const errorCodes = [
+  'configuration',
+  'authorization',
+  'body-limit',
+  'request',
+  'deployment',
+  'transport',
+  'response',
+  'verification',
+  'expired',
+  'unavailable',
   'ECONNREFUSED',
   'ECONNRESET',
   'ENOTFOUND',
@@ -32,6 +43,7 @@ const statuses = [
 ];
 const statusByClass: Partial<Record<(typeof errorClasses)[number], number>> =
   {
+    IdentityLeaseError: 503,
     BadRequestError: 400,
     UnauthorizedError: 401,
     ForbiddenError: 403,
