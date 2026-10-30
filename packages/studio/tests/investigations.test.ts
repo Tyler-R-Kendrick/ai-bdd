@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store, hash } from '../server/store.ts';
+import { paragraph } from '../shared/domain.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { MachineService } from '../server/integrations/machines.ts';
 import {
@@ -103,7 +104,11 @@ async function fixture() {
       'Investigator',
       null,
     ),
-    other = await store.createUser('other@example.test', 'Other writer', null),
+    other = await store.createUser(
+      'other@example.test',
+      'Other writer',
+      null,
+    ),
     project = (await store.createProject(
       user,
       'Investigation fixture',
@@ -193,6 +198,105 @@ async function running(c: Awaited<ReturnType<typeof fixture>>) {
   };
 }
 describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => {
+  it('inserts an investigation immediately after its exact selected passage and seals that placement', async () => {
+    const c = await fixture();
+    const current = await c.store.updateArtifact(
+      c.user,
+      c.artifact.id,
+      c.artifact.version,
+      {
+        ...c.artifact.content,
+        doc: {
+          type: 'doc',
+          content: [
+            paragraph('First passage'),
+            paragraph('Target passage'),
+            paragraph('Last passage'),
+          ],
+        },
+      },
+    );
+    const placement = {
+      blockIndex: 1,
+      digest: hash(JSON.stringify(current.content.doc.content[1])),
+    };
+    const record = await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'Measure this exact selected requirement',
+      placement,
+    });
+    const saved = await c.store.artifact(current.id, c.user.id);
+    expect(saved.content.doc.content.map((node: any) => node.type)).toEqual([
+      'paragraph',
+      'paragraph',
+      'investigationCard',
+      'paragraph',
+    ]);
+    expect(saved.content.doc.content[2].attrs.data.investigationId).toBe(
+      record.id,
+    );
+    expect(saved.content.doc.content[3]).toEqual(
+      current.content.doc.content[2],
+    );
+    const row = await c.store.one(
+      'SELECT snapshot_json FROM studio_investigations WHERE id=?',
+      record.id,
+    );
+    expect(JSON.parse(row.snapshot_json).sealed.placement).toEqual(placement);
+    await c.service.run(c.user, record.id);
+    expect((await c.service.get(c.user, record.id)).status).toBe('queued');
+  });
+  it('rejects stale, moved, missing and forged passage placement without appending a replacement card', async () => {
+    const c = await fixture();
+    const current = await c.store.updateArtifact(
+      c.user,
+      c.artifact.id,
+      c.artifact.version,
+      {
+        ...c.artifact.content,
+        doc: {
+          type: 'doc',
+          content: [
+            paragraph('Target passage'),
+            paragraph('Different passage'),
+          ],
+        },
+      },
+    );
+    const digest = hash(JSON.stringify(current.content.doc.content[0]));
+    for (const placement of [
+      { blockIndex: 0, digest: '0'.repeat(64) },
+      { blockIndex: 1, digest },
+      { blockIndex: 9, digest },
+    ]) {
+      await expect(
+        c.service.propose(c.user, current.id, {
+          version: current.version,
+          brief: 'Investigate stale selection',
+          placement,
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    }
+    await expect(
+      c.service.propose(c.user, current.id, {
+        version: current.version - 1,
+        brief: 'Old revision',
+        placement: { blockIndex: 0, digest },
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect((await c.store.artifact(current.id, c.user.id)).content).toEqual(
+      current.content,
+    );
+    expect(
+      (
+        await c.store.one(
+          'SELECT count(*) AS n FROM studio_investigations WHERE artifact_id=?',
+          current.id,
+        )
+      ).n,
+    ).toBe(0);
+  });
+
   it('validates typed datasets and native view semantics without accepting executable UI or undeclared values', () => {
     expect(investigationResultSchema.parse(result).views).toHaveLength(3);
     expect(
@@ -308,7 +412,9 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
       'Required',
     );
     await c.service.acknowledgeFindings(c.other, record.id);
-    await expect(c.service.assertReady(c.artifact.id)).resolves.toBeUndefined();
+    await expect(
+      c.service.assertReady(c.artifact.id),
+    ).resolves.toBeUndefined();
   });
   it('preserves a live lease across service restart, then fences cancelled and expired attempts without replay', async () => {
     const c = await fixture(),
@@ -337,7 +443,9 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
       record.id,
     );
     await restarted.expire();
-    expect((await restarted.get(c.user, record.id)).status).toBe('interrupted');
+    expect((await restarted.get(c.user, record.id)).status).toBe(
+      'interrupted',
+    );
     expect((await restarted.claim(c.machine)).work).toBeNull();
   });
   it('checks implementation locks, source revisions, and fresh machine revocation at publication', async () => {
@@ -407,7 +515,9 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
       JSON.stringify({ ...result, report: 'Tampered evidence' }),
       record.id,
     );
-    await expect(c.service.get(c.user, record.id)).rejects.toThrow('integrity');
+    await expect(c.service.get(c.user, record.id)).rejects.toThrow(
+      'integrity',
+    );
   });
   it('starts bounded automatic prototypes only for explicit machine-owner consent and deduplicates a passage', async () => {
     const c = await fixture(),

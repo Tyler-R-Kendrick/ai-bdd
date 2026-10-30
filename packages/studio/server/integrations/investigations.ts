@@ -1,3 +1,4 @@
+import { documentNodeSource } from '../../shared/document-digest.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -13,6 +14,7 @@ import {
 } from '../../shared/domain.ts';
 import {
   commitSchema,
+  passagePlacementSchema as placementSchema,
   investigationCapabilities,
   investigationResultSchema,
   selectionSchema,
@@ -327,6 +329,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       sourceCommit?: string;
       requiredReason?: string;
       mode?: 'manual' | 'spike';
+      placement?: z.infer<typeof placementSchema>;
     },
   ) {
     await this.ready;
@@ -337,6 +340,20 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         throw new HttpError(
           409,
           'The document changed; review its current revision before proposing an investigation',
+        );
+      const placement = input.placement
+        ? placementSchema.parse(input.placement)
+        : undefined;
+      const blocks = artifact.content.doc?.content ?? [];
+      if (
+        placement &&
+        (!blocks[placement.blockIndex] ||
+          (hash(JSON.stringify(blocks[placement.blockIndex])) !== placement.digest &&
+           hash(documentNodeSource(blocks[placement.blockIndex])) !== placement.digest))
+      )
+        throw new HttpError(
+          409,
+          'The selected passage changed; select its current revision before proposing an investigation',
         );
       const project = await this.store.one(
         'SELECT repository FROM projects WHERE id=?',
@@ -372,6 +389,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         meaningfulSourceHash: semanticSourceHash(artifact.content),
         sourceCommit: commit,
         repository,
+        ...(placement ? { placement } : {}),
       };
       if (
         (
@@ -412,11 +430,15 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           doc: {
             ...artifact.content.doc,
             content: [
-              ...(artifact.content.doc.content ?? []),
+              ...blocks.slice(
+                0,
+                placement ? placement.blockIndex + 1 : blocks.length,
+              ),
               {
                 type: 'investigationCard',
                 attrs: { data: { investigationId: id } },
               },
+              ...(placement ? blocks.slice(placement.blockIndex + 1) : []),
             ],
           },
         },
@@ -573,7 +595,10 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       );
       if (!row) return { work: null };
       try {
-        const artifact = await this.unlocked(row.artifact_id, machine.user_id);
+        const artifact = await this.unlocked(
+          row.artifact_id,
+          machine.user_id,
+        );
         if (!sourceMatches(row, artifact.content))
           throw new HttpError(
             409,
@@ -738,7 +763,10 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           attrs: { level: 3 },
           content: [{ type: 'text', text: evidence.name }],
         },
-        { type: 'codeBlock', content: [{ type: 'text', text: evidence.text }] },
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: evidence.text }],
+        },
       );
     for (const image of result.images)
       content.push(
@@ -1129,7 +1157,10 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
     return this.atomic(initial.project_id, async () => {
       const row = await this.ownRow(user, id, true);
       if (row.status !== 'completed')
-        throw new HttpError(409, 'Only completed findings can be incorporated');
+        throw new HttpError(
+          409,
+          'Only completed findings can be incorporated',
+        );
       if (
         !(await this.store.one(
           'SELECT id FROM studio_investigation_decisions WHERE investigation_id=?',
@@ -1286,6 +1317,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         version: input.version,
         brief: checked.brief + '\n\nPrototype rationale: ' + checked.reason,
         mode: 'spike',
+        placement: { blockIndex: input.blockIndex, digest: input.digest },
       });
       await this.store.exec(
         'INSERT INTO studio_investigation_passages(artifact_id,user_id,digest,investigation_id) VALUES(?,?,?,?)',
@@ -1347,6 +1379,7 @@ export async function registerInvestigationRoutes(
             version: z.number().int().positive(),
             brief: z.string().trim().min(1).max(8000),
             sourceCommit: commitSchema.optional(),
+            placement: placementSchema.optional(),
             requiredReason: z.string().max(2000).optional(),
           })
           .strict()
@@ -1420,7 +1453,8 @@ export async function registerInvestigationRoutes(
       service.consent(
         await browser(request),
         id.parse(request.params.machineId),
-        z.object({ enabled: z.boolean() }).strict().parse(request.body).enabled,
+        z.object({ enabled: z.boolean() }).strict().parse(request.body)
+          .enabled,
       ),
   );
   app.post<{ Params: { machineId: string } }>(

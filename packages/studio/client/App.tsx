@@ -1,3 +1,4 @@
+import type { InvestigationPlacement } from '../shared/investigations.ts';
 import RepositoryIdentity from './components/RepositoryIdentity.tsx';
 import { ArtifactTitle } from './components/ArtifactTitle.tsx';
 import { AccountMachinesPanel } from './components/AccountMachinesPanel.tsx';
@@ -145,6 +146,8 @@ export function App() {
     [more, setMore] = useState(false),
     [busy, setBusy] = useState(false);
   const [investigationsOpen, setInvestigationsOpen] = useState(false);
+  const [investigationPlacement, setInvestigationPlacement] =
+    useState<InvestigationPlacement>();
   const project = projects.find((p) => p.id === selection.project),
     artifact = bundle?.artifact,
     readOnly = project?.role === 'viewer';
@@ -720,7 +723,10 @@ export function App() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setInvestigationsOpen(true)}
+                        onClick={() => {
+                          setInvestigationPlacement(undefined);
+                          setInvestigationsOpen(true);
+                        }}
                         aria-label="Investigations"
                       >
                         <FlaskConical size={15} />
@@ -817,7 +823,10 @@ export function App() {
                           setPanel('decisions');
                           setRightOpen(true);
                         }}
-                        onInvestigations={() => setInvestigationsOpen(true)}
+                        onInvestigations={(_id, placement) => {
+                          setInvestigationPlacement(placement);
+                          setInvestigationsOpen(true);
+                        }}
                         onTests={() => {
                           setPanel('tests');
                           setRightOpen(true);
@@ -1009,6 +1018,7 @@ export function App() {
             key={artifact.id}
             artifactId={artifact.id}
             artifactVersion={artifact.version}
+            placement={investigationPlacement}
             currentUserId={user.id}
             canWrite={!readOnly}
             onOpenArtifact={(id) => {

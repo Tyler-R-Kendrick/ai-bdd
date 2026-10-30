@@ -1,4 +1,9 @@
-import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+import {
+  test,
+  expect,
+  type Page,
+  type BrowserContext,
+} from '@playwright/test';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
@@ -214,9 +219,15 @@ async function fixture(cards: boolean, model = false) {
   );
   const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
   settings.origin = address;
-  async function login(page: Page, email = user.email, credential = password) {
+  async function login(
+    page: Page,
+    email = user.email,
+    credential = password,
+  ) {
     await page.goto(address);
-    await page.getByRole('textbox', { name: 'Email', exact: true }).fill(email);
+    await page
+      .getByRole('textbox', { name: 'Email', exact: true })
+      .fill(email);
     await page.getByLabel('Password', { exact: true }).fill(credential);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(
@@ -387,7 +398,11 @@ test('actual model offers publish a reviewable questionnaire and start only the 
     expect(f.searchRequests).toHaveLength(0);
     expect(
       (
-        await f.call(page, `/artifacts/${researchId}/integrations/jobs`, 'GET')
+        await f.call(
+          page,
+          `/artifacts/${researchId}/integrations/jobs`,
+          'GET',
+        )
       ).jobs.filter((j: any) => j.intent === 'research'),
     ).toHaveLength(0);
     const brief =
@@ -409,7 +424,8 @@ test('actual model offers publish a reviewable questionnaire and start only the 
             `/artifacts/${researchId}/integrations/jobs`,
             'GET',
           );
-          return result.jobs.find((j: any) => j.intent === 'research')?.status;
+          return result.jobs.find((j: any) => j.intent === 'research')
+            ?.status;
         },
         { timeout: 30000 },
       )
@@ -487,11 +503,17 @@ test('actual model offers publish a reviewable questionnaire and start only the 
       .getByRole('button', { name: 'Accept as decision', exact: true })
       .click();
     await expect(
-      questionnaire.getByRole('button', { name: 'Accepted ADR', exact: true }),
+      questionnaire.getByRole('button', {
+        name: 'Accepted ADR',
+        exact: true,
+      }),
     ).toBeVisible();
     await page.reload();
     await expect(
-      questionnaire.getByRole('button', { name: 'Accepted ADR', exact: true }),
+      questionnaire.getByRole('button', {
+        name: 'Accepted ADR',
+        exact: true,
+      }),
     ).toBeVisible();
     await capture(page, 'conversation-questionnaire-desktop.png');
     expect(errors).toEqual([]);
@@ -652,7 +674,10 @@ test('a real owner-approved investigation publishes inline native evidence, shar
       machine.token,
     );
     await expect(
-      panel.getByRole('button', { name: 'Open published report', exact: true }),
+      panel.getByRole('button', {
+        name: 'Open published report',
+        exact: true,
+      }),
     ).toBeVisible({ timeout: 15000 });
     await panel
       .getByRole('button', { name: 'Open published report', exact: true })
@@ -693,10 +718,14 @@ test('a real owner-approved investigation publishes inline native evidence, shar
         exact: true,
       }),
     ).toBeVisible();
-    const published = await f.call(page, '/investigations/' + record.id, 'GET');
-    expect(published.selections['latency-comparison'].selection.rowIds).toEqual(
-      ['contract'],
+    const published = await f.call(
+      page,
+      '/investigations/' + record.id,
+      'GET',
     );
+    expect(
+      published.selections['latency-comparison'].selection.rowIds,
+    ).toEqual(['contract']);
     expect(published.decisions[0].selectionRevision).toBe(2);
     expect(published.decisions[0].resultHash).toBe(published.resultHash);
     expect(published.decisions[0].authorName).toBe(f.user.name);
@@ -738,10 +767,16 @@ test('a real owner-approved investigation publishes inline native evidence, shar
       .locator('.document-investigation')
       .getByRole('region', { name: 'Measured preview latency', exact: true });
     await expect(
-      view.getByRole('checkbox', { name: 'Select row contract', exact: true }),
+      view.getByRole('checkbox', {
+        name: 'Select row contract',
+        exact: true,
+      }),
     ).toBeChecked();
     await expect(
-      view.getByRole('checkbox', { name: 'Select row contract', exact: true }),
+      view.getByRole('checkbox', {
+        name: 'Select row contract',
+        exact: true,
+      }),
     ).toBeDisabled();
     await expect(
       view.getByRole('button', { name: 'Share selections', exact: true }),
@@ -816,7 +851,10 @@ test('independent decision selection and semantic review preserve uncertainty, a
         name: 'Decision models',
         exact: true,
       }),
-      agent = page.getByRole('region', { name: 'Agent runtime', exact: true });
+      agent = page.getByRole('region', {
+        name: 'Agent runtime',
+        exact: true,
+      });
     await expect(
       agent.getByRole('combobox', { name: 'Agent harness' }),
     ).toHaveValue('t3-code');
@@ -837,7 +875,9 @@ test('independent decision selection and semantic review preserve uncertainty, a
     await expect(
       decisions.getByRole('combobox', { name: 'Decision provider' }),
     ).toHaveValue('jev');
-    await expect(decisions.getByText('Offline', { exact: true })).toBeVisible();
+    await expect(
+      decisions.getByText('Offline', { exact: true }),
+    ).toBeVisible();
     await expect(
       agent.getByRole('combobox', { name: 'Agent harness' }),
     ).toHaveValue('t3-code');
@@ -904,7 +944,9 @@ test('independent decision selection and semantic review preserve uncertainty, a
     await modal
       .getByRole('button', { name: 'Assess selected passages', exact: true })
       .click();
-    const assessment = modal.getByRole('region', { name: 'Design assessment' });
+    const assessment = modal.getByRole('region', {
+      name: 'Design assessment',
+    });
     await expect(
       assessment.getByText('Assessment complete', { exact: true }),
     ).toBeVisible({ timeout: 30000 });
@@ -967,7 +1009,9 @@ test('independent decision selection and semantic review preserve uncertainty, a
     ).toBeVisible();
     await page.reload();
     const bundle = await f.call(page, `/artifacts/${id}`, 'GET'),
-      anchored = bundle.threads.find((thread: any) => thread.quote === passage);
+      anchored = bundle.threads.find(
+        (thread: any) => thread.quote === passage,
+      );
     expect(anchored?.anchor).toBeTruthy();
     const thread = await f.call(
       page,
@@ -1010,12 +1054,241 @@ test('independent decision selection and semantic review preserve uncertainty, a
       assessment.getByText('Source changed', { exact: true }),
     ).toBeVisible();
     await expect(
-      assessment.getByRole('button', { name: 'Discuss this passage' }).first(),
+      assessment
+        .getByRole('button', { name: 'Discuss this passage' })
+        .first(),
     ).toBeDisabled();
     await assessment.scrollIntoViewIfNeeded();
     await capture(page, 'design-review-stale-mobile.png');
     expect(errors).toEqual([]);
   } finally {
+    await f.close();
+  }
+});
+
+test('passage slash commands place exact research and investigation cards inline and keep run controls owner scoped', async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120000);
+  const f = await fixture(false, true),
+    errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  let viewerContext: BrowserContext | undefined;
+  try {
+    await f.login(page);
+    const project = await f.call(page, '/projects', 'POST', {
+        title: 'Passage-native planning',
+        repository: '',
+      }),
+      id = project.mainArtifactId;
+    const original = await f.instance.store.artifact(id, f.user.id);
+    await f.instance.store.updateArtifact(f.user, id, original.version, {
+      doc: {
+        type: 'doc',
+        content: [
+          'Selected requirement',
+          'Following requirement',
+          'Closing requirement',
+        ].map((text) => ({
+          type: 'paragraph',
+          content: [{ type: 'text', text }],
+        })),
+      },
+    });
+    await page.goto(`${f.address}/?project=${project.id}&artifact=${id}`);
+    await f.selectFx(page);
+    const editor = page.locator('[aria-label="Document editor"]');
+    // Cancelling a slash command preserves literal path text rather than swallowing it.
+    await editor.getByText('Closing requirement', { exact: true }).click();
+    await page.keyboard.press('Home'); await page.keyboard.type('/');
+    await page.getByRole('textbox', { name: 'Document command', exact: true }).fill('usr/local');
+    await page.keyboard.press('Escape');
+    await expect(editor).toContainText('/usr/localClosing requirement');
+    await expect.poll(async () => JSON.stringify((await f.instance.store.artifact(id, f.user.id)).content)).toContain('/usr/localClosing requirement');
+    await page.reload();
+    await editor.getByText('Selected requirement', { exact: true }).click();
+    await page.keyboard.press('Home');
+    await page.keyboard.type('/');
+    const menu = page.getByRole('dialog', {
+      name: 'Document commands',
+      exact: true,
+    });
+    await expect(menu).toBeVisible();
+    await menu
+      .getByRole('textbox', { name: 'Document command', exact: true })
+      .fill('research');
+    await menu
+      .getByRole('menuitem', { name: 'Research · /research', exact: true })
+      .click();
+    const research = page.getByRole('dialog', {
+      name: 'Research this passage',
+      exact: true,
+    });
+    await research
+      .getByRole('textbox', { name: 'Research brief', exact: true })
+      .fill(
+        'Compare the declared Pact boundary for this exact selected requirement.',
+      );
+    await capture(page, 'passage-research-brief-desktop.png');
+    await research
+      .getByRole('button', { name: 'Start research', exact: true })
+      .click();
+    await expect(research).not.toBeVisible();
+    await expect(editor.locator('.document-research')).toContainText(
+      'Compare the declared Pact boundary',
+    );
+    await expect(
+      editor
+        .locator('.document-research')
+        .getByRole('link', {
+          name: 'Open published research document',
+          exact: true,
+        }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect.poll(() => f.searchRequests.length).toBe(1);
+    expect(
+      f.searchRequests[0].query ??
+        f.searchRequests[0].brief ??
+        JSON.stringify(f.searchRequests[0]),
+    ).toContain('Compare the declared Pact boundary');
+    await expect(editor.locator('[data-agent-change="true"]')).not.toHaveCount(0);
+    await capture(page, 'passage-research-highlight-desktop.png');
+    const afterResearch = await f.instance.store.artifact(id, f.user.id);
+    expect(
+      afterResearch.content.doc.content.map((node: any) => node.type),
+    ).toEqual(['paragraph', 'researchBlock', 'paragraph', 'paragraph']);
+    // Research uses its explicit local source gateway; only the subsequent investigation
+    // is bound to the registered synthetic repository/workstation protocol.
+    await f.call(page, `/projects/${project.id}`, 'PATCH', {
+      title: 'Passage-native planning',
+      description: 'Synthetic local protocol acceptance',
+      repository: 'https://github.com/example/passage-planning',
+    });
+    const pairing = await f.call(
+      page,
+      `/projects/${project.id}/machines/pairing`,
+      'POST',
+      { label: 'Passage investigation workstation' },
+    );
+    const machine = await f.call(page, '/machines/pair', 'POST', {
+      code: pairing.code,
+    });
+    await f.call(
+      page,
+      `/machines/${machine.id}/investigations/checkout`,
+      'POST',
+      {
+        repository: 'https://github.com/example/passage-planning',
+        sourceCommit: '2'.repeat(40),
+        branch: 'main',
+      },
+      machine.token,
+    );
+    await editor.getByText('Following requirement', { exact: true }).click();
+    await page.keyboard.press('Home');
+    await expect
+      .poll(() =>
+        editor.evaluate(
+          () => window.getSelection()?.anchorNode?.parentElement?.textContent,
+        ),
+      )
+      .toBe('Following requirement');
+    await page.keyboard.type('/');
+    await expect(menu).toBeVisible();
+    await menu
+      .getByRole('menuitem', {
+        name: 'Investigate · /investigate',
+        exact: true,
+      })
+      .click();
+    const panel = page.locator('.investigation-panel');
+    await expect(
+      panel.getByText(/Insert after selected passage/),
+    ).toBeVisible();
+    await panel
+      .getByRole('textbox', { name: 'Brief', exact: true })
+      .fill(
+        'Measure the selected following requirement on the pinned checkout.',
+      );
+    await panel
+      .getByRole('button', { name: 'Propose investigation', exact: true })
+      .click();
+    await expect(
+      panel.getByText('Ready to run', { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole('dialog', { name: 'Local investigations', exact: true })
+      .getByRole('button', { name: 'Close dialog', exact: true })
+      .click();
+    const card = editor.locator('.document-investigation');
+    await expect(
+      card.getByRole('button', { name: 'Run on my machine', exact: true }),
+    ).toBeVisible();
+    const placed = await f.instance.store.artifact(id, f.user.id);
+    expect(placed.content.doc.content.map((node: any) => node.type)).toEqual([
+      'paragraph',
+      'researchBlock',
+      'paragraph',
+      'investigationCard',
+      'paragraph',
+    ]);
+    await card.scrollIntoViewIfNeeded();
+    await capture(page, 'passage-investigation-ready-desktop.png');
+    await card
+      .getByRole('button', { name: 'Run on my machine', exact: true })
+      .click();
+    await expect(card).toContainText('queued');
+    await expect(
+      card.getByRole('button', { name: 'Stop investigation', exact: true }),
+    ).toBeVisible();
+    await capture(page, 'passage-investigation-queued-desktop.png');
+    const viewer = await f.instance.store.createUser(
+      'passage-viewer@test.invalid',
+      'Passage viewer',
+      await passwordHash(password),
+    );
+    await f.instance.store.exec(
+      'INSERT INTO memberships VALUES(?,?,?)',
+      project.id,
+      viewer.id,
+      'viewer',
+    );
+    viewerContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    const mobile = await viewerContext.newPage();
+    await mobile.goto(f.address);
+    await mobile
+      .getByRole('textbox', { name: 'Email', exact: true })
+      .fill(viewer.email);
+    await mobile.getByLabel('Password', { exact: true }).fill(password);
+    await mobile
+      .getByRole('button', { name: 'Sign in', exact: true })
+      .click();
+    await expect(
+      mobile.getByRole('textbox', { name: 'Email', exact: true }),
+    ).toHaveCount(0);
+    await mobile.goto(`${f.address}/?project=${project.id}&artifact=${id}`);
+    const mobileCard = mobile.locator('.document-investigation');
+    await mobileCard.scrollIntoViewIfNeeded();
+    await expect(mobileCard).toContainText('queued');
+    await expect(
+      mobileCard.getByRole('button', {
+        name: 'Stop investigation',
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      mobile.getByRole('button', {
+        name: 'Investigate this passage',
+        exact: true,
+      }),
+    ).toBeDisabled();
+    await capture(mobile, 'passage-investigation-viewer-mobile.png');
+    expect(errors).toEqual([]);
+  } finally {
+    await viewerContext?.close();
     await f.close();
   }
 });

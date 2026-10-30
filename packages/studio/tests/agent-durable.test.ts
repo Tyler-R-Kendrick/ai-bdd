@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Store } from '../server/store.ts';
 import { Collaboration } from '../server/collaboration.ts';
 import { DecisionModels } from '../server/decisions/models.ts';
@@ -129,6 +129,114 @@ function researchAttrs(doc: any): any[] {
   ];
 }
 describe('durable artifact agent using actual HTTP model/source transports', () => {
+  it('anchors explicitly approved inline research and fences its exact placement and idempotent brief', async () => {
+    const gateway = await http((_p, _b, r) =>
+      r.end(JSON.stringify(generated('Research findings'))),
+    );
+    const w = await fixture({ gatewayBaseUrl: gateway.url });
+    const current = await w.store.updateArtifact(
+      w.user,
+      w.artifact.id,
+      w.artifact.version,
+      {
+        ...w.artifact.content,
+        doc: {
+          type: 'doc',
+          content: [
+            paragraph('Selected requirement'),
+            paragraph('Following requirement'),
+          ],
+        },
+      },
+    );
+    const placement = {
+      blockIndex: 0,
+      digest: createHash('sha256')
+        .update(JSON.stringify(current.content.doc.content[0]))
+        .digest('hex'),
+    };
+    await expect(
+      w.agent.respond(
+        w.user,
+        current.id,
+        w.threadId,
+        'research',
+        'Approved exact brief',
+        {
+          artifactVersion: current.version,
+          placement: { ...placement, digest: '0'.repeat(64) },
+        },
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    await expect(
+      w.agent.respond(
+        w.user,
+        current.id,
+        w.threadId,
+        'chat',
+        'Not a research request',
+        {
+          artifactVersion: current.version,
+          placement,
+        },
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(
+      (
+        await w.store.one(
+          'SELECT count(*) AS n FROM studio_durable_jobs WHERE artifact_id=?',
+          current.id,
+        )
+      ).n,
+    ).toBe(0);
+    const options = {
+      artifactVersion: current.version,
+      placement,
+      idempotencyKey: randomUUID(),
+    };
+    const accepted = await w.agent.respond(
+      w.user,
+      current.id,
+      w.threadId,
+      'research',
+      'Approved exact brief',
+      options,
+    );
+    const saved = await w.store.artifact(current.id, w.user.id);
+    expect(saved.content.doc.content.map((node: any) => node.type)).toEqual([
+      'paragraph',
+      'researchBlock',
+      'paragraph',
+    ]);
+    expect(saved.content.doc.content[1].attrs.brief).toBe(
+      'Approved exact brief',
+    );
+    expect(
+      await w.agent.respond(
+        w.user,
+        current.id,
+        w.threadId,
+        'research',
+        'Approved exact brief',
+        options,
+      ),
+    ).toEqual(accepted);
+    await expect(
+      w.agent.respond(
+        w.user,
+        current.id,
+        w.threadId,
+        'research',
+        'Different brief',
+        options,
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect((await w.store.artifact(current.id, w.user.id)).content).toEqual(
+      saved.content,
+    );
+    expect(gateway.requests).toHaveLength(0);
+  });
+
   it('survives service replacement, freezes selected context, and publishes one chat message on redelivery', async () => {
     const gateway = await http((_p, _b, r) =>
       r.end(JSON.stringify(generated('A reviewed rollout needs an ADR.'))),

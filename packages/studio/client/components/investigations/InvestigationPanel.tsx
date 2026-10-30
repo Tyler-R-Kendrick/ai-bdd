@@ -4,6 +4,7 @@ import {
   emptySelection,
   filteredRows,
   type Investigation,
+  type InvestigationPlacement,
   type Selection,
   type NativeView,
   type Dataset,
@@ -136,7 +137,8 @@ export function InvestigationView({
                   ? [
                       {
                         columnId: column.id,
-                        operator: column.type === 'string' ? 'contains' : 'eq',
+                        operator:
+                          column.type === 'string' ? 'contains' : 'eq',
                         value:
                           column.type === 'number'
                             ? 0
@@ -223,7 +225,9 @@ export function InvestigationView({
             {rows.slice(0, 200).map((row) => (
               <tr
                 key={row.id}
-                className={selection.rowIds.includes(row.id) ? 'selected' : ''}
+                className={
+                  selection.rowIds.includes(row.id) ? 'selected' : ''
+                }
               >
                 <td>
                   <input
@@ -277,14 +281,17 @@ export function InvestigationView({
             />
           </label>
           <button
-            disabled={busy || dirty || !conclusion.trim() || !rationale.trim()}
+            disabled={
+              busy || dirty || !conclusion.trim() || !rationale.trim()
+            }
             onClick={() => void decide()}
           >
             Record decision · selection r{saved.revision}
           </button>
           {dirty && (
             <p>
-              Share or reset your selection changes before recording a decision.
+              Share or reset your selection changes before recording a
+              decision.
             </p>
           )}
         </details>
@@ -326,7 +333,8 @@ function NativeChart({
         ? filtered.filter((r) => selection.rowIds.includes(r.id))
         : filtered
     ).filter((r) => typeof r.values[view.y!] === 'number');
-  if (!rows.length) return <p>No numeric observations match this selection.</p>;
+  if (!rows.length)
+    return <p>No numeric observations match this selection.</p>;
   if (view.type === 'metric')
     return (
       <div className="inv-metrics">
@@ -453,14 +461,18 @@ export function InvestigationPanel({
   artifactVersion,
   currentUserId,
   canWrite,
+  placement,
   onOpenArtifact,
 }: {
   artifactId: string;
   artifactVersion: number;
   currentUserId: string;
   canWrite: boolean;
+  placement?: InvestigationPlacement;
   onOpenArtifact?: (id: string) => void;
 }) {
+  const [target, setTarget] = useState(placement);
+  useEffect(() => setTarget(placement), [placement]);
   const [records, setRecords] = useState<Investigation[]>([]),
     [checkouts, setCheckouts] = useState<
       { sourceCommit: string; label: string; machineId: string }[]
@@ -502,13 +514,22 @@ export function InvestigationPanel({
     setError('');
     try {
       await api(`/artifacts/${artifactId}/investigations`, 'POST', {
-        version: artifactVersion,
+        version: target?.version ?? artifactVersion,
+        ...(target
+          ? {
+              placement: {
+                blockIndex: target.blockIndex,
+                digest: target.digest,
+              },
+            }
+          : {}),
         brief,
         sourceCommit: sourceCommit || checkouts[0]?.sourceCommit,
         ...(requiredReason ? { requiredReason } : {}),
       });
       setBrief('');
       setRequiredReason('');
+      setTarget(undefined);
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -531,8 +552,16 @@ export function InvestigationPanel({
         </p>
       )}
       {canWrite && (
-        <details>
+        <details open={target ? true : undefined}>
           <summary>Propose investigation</summary>
+          {target && (
+            <p role="status">
+              Insert after selected passage · source v{target.version}
+              <button type="button" onClick={() => setTarget(undefined)}>
+                Append at document end instead
+              </button>
+            </p>
+          )}
           <label>
             Brief
             <textarea

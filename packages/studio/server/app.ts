@@ -1,3 +1,8 @@
+import {
+  recentAgentDocumentChanges,
+  recordAgentDocumentChanges,
+} from './document-agent-changes.ts';
+import { passagePlacementSchema } from '../shared/investigations.ts';
 import { rebuildExportRows } from './integrations/rebuild-export.ts';
 import { registerRebuildRoutes } from './integrations/rebuild-machines.ts';
 import { resolveExistingPullRequest } from './integrations/pull-request-head.ts';
@@ -142,7 +147,8 @@ export async function createApp(
       !options.runtime && !options.hosting
         ? new LocalJobDispatcher()
         : undefined;
-    if (localDispatcher) startupCleanup.unshift(() => localDispatcher.close());
+    if (localDispatcher)
+      startupCleanup.unshift(() => localDispatcher.close());
     const sourceProbe = options.audioSourceProbe ?? probeAudio;
     const objects =
       options.hosting?.objects ??
@@ -232,7 +238,8 @@ export async function createApp(
         }
       },
       allowed: (user, id) => agent.canParticipate(user, id),
-      notify: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
+      notify: (projectId, id) =>
+        collab.publishDocumentMetadata(projectId, id),
       onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
     });
     await titles.initialize();
@@ -341,7 +348,9 @@ export async function createApp(
             id: harness.id,
             label:
               harness.label +
-              (harness.id === selected.harness ? ' (currently selected)' : ''),
+              (harness.id === selected.harness
+                ? ' (currently selected)'
+                : ''),
           }));
       },
     });
@@ -380,7 +389,11 @@ export async function createApp(
         if (atomic) {
           await store.lock('repository-identity:' + userId);
           if (
-            !(await identity.checkLease(userId, project.repository, permission))
+            !(await identity.checkLease(
+              userId,
+              project.repository,
+              permission,
+            ))
           )
             throw new HttpError(
               403,
@@ -457,7 +470,8 @@ export async function createApp(
           agent.profiles.assertAvailable(profile);
           return profile;
         },
-        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+        modelForProfile: (profile, key) =>
+          agent.modelForProfile(profile, key),
       },
     });
     const video = await registerVideoRoutes(app, {
@@ -644,7 +658,8 @@ export async function createApp(
         await documentImplementationReady(store, artifact);
         await investigations!.assertReady(artifact.id);
       },
-      publish: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
+      publish: (projectId, id) =>
+        collab.publishDocumentMetadata(projectId, id),
     });
     await drafting.initialize();
     registerImplementationDraftRoutes(app, auth, drafting);
@@ -745,7 +760,10 @@ export async function createApp(
         if (value.userId === user.id && value.artifactId === artifact.id)
           previews.delete(key);
       if (previews.size >= 40)
-        throw new HttpError(429, 'Too many live previews. Try again shortly.');
+        throw new HttpError(
+          429,
+          'Too many live previews. Try again shortly.',
+        );
       const token = randomBytes(24).toString('base64url');
       previews.set(token, {
         userId: user.id,
@@ -753,7 +771,9 @@ export async function createApp(
         html,
         expires: Date.now() + 120000,
       });
-      return reply.code(201).send({ url: '/api/previews/' + token, ...build });
+      return reply
+        .code(201)
+        .send({ url: '/api/previews/' + token, ...build });
     });
     app.get<{
       Params: {
@@ -837,7 +857,10 @@ export async function createApp(
           currentProject.repository !== b.repository &&
           store.artifactWriteGuard
         )
-          for (const artifact of await store.artifacts(req.params.id, user.id))
+          for (const artifact of await store.artifacts(
+            req.params.id,
+            user.id,
+          ))
             await store.artifactWriteGuard(artifact, user.id);
         if (b.repository && settings.repositoryIdentity) {
           await store.lock('repository-identity:' + user.id);
@@ -1068,7 +1091,10 @@ export async function createApp(
         id: string;
       };
     }>('/api/artifacts/:id', async (req) => {
-      const a = await store.artifact(req.params.id, (await auth.user(req)).id);
+      const a = await store.artifact(
+        req.params.id,
+        (await auth.user(req)).id,
+      );
       return {
         artifact: a,
         threads: await store.threads(a.id),
@@ -1080,7 +1106,10 @@ export async function createApp(
           a.id,
         ),
         agentActive: await agent.isActive(a.id),
-        agentAvailable: await agent.canParticipate(await auth.user(req), a.id),
+        agentAvailable: await agent.canParticipate(
+          await auth.user(req),
+          a.id,
+        ),
         agentProfile: await agent.profiles.view(await auth.user(req), a.id),
         runnerActive: await runner.isActive(a.id),
       };
@@ -1195,6 +1224,15 @@ export async function createApp(
       await collab.notify(a.projectId, a.id);
       return { ok: true };
     });
+    app.get<{ Params: { id: string } }>(
+      '/api/artifacts/:id/document/agent-changes',
+      async (req) =>
+        recentAgentDocumentChanges(
+          store,
+          await auth.user(req),
+          req.params.id,
+        ),
+    );
     app.get<{
       Params: {
         id: string;
@@ -1361,11 +1399,18 @@ export async function createApp(
               threadId: id,
               intent: z.enum(['chat', 'edit', 'research']),
               brief: z.string().max(2000).optional(),
+              artifactVersion: z.number().int().positive().optional(),
+              placement: passagePlacementSchema.optional(),
+              idempotencyKey: z.string().uuid().optional(),
             })
             .strict(),
           req.body,
         );
-      return agent.respond(u, req.params.id, b.threadId, b.intent, b.brief);
+      return agent.respond(u, req.params.id, b.threadId, b.intent, b.brief, {
+        artifactVersion: b.artifactVersion,
+        placement: b.placement,
+        idempotencyKey: b.idempotencyKey,
+      });
     });
     app.post<{
       Params: {
@@ -1429,6 +1474,13 @@ export async function createApp(
           m.proposal.content,
           m.proposal.version,
           async () => {
+            await recordAgentDocumentChanges(
+              store,
+              u,
+              a.id,
+              a.content.doc,
+              'Accepted agent proposal',
+            );
             await store.exec(
               'UPDATE messages SET proposal=NULL WHERE id=? AND artifact_id=?',
               m.id,
@@ -1782,7 +1834,11 @@ export async function createApp(
           yield ']';
         }
         yield '},"conversation":{';
-        for (let index = 0; index < conversationExportTables.length; index++) {
+        for (
+          let index = 0;
+          index < conversationExportTables.length;
+          index++
+        ) {
           const table = conversationExportTables[index]!,
             cutoff = (
               await store.one(
@@ -1863,7 +1919,11 @@ export async function createApp(
         }
         yield '],"decisionModels":[';
         let firstDecision = true;
-        for await (const row of decisionExportRows(store, a.id, checkAccess)) {
+        for await (const row of decisionExportRows(
+          store,
+          a.id,
+          checkAccess,
+        )) {
           yield (firstDecision ? '' : ',') + JSON.stringify(row);
           firstDecision = false;
         }
