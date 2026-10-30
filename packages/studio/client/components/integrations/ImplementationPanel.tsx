@@ -33,6 +33,7 @@ import {
   Textarea,
 } from '../ui.tsx';
 import './implementation.css';
+import { AgentProfile } from './AgentProfile.tsx';
 
 const label = (value: string) =>
   value.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
@@ -987,6 +988,14 @@ export function ImplementationPanel({
                   )}
                 </div>
               )}
+              <details className="implementation-runtime">
+                <summary>Planner runtime</summary>
+                <AgentProfile
+                  artifactId={artifact.id}
+                  readOnly={readOnly}
+                  onChanged={load}
+                />
+              </details>
               {!graph && !editing && (
                 <div className="implementation-empty">
                   <ListChecks size={30} />
