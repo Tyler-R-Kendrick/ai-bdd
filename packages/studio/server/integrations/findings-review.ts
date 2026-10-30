@@ -844,7 +844,7 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
   async tick(limit = 5) {
     const { store } = this.options;
     const completed = await store.all(
-      "SELECT i.id,i.artifact_id,i.project_id,i.result_hash FROM studio_investigations i LEFT JOIN studio_findings_seen s ON s.investigation_id=i.id WHERE i.status='completed' AND (i.mode='spike' OR i.required_reason IS NOT NULL) AND (s.result_hash IS NULL OR s.result_hash<>i.result_hash) ORDER BY i.updated_at,i.id LIMIT ?",
+      "SELECT i.id,i.artifact_id,i.project_id,i.result_hash FROM studio_investigations i JOIN artifacts a ON a.id=i.artifact_id LEFT JOIN studio_findings_seen s ON s.investigation_id=i.id WHERE a.archived=0 AND i.status='completed' AND (i.mode='spike' OR i.required_reason IS NOT NULL) AND (s.result_hash IS NULL OR s.result_hash<>i.result_hash) ORDER BY i.updated_at,i.id LIMIT ?",
       Math.min(20, limit),
     );
     for (const row of completed)
@@ -863,7 +863,7 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
         );
       });
     const candidates = await store.all(
-      'SELECT * FROM studio_findings_candidates WHERE due_at<=? ORDER BY due_at,investigation_id LIMIT ?',
+      'SELECT c.* FROM studio_findings_candidates c JOIN artifacts a ON a.id=c.artifact_id WHERE a.archived=0 AND c.due_at<=? ORDER BY c.due_at,c.investigation_id LIMIT ?',
       Date.now(),
       Math.min(20, limit),
     );

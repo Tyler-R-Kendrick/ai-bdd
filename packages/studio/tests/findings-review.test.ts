@@ -716,6 +716,26 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(exported).toHaveLength(1);
         expect(exported[0]?.kind).toBe('findings-acknowledgement');
       });
+      it('retains an archived findings wait without scheduling work and resumes it only after restoration and an existing owner', async () => {
+        const w = await fixture();
+        await w.service.tick();
+        await w.store.exec('UPDATE studio_findings_candidates SET due_at=0');
+        await w.store.exec('UPDATE artifacts SET archived=1 WHERE id=?', w.id);
+        await w.service.tick();
+        expect((await w.service.view(w.user, w.record.id)).pending?.dueAt).toBe(
+          0,
+        );
+        expect(
+          (await w.service.view(w.user, w.record.id)).reviews,
+        ).toHaveLength(0);
+        expect(w.native).toHaveLength(0);
+        await w.store.exec('UPDATE artifacts SET archived=0 WHERE id=?', w.id);
+        await w.agent.claimPlanner(w.user, w.id);
+        await w.service.tick();
+        expect(
+          (await w.service.view(w.user, w.record.id)).reviews,
+        ).toHaveLength(1);
+      });
       if (adapter === 'postgres')
         it('coalesces independent PostgreSQL instances and publishes one proposal under one shared project/source lock', async () => {
           const w = await fixture();
