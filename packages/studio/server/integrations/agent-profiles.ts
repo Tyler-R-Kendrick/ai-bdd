@@ -8,6 +8,7 @@ import {
 import type { Auth, Settings } from '../auth.ts';
 import { HttpError, type Store } from '../store.ts';
 import type { IntegrationSettings } from './settings.ts';
+import { LOCAL_MODEL_ID, LOCAL_PROVIDER_ID, localModelPresent } from '../local/catalog.ts';
 const fallback: AgentProfile = {
   harness: 't3-code',
   provider: 'project-default',
@@ -65,6 +66,13 @@ export class AgentProfiles {
               ]),
           ...(t3?.providers ?? []),
         ],
+      },
+      {
+        id: 'local-cpu',
+        label: 'Local CPU (offline)',
+        configured: localModelPresent(this.integrations.localModel),
+        reason: localModelPresent(this.integrations.localModel) ? null : 'The operator must prepare the pinned local model and configure STUDIO_LOCAL_MODEL_DIR. Inference never downloads files or falls back to a hosted provider.',
+        providers: [{ id: LOCAL_PROVIDER_ID, label: 'llama.cpp CPU · SmolLM2 (Apache-2.0)', models: [LOCAL_MODEL_ID] }],
       },
       {
         id: 'vercel-fx',

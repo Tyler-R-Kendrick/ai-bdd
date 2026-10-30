@@ -3,6 +3,7 @@ import { passagePlacementSchema } from '../shared/investigations.ts';
 import { createGateway, generateText, Output, stepCountIs, tool } from 'ai';
 import type { IdentityExecutionContext } from './hosting/identity-context.ts';
 import { identityLanguageModel } from './hosting/identity-language-model.ts';
+import { createLocalLanguageModel } from './local/model.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
@@ -800,6 +801,8 @@ export class Agent {
   }
   private model(profile: AgentProfile, key: string) {
     this.profiles.assertAvailable(profile);
+    if (profile.harness === 'local-cpu')
+      return createLocalLanguageModel(this.integrations.localModel!);
     if (profile.harness === 't3-code')
       return t3LanguageModel(this.integrations.t3!, profile, key);
     if (profile.harness === 'remote-planner')

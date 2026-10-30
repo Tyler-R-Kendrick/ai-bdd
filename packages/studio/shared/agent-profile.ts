@@ -10,7 +10,7 @@ const identifier = z
   }));
 export const agentProfileSchema = z
   .object({
-    harness: z.enum(['t3-code', 'vercel-fx', 'remote-planner']),
+    harness: z.enum(['t3-code', 'local-cpu', 'vercel-fx', 'remote-planner']),
     provider: identifier.max(100),
     model: identifier,
   })

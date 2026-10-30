@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
+import type { LocalModelSettings } from '../local/catalog.ts';
 
 export type IntegrationSettings = {
+  localModel?: LocalModelSettings;
   gatewayBaseUrl?: string;
   searchUrl?: string;
   searchToken?: string;
@@ -113,7 +115,10 @@ export function integrationSettingsFromEnv(
         : {}),
     };
   }
+  const localDirectory = env.STUDIO_LOCAL_MODEL_DIR;
+  if (localDirectory && !isAbsolute(localDirectory)) throw new Error('STUDIO_LOCAL_MODEL_DIR must be an absolute operator-selected directory');
   return {
+    ...(localDirectory ? { localModel: { directory: localDirectory } } : {}),
     t3,
     fxModels: z
       .array(z.string().min(1).max(200))
