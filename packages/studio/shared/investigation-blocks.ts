@@ -11,10 +11,12 @@ export function investigationBlockText(
   kind: InvestigationBlockKind,
   value: unknown,
 ) {
-  const data = investigationBlockSchemas[kind].parse(value);
-  return kind === 'investigationCard'
-    ? `Investigation request: ${data.investigationId}`
-    : `Investigation view: ${data.investigationId}\nView: ${(data as { viewId: string }).viewId}`;
+  if (kind === 'investigationView') {
+    const data = investigationBlockSchemas.investigationView.parse(value);
+    return `Investigation view: ${data.investigationId}\nView: ${data.viewId}`;
+  }
+  const data = investigationBlockSchemas.investigationCard.parse(value);
+  return `Investigation request: ${data.investigationId}`;
 }
 export type InvestigationReference = {
   kind: InvestigationBlockKind;
