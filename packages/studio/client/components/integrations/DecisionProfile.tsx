@@ -59,7 +59,11 @@ export function DecisionProfile({
       !!candidate &&
       !!view &&
       JSON.stringify(candidate) !== JSON.stringify(view.profile),
-    provider = view?.providers.find((p) => p.id === draft?.provider);
+    provider = view?.providers.find((p) => p.id === draft?.provider),
+    available =
+      !!provider?.configured &&
+      (!provider.availableModels ||
+        provider.availableModels.includes(draft?.model ?? ''));
   const save = async () => {
     if (!candidate || !validConfidence || readOnly || busy) return;
     setBusy(true);
@@ -88,8 +92,8 @@ export function DecisionProfile({
       <div className="integration-row">
         <h4 id={label}>Decision models</h4>
         {draft && (
-          <Badge tone={provider?.configured ? 'green' : 'neutral'}>
-            {provider?.configured ? 'Available' : 'Offline'}
+          <Badge tone={available ? 'green' : 'neutral'}>
+            {available ? 'Available' : 'Offline'}
           </Badge>
         )}
       </div>
@@ -190,20 +194,38 @@ export function DecisionProfile({
           {provider && (
             <p>
               <Badge tone="purple">
-                {provider.mode === 'native-decision'
-                  ? 'Native decision API'
-                  : 'Structured generation'}
+                {provider.id === 'llama-cpp-cpu'
+                  ? 'Local CPU probabilities'
+                  : provider.mode === 'native-decision'
+                    ? 'Native decision API'
+                    : 'Structured generation'}
               </Badge>
             </p>
           )}
           {provider?.maxInputBytes !== undefined && (
             <p className="integration-note">
-              Provider context: {provider.maxInputBytes.toLocaleString()} UTF-8
-              bytes for source and questions
+              Provider context: {provider.maxInputBytes.toLocaleString()}{' '}
+              UTF-8 bytes for source and questions
               {provider.maxQuestions !== undefined
                 ? `; up to ${provider.maxQuestions} questions`
                 : ''}
               .
+            </p>
+          )}
+          {provider?.calibrated === false && (
+            <p className="integration-note">
+              Local scores compare the supplied options. They are not
+              calibrated probabilities of correctness. Uncertain answers
+              abstain; human approvals remain explicit. The full request must
+              fit the {provider.contextTokens?.toLocaleString()} token
+              context.
+            </p>
+          )}
+          {provider?.availableModels && !available && !provider.reason && (
+            <p className="decision-profile-offline">
+              The selected pinned weights are unavailable. Choose an installed
+              model or ask the operator to prepare these exact weights. No
+              fallback runs.
             </p>
           )}
           {provider?.reason && (
@@ -223,9 +245,9 @@ export function DecisionProfile({
             </p>
           )}
           <p className="integration-note">
-            Provider-reported probabilities and confidence retain their meaning.
-            Uncertain or refused decisions remain explicit. Another provider is
-            used only after you select and save it.
+            Provider-reported probabilities and confidence retain their
+            meaning. Uncertain or refused decisions remain explicit. Another
+            provider is used only after you select and save it.
           </p>
           {!readOnly && (
             <div className="decision-profile-actions">

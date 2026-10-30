@@ -599,7 +599,7 @@ describe('independent typed decision models over actual native HTTP contracts', 
       NODE_ENV: 'production',
       STUDIO_MODEL: 'chat/model',
     });
-    expect(settings.defaultProfile.provider).toBe('openai-decisions');
+    expect(settings.defaultProfile.provider).toBe('llama-cpp-cpu');
     expect(settings.structured).toBeUndefined();
     expect(() =>
       decisionSettingsFromEnv({

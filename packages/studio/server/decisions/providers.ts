@@ -20,7 +20,7 @@ const usageSchema = z
   .passthrough();
 export class DecisionProviderError extends Error {
   constructor(
-    readonly code: 'provider-error' | 'invalid-response',
+    readonly code: 'provider-error' | 'invalid-response' | 'context-overflow',
     readonly retryable: boolean,
   ) {
     super(code);
@@ -209,7 +209,8 @@ export function openaiDecisionProvider(
             );
             if (
               answer.probabilities.some(
-                (entry) => entry.label !== question.levels[entry.value]?.label,
+                (entry) =>
+                  entry.label !== question.levels[entry.value]?.label,
               ) ||
               answer.score < 0 ||
               answer.score > question.levels.length - 1 ||
@@ -251,7 +252,8 @@ export function jevDecisionProvider(
 ): DecisionProvider {
   return {
     id: 'jev',
-    version: '@typesafe-ai/sdk:0.7.0:b844cd1aca12855a5d24a2df52a1401c86e7d37a',
+    version:
+      '@typesafe-ai/sdk:0.7.0:b844cd1aca12855a5d24a2df52a1401c86e7d37a',
     mode: 'native-decision',
     async evaluate(input) {
       const questions = Object.fromEntries(
@@ -269,7 +271,9 @@ export function jevDecisionProvider(
                       typeof choice.value +
                         ': ' +
                         JSON.stringify(choice.value) +
-                        (choice.description ? ' — ' + choice.description : ''),
+                        (choice.description
+                          ? ' — ' + choice.description
+                          : ''),
                     ]),
                   ),
                 }
