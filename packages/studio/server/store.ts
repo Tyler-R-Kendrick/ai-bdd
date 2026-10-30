@@ -79,6 +79,8 @@ export class Store {
     projectId: string,
     exemptFileId: string,
   ) => Promise<number>;
+  /** SQL-only guard for immutable object keys scheduled for permanent removal. */
+  fileStorageGuard?: (storageKey:string,artifact:Artifact)=>Promise<void>;
   artifactWriteGuard?: (artifact: Artifact, userId: string) => Promise<void>;
   repositoryAuthorizer?: (
     projectId: string,
@@ -1127,6 +1129,7 @@ export class Store {
           );
         return this.file(id, user.id);
       }
+      if(input.storageKey)await this.fileStorageGuard?.(input.storageKey,artifact);
       const used = (
         await this.one(
           'SELECT coalesce(sum(byte_size),0) AS n FROM files WHERE project_id=?',
