@@ -7,6 +7,10 @@ import { createLocalMaintenance } from './runtime/local-maintenance.ts';
 const provider =
   process.env.STUDIO_HOSTING_PROVIDER ??
   (process.env.VERCEL === '1' ? 'vercel' : 'node');
+if (provider !== 'node' && provider !== 'vercel')
+  throw new Error(
+    'Unknown Studio hosting provider. Install its adapter before selecting it.',
+  );
 if (provider === 'vercel') {
   // Keep this a source import so esbuild includes the existing cloud entrypoint
   // in main.js; no second relative bundle has to be present at runtime.

@@ -269,6 +269,15 @@ describe('Provider-aware default image entrypoint', () => {
     },
   );
   it.each([
+    ...[undefined, '1'].map((marker) => ({
+      label: `unknown hosting provider with VERCEL=${marker ?? 'unset'}`,
+      env: {
+        STUDIO_HOSTING_PROVIDER: 'vercle',
+        VERCEL: marker,
+        STUDIO_ORIGIN: 'https://node.example.test',
+      },
+      error: 'Unknown Studio hosting provider',
+    })),
     {
       label: 'local HTTPS',
       env: {},
@@ -307,6 +316,11 @@ describe('Provider-aware default image entrypoint', () => {
       const [code, signal] = await service.exited;
       expect({ code, signal }).toEqual({ code: 1, signal: null });
       expect(service.output()).toContain(error);
+      await expect(
+        fetch(service.url + '/api/health', {
+          signal: AbortSignal.timeout(500),
+        }),
+      ).rejects.toThrow();
     },
   );
 });
