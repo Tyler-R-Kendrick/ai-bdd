@@ -2,6 +2,19 @@ import { Buffer } from 'node:buffer';
 import type { Settings } from '../auth.ts';
 import { HttpError } from '../store.ts';
 import { boundedJson } from './http.ts';
+import type { User } from '../../shared/domain.ts';
+
+export type RepositoryReadRequest =
+  | { kind: 'commits'; limit: number }
+  | { kind: 'tree'; ref: string }
+  | { kind: 'file'; path: string; ref: string }
+  | { kind: 'pull_request'; number: number };
+export type RepositoryReadPort = (
+  user: User,
+  repository: string,
+  input: RepositoryReadRequest,
+  signal: AbortSignal,
+) => Promise<unknown>;
 
 export class RepositoryReader {
   readonly repository: string;
@@ -12,6 +25,10 @@ export class RepositoryReader {
     readonly authorize: () => unknown | Promise<unknown>,
     readonly signal: AbortSignal,
     readonly request: typeof fetch = fetch,
+    readonly identityRead?: (
+      input: RepositoryReadRequest,
+      signal: AbortSignal,
+    ) => Promise<unknown>,
   ) {
     const match = repositoryUrl.match(
       /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/?$/,
@@ -23,8 +40,24 @@ export class RepositoryReader {
       );
     this.repository = `${match[1]}/${match[2]}`;
   }
-  private async get(path: string) {
+  private async get(path: string, input: RepositoryReadRequest) {
     await this.authorize();
+    this.signal.throwIfAborted();
+    if (
+      (this.settings as Settings & { repositoryIdentity?: unknown })
+        .repositoryIdentity &&
+      !this.identityRead
+    )
+      throw new HttpError(
+        503,
+        'The verified repository identity transport is not configured',
+      );
+    if (this.identityRead) {
+      const data = await this.identityRead(input, this.signal);
+      this.signal.throwIfAborted();
+      await this.authorize();
+      return data as any;
+    }
     const authenticated =
       this.settings.githubToken &&
       this.settings.githubRepositories?.includes(
@@ -50,7 +83,10 @@ export class RepositoryReader {
   }
   async revision() {
     if (!this.ref) {
-      const data = await this.get('/commits?per_page=1');
+      const data = await this.get('/commits?per_page=1', {
+        kind: 'commits',
+        limit: 1,
+      });
       if (!Array.isArray(data) || !/^[0-9a-f]{40,64}$/.test(data[0]?.sha))
         throw new HttpError(
           502,
@@ -67,7 +103,10 @@ export class RepositoryReader {
   }
   async tree() {
     const sha = await this.revision();
-    const data = await this.get(`/git/trees/${sha}?recursive=1`);
+    const data = await this.get(`/git/trees/${sha}?recursive=1`, {
+      kind: 'tree',
+      ref: sha,
+    });
     return {
       repository: this.repository,
       revision: sha,
@@ -91,6 +130,7 @@ export class RepositoryReader {
     const sha = await this.revision();
     const data = await this.get(
       `/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${sha}`,
+      { kind: 'file', path, ref: sha },
     );
     if (
       data.type !== 'file' ||
@@ -119,7 +159,10 @@ export class RepositoryReader {
   async pullRequest(number: number) {
     if (!Number.isSafeInteger(number) || number < 1 || number > 100000000)
       throw new HttpError(400, 'Invalid pull request number');
-    const data = await this.get(`/pulls/${number}`);
+    const data = await this.get(`/pulls/${number}`, {
+      kind: 'pull_request',
+      number,
+    });
     return {
       repository: this.repository,
       number,

@@ -3,6 +3,10 @@ import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { WebSocket } from 'ws';
 import { once } from 'node:events';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { runRemotePlanner } from '../server/planner-worker.ts';
 import { Store } from '../server/store.ts';
 import { Collaboration } from '../server/collaboration.ts';
 import { DurableJobCoordinator } from '../server/runtime/jobs.ts';
@@ -99,6 +103,7 @@ async function fixture() {
     threadId,
     connect,
     remote,
+    origin: app.listeningOrigin,
     revoke: () => {
       revoked = true;
     },
@@ -211,5 +216,64 @@ describe('actual remote Planner WebSocket transport', () => {
         (m) => m.role === 'assistant',
       ),
     ).toHaveLength(0);
+  });
+  it('runs the reconnecting client against an actual ACP child without forwarding Studio credentials', async () => {
+    const w = await fixture(),
+      dir = await mkdtemp(join(tmpdir(), 'studio-planner-acp-'));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const script = join(dir, 'explicit-planner-protocol.mjs');
+    await writeFile(
+      script,
+      `
+      import readline from 'node:readline';
+      if(Object.keys(process.env).some(key=>key.startsWith('STUDIO_')))process.exit(12);
+      const send=value=>process.stdout.write(JSON.stringify({jsonrpc:'2.0',...value})+'\\n');
+      for await(const line of readline.createInterface({input:process.stdin})) {
+        const m=JSON.parse(line);
+        if(m.method==='initialize')send({id:m.id,result:{protocolVersion:1}});
+        if(m.method==='session/new')send({id:m.id,result:{sessionId:'planner-fixture'}});
+        if(m.method==='session/prompt') {
+          send({method:'session/update',params:{sessionId:'planner-fixture',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:JSON.stringify({summary:'Real ACP remote Planner result.'})}}}});
+          send({id:m.id,result:{stopReason:'end_turn'}});
+        }
+      }
+    `,
+    );
+    const controller = new AbortController();
+    let attached!: () => void;
+    const ready = new Promise<void>((resolve) => (attached = resolve));
+    const runningClient = runRemotePlanner({
+      origin: w.origin,
+      token: 'explicit-fixture-token',
+      artifactId: w.artifact.id,
+      signal: controller.signal,
+      command: process.execPath,
+      args: [script],
+      cwd: dir,
+      onAttached: attached,
+    });
+    cleanups.push(async () => {
+      controller.abort();
+      await runningClient;
+    });
+    await ready;
+    const job = await w.agent.respond(
+      w.user,
+      w.artifact.id,
+      w.threadId,
+      'chat',
+    );
+    await w.runtime.executeJob(job.id, {
+      messageId: 'acp-client',
+      deliveryCount: 1,
+    });
+    expect((await w.runtime.get(job.id))?.status).toBe('completed');
+    expect(
+      (await w.store.messages(w.artifact.id)).find(
+        (m) => m.role === 'assistant',
+      )?.body,
+    ).toBe('Real ACP remote Planner result.');
+    controller.abort();
+    await runningClient;
   });
 });

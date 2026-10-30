@@ -29,7 +29,7 @@ async function http(
     let body = '';
     for await (const chunk of req) body += chunk;
     const value = body ? JSON.parse(body) : null;
-    requests.push({ path: req.url, body: value });
+    requests.push({ path: req.url, body: value, headers: req.headers });
     res.setHeader('Content-Type', 'application/json');
     handler(req.url!, value, res);
   });
@@ -495,7 +495,7 @@ describe('durable artifact agent using actual HTTP model/source transports', () 
       version: original.version,
       visual: { kind: 'diagramBlock' },
     });
-    expect(assistant.proposal.content.doc.content[1].type).toBe(
+    expect(assistant.proposal!.content.doc.content[1].type).toBe(
       'diagramBlock',
     );
     expect(
@@ -558,5 +558,104 @@ describe('durable artifact agent using actual HTTP model/source transports', () 
     expect((await w.agent.ownership(w.user, w.artifact.id))?.userId).toBe(
       w.user.id,
     );
+  });
+  it('uses the selected owner identity transport for actual model repository tools and never falls back to the operator token', async () => {
+    let modelCalls = 0;
+    const gateway = await http((_p, _b, r) => {
+      const response = generated('Verified user repository context.');
+      if (modelCalls++ === 0) {
+        response.content = [
+          {
+            type: 'tool-call',
+            toolCallId: 'file-call',
+            toolName: 'repository_file',
+            input: JSON.stringify({ path: 'README.md' }),
+          },
+        ] as any;
+        response.finishReason = { unified: 'tool-calls', raw: 'tool_calls' };
+      }
+      r.end(JSON.stringify(response));
+    });
+    const github = await http((_p, body, r) =>
+      r.end(
+        JSON.stringify(
+          body.kind === 'commits'
+            ? [{ sha: 'a'.repeat(40) }]
+            : {
+                type: 'file',
+                size: 24,
+                encoding: 'base64',
+                content: Buffer.from(
+                  'Selected user repository text.',
+                ).toString('base64'),
+              },
+        ),
+      ),
+    );
+    const w = await fixture({ gatewayBaseUrl: gateway.url });
+    w.settings.repositoryIdentity = { explicitProtocolFixture: true };
+    w.settings.githubToken = 'operator-token-must-not-be-used';
+    w.settings.githubRepositories = ['acme/private'];
+    await w.store.exec(
+      'UPDATE projects SET repository=? WHERE id=?',
+      'https://github.com/acme/private',
+      w.project.id,
+    );
+    const selectedUsers: string[] = [];
+    w.agent.options.repositoryRead = async (
+      user,
+      repository,
+      input,
+      signal,
+    ) => {
+      selectedUsers.push(user.id);
+      expect(repository).toBe('https://github.com/acme/private');
+      const response = await fetch(github.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer explicit-selected-user-token',
+        },
+        body: JSON.stringify(input),
+        signal,
+      });
+      return response.json();
+    };
+    const job = await w.agent.respond(
+      w.user,
+      w.artifact.id,
+      w.threadId,
+      'chat',
+    );
+    await w.run(job.id);
+    expect((await w.runtime.get(job.id))?.status).toBe('completed');
+    expect(modelCalls).toBe(2);
+    expect(selectedUsers).toEqual([w.user.id, w.user.id]);
+    expect(github.requests.map((x) => x.headers.authorization)).toEqual([
+      'Bearer explicit-selected-user-token',
+      'Bearer explicit-selected-user-token',
+    ]);
+    expect(github.requests[1]?.body).toEqual({
+      kind: 'file',
+      path: 'README.md',
+      ref: 'a'.repeat(40),
+    });
+    expect(JSON.stringify(gateway.requests[1].body)).toContain(
+      'Selected user repository text',
+    );
+    expect(JSON.stringify(gateway.requests)).not.toContain(
+      'operator-token-must-not-be-used',
+    );
+    w.agent.options.repositoryRead = undefined;
+    const rejected = await w.agent.respond(
+      w.user,
+      w.artifact.id,
+      w.threadId,
+      'chat',
+    );
+    await w.run(rejected.id);
+    expect((await w.runtime.get(rejected.id))?.status).toBe('queued');
+    expect(github.requests).toHaveLength(2);
+    expect(modelCalls).toBe(2);
   });
 });

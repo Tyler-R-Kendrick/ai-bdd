@@ -17,7 +17,10 @@ import type { Settings } from './auth.ts';
 import type { Collaboration } from './collaboration.ts';
 import type { IntegrationSettings } from './integrations/settings.ts';
 import { researchSources } from './integrations/research.ts';
-import { RepositoryReader } from './integrations/repository.ts';
+import {
+  RepositoryReader,
+  type RepositoryReadPort,
+} from './integrations/repository.ts';
 import type {
   DurableJob,
   DurableJobContext,
@@ -65,6 +68,7 @@ export type AgentOptions = {
     threadId: string,
   ) => Promise<void>;
   remote?: RemotePlanner;
+  repositoryRead?: RepositoryReadPort;
 };
 
 /** SQL owns turn scheduling and ownership. Instances only execute fenced, frozen jobs. */
@@ -437,10 +441,10 @@ export class Agent {
         503,
         'The workspace owner has not configured an AI model',
       );
-    if (intent === 'research' && (!brief.trim() || brief.length > 2000))
+    if (intent === 'research' && (!brief.trim() || brief.length > 4000))
       throw new HttpError(
         400,
-        'A research request needs an exact brief of at most 2000 characters',
+        'A research request needs an exact brief of at most 4000 characters',
       );
     const submittedBrief = brief.trim(),
       key =
@@ -781,6 +785,16 @@ export class Agent {
           this.settings,
           () => this.guard(ctx, snapshot),
           signal,
+          fetch,
+          this.options.repositoryRead
+            ? (input, signal) =>
+                this.options.repositoryRead!(
+                  user,
+                  snapshot.repository,
+                  input,
+                  signal,
+                )
+            : undefined,
         )
       : undefined;
     const revision = reader
@@ -982,6 +996,7 @@ export class Agent {
             artifact.kind,
             output.content,
             artifact.projectId,
+            artifact.id,
           );
           await this.store.message(
             user,

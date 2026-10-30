@@ -7,7 +7,7 @@ import type { User } from '../../shared/domain.ts';
 import type { Settings } from '../auth.ts';
 import { HttpError, type Store } from '../store.ts';
 import type { DurableJobContext } from '../runtime/contracts.ts';
-import { RepositoryReader } from './repository.ts';
+import { RepositoryReader, type RepositoryReadPort } from './repository.ts';
 
 export type RemoteTurn = {
   artifactId: string;
@@ -58,6 +58,7 @@ const incoming = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ type: z.literal('ping') }).strict(),
+  z.object({ type: z.literal('failed'), requestId: z.string() }).strict(),
 ]);
 const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
@@ -72,6 +73,7 @@ export class RemotePlanner {
       claim: (user: User, id: string) => Promise<void>;
       allowed: (user: User, id: string) => Promise<boolean>;
       pollMs?: number;
+      repositoryRead?: RepositoryReadPort;
     },
   ) {}
   private readonly sockets = new Set<WebSocket>();
@@ -80,8 +82,21 @@ export class RemotePlanner {
       await this.options.store.db.lock('schema:studio.remote-planner');
       await this.options.store.db
         .exec(`CREATE TABLE IF NOT EXISTS studio_remote_planners(artifact_id TEXT PRIMARY KEY REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),connection_id TEXT NOT NULL,epoch BIGINT NOT NULL,expires BIGINT NOT NULL);
-   CREATE TABLE IF NOT EXISTS studio_remote_requests(id TEXT PRIMARY KEY,job_id TEXT NOT NULL REFERENCES studio_durable_jobs(id) ON DELETE CASCADE,fence BIGINT NOT NULL,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),input_json TEXT NOT NULL,input_sha256 TEXT NOT NULL,status TEXT NOT NULL,output_json TEXT,created_at TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS studio_remote_requests(id TEXT PRIMARY KEY,job_id TEXT NOT NULL REFERENCES studio_durable_jobs(id) ON DELETE CASCADE,fence BIGINT NOT NULL,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),input_json TEXT NOT NULL,input_sha256 TEXT NOT NULL,status TEXT NOT NULL,output_json TEXT,created_at TEXT NOT NULL,tool_calls INTEGER NOT NULL DEFAULT 0);
    CREATE INDEX IF NOT EXISTS studio_remote_pending ON studio_remote_requests(artifact_id,status,created_at);`);
+      if (this.options.store.db.dialect === 'postgres') {
+        await this.options.store.db.exec(
+          'ALTER TABLE studio_remote_requests ADD COLUMN IF NOT EXISTS tool_calls INTEGER NOT NULL DEFAULT 0',
+        );
+      } else {
+        const columns = await this.options.store.all(
+          'PRAGMA table_info(studio_remote_requests)',
+        );
+        if (!columns.some((column) => column.name === 'tool_calls'))
+          await this.options.store.db.exec(
+            'ALTER TABLE studio_remote_requests ADD COLUMN tool_calls INTEGER NOT NULL DEFAULT 0',
+          );
+      }
     });
   }
   register(app: FastifyInstance) {
@@ -148,6 +163,11 @@ export class RemotePlanner {
         return outputSchema.parse(JSON.parse(row.output_json));
       if (row.status === 'cancelled')
         throw new HttpError(409, 'Remote Planner request was cancelled');
+      if (row.status === 'failed')
+        throw new HttpError(
+          502,
+          'The attached remote Planner could not complete this turn',
+        );
       await delay(this.options.pollMs ?? 100, undefined, {
         signal: ctx.signal,
       });
@@ -286,6 +306,18 @@ export class RemotePlanner {
         return;
       }
       const row = await requestRow(message.requestId);
+      if (message.type === 'failed') {
+        await store.tx(async () => {
+          await store.db.lock('project:' + row.project_id);
+          await store.db.lock('job:' + row.job_id);
+          await requestRow(row.id);
+          await store.exec(
+            "UPDATE studio_remote_requests SET status='failed' WHERE id=? AND status='pending'",
+            row.id,
+          );
+        });
+        return;
+      }
       if (message.type === 'result') {
         if (row.status === 'completed') {
           if (row.output_json !== JSON.stringify(message.output))
@@ -313,6 +345,20 @@ export class RemotePlanner {
         return;
       }
       const turn = JSON.parse(row.input_json) as RemoteTurn;
+      await store.tx(async () => {
+        await store.db.lock('project:' + row.project_id);
+        await store.db.lock('job:' + row.job_id);
+        const current = await requestRow(row.id);
+        if (current.status !== 'pending' || Number(current.tool_calls) >= 12)
+          throw new HttpError(
+            429,
+            'Remote Planner repository tool budget exhausted',
+          );
+        await store.exec(
+          'UPDATE studio_remote_requests SET tool_calls=tool_calls+1 WHERE id=?',
+          row.id,
+        );
+      });
       if (!turn.repository || !turn.revision)
         throw new HttpError(
           409,
@@ -323,6 +369,16 @@ export class RemotePlanner {
         this.options.settings,
         () => requestRow(row.id),
         AbortSignal.timeout(30000),
+        fetch,
+        this.options.repositoryRead
+          ? (input, signal) =>
+              this.options.repositoryRead!(
+                peer!.user,
+                turn.repository,
+                input,
+                signal,
+              )
+          : undefined,
       );
       reader.pin(turn.revision);
       const value =
