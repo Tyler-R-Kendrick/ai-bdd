@@ -1,0 +1,45 @@
+.document-investigation {
+  padding: 16px;
+  margin: 18px 0;
+  border: 1px solid #e5e7e1;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.document-investigation-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.document-investigation p {
+  line-height: 1.6;
+  margin: 10px 0;
+  color: #626f56;
+}
+.document-investigation .document-investigation-brief {
+  white-space: pre-wrap;
+  color: #24292e;
+}
+.document-investigation code {
+  font-size: 11px;
+}
+.document-investigation a {
+  display: inline-block;
+  margin: 8px 0 0 12px;
+  color: #555ca8;
+}
+.document-investigation [role='alert'] {
+  color: #b83838;
+}
+.document-investigation table {
+  font-size: 12px;
+}
+@media print {
+  .document-investigation button,
+  .document-investigation input,
+  .document-investigation select {
+    display: none !important;
+  }
+}

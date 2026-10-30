@@ -1,3 +1,5 @@
+import { isInvestigationBlockKind } from '../../shared/investigation-blocks.ts';
+import { InvestigationBlockView } from './document/Investigations.tsx';
 import { createContext, useContext, useEffect, useState } from 'react';
 import {
   EditorContent,
@@ -43,6 +45,7 @@ import {
   TabsBlock,
   ResearchBlock,
   DocumentBlocks,
+  InvestigationBlocks,
 } from '../../shared/editor.ts';
 import {
   richVisualDefaults,
@@ -145,6 +148,13 @@ const LiveDocumentBlocks = DocumentBlocks.map((block) =>
     },
   }),
 );
+const LiveInvestigations = InvestigationBlocks.map((block) =>
+  block.extend({
+    addNodeView() {
+      return ReactNodeViewRenderer(InvestigationBlockView);
+    },
+  }),
+);
 const LiveResearch = ResearchBlock.extend({
   addNodeView() {
     return ReactNodeViewRenderer(ResearchView);
@@ -162,6 +172,7 @@ export function DocumentEditor(props: {
   runs: any[];
   onTests: () => void;
   onDecisions?: () => void;
+  onInvestigations?: (id: string) => void;
   onComment: (id: string, quote: string) => void;
   onError: (message: string) => void;
 }) {
@@ -270,6 +281,7 @@ function EditorSession({
   runs,
   onTests,
   onDecisions,
+  onInvestigations,
   onComment,
   onError,
   doc,
@@ -281,6 +293,7 @@ function EditorSession({
   runs: any[];
   onTests: () => void;
   onDecisions?: () => void;
+  onInvestigations?: (id: string) => void;
   onComment: (id: string, quote: string) => void;
   onError: (m: string) => void;
   doc: Y.Doc;
@@ -293,6 +306,7 @@ function EditorSession({
           .filter(
             (e) =>
               !isDocumentBlockKind(e.name) &&
+              !isInvestigationBlockKind(e.name) &&
               ![
                 'researchBlock',
                 'testBlock',
@@ -313,6 +327,7 @@ function EditorSession({
         DocumentSearch,
         LiveResearch,
         ...LiveDocumentBlocks,
+        ...LiveInvestigations,
         Collaboration.configure({ document: doc }),
         CollaborationCaret.configure({
           provider,
@@ -363,6 +378,7 @@ function EditorSession({
           onError={onError}
           onTests={onTests}
           onDecisions={onDecisions}
+          onInvestigations={onInvestigations}
           onComment={onComment}
         >
           <div
