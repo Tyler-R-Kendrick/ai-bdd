@@ -13,5 +13,13 @@
     "types": ["node", "vite/client"],
     "esModuleInterop": true
   },
-  "include": ["client", "server", "shared", "tests", "verification", "*.ts"]
+  "include": [
+    "client",
+    "server",
+    "shared",
+    "tests",
+    "verification",
+    "api",
+    "*.ts"
+  ]
 }

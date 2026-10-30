@@ -81,7 +81,7 @@ export class DurableScheduler {
         );
       await this.insert(generation, Math.floor(this.clock() / 60_000));
     });
-    await this.flush();
+    await this.flush(1);
   }
   async flush(limit = 5) {
     // Re-publish uncertain intents after a bounded lease using their same provider idempotency key.
@@ -169,7 +169,7 @@ export class DurableScheduler {
     });
     if (!claim) return;
     try {
-      await this.flush();
+      await this.flush(1);
       await maintenance();
       await this.store.exec(
         "UPDATE studio_schedule_ticks SET status='complete',lease_until=0 WHERE id=? AND lease_until=?",

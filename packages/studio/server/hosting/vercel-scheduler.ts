@@ -1,3 +1,4 @@
+import { dispatchDeadline } from './deadline.ts';
 import { QueueClient, type VercelRegion } from '@vercel/queue';
 import {
   MAINTENANCE_TOPIC,
@@ -19,11 +20,13 @@ export class VercelSchedulerDispatcher implements SchedulerDispatcher {
     options: { dispatchId: string; delaySeconds: number },
   ) {
     maintenanceEnvelope.parse(tick);
-    await this.#client.send(MAINTENANCE_TOPIC, tick, {
-      idempotencyKey: 'studio-tick:' + options.dispatchId,
-      retentionSeconds: 86400,
-      delaySeconds: options.delaySeconds,
-    });
+    await dispatchDeadline(
+      this.#client.send(MAINTENANCE_TOPIC, tick, {
+        idempotencyKey: 'studio-tick:' + options.dispatchId,
+        retentionSeconds: 86400,
+        delaySeconds: options.delaySeconds,
+      }),
+    );
   }
 }
 export function createMaintenanceCallback(options: {

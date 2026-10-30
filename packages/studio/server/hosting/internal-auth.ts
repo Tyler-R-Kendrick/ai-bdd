@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { HttpError } from '../store.ts';
+class AuthorizationError extends Error {
+  readonly statusCode = 401;
+}
 /** Deployment bindings do not authenticate callers; every private call also carries an expiring HMAC. */
 export function internalHeaders(
   secret: string,
@@ -37,7 +39,7 @@ export function assertInternalRequest(
     !headers.signature ||
     !/^[a-f0-9]{64}$/.test(headers.signature)
   )
-    throw new HttpError(401, 'Internal request authorization failed');
+    throw new AuthorizationError('Internal request authorization failed');
   const expected = internalHeaders(secret, path, body, timestamp)[
     'x-studio-signature'
   ]!;
@@ -47,16 +49,16 @@ export function assertInternalRequest(
       Buffer.from(headers.signature, 'hex'),
     )
   )
-    throw new HttpError(401, 'Internal request authorization failed');
+    throw new AuthorizationError('Internal request authorization failed');
 }
 export function assertCronSecret(
   expected: string | undefined,
   authorization: string | null,
 ) {
   if (!expected || expected.length < 32 || !authorization)
-    throw new HttpError(401, 'Maintenance authorization failed');
+    throw new AuthorizationError('Maintenance authorization failed');
   const actual = Buffer.from(authorization),
     valid = Buffer.from('Bearer ' + expected);
   if (actual.length !== valid.length || !timingSafeEqual(actual, valid))
-    throw new HttpError(401, 'Maintenance authorization failed');
+    throw new AuthorizationError('Maintenance authorization failed');
 }

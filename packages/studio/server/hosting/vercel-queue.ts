@@ -1,3 +1,4 @@
+import { dispatchDeadline } from './deadline.ts';
 import {
   QueueClient,
   type MessageMetadata,
@@ -32,14 +33,16 @@ export class VercelQueueDispatcher implements JobDispatcher {
       throw new Error(
         'Job dispatch delay must be between 0 and 86,400 seconds.',
       );
-    const receipt = await this.#client.send(
-      STUDIO_QUEUE_TOPIC,
-      { schemaVersion: 1, jobId },
-      {
-        idempotencyKey: `studio-dispatch:${options.dispatchId ?? jobId}`,
-        retentionSeconds: 86400,
-        delaySeconds: delay,
-      },
+    const receipt = await dispatchDeadline(
+      this.#client.send(
+        STUDIO_QUEUE_TOPIC,
+        { schemaVersion: 1, jobId },
+        {
+          idempotencyKey: `studio-dispatch:${options.dispatchId ?? jobId}`,
+          retentionSeconds: 86400,
+          delaySeconds: delay,
+        },
+      ),
     );
     return {
       provider: this.provider,

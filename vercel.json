@@ -1,0 +1,160 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "regions": ["iad1"],
+  "services": {
+    "frontend": {
+      "root": "packages/studio",
+      "framework": "vite",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "buildCommand": "pnpm exec vite build",
+      "outputDirectory": "dist/client",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "STUDIO_BACKEND_URL"
+        }
+      ],
+      "functions": {
+        "api/studio-jobs.ts": {
+          "maxDuration": 300,
+          "experimentalTriggers": [
+            {
+              "type": "queue/v2beta",
+              "topic": "studio-jobs-v1",
+              "maxDeliveries": 10,
+              "retryAfterSeconds": 30,
+              "maxConcurrency": 8
+            }
+          ]
+        },
+        "api/studio-maintenance.ts": {
+          "maxDuration": 120,
+          "experimentalTriggers": [
+            {
+              "type": "queue/v2beta",
+              "topic": "studio-maintenance-v1",
+              "maxDeliveries": 10,
+              "retryAfterSeconds": 30,
+              "maxConcurrency": 1
+            }
+          ]
+        },
+        "api/studio-maintenance-bootstrap.ts": {
+          "maxDuration": 120
+        }
+      },
+      "headers": [
+        {
+          "source": "/(.*)",
+          "headers": [
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "no-referrer"
+            },
+            {
+              "key": "Strict-Transport-Security",
+              "value": "max-age=31536000; includeSubDomains"
+            },
+            {
+              "key": "Cross-Origin-Opener-Policy",
+              "value": "same-origin"
+            },
+            {
+              "key": "Cross-Origin-Resource-Policy",
+              "value": "same-origin"
+            },
+            {
+              "key": "Permissions-Policy",
+              "value": "camera=(self), microphone=(self), geolocation=(), display-capture=(self)"
+            }
+          ]
+        },
+        {
+          "source": "/((?!assets/kernel\\.worker-[A-Za-z0-9_-]+\\.js$).*)",
+          "headers": [
+            {
+              "key": "Content-Security-Policy",
+              "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://vercel.com/api/blob/; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            }
+          ]
+        },
+        {
+          "source": "/assets/kernel.worker-:hash([A-Za-z0-9_-]+).js",
+          "headers": [
+            {
+              "key": "Content-Security-Policy",
+              "value": "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; object-src 'none'"
+            }
+          ]
+        },
+        {
+          "source": "/assets/:path*",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "/((?!api/|assets/).*)",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    "backend": {
+      "root": ".",
+      "runtime": "container",
+      "entrypoint": "packages/studio/Dockerfile",
+      "command": ["node", "dist/server/hosting/vercel-main.js"]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/studio-maintenance-bootstrap",
+      "destination": {
+        "service": "frontend"
+      }
+    },
+    {
+      "source": "/api/:path*",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/:path*",
+      "destination": {
+        "service": "frontend"
+      }
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/studio-maintenance-bootstrap",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
