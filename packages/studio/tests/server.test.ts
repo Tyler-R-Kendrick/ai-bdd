@@ -6,6 +6,7 @@ import { createApp } from '../server/app.ts';
 import { settingsFromEnv } from '../server/auth.ts';
 import { hash } from '../server/store.ts';
 import { artifactKinds } from '../shared/domain.ts';
+import { githubSignInResponse } from './identity/github-signin-inject-fixture.ts';
 import {
   client,
   member,
@@ -34,20 +35,15 @@ describe('Studio durable API and authorization', () => {
     await rm(dir, { recursive: true, force: true });
   });
   it('issues secure session attributes and never persists plaintext credentials', async () => {
-    const response = await instance.app.inject({
-      method: 'POST',
-      url: '/api/auth/login',
-      headers: { origin },
-      payload: {
-        email: 'owner@example.test',
-        password: 'correct-horse-battery-studio',
-      },
-    });
-    expect(response.statusCode).toBe(200);
-    expect(response.headers['set-cookie']).toContain('HttpOnly');
-    expect(response.headers['set-cookie']).toContain('SameSite=Strict');
+    const response = await githubSignInResponse(instance.app);
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe('/');
+    const session = response.cookies.find(
+      value => value.name === 'studio_session',
+    );
+    expect(session).toMatchObject({ httpOnly: true, sameSite: 'Strict' });
     const stored = await instance.store.userByEmail('owner@example.test');
-    expect(stored.password).not.toContain('correct-horse');
+    expect(stored.password).toBeNull();
     expect(
       await instance.store.one(
         'SELECT token FROM sessions WHERE token=?',
@@ -104,7 +100,7 @@ describe('Studio durable API and authorization', () => {
           payload: { email: 'owner@example.test', password: 'wrong' },
         })
       ).statusCode,
-    ).toBe(401);
+    ).toBe(403);
   });
   it('creates a main design document, ADR, discussion and revision atomically', async () => {
     const p = await project(request);
@@ -628,7 +624,7 @@ describe('Studio durable API and authorization', () => {
         NODE_ENV: 'production',
         STUDIO_ORIGIN: 'https://studio.example.test',
       }),
-    ).toThrow('bootstrap password or OIDC');
+    ).toThrow('GitHub sign-in client bindings');
     expect(() =>
       settingsFromEnv({
         NODE_ENV: 'production',
@@ -636,11 +632,22 @@ describe('Studio durable API and authorization', () => {
         STUDIO_DEMO: '1',
       }),
     ).toThrow('Demo access is forbidden');
-    expect(() => settingsFromEnv({ STUDIO_ADMIN_PASSWORD: 'short' })).toThrow(
-      '16 characters',
-    );
     expect(() =>
-      settingsFromEnv({ STUDIO_OIDC_ISSUER: 'https://identity.example.test' }),
-    ).toThrow('OIDC requires');
+      settingsFromEnv({
+        NODE_ENV: 'production',
+        STUDIO_ORIGIN: 'https://studio.example.test',
+        STUDIO_ADMIN_PASSWORD: 'historical-password-does-not-enable-login',
+        STUDIO_OIDC_ISSUER: 'https://identity.example.test',
+        STUDIO_OIDC_CLIENT_ID: 'legacy-client',
+        STUDIO_OIDC_CLIENT_SECRET: 'legacy-secret',
+      }),
+    ).toThrow('GitHub sign-in client bindings');
+    expect(() =>
+      settingsFromEnv({ STUDIO_GITHUB_SIGNIN_CLIENT_ID: 'client-only' }),
+    ).toThrow('STUDIO_GITHUB_SIGNIN_CLIENT_SECRET');
+    expect(settingsFromEnv({ STUDIO_ADMIN_PASSWORD: 'short' })).toMatchObject({
+      githubSignIn: undefined,
+      demo: false,
+    });
   });
 });
