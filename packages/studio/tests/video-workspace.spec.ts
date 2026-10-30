@@ -186,5 +186,30 @@ test('authors and reloads a keyframed timeline, exports a portable project and d
     fullPage: true,
     animations: 'disabled',
   });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page
+    .getByRole('button', { name: 'Show artifact panel', exact: true })
+    .click();
+  await page.getByRole('tab', { name: 'Connections', exact: true }).click();
+  await expect(
+    page.getByRole('combobox', { name: 'Participation mode', exact: true }),
+  ).toHaveValue('manual');
+  await page
+    .getByRole('button', { name: 'Pause agent', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Resume agent', exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('tab', { name: 'Connections', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Resume agent', exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('.error-banner')).toHaveCount(0);
+  await page.screenshot({
+    path: resolve(folder, 'integration-policy-desktop.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
   expect(errors).toEqual([]);
 });
