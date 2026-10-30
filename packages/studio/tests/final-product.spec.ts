@@ -680,7 +680,7 @@ test('a real owner-approved investigation publishes inline native evidence, shar
     await inline
       .getByRole('textbox', { name: 'Rationale', exact: true })
       .fill(
-        'The selected contract observation is24 ms; retain its exact result and selection revision.',
+        'The selected contract observation is 24 ms; retain its exact result and selection revision.',
       );
     await inline
       .getByRole('button', {
