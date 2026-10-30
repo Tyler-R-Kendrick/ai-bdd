@@ -270,8 +270,8 @@ export async function renderAudio(
     tracks = audibleAudioTracks(content),
     directory = await mkdtemp(join(tmpdir(), 'studio-audio-render-'));
   const signal = AbortSignal.any([options.signal, AbortSignal.timeout(120000)]);
-  signal.throwIfAborted();
   try {
+    signal.throwIfAborted();
     const paths = new Map<string, string>(),
       probes = new Map<string, AudioProbe>();
     let encoded = 0,
