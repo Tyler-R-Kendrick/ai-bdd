@@ -16,6 +16,7 @@ afterEach(async () => {
 });
 export async function remoteFixture(
   options: {
+    postgresUrl?: string;
     configure?: (context: {
       app: ReturnType<typeof Fastify>;
       store: Store;
@@ -29,7 +30,8 @@ export async function remoteFixture(
     }) => Promise<void>;
   } = {},
 ) {
-  const postgres = process.env.STUDIO_REMOTE_TEST_POSTGRES_URL;
+  const postgres =
+    options.postgresUrl ?? process.env.STUDIO_REMOTE_TEST_POSTGRES_URL;
   const schema = 'remote_' + crypto.randomUUID().replaceAll('-', '');
   const store = await Store.open(
     postgres
