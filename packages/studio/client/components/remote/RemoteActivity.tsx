@@ -49,22 +49,67 @@ export function RemoteActivity({
 }: Props) {
   const [requests, setRequests] = useState<Activity[]>([]),
     [error, setError] = useState(''),
-    [refresh, setRefresh] = useState(0);
+    [refresh, setRefresh] = useState(0),
+    [nextCursor, setNextCursor] = useState<number | null>(null),
+    [loadingEarlier, setLoadingEarlier] = useState(false);
+  const scope = artifactId + ':' + threadId,
+    currentScope = useRef(scope),
+    latest = useRef<string | undefined>(undefined),
+    historyGeneration = useRef(0),
+    explicitHistory = useRef(new Set<string>());
+  currentScope.current = scope;
+  const merge = useCallback((previous: Activity[], incoming: Activity[]) => {
+    const all = new Map(previous.map((request) => [request.id, request]));
+    for (const request of incoming)
+      all.set(request.id, {
+        ...all.get(request.id),
+        ...request,
+        historyOrdinal:
+          request.historyOrdinal ?? all.get(request.id)?.historyOrdinal,
+      });
+    return [...all.values()]
+      .sort((a, b) =>
+        a.historyOrdinal !== undefined && b.historyOrdinal !== undefined
+          ? b.historyOrdinal - a.historyOrdinal
+          : b.createdAt.localeCompare(a.createdAt) ||
+            b.id.localeCompare(a.id),
+      )
+      .filter(
+        (request, index) =>
+          index < 64 || explicitHistory.current.has(request.id),
+      );
+  }, []);
   useEffect(() => {
     setRequests([]);
     setError('');
-  }, [artifactId, threadId]);
+    setNextCursor(null);
+    setLoadingEarlier(false);
+    latest.current = undefined;
+    historyGeneration.current++;
+    explicitHistory.current.clear();
+  }, [scope]);
   useEffect(() => {
     let stopped = false,
       timer: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       let delay = 10000;
       try {
-        const result = await api<{ requests: Activity[] }>(
+        const result = await api<{
+          requests: Activity[];
+          nextCursor?: number | null;
+        }>(
           `/artifacts/${artifactId}/planner/activity?threadId=${encodeURIComponent(threadId)}`,
         );
         if (stopped) return;
-        setRequests(result.requests);
+        if (
+          latest.current === undefined ||
+          latest.current !== result.requests[0]?.id
+        ) {
+          latest.current = result.requests[0]?.id;
+          historyGeneration.current++;
+          setNextCursor(result.nextCursor ?? null);
+        }
+        setRequests((previous) => merge(previous, result.requests));
         setError('');
         if (
           active ||
@@ -93,8 +138,52 @@ export function RemoteActivity({
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [artifactId, artifactVersion, threadId, active, refresh]);
+  }, [artifactId, artifactVersion, threadId, active, refresh, merge]);
   const reload = useCallback(() => setRefresh((value) => value + 1), []);
+  const refreshOne = async (requestId: string) => {
+    const captured = scope;
+    try {
+      const value = await api<Activity>(
+        `/artifacts/${artifactId}/planner/requests/${requestId}`,
+      );
+      if (currentScope.current === captured)
+        setRequests((previous) => merge(previous, [value]));
+    } catch (e) {
+      if (currentScope.current === captured) {
+        if (e instanceof ApiError && [401, 403, 404].includes(e.status))
+          setRequests((previous) =>
+            previous.filter((request) => request.id !== requestId),
+          );
+        setError((e as Error).message);
+      }
+    }
+    if (currentScope.current === captured) reload();
+  };
+  const earlier = async () => {
+    if (nextCursor === null || loadingEarlier) return;
+    const captured = scope,
+      generation = historyGeneration.current;
+    setLoadingEarlier(true);
+    setError('');
+    try {
+      const result = await api<{
+        requests: Activity[];
+        nextCursor: number | null;
+      }>(
+        `/artifacts/${artifactId}/planner/activity?threadId=${encodeURIComponent(threadId)}&before=${nextCursor}`,
+      );
+      if (currentScope.current !== captured) return;
+      for (const request of result.requests)
+        explicitHistory.current.add(request.id);
+      setRequests((previous) => merge(previous, result.requests));
+      if (historyGeneration.current === generation)
+        setNextCursor(result.nextCursor);
+    } catch (e) {
+      if (currentScope.current === captured) setError((e as Error).message);
+    } finally {
+      if (currentScope.current === captured) setLoadingEarlier(false);
+    }
+  };
   if (!requests.length && !error) return null;
   return (
     <section className="remote-activity" aria-label="Remote agent activity">
@@ -113,10 +202,22 @@ export function RemoteActivity({
           artifactVersion={artifactVersion}
           readOnly={readOnly}
           first={index === 0}
-          reload={reload}
+          reload={() => void refreshOne(request.id)}
           onError={onError}
         />
       ))}
+      {nextCursor !== null && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={loadingEarlier}
+          onClick={() => void earlier()}
+        >
+          {loadingEarlier
+            ? 'Loading earlier activity…'
+            : 'Load earlier activity'}
+        </Button>
+      )}
     </section>
   );
 }
