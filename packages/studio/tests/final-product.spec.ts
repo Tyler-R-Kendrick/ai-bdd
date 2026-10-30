@@ -29,7 +29,7 @@ async function capture(page: Page, name: string) {
   await mkdir(captureDirectory, { recursive: true });
   await page.screenshot({
     path: resolve(captureDirectory, name),
-    animations: 'disabled',
+    animations: name.includes('highlight') ? 'allow' : 'disabled',
     fullPage: true,
   });
 }
