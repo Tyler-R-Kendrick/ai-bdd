@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "sourceProvidedByOperator": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentIdProvidedByOperator": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+  "startedAt": "2026-10-30T17:11:25.691Z",
+  "passed": true,
+  "kind": "actual production browser private audio import and gain edit",
+  "modelsInvoked": 0,
+  "previewIdentityHeadersSent": 0,
+  "tlsCertificateVerification": true,
+  "credentialValuesRecorded": false,
+  "externalSourceAssets": 0,
+  "blockedForeignRequests": 0,
+  "steps": [
+    {
+      "stage": "owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "stage": "create-owned-synthetic-project",
+      "method": "POST",
+      "path": "/api/projects",
+      "status": 201
+    },
+    {
+      "stage": "create-owned-audio-artifact",
+      "method": "POST",
+      "path": "/api/projects/de70e273-e9ec-4a48-93a1-32af9f7a2b13/artifacts",
+      "status": 201
+    },
+    {
+      "stage": "confirm-canonical-import-and-gain",
+      "method": "GET",
+      "path": "/api/artifacts/aef5bf91-a003-4f3c-bfa9-69f22ff887be",
+      "status": 200
+    },
+    {
+      "stage": "fresh-session-persistence-and-download",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "stage": "fresh-session-persistence-and-download",
+      "method": "GET",
+      "path": "/api/artifacts/aef5bf91-a003-4f3c-bfa9-69f22ff887be",
+      "status": 200
+    },
+    {
+      "stage": "fresh-session-persistence-and-download",
+      "method": "GET",
+      "path": "/api/artifacts/aef5bf91-a003-4f3c-bfa9-69f22ff887be/audio/renders",
+      "status": 200
+    },
+    {
+      "stage": "fresh-session-persistence-and-download",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200
+    },
+    {
+      "stage": "fresh-session-persistence-and-download",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200
+    }
+  ],
+  "captures": [
+    {
+      "file": "imported-audio-1440.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "completedExportInViewport": true
+    },
+    {
+      "file": "imported-audio-390.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "completedExportInViewport": true
+    }
+  ],
+  "browserVersion": "154.0.8037.57",
+  "projectId": "de70e273-e9ec-4a48-93a1-32af9f7a2b13",
+  "artifactId": "aef5bf91-a003-4f3c-bfa9-69f22ff887be",
+  "input": {
+    "byteSize": 48044,
+    "sha256": "58cae15f4f0507961d007aa4a906c435ca574c943ec208fcac4af19e25516473",
+    "channels": 2,
+    "sampleRate": 48000,
+    "bits": 16,
+    "duration": 0.25,
+    "rms": 0.17675531481678283,
+    "peak": 0.249969482421875
+  },
+  "savedVersion": 2,
+  "sourceFileId": "7f79a20f-3a58-4cf3-812e-d405713dc789",
+  "output": {
+    "byteSize": 48078,
+    "sha256": "e33448dd10de45b96c50a0c3586c11509d7e10afe80b844f6510b616a6bac25e",
+    "channels": 2,
+    "sampleRate": 48000,
+    "bits": 16,
+    "duration": 0.25,
+    "rms": 0.08857675079053044,
+    "peak": 0.13214111328125,
+    "inputRmsRatio": 0.5011263784760611
+  },
+  "jobId": "19935137-4d0b-454e-bed6-c9f7e2f004ab",
+  "fileId": "19935137-4d0b-454e-bed6-c9f7e2f004ab",
+  "anonymousPrivateFileStatus": 401,
+  "pageErrors": 0,
+  "freshSessionClosed": true,
+  "ownedSessionClosed": true,
+  "completedAt": "2026-10-30T17:11:58.514Z",
+  "independentSqlVerification": {
+    "method": "Connected Neon bounded SELECT-only inspection by release_restore workflow",
+    "projectId": "crimson-frog-10403185",
+    "branchId": "br-shiny-fire-b8tn4wiv",
+    "database": "studio",
+    "uploadTicketStatus": "complete",
+    "uploadScopeMatches": true,
+    "inputByteSize": 48044,
+    "inputSha256": "58cae15f4f0507961d007aa4a906c435ca574c943ec208fcac4af19e25516473",
+    "immutableUploadKeyMatches": true,
+    "renderAndDurableStatus": "completed",
+    "artifactVersion": 2,
+    "outputScopeMatches": true,
+    "outputByteSize": 48078,
+    "outputSha256": "e33448dd10de45b96c50a0c3586c11509d7e10afe80b844f6510b616a6bac25e",
+    "attempts": 1,
+    "fence": 1,
+    "canonicalPublicationReceipts": 1,
+    "exactlyOnceTransportClaimed": false
+  }
+}
