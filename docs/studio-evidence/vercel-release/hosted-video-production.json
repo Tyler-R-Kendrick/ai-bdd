@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "environment": "production",
+  "previewIdentityHeaderSent": false,
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "startedAt": "2026-10-30T17:01:29.375Z",
+  "deploymentSourceProvidedByOperator": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentIdProvidedByOperator": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+  "kind": "model-free hosted video durable publication",
+  "passed": true,
+  "state": "completed",
+  "steps": [
+    {
+      "stage": "health",
+      "method": "GET",
+      "path": "/api/health",
+      "httpStatus": 200,
+      "durationMs": 383,
+      "at": "2026-10-30T17:01:29.760Z"
+    },
+    {
+      "stage": "readiness",
+      "method": "GET",
+      "path": "/api/hosting/readiness",
+      "httpStatus": 200,
+      "durationMs": 334,
+      "at": "2026-10-30T17:01:30.097Z"
+    },
+    {
+      "stage": "owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "httpStatus": 200,
+      "durationMs": 362,
+      "at": "2026-10-30T17:01:30.463Z"
+    },
+    {
+      "stage": "create-synthetic-video",
+      "method": "POST",
+      "path": "/api/projects/ac75c051-51af-4a3b-837c-820efdda2c82/artifacts",
+      "httpStatus": 201,
+      "durationMs": 419,
+      "at": "2026-10-30T17:01:30.884Z"
+    },
+    {
+      "stage": "enqueue-video",
+      "method": "POST",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/render",
+      "httpStatus": 202,
+      "durationMs": 638,
+      "at": "2026-10-30T17:01:31.524Z"
+    },
+    {
+      "stage": "poll-video",
+      "method": "GET",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "httpStatus": 200,
+      "durationMs": 320,
+      "at": "2026-10-30T17:01:34.846Z"
+    },
+    {
+      "stage": "poll-video",
+      "method": "GET",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "httpStatus": 200,
+      "durationMs": 824,
+      "at": "2026-10-30T17:01:38.672Z"
+    },
+    {
+      "stage": "poll-video",
+      "method": "GET",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "httpStatus": 200,
+      "durationMs": 852,
+      "at": "2026-10-30T17:01:42.529Z"
+    },
+    {
+      "stage": "download-published-mp4",
+      "method": "GET",
+      "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "httpStatus": 200,
+      "durationMs": 490,
+      "at": "2026-10-30T17:01:43.021Z"
+    },
+    {
+      "stage": "export-persisted-publication",
+      "method": "GET",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/export",
+      "httpStatus": 200,
+      "durationMs": 431,
+      "at": "2026-10-30T17:01:43.558Z"
+    },
+    {
+      "stage": "fresh-owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "httpStatus": 200,
+      "durationMs": 372,
+      "at": "2026-10-30T17:01:44.509Z"
+    },
+    {
+      "stage": "fresh-session-artifact",
+      "method": "GET",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+      "httpStatus": 200,
+      "durationMs": 958,
+      "at": "2026-10-30T17:01:45.468Z"
+    },
+    {
+      "stage": "fresh-session-render-list",
+      "method": "GET",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef/video/renders",
+      "httpStatus": 200,
+      "durationMs": 379,
+      "at": "2026-10-30T17:01:45.848Z"
+    },
+    {
+      "stage": "fresh-session-file",
+      "method": "GET",
+      "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "httpStatus": 200,
+      "durationMs": 501,
+      "at": "2026-10-30T17:01:46.350Z"
+    },
+    {
+      "stage": "anonymous-file-denial",
+      "method": "GET",
+      "path": "/api/files/4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+      "httpStatus": 401,
+      "durationMs": 313,
+      "at": "2026-10-30T17:01:46.664Z"
+    },
+    {
+      "stage": "anonymous-artifact-denial",
+      "method": "GET",
+      "path": "/api/artifacts/b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+      "httpStatus": 401,
+      "durationMs": 340,
+      "at": "2026-10-30T17:01:47.005Z"
+    },
+    {
+      "stage": "close-first-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "httpStatus": 200,
+      "durationMs": 328,
+      "at": "2026-10-30T17:01:47.334Z"
+    },
+    {
+      "stage": "close-fresh-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "httpStatus": 200,
+      "durationMs": 355,
+      "at": "2026-10-30T17:01:47.689Z"
+    }
+  ],
+  "resources": {
+    "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+    "artifactId": "b612863a-2bea-4ff9-a74d-d2cfc27427ef",
+    "artifactVersion": 1,
+    "jobId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d",
+    "fileId": "4bf1e47f-d55c-44fd-b864-ef2931ae299d"
+  },
+  "jobHistory": [
+    {
+      "at": "2026-10-30T17:01:31.525Z",
+      "status": "queued",
+      "progress": 0,
+      "finishedAt": null
+    },
+    {
+      "at": "2026-10-30T17:01:34.847Z",
+      "status": "rendering",
+      "progress": 0,
+      "finishedAt": null
+    },
+    {
+      "at": "2026-10-30T17:01:38.674Z",
+      "status": "rendering",
+      "progress": 0.99,
+      "finishedAt": null
+    },
+    {
+      "at": "2026-10-30T17:01:42.530Z",
+      "status": "completed",
+      "progress": 1,
+      "finishedAt": "2026-10-30T17:01:39.644Z"
+    }
+  ],
+  "modelsInvokedByThisScript": 0,
+  "externalAssetSources": 0,
+  "redirectsFollowed": 0,
+  "credentialValuesRecorded": false,
+  "readiness": {
+    "ready": true,
+    "services": {
+      "database": {
+        "state": "verified",
+        "verifiedAt": "2026-10-30T17:00:48.470Z"
+      },
+      "objects": {
+        "state": "configured"
+      },
+      "identity": {
+        "adapter": "private-native-function",
+        "state": "configured",
+        "verified": false
+      },
+      "media": {
+        "adapter": "vercel-sandbox",
+        "state": "configured",
+        "image": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+        "network": "deny-all",
+        "persistent": false,
+        "verified": false
+      },
+      "jobs": {
+        "state": "configured",
+        "verified": false,
+        "semantics": "at-least-once; fenced SQL publication"
+      }
+    }
+  },
+  "runtimeFingerprint": "studio-media-v1:studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+  "finishedAt": "2026-10-30T17:01:39.644Z",
+  "output": {
+    "byteSize": 2591,
+    "sha256": "1654f5f7af92270b9004c400a622974f4ce38f5d93230f5c22dcde328b4f8a99",
+    "matchesPublishedMetadata": true,
+    "video": {
+      "codec": "h264",
+      "width": 128,
+      "height": 96,
+      "frameRate": "24/1",
+      "frameCount": 24,
+      "duration": 1,
+      "decodedFrameBytes": 36864,
+      "cornerRgb": [
+        32,
+        50,
+        67
+      ],
+      "brightTextPixels": 195,
+      "decodedFrameSha256": "ee86fa592f54c14874a35144bf29018c01ad7509cf3ba2e9b023295c5b0eb891"
+    }
+  },
+  "freshSessionPersistence": true,
+  "unauthorizedDenied": true,
+  "completedAt": "2026-10-30T17:01:47.690Z",
+  "syntheticResourcesRetainedForReview": true
+}

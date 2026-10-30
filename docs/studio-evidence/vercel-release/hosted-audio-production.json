@@ -1,0 +1,239 @@
+{
+  "schemaVersion": 1,
+  "environment": "production",
+  "previewIdentityHeaderSent": false,
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "startedAt": "2026-10-30T16:58:47.418Z",
+  "deploymentSourceProvidedByOperator": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentIdProvidedByOperator": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+  "kind": "model-free hosted audio durable publication",
+  "passed": true,
+  "state": "completed",
+  "steps": [
+    {
+      "stage": "health",
+      "method": "GET",
+      "path": "/api/health",
+      "httpStatus": 200,
+      "durationMs": 4692,
+      "at": "2026-10-30T16:58:52.112Z"
+    },
+    {
+      "stage": "readiness",
+      "method": "GET",
+      "path": "/api/hosting/readiness",
+      "httpStatus": 200,
+      "durationMs": 574,
+      "at": "2026-10-30T16:58:52.689Z"
+    },
+    {
+      "stage": "owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "httpStatus": 200,
+      "durationMs": 725,
+      "at": "2026-10-30T16:58:53.415Z"
+    },
+    {
+      "stage": "create-synthetic-project",
+      "method": "POST",
+      "path": "/api/projects",
+      "httpStatus": 201,
+      "durationMs": 419,
+      "at": "2026-10-30T16:58:53.836Z"
+    },
+    {
+      "stage": "create-synthetic-audio",
+      "method": "POST",
+      "path": "/api/projects/ac75c051-51af-4a3b-837c-820efdda2c82/artifacts",
+      "httpStatus": 201,
+      "durationMs": 756,
+      "at": "2026-10-30T16:58:54.593Z"
+    },
+    {
+      "stage": "enqueue-audio",
+      "method": "POST",
+      "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/render",
+      "httpStatus": 202,
+      "durationMs": 1222,
+      "at": "2026-10-30T16:58:55.816Z"
+    },
+    {
+      "stage": "poll-audio",
+      "method": "GET",
+      "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+      "httpStatus": 200,
+      "durationMs": 693,
+      "at": "2026-10-30T16:58:59.514Z"
+    },
+    {
+      "stage": "poll-audio",
+      "method": "GET",
+      "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders/98561d0b-c169-4321-873a-179fdd7f3753",
+      "httpStatus": 200,
+      "durationMs": 884,
+      "at": "2026-10-30T16:59:03.401Z"
+    },
+    {
+      "stage": "download-published-wav",
+      "method": "GET",
+      "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+      "httpStatus": 200,
+      "durationMs": 439,
+      "at": "2026-10-30T16:59:03.841Z"
+    },
+    {
+      "stage": "export-persisted-publication",
+      "method": "GET",
+      "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/export",
+      "httpStatus": 200,
+      "durationMs": 855,
+      "at": "2026-10-30T16:59:04.735Z"
+    },
+    {
+      "stage": "fresh-owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "httpStatus": 200,
+      "durationMs": 361,
+      "at": "2026-10-30T16:59:05.598Z"
+    },
+    {
+      "stage": "fresh-session-artifact",
+      "method": "GET",
+      "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+      "httpStatus": 200,
+      "durationMs": 431,
+      "at": "2026-10-30T16:59:06.030Z"
+    },
+    {
+      "stage": "fresh-session-render-list",
+      "method": "GET",
+      "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391/audio/renders",
+      "httpStatus": 200,
+      "durationMs": 844,
+      "at": "2026-10-30T16:59:06.875Z"
+    },
+    {
+      "stage": "fresh-session-file",
+      "method": "GET",
+      "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+      "httpStatus": 200,
+      "durationMs": 768,
+      "at": "2026-10-30T16:59:07.644Z"
+    },
+    {
+      "stage": "anonymous-file-denial",
+      "method": "GET",
+      "path": "/api/files/98561d0b-c169-4321-873a-179fdd7f3753",
+      "httpStatus": 401,
+      "durationMs": 735,
+      "at": "2026-10-30T16:59:08.387Z"
+    },
+    {
+      "stage": "anonymous-artifact-denial",
+      "method": "GET",
+      "path": "/api/artifacts/f5a5f464-b465-485e-bb67-fa2e56384391",
+      "httpStatus": 401,
+      "durationMs": 299,
+      "at": "2026-10-30T16:59:08.687Z"
+    },
+    {
+      "stage": "close-first-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "httpStatus": 200,
+      "durationMs": 317,
+      "at": "2026-10-30T16:59:09.005Z"
+    },
+    {
+      "stage": "close-fresh-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "httpStatus": 200,
+      "durationMs": 313,
+      "at": "2026-10-30T16:59:09.319Z"
+    }
+  ],
+  "resources": {
+    "projectId": "ac75c051-51af-4a3b-837c-820efdda2c82",
+    "artifactId": "f5a5f464-b465-485e-bb67-fa2e56384391",
+    "artifactVersion": 1,
+    "jobId": "98561d0b-c169-4321-873a-179fdd7f3753",
+    "fileId": "98561d0b-c169-4321-873a-179fdd7f3753"
+  },
+  "jobHistory": [
+    {
+      "at": "2026-10-30T16:58:55.818Z",
+      "status": "queued",
+      "progress": 0,
+      "finishedAt": null
+    },
+    {
+      "at": "2026-10-30T16:58:59.514Z",
+      "status": "rendering",
+      "progress": 0.085332,
+      "finishedAt": null
+    },
+    {
+      "at": "2026-10-30T16:59:03.401Z",
+      "status": "completed",
+      "progress": 1,
+      "finishedAt": "2026-10-30T16:59:01.378Z"
+    }
+  ],
+  "modelsInvokedByThisScript": 0,
+  "externalAssetSources": 0,
+  "redirectsFollowed": 0,
+  "credentialValuesRecorded": false,
+  "readiness": {
+    "ready": true,
+    "services": {
+      "database": {
+        "state": "verified",
+        "verifiedAt": "2026-10-30T16:58:51.924Z"
+      },
+      "objects": {
+        "state": "configured"
+      },
+      "identity": {
+        "adapter": "private-native-function",
+        "state": "configured",
+        "verified": false
+      },
+      "media": {
+        "adapter": "vercel-sandbox",
+        "state": "configured",
+        "image": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+        "network": "deny-all",
+        "persistent": false,
+        "verified": false
+      },
+      "jobs": {
+        "state": "configured",
+        "verified": false,
+        "semantics": "at-least-once; fenced SQL publication"
+      }
+    }
+  },
+  "runtimeFingerprint": "studio-media-v1:studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+  "finishedAt": "2026-10-30T16:59:01.378Z",
+  "output": {
+    "byteSize": 48078,
+    "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f",
+    "matchesPublishedMetadata": true,
+    "wave": {
+      "codec": 1,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bitsPerSample": 16,
+      "dataBytes": 48000,
+      "duration": 0.25,
+      "silent": true
+    }
+  },
+  "freshSessionPersistence": true,
+  "unauthorizedDenied": true,
+  "completedAt": "2026-10-30T16:59:09.320Z",
+  "syntheticResourcesRetainedForReview": true
+}
