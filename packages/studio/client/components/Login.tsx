@@ -71,10 +71,6 @@ export function Login() {
                   <ArrowRight size={16} />
                 </a>
               </Button>
-              <p className="small muted">
-                Use a GitHub account with a verified email that has access to
-                this workspace.
-              </p>
             </>
           ) : (
             <>

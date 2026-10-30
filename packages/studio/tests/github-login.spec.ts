@@ -54,6 +54,7 @@ test('GitHub is the only sign-in action on desktop and mobile', async ({ page })
   await expect(signIn).toHaveAttribute('href', '/api/auth/github');
   await expect(signIn).toBeVisible();
   await noCredentialForm(page);
+  await expect(page.getByText(/verified email|has access to this workspace|invitation|already registered/i)).toHaveCount(0);
   await page.evaluate(() => document.fonts.ready);
   await expect
     .poll(() => page.evaluate(() => document.fonts.check('12px "Inter Variable"')))
