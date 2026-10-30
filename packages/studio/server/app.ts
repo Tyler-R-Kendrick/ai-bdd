@@ -232,6 +232,9 @@ export async function createApp(
       agent = new Agent(store, settings, collab, {
         runtime,
         objects: hosting.objects,
+        onNativeT3Event: (event) => {
+          app.log[event.state === 'failure' ? 'warn' : 'info']({ nativeT3: event }, 'Managed native T3 runtime');
+        },
         decisions,
         identityExecutionContext: options.identityExecutionContext,
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),

@@ -15,6 +15,7 @@ import { HttpError } from '../http-error.ts';
 import { t3LanguageModel, nativeT3Prompt } from '../integrations/t3-model.ts';
 import { NativeT3 } from '../integrations/t3-native.ts';
 import { NativeT3StateLease } from './native-t3-state.ts';
+import { NativeT3Diagnostics, type NativeT3Observer, type NativeT3Phase } from './native-t3-diagnostics.ts';
 export { cleanupManagedT3Checkpoints } from './native-t3-state.ts';
 import manifest from './native-t3-tools.json' with { type: 'json' };
 type NativeModel = Extract<LanguageModel, { specificationVersion: 'v3' }>;
@@ -24,7 +25,7 @@ export type ManagedT3Options = {
   store: Store; objects: ObjectStore; localModel: CpuModel; key: Uint8Array;
   artifactId: string;
   /** Bounded operational metadata only; never prompts, outputs, paths or credentials. */
-  onEvent?: (event: { phase: string; messages?: number; envelopeMatches?: number; contentKinds?: string[] }) => void;
+  onEvent?: NativeT3Observer;
   toolsDirectory: string; stateDirectory?: string;
   /** Runs first inside checkpoint publication's transaction: job/project lock precedes native state lock. */
   fence?: () => Promise<void>;
@@ -129,7 +130,7 @@ class NativeSession {
   nativeOrigin = ''; openOrigin = ''; modelOrigin = '';
   readonly modelToken = randomBytes(32).toString('base64url');
   readonly openPassword = randomBytes(24).toString('base64url');
-  constructor(readonly options: ManagedT3Options, readonly root: string, readonly profile: AgentProfile, readonly signal: AbortSignal, readonly shape: any, readonly studioPrompt: string) {
+  constructor(readonly options: ManagedT3Options, readonly root: string, readonly profile: AgentProfile, readonly signal: AbortSignal, readonly shape: any, readonly studioPrompt: string, readonly diagnostics: NativeT3Diagnostics) {
     this.base = join(root, 'native'); this.workspace = join(root, 'workspace');
   }
   environment() {
@@ -137,20 +138,25 @@ class NativeSession {
       XDG_CONFIG_HOME: join(this.root, 'config'), XDG_DATA_HOME: join(this.root, 'data'), XDG_CACHE_HOME: join(this.root, 'cache'), XDG_STATE_HOME: join(this.root, 'state'),
       OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true', OPENCODE_DISABLE_AUTOUPDATE: 'true' };
   }
-  async cli(args: string[]) {
+  async cli(args: string[], phase: NativeT3Phase = 't3-oauth') {
     try { return (await execute(join(this.options.toolsDirectory, 't3/t3'), [...args, '--base-dir', this.base], { cwd: this.workspace, env: this.environment(), timeout: 30000, maxBuffer: 100000, signal: this.signal })).stdout; }
-    catch { this.signal.throwIfAborted(); throw unavailable(); }
+    catch (error) { this.diagnostics.failure(phase, error); this.signal.throwIfAborted(); throw unavailable(); }
   }
-  launch(binary: string, args: string[], extra: Record<string, string> = {}) {
+  launch(binary: string, args: string[], extra: Record<string, string> = {}, phase: NativeT3Phase = 't3-serve') {
     this.signal.throwIfAborted();
     const child = spawn(binary, args, { env: { ...this.environment(), ...extra }, cwd: this.workspace, detached: true, stdio: 'ignore' });
-    this.children.add(child); child.once('error', () => {}); return child;
+    this.children.add(child); child.once('error', error => this.diagnostics.failure(phase, error)); child.once('exit', (code, signal) => this.diagnostics.exit(phase, code, signal)); return child;
   }
-  async wait(url: string, headers: Record<string, string> = {}) {
+  async wait(url: string, headers: Record<string, string>, phase: NativeT3Phase) {
+    let observedStatus: number | undefined, observedFailure = false;
     for (let i = 0; i < 150; i++) {
       this.signal.throwIfAborted();
       if ([...this.children].some(child => child.exitCode !== null || child.signalCode !== null)) throw unavailable();
-      try { if ((await fetch(url, { headers, redirect: 'error', signal: AbortSignal.any([this.signal, AbortSignal.timeout(500)]) })).ok) return; } catch {}
+      try {
+        const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.any([this.signal, AbortSignal.timeout(500)]) });
+        if (response.ok) return;
+        if (response.status !== observedStatus) { observedStatus = response.status; this.diagnostics.probe(phase, response.status); }
+      } catch (error) { if (!observedFailure) { observedFailure = true; this.diagnostics.probe(phase, undefined, error); } }
       await beforeAbort(new Promise(r => setTimeout(r, 200)), this.signal);
     }
     throw unavailable();
@@ -190,9 +196,9 @@ class NativeSession {
           if (!Array.isArray(content) || content.some((part: any) => part.type !== 'text' || typeof part.text !== 'string')) throw unavailable();
           return { role: message.role, content };
         });
-        this.options.onEvent?.({ phase: 'native-model-request', messages: body.messages.length, envelopeMatches: matched, contentKinds: body.messages.map((message: any) => Array.isArray(message.content) ? 'parts' : typeof message.content) });
+        this.diagnostics.request(body.messages, matched);
         if (matched !== 1) throw unavailable();
-        const result: any = await this.options.localModel.doGenerate({ prompt, toolChoice: { type: 'none' }, responseFormat: { type: 'json', schema: this.shape }, maxOutputTokens: 1024, abortSignal: AbortSignal.any([this.signal, abort.signal, AbortSignal.timeout(60000)]) } as any);
+        const result: any = await this.diagnostics.run('local-inference', async () => await this.options.localModel.doGenerate({ prompt, toolChoice: { type: 'none' }, responseFormat: { type: 'json', schema: this.shape }, maxOutputTokens: 1024, abortSignal: AbortSignal.any([this.signal, abort.signal, AbortSignal.timeout(60000)]) } as any));
         if (result.content.some((part: any) => part.type === 'tool-call')) throw unavailable();
         const content = result.content.filter((part: any) => part.type === 'text').map((part: any) => part.text).join('');
         const id = 'chatcmpl-' + randomBytes(12).toString('hex'), created = Math.floor(Date.now() / 1000);
@@ -225,15 +231,15 @@ class NativeSession {
     this.signal.throwIfAborted();
     await mkdir(this.workspace, { recursive: true, mode: 0o700 });
     await mkdir(join(this.base, 'userdata'), { recursive: true, mode: 0o700 });
-    if (!this.modelServer) await this.modelHost();
+    if (!this.modelServer) await this.diagnostics.run('model-host', () => this.modelHost());
     if (!this.nativeOrigin) this.nativeOrigin = 'http://127.0.0.1:' + await freePort();
     if (!this.openOrigin) this.openOrigin = 'http://127.0.0.1:' + await freePort();
     const config = { autoupdate: false, enabled_providers: ['studio-local'], model: 'studio-local/' + this.options.localModel.modelId, small_model: 'studio-local/' + this.options.localModel.modelId,
       provider: { 'studio-local': { npm: '@ai-sdk/openai-compatible', name: 'Studio local CPU', options: { baseURL: this.modelOrigin + '/v1', apiKey: this.modelToken }, models: { [this.options.localModel.modelId]: { name: this.options.localModel.modelId, tool_call: false, limit: { context: 4096, output: 1024 } } } } },
       tools: { '*': false }, agent: { build: { tools: { '*': false }, permission: { '*': 'deny' } } } };
     const openConfig = JSON.stringify(config);
-    this.launch(join(this.options.toolsDirectory, 'opencode/bin/opencode'), ['serve', '--hostname', '127.0.0.1', '--port', new URL(this.openOrigin).port], { OPENCODE_CONFIG_CONTENT: openConfig, OPENCODE_PASSWORD: this.openPassword });
-    await this.wait(this.openOrigin + '/api/info', { Authorization: 'Basic ' + Buffer.from('opencode:' + this.openPassword).toString('base64') });
+    await this.diagnostics.run('opencode-launch', async () => this.launch(join(this.options.toolsDirectory, 'opencode/bin/opencode'), ['serve', '--hostname', '127.0.0.1', '--port', new URL(this.openOrigin).port], { OPENCODE_CONFIG_CONTENT: openConfig, OPENCODE_PASSWORD: this.openPassword }, 'opencode-launch'));
+    await this.diagnostics.run('opencode-readiness', () => this.wait(this.openOrigin + '/api/info', { Authorization: 'Basic ' + Buffer.from('opencode:' + this.openPassword).toString('base64') }, 'opencode-readiness'));
     let prior: any;
     try { prior = JSON.parse(await readFile(join(this.base, 'userdata/settings.json'), 'utf8')); } catch {}
     await writeFile(join(this.base, 'userdata/settings.json'), JSON.stringify({ ...(prior ?? {}), providerInstances: {
@@ -241,34 +247,36 @@ class NativeSession {
       studioLocal: { driver: 'opencode', enabled: true, displayName: 'Local CPU through native T3', config: { enabled: true, binaryPath: join(this.options.toolsDirectory, 'opencode/bin/opencode'), serverUrl: this.openOrigin, serverPassword: this.openPassword }, environment: Object.entries({ ...this.environment(), OPENCODE_CONFIG_CONTENT: openConfig }).filter(([name]) => name.startsWith('XDG_') || name.startsWith('OPENCODE_')).map(([name, value]) => ({ name, value, sensitive: name === 'OPENCODE_CONFIG_CONTENT' })) },
     } }), { mode: 0o600 });
     const fresh = !await lstat(join(this.root, 'session.json')).catch(() => null);
-    if (fresh) await this.cli(['project', 'add', this.workspace, '--title', 'Studio managed local generation']);
-    this.launch(join(this.options.toolsDirectory, 't3/t3'), ['serve', '--base-dir', this.base, '--host', '127.0.0.1', '--port', new URL(this.nativeOrigin).port]);
-    await this.wait(this.nativeOrigin + '/.well-known/oauth-authorization-server');
-    if (fresh) await this.enroll();
+    if (fresh) await this.diagnostics.run('t3-project-registration', () => this.cli(['project', 'add', this.workspace, '--title', 'Studio managed local generation'], 't3-project-registration'));
+    await this.diagnostics.run('t3-serve', async () => this.launch(join(this.options.toolsDirectory, 't3/t3'), ['serve', '--base-dir', this.base, '--host', '127.0.0.1', '--port', new URL(this.nativeOrigin).port]));
+    await this.diagnostics.run('t3-readiness', () => this.wait(this.nativeOrigin + '/.well-known/oauth-authorization-server', {}, 't3-readiness'));
+    if (fresh) await this.diagnostics.run('t3-oauth', () => this.enroll());
     let session = JSON.parse(await readFile(join(this.root, 'session.json'), 'utf8'));
     if (session.version !== 1 || typeof session.token !== 'string' || session.token.length < 16 || session.token.length > 8192 || !Number.isFinite(session.expiresAt)) throw unavailable();
     if (session.expiresAt <= Date.now() + 300000) {
       // Native OAuth exposes no refresh grant. Keep the owned native DB/history, grant a new explicitly
       // Supervised session through the same public approval flow, and checkpoint it before inference.
-      await this.enroll(session);
+      await this.diagnostics.run('t3-oauth', () => this.enroll(session));
       session = JSON.parse(await readFile(join(this.root, 'session.json'), 'utf8'));
       this.sessionRenewed = true;
     }
     this.namespaceGeneration = session.namespaceGeneration ?? 0;
     const nativeConfig = { args: [], project: this.workspace, providers: [{ id: 'studioLocal', label: 'Local CPU through native T3', models: [this.profile.model] }], mcp: { url: this.nativeOrigin + '/mcp', accessToken: session.token } };
     // Native provider inventory warms asynchronously. Admission remains the same exact Supervised check.
-    for (let i = 0; i < 40; i++) {
-      this.signal.throwIfAborted();
-      try { const admitted = await NativeT3.connect(nativeConfig, this.profile, this.signal); await admitted.close(); return nativeConfig; }
-      catch { this.signal.throwIfAborted(); await beforeAbort(new Promise(r => setTimeout(r, 500)), this.signal); }
-    }
-    throw unavailable();
+    return this.diagnostics.run('t3-admission', async () => {
+      for (let i = 0; i < 40; i++) {
+        this.signal.throwIfAborted();
+        try { const admitted = await NativeT3.connect(nativeConfig, this.profile, this.signal); await admitted.close(); return nativeConfig; }
+        catch (error) { if (i === 0) this.diagnostics.probe('t3-admission', undefined, error); this.signal.throwIfAborted(); await beforeAbort(new Promise(r => setTimeout(r, 500)), this.signal); }
+      }
+      throw unavailable();
+    });
   }
   async enroll(previous?: { sessionId?: string; namespaceGeneration?: number; expiresAt: number }) {
     const post = async (path: string, value: any) => {
       const form = path.endsWith('/token');
       const response = await fetch(this.nativeOrigin + path, { method: 'POST', redirect: 'error', headers: { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json' }, body: form ? new URLSearchParams(value) : JSON.stringify(value), signal: this.signal });
-      if (!response.ok) throw unavailable(); return await response.json() as any;
+      if (!response.ok) { this.diagnostics.probe('t3-oauth', response.status); throw unavailable(); } return await response.json() as any;
     };
     const beforeSessions = new Set((JSON.parse(await this.cli(['auth', 'session', 'list', '--json'])) as any[]).map(session => session.sessionId));
     const pairing = JSON.parse(await this.cli(['auth', 'pairing', 'create', '--scope', 'orchestration:read', '--scope', 'orchestration:operate', '--ttl', '5m', '--json']));
@@ -304,7 +312,8 @@ export function managedT3LanguageModel(options: ManagedT3Options, profile: Agent
     async doGenerate(call) {
       const abort = new AbortController();
       const signal = AbortSignal.any([abort.signal, ...(call.abortSignal ? [call.abortSignal] : []), AbortSignal.timeout(180000)]);
-      const release = await slot(signal);
+      const diagnostics = new NativeT3Diagnostics(options.onEvent);
+      const release = await diagnostics.run('queue', () => slot(signal));
       let lease: NativeT3StateLease | undefined, native: NativeSession | undefined;
       let timer: NodeJS.Timeout | undefined, heartbeat = false;
       const stateId = digest(JSON.stringify(['managed-native-t3-v1', manifest.t3Commit, manifest.openCodeVersion, options.artifactId, profile, idempotencyKey]));
@@ -312,44 +321,44 @@ export function managedT3LanguageModel(options: ManagedT3Options, profile: Agent
       const root = join(parent, stateId);
       const marker = join(root, '.managed-studio-native-v1');
       try {
-        await beforeAbort(verifyTools(options.toolsDirectory), signal);
-        lease = await NativeT3StateLease.acquire({ store: options.store, objects: options.objects, id: stateId, artifactId: options.artifactId, key: options.key, fence: options.fence });
+        await diagnostics.run('verify-tools', () => beforeAbort(verifyTools(options.toolsDirectory), signal));
+        lease = await diagnostics.run('acquire-lease', () => NativeT3StateLease.acquire({ store: options.store, objects: options.objects, id: stateId, artifactId: options.artifactId, key: options.key, fence: options.fence }));
         timer = setInterval(() => {
           if (heartbeat) return; heartbeat = true;
           void beforeAbort(lease!.renew(), AbortSignal.timeout(5000)).catch(() => { abort.abort(new HttpError(409, 'The managed T3 state lease was lost')); void native?.close().catch(() => {}); }).finally(() => { heartbeat = false; });
         }, 10000); timer.unref();
-        await mkdir(parent, { recursive: true, mode: 0o700 });
-        if (await realpath(parent) !== resolve(parent)) throw unavailable();
-        const existing = await lstat(root).catch(() => null);
-        if (existing) {
-          if (!existing.isDirectory() || existing.isSymbolicLink()) throw unavailable();
-          let owned: any; try { owned = JSON.parse(await readFile(marker, 'utf8')); } catch {}
-          if (owned?.id !== stateId) throw unavailable();
-          await rm(root, { recursive: true, force: true });
-        }
-        await mkdir(root, { mode: 0o700 });
-        await writeFile(marker, JSON.stringify({ id: stateId, owner: lease.owner }), { mode: 0o600 });
-        await beforeAbort(lease.restore(root), signal);
-        await lease.renew(); signal.throwIfAborted();
-        native = new NativeSession(options, root, profile, signal, responseSchema(call), nativeT3Prompt(call));
+        await diagnostics.run('restore-state', async () => {
+          await mkdir(parent, { recursive: true, mode: 0o700 });
+          if (await realpath(parent) !== resolve(parent)) throw unavailable();
+          const existing = await lstat(root).catch(() => null);
+          if (existing) {
+            if (!existing.isDirectory() || existing.isSymbolicLink()) throw unavailable();
+            let owned: any; try { owned = JSON.parse(await readFile(marker, 'utf8')); } catch {}
+            if (owned?.id !== stateId) throw unavailable();
+            await rm(root, { recursive: true, force: true });
+          }
+          await mkdir(root, { mode: 0o700 });
+          await writeFile(marker, JSON.stringify({ id: stateId, owner: lease!.owner }), { mode: 0o600 });
+          await beforeAbort(lease!.restore(root), signal);
+          await lease!.renew(); signal.throwIfAborted();
+        });
+        native = new NativeSession(options, root, profile, signal, responseSchema(call), nativeT3Prompt(call), diagnostics);
         const onAbort = () => { void native?.close().catch(() => {}); };
         signal.addEventListener('abort', onAbort, { once: true });
         try {
-          await beforeAbort(native.start(), signal);
-          await native.stop();
-          await beforeAbort(lease.checkpoint(root), signal); // Same native MCP session is durable before any model inference.
-          const config = await beforeAbort(native.start(), signal);
+          await diagnostics.run('native-start', () => beforeAbort(native!.start(), signal));
+          await diagnostics.run('initial-checkpoint', async () => { await native!.stop(); await beforeAbort(lease!.checkpoint(root), signal); }); // Same native MCP session is durable before any model inference.
+          const config = await diagnostics.run('native-restart', () => beforeAbort(native!.start(), signal));
           const model = t3LanguageModel(config, profile, idempotencyKey);
           let result;
-          try { result = await beforeAbort(model.doGenerate({ ...call, abortSignal: signal }), signal); }
+          try { result = await diagnostics.run('inference', () => beforeAbort(model.doGenerate({ ...call, abortSignal: signal }), signal)); }
           catch (error: any) { if (native.providerError && error?.message === 'The selected T3 Code run ended without a completed response') throw native.providerError; throw error; }
-          await native.stop();
-          await beforeAbort(lease.checkpoint(root), signal);
+          await diagnostics.run('final-checkpoint', async () => { await native!.stop(); await beforeAbort(lease!.checkpoint(root), signal); });
           return { ...result, providerMetadata: { ...result.providerMetadata, managedT3: { sessionRenewed: native.sessionRenewed, namespaceGeneration: native.namespaceGeneration, nativeTools: 'disabled', localModel: options.localModel.modelId } } };
         } finally { signal.removeEventListener('abort', onAbort); }
       } finally {
         if (timer) clearInterval(timer);
-        await native?.close().catch(() => {});
+        await native?.close().catch(error => diagnostics.failure('cleanup', error));
         // Only the root still marked for this exact owner may be removed.
         try { const own = JSON.parse(await readFile(marker, 'utf8')); if (own.id === stateId && own.owner === lease?.owner) await rm(root, { recursive: true, force: true }); } catch {}
         await lease?.release().catch(() => {});

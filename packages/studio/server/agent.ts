@@ -35,6 +35,7 @@ import type { RemotePlanner } from './integrations/remote-planner.ts';
 import { AgentProfiles } from './integrations/agent-profiles.ts';
 import { t3LanguageModel } from './integrations/t3-model.ts';
 import { managedT3LanguageModel } from './local/native-t3-runtime.ts';
+import type { NativeT3Observer } from './local/native-t3-diagnostics.ts';
 import type { ObjectStore } from './hosting/ports.ts';
 import type { AgentProfile } from '../shared/agent-profile.ts';
 import type { DecisionProfile } from '../shared/decision-profile.ts';
@@ -79,6 +80,7 @@ type Snapshot = {
 export type AgentOptions = {
   runtime: DurableJobRuntime;
   objects?: ObjectStore;
+  onNativeT3Event?: NativeT3Observer;
   identityExecutionContext?: IdentityExecutionContext;
   implementationLocked?: (id: string) => Promise<boolean>;
   onGeneratedArtifact?: (id: string) => Promise<void>;
@@ -829,6 +831,7 @@ export class Agent {
           toolsDirectory: config.toolsDirectory,
           ...(config.stateDirectory ? { stateDirectory: config.stateDirectory } : {}),
           artifactId,
+          onEvent: this.options.onNativeT3Event,
           ...(fence ? { fence } : {}),
         }, profile, key);
       }
