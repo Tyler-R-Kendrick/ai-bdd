@@ -1,6 +1,6 @@
 import { HttpError } from './http-error.ts';
 export { HttpError } from './http-error.ts';
-import { canonicalDocumentIds } from '../shared/document-identity.ts';
+import { canonicalDocument } from '../shared/document-canonical.ts';
 import { openDatabase, type SqlDatabase } from './persistence/index.ts';
 import * as Y from 'yjs';
 import {
@@ -384,7 +384,7 @@ export class Store {
             );
         for (const child of node.content ?? []) walk(child);
       };
-      parsed.doc = canonicalDocumentIds(parsed.doc, randomUUID).doc;
+      parsed.doc = canonicalDocument(parsed.doc, randomUUID).doc;
       walk(parsed.doc);
     }
     if (assets.size) {
@@ -774,7 +774,7 @@ export class Store {
         const persisted = await this.state(id);
         if (persisted) Y.applyUpdate(doc, persisted);
         Y.applyUpdate(doc, state);
-        const normalized = canonicalDocumentIds(
+        const normalized = canonicalDocument(
           yXmlFragmentToProsemirrorJSON(
             doc.getXmlFragment('default'),
           ) as RichNode,
