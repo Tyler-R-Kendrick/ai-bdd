@@ -18,6 +18,7 @@ export function ArtifactTitle({
     [busy, setBusy] = useState(false);
   const [title, setTitle] = useState(artifact.title),
     [automatic, setAutomatic] = useState(false),
+    [seedGoal, setSeedGoal] = useState(false),
     [available, setAvailable] = useState(false);
   async function edit() {
     setBusy(true);
@@ -30,6 +31,7 @@ export function ArtifactTitle({
       );
       setAvailable(policy.available);
       setAutomatic(false);
+      setSeedGoal(false);
       setTitle(artifact.title);
       setOpen(true);
     } catch (error) {
@@ -48,6 +50,7 @@ export function ArtifactTitle({
       if (automatic)
         await api(`/artifacts/${artifact.id}/title-policy`, 'PATCH', {
           mode: 'automatic',
+          seedGoal,
         });
       await refresh();
       setOpen(false);
@@ -88,10 +91,25 @@ export function ArtifactTitle({
               type="checkbox"
               checked={automatic}
               disabled={!available || busy}
-              onChange={(event) => setAutomatic(event.target.checked)}
+              onChange={(event) => {
+                setAutomatic(event.target.checked);
+                if (!event.target.checked) setSeedGoal(false);
+              }}
             />{' '}
             Maintain the title from this discussion
           </label>
+          {['design', 'document'].includes(artifact.kind) && (
+            <label className="small">
+              <input
+                type="checkbox"
+                checked={seedGoal}
+                disabled={!automatic || !available || busy}
+                onChange={(event) => setSeedGoal(event.target.checked)}
+              />{' '}
+              Add a goal from this discussion only while the document body is
+              empty
+            </label>
+          )}
           {!available && (
             <p className="muted small">
               Connect a model to enable automatic titles.

@@ -35,6 +35,7 @@ import type { AgentProfile } from '../shared/agent-profile.ts';
 import type { DecisionProfile } from '../shared/decision-profile.ts';
 import type { DecisionModels } from './decisions/models.ts';
 import { adviseParticipation } from './integrations/participation-adviser.ts';
+import { generateTitleGoal, type TitleGenerationInput } from './integrations/title-provider.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
 import {
   VisualRouting,
@@ -839,6 +840,10 @@ export class Agent {
       .trim()
       .replace(/^['"]|['"]$/g, '')
       .slice(0, 100);
+  }
+  async generateTitleAndGoal(input: TitleGenerationInput) {
+    const profile=input.profile ?? await this.profiles.selected(input.artifact.id);
+    return generateTitleGoal(this.model(profile,input.idempotencyKey),input);
   }
   async generateImplementationGraph(input: {
     artifact: Artifact;
