@@ -64,11 +64,10 @@ export async function validateInvestigationReferences(
       );
     let result = parsedResults.get(record.id);
     if (!result) {
-      resultBytes += Number(record.result_bytes);
-      if (resultBytes > 8_000_000)
+      if (resultBytes + Number(record.result_bytes) > 8_000_000)
         throw new HttpError(
           400,
-          'Inline investigation results exceed the8 MB document reference budget',
+          'Inline investigation results exceed the 8 MB document reference budget',
         );
       const stored = await store.one(
         'SELECT result_json FROM studio_investigations WHERE id=? AND project_id=?',
@@ -83,6 +82,12 @@ export async function validateInvestigationReferences(
         throw new HttpError(
           409,
           'The investigation result failed its integrity check',
+        );
+      resultBytes += Buffer.byteLength(stored.result_json);
+      if (resultBytes > 8_000_000)
+        throw new HttpError(
+          400,
+          'Inline investigation results exceed the 8 MB document reference budget',
         );
       try {
         result = investigationResultSchema.parse(
