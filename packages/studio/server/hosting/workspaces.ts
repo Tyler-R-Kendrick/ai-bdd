@@ -41,7 +41,8 @@ function safeRelative(path: string) {
     !path ||
     path.length > 512 ||
     isAbsolute(path) ||
-    /[\\\x00-\x1f]/.test(path) ||
+    path.includes('\\') ||
+    Array.from(path).some((character) => character.charCodeAt(0) < 32) ||
     path.split('/').some((part) => !part || part === '.' || part === '..')
   )
     throw new Error('Workspace manifest contains an unsafe relative path.');

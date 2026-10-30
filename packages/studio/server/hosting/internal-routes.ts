@@ -53,13 +53,18 @@ export async function registerInternalRoutes(
               : undefined,
         },
       );
+      req.raw.socket.setTimeout?.(options.requestSeconds * 1000);
     });
-    scope.post('/internal/jobs/execute', async (req) => {
+    scope.post('/internal/jobs/execute', async (req, reply) => {
       const input = jobRequest.parse(JSON.parse(req.body as string)),
         abort = new AbortController();
       req.raw.once('aborted', () =>
         abort.abort(new Error('Execution request disconnected.')),
       );
+      reply.raw.once('close', () => {
+        if (!reply.raw.writableEnded)
+          abort.abort(new Error('Execution response disconnected.'));
+      });
       const deadline = Math.min(
         input.delivery.deadlineAt ?? Infinity,
         Date.now() + (options.requestSeconds - 20) * 1000,

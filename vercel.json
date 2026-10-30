@@ -128,7 +128,7 @@
       "root": ".",
       "runtime": "container",
       "entrypoint": "packages/studio/Dockerfile",
-      "command": ["node", "dist/server/hosting/vercel-main.js"]
+      "command": ["node", "dist/server/vercel-main.js"]
     }
   },
   "rewrites": [

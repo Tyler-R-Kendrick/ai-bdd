@@ -183,3 +183,58 @@ describe('native queue to private container binding', () => {
     ).toBe(409);
   });
 });
+
+it('aborts the shared execution when its fully received binding request loses the response connection', async () => {
+  const app = Fastify(),
+    store = await Store.open(':memory:');
+  cleanup.push(() => store.close());
+  cleanup.push(() => app.close());
+  let entered!: () => void, aborted!: () => void;
+  const started = new Promise<void>((resolve) => (entered = resolve)),
+    cancelled = new Promise<void>((resolve) => (aborted = resolve));
+  const runtime = {
+    executeJob: async (_id: string, delivery: { signal: AbortSignal }) => {
+      entered();
+      await new Promise<void>((resolve) =>
+        delivery.signal.addEventListener(
+          'abort',
+          () => {
+            aborted();
+            resolve();
+          },
+          { once: true },
+        ),
+      );
+      throw new Error('Delivery disconnected');
+    },
+  } as unknown as DurableJobRuntime;
+  const scheduler = await new DurableScheduler(store, {
+    provider: 'fixture',
+    publish: async () => {},
+  }).initialize();
+  await registerInternalRoutes(app, {
+    secret,
+    runtime,
+    scheduler,
+    requestSeconds: 30,
+    deploymentId: 'dpl_active',
+  });
+  await app.listen({ host: '127.0.0.1', port: 0 });
+  const address = app.server.address() as { port: number },
+    path = '/internal/jobs/execute',
+    body = JSON.stringify({
+      jobId: randomUUID(),
+      delivery: { messageId: 'disconnect', deliveryCount: 1 },
+    }),
+    abort = new AbortController();
+  const response = fetch(`http://127.0.0.1:${address.port}` + path, {
+    method: 'POST',
+    body,
+    headers: internalHeaders(secret, path, body),
+    signal: abort.signal,
+  }).catch(() => null);
+  await started;
+  abort.abort();
+  await response;
+  await cancelled;
+});

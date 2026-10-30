@@ -14,7 +14,15 @@ const uploadSchema = z
       .trim()
       .min(1)
       .max(250)
-      .refine((v) => !/[\x00-\x1f\x7f/\\]/.test(v)),
+      .refine(
+        (v) =>
+          !v.includes('/') &&
+          !v.includes('\\') &&
+          !Array.from(v).some(
+            (character) =>
+              character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+          ),
+      ),
     byteSize: z
       .number()
       .int()
@@ -29,19 +37,6 @@ export type UploadGrant = {
   token: string;
   expiresAt: number;
   maximumSizeInBytes: number;
-};
-type Ticket = {
-  id: string;
-  project_id: string;
-  artifact_id: string;
-  user_id: string;
-  name: string;
-  declared_type: string;
-  storage_key: string;
-  byte_size: number;
-  expires_at: number;
-  status: string;
-  lease_until: number;
 };
 export class UploadAdmission {
   readonly #token: string;
