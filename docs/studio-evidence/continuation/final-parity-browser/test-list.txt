@@ -1,0 +1,66 @@
+Listing tests:
+  artifact-lifecycle-ui.spec.ts:174:1 › owner archives restores and explicitly deletes an eligible draft while retaining acceptance evidence
+  artifact-lifecycle-ui.spec.ts:286:1 › mobile viewer browses retained archives in read mode and cannot restore or delete
+  audio-editor.spec.ts:126:1 › real audio editing, measured WebAudio playback, durable WAV/FLAC mixdown, portable source roundtrip and artifact context survive reload
+  audio-editor.spec.ts:464:1 › remote revision conflicts preserve a downloadable local audio draft and view-only members cannot mutate audio
+  cad-editor.spec.ts:69:1 › rebuilds dimensional sketch history, exports analytic STEP, and roundtrips the solid through an authenticated import
+  cad-editor.spec.ts:195:1 › preserves scene materials, lighting, and embedded GLB hierarchy across uploads, save/reload, and export
+  cad-editor.spec.ts:276:1 › keeps exact CAD and import tools read-only for a project viewer
+  code-editor.spec.ts:54:1 › authors, renames, imports and exports a persistent real React/TypeScript project
+  code-editor.spec.ts:181:1 › switches persisted Pact provider-state examples without modifying the saved artifact
+  code-editor.spec.ts:242:1 › surfaces a compiler location and recovers through the actual source editor
+  documents.spec.ts:76:1 › collaborators answer inline questions, accept an attributed ADR, and review a text suggestion before it changes the document
+  documents.spec.ts:194:1 › Word and restricted MDX interchange are actual downloads and confirmed imports, with script markup kept inert
+  documents.spec.ts:303:1 › long documents produce multiple printable PDF pages instead of clipping the application viewport
+  documents.spec.ts:329:1 › find and replace edits real document text, the outline navigates headings, and table controls change its grid
+  documents.spec.ts:373:1 › a fresh viewer can read document review and search without editing questionnaires, suggestions, imports, or text
+  documents.spec.ts:426:1 › an imported restricted-MDX questionnaire has a durable anchor and accepts an answer and ADR without another edit
+  evidence.spec.ts:6:1 › captures the requested artifact workspace with honest illustrative review content
+  final-product.spec.ts:315:1 › operator-disabled conversation suggestions stay absent in the full application
+  final-product.spec.ts:351:1 › actual model offers publish a reviewable questionnaire and start only the exact explicitly edited research brief
+  final-product.spec.ts:524:1 › a real owner-approved investigation publishes inline native evidence, shared selections and an attributed decision across reload and viewer access
+  final-product.spec.ts:812:1 › independent decision selection and semantic review preserve uncertainty, anchored discussion and stale provenance in the full app
+  final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped
+  findings-ui.spec.ts:246:1 › actual App reviews findings through native decision and frozen harness, then a person applies an exact edit while questionnaire readiness remains blocked
+  findings-ui.spec.ts:350:1 › a person can incorporate text-only evidence with an explicit rationale and no model call or source rewrite
+  identity.spec.ts:109:1 › real issuer verifies an admitted user through PKCE, signed ID token and UserInfo; callback replay cannot mint another session
+  identity.spec.ts:163:1 › GitHub web connection uses the signed-in user and repository membership never substitutes for GitHub entitlement
+  identity.spec.ts:249:1 › verified but unadmitted issuer accounts cannot create a Studio account or session
+  identity.spec.ts:261:1 › an admitted account still cannot sign in with an unverified issuer email
+  identity.spec.ts:270:1 › expired durable state is denied before the real issuer authorization code can be exchanged
+  identity.spec.ts:286:1 › issuer token endpoint failure leaves the browser unsigned in and consumes the attempted state
+  implementation-ui.spec.ts:161:1 › Build plan authors a real DAG through forms, approves an exact version, reports blockers/no-change work and requires independent criterion review
+  implementation-ui.spec.ts:369:1 › Planner drafting invokes the actual HTTP model transport and publishes an unapproved source-fenced graph
+  integrations.spec.ts:7:1 › keeps machine work approved, reviewable, scoped, and separate from test evidence
+  integrations.spec.ts:156:1 › shows shared connections to a fresh viewer without exposing write or pairing controls
+  messages.spec.ts:8:1 › pages artifact-thread history without losing loaded messages or the reading position
+  midi-editor.spec.ts:181:1 › piano-roll edits persist, untouched sources retain exact bytes, and actual synth audio follows MIDI timing and pitch
+  midi-editor.spec.ts:430:1 › draft conflicts retain local notes and viewers can audition/export while editing remains protected on mobile
+  rebuild-ui.spec.ts:237:1 › living document rebuild preserves baseline, uses own machine, persists explicit automatic consent, and stays read-only for a fresh mobile viewer
+  remote-agent-ui.spec.ts:196:1 › actual remote stream and all typed questions persist through refresh, acknowledged pause and artifact export
+  remote-agent-ui.spec.ts:535:1 › viewer cannot answer, source changes withdraw questions, and durable stop fences late remote output on mobile
+  remote-agent-ui.spec.ts:659:1 › older remote questions remain browseable after more than eight completed turns and a fresh page load
+  scene.spec.ts:76:1 › edits a 3D scene parametrically, saves it, and reloads the same dimensions
+  scene.spec.ts:157:1 › executes CAD subtraction in the production worker and exports the actual cut solid as STL and GLB
+  scene.spec.ts:245:1 › persists interactive charts, diagrams, and tabs in the collaborative main design document
+  studio.spec.ts:52:1 › creates a project from the UI and persists edited document, chat, and attributed ADR
+  studio.spec.ts:118:1 › keeps artifact chats isolated and exposes honest test configuration state
+  studio.spec.ts:166:1 › runs code preview and Pact boundary replay without integration access or parent privileges
+  studio.spec.ts:213:1 › edits code locally and retains unsaved work when a teammate saves a conflicting revision
+  studio.spec.ts:282:1 › renders and persists both bounded UI engines with working local interactions
+  studio.spec.ts:352:1 › preserves anchored discussions and restores a document through attributed history
+  studio.spec.ts:418:1 › shows view-only documents to invited viewers without editable controls
+  studio.spec.ts:457:1 › keeps mobile keyboard navigation within the visible panel and restores focus on Escape
+  studio.spec.ts:522:1 › captures the collaborative document, project canvas, and narrow viewport without page overflow
+  title-goal.spec.ts:274:1 › explicit title and goal consent seeds the empty main design document once with canonical Yjs and attributed live markers
+  title-goal.spec.ts:402:1 › automatic titles preserve source without goal consent and preserve an already authored body despite goal opt-in
+  title-goal.spec.ts:435:1 › manual document edits and a claimed human title win over an in-flight structured goal request
+  video-editor.spec.ts:103:1 › multi-track media, nonlinear keyframes, source trims, MP4 audio, and portable projects work end to end
+  video-editor.spec.ts:304:1 › bundled Chromium rejects an unsupported codec in a valid MP4 without adding or saving a clip
+  video-editor.spec.ts:409:1 › new revisions retain local video drafts and viewer controls prevent edits
+  video-workspace.spec.ts:9:1 › authors and reloads a keyframed timeline, exports a portable project and decodes the rendered MP4
+  visual-design.spec.ts:60:1 › authored glyphs export a browser-valid typeface and portable vector brand project
+  visual-design.spec.ts:201:1 › raster masks, adjustments and edge matte persist and re-import their own uploaded assets
+  visual.spec.ts:44:1 › image layers and uploaded typography persist and export as self-contained vector and raster assets
+  visual.spec.ts:167:1 › video canvas exports an actual encoded WebM from the timeline
+Total: 64 tests in 22 files

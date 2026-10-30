@@ -1,0 +1,610 @@
+{
+  "source": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+  "recordedAt": "2026-10-30T04:38:28.529512+00:00",
+  "scope": "Local full standard Studio App browser acceptance; not hosted-head or deployed acceptance",
+  "build": {
+    "command": "pnpm --filter @ai-bdd/studio build",
+    "exitCode": 0
+  },
+  "acceptance": {
+    "command": "CI=1 PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright STUDIO_MP4_CHROMIUM_PATH=/workspace/.cache/studio-mp4-chrome/156.0.8078.80/chrome-linux64/chrome STUDIO_CAPTURE_DIR=<isolated-worktree>/work/review/final-parity pnpm --filter @ai-bdd/studio exec playwright test --workers=1 --retries=0",
+    "testMatch": "**/*.spec.ts",
+    "files": 22,
+    "collected": 64,
+    "passed": 64,
+    "failed": 0,
+    "skipped": 0,
+    "retried": 0,
+    "excluded": 0,
+    "workers": 1,
+    "durationAsReported": "4.1m",
+    "exitCode": 0,
+    "freshDatabase": true,
+    "reuseExistingServer": false,
+    "productOrTestFixesDuringRun": false
+  },
+  "browsers": {
+    "general": "Chromium 154.0.8037.57 (system, Debian 13)",
+    "positiveMp4AndApiRenderer": "Official Google Chrome for Testing 156.0.8078.80",
+    "unsupportedCodec": "Playwright Chromium Headless Shell 156.0.8078.4"
+  },
+  "files": [
+    "artifact-lifecycle-ui.spec.ts",
+    "audio-editor.spec.ts",
+    "cad-editor.spec.ts",
+    "code-editor.spec.ts",
+    "documents.spec.ts",
+    "evidence.spec.ts",
+    "final-product.spec.ts",
+    "findings-ui.spec.ts",
+    "identity.spec.ts",
+    "implementation-ui.spec.ts",
+    "integrations.spec.ts",
+    "messages.spec.ts",
+    "midi-editor.spec.ts",
+    "rebuild-ui.spec.ts",
+    "remote-agent-ui.spec.ts",
+    "scene.spec.ts",
+    "studio.spec.ts",
+    "title-goal.spec.ts",
+    "video-editor.spec.ts",
+    "video-workspace.spec.ts",
+    "visual-design.spec.ts",
+    "visual.spec.ts"
+  ],
+  "cases": [
+    {
+      "file": "artifact-lifecycle-ui.spec.ts",
+      "line": 174,
+      "column": 1,
+      "name": "owner archives restores and explicitly deletes an eligible draft while retaining acceptance evidence",
+      "durationAsReported": "2.2s",
+      "status": "passed"
+    },
+    {
+      "file": "artifact-lifecycle-ui.spec.ts",
+      "line": 286,
+      "column": 1,
+      "name": "mobile viewer browses retained archives in read mode and cannot restore or delete",
+      "durationAsReported": "1.1s",
+      "status": "passed"
+    },
+    {
+      "file": "audio-editor.spec.ts",
+      "line": 126,
+      "column": 1,
+      "name": "real audio editing, measured WebAudio playback, durable WAV/FLAC mixdown, portable source roundtrip and artifact context survive reload",
+      "durationAsReported": "10.9s",
+      "status": "passed"
+    },
+    {
+      "file": "audio-editor.spec.ts",
+      "line": 464,
+      "column": 1,
+      "name": "remote revision conflicts preserve a downloadable local audio draft and view-only members cannot mutate audio",
+      "durationAsReported": "3.5s",
+      "status": "passed"
+    },
+    {
+      "file": "cad-editor.spec.ts",
+      "line": 69,
+      "column": 1,
+      "name": "rebuilds dimensional sketch history, exports analytic STEP, and roundtrips the solid through an authenticated import",
+      "durationAsReported": "19.4s",
+      "status": "passed"
+    },
+    {
+      "file": "cad-editor.spec.ts",
+      "line": 195,
+      "column": 1,
+      "name": "preserves scene materials, lighting, and embedded GLB hierarchy across uploads, save/reload, and export",
+      "durationAsReported": "5.2s",
+      "status": "passed"
+    },
+    {
+      "file": "cad-editor.spec.ts",
+      "line": 276,
+      "column": 1,
+      "name": "keeps exact CAD and import tools read-only for a project viewer",
+      "durationAsReported": "1.9s",
+      "status": "passed"
+    },
+    {
+      "file": "code-editor.spec.ts",
+      "line": 54,
+      "column": 1,
+      "name": "authors, renames, imports and exports a persistent real React/TypeScript project",
+      "durationAsReported": "5.6s",
+      "status": "passed"
+    },
+    {
+      "file": "code-editor.spec.ts",
+      "line": 181,
+      "column": 1,
+      "name": "switches persisted Pact provider-state examples without modifying the saved artifact",
+      "durationAsReported": "974ms",
+      "status": "passed"
+    },
+    {
+      "file": "code-editor.spec.ts",
+      "line": 242,
+      "column": 1,
+      "name": "surfaces a compiler location and recovers through the actual source editor",
+      "durationAsReported": "2.0s",
+      "status": "passed"
+    },
+    {
+      "file": "documents.spec.ts",
+      "line": 76,
+      "column": 1,
+      "name": "collaborators answer inline questions, accept an attributed ADR, and review a text suggestion before it changes the document",
+      "durationAsReported": "1.7s",
+      "status": "passed"
+    },
+    {
+      "file": "documents.spec.ts",
+      "line": 194,
+      "column": 1,
+      "name": "Word and restricted MDX interchange are actual downloads and confirmed imports, with script markup kept inert",
+      "durationAsReported": "1.5s",
+      "status": "passed"
+    },
+    {
+      "file": "documents.spec.ts",
+      "line": 303,
+      "column": 1,
+      "name": "long documents produce multiple printable PDF pages instead of clipping the application viewport",
+      "durationAsReported": "687ms",
+      "status": "passed"
+    },
+    {
+      "file": "documents.spec.ts",
+      "line": 329,
+      "column": 1,
+      "name": "find and replace edits real document text, the outline navigates headings, and table controls change its grid",
+      "durationAsReported": "1.2s",
+      "status": "passed"
+    },
+    {
+      "file": "documents.spec.ts",
+      "line": 373,
+      "column": 1,
+      "name": "a fresh viewer can read document review and search without editing questionnaires, suggestions, imports, or text",
+      "durationAsReported": "1.4s",
+      "status": "passed"
+    },
+    {
+      "file": "documents.spec.ts",
+      "line": 426,
+      "column": 1,
+      "name": "an imported restricted-MDX questionnaire has a durable anchor and accepts an answer and ADR without another edit",
+      "durationAsReported": "1.3s",
+      "status": "passed"
+    },
+    {
+      "file": "evidence.spec.ts",
+      "line": 6,
+      "column": 1,
+      "name": "captures the requested artifact workspace with honest illustrative review content",
+      "durationAsReported": "3.4s",
+      "status": "passed"
+    },
+    {
+      "file": "final-product.spec.ts",
+      "line": 315,
+      "column": 1,
+      "name": "operator-disabled conversation suggestions stay absent in the full application",
+      "durationAsReported": "819ms",
+      "status": "passed"
+    },
+    {
+      "file": "final-product.spec.ts",
+      "line": 351,
+      "column": 1,
+      "name": "actual model offers publish a reviewable questionnaire and start only the exact explicitly edited research brief",
+      "durationAsReported": "14.0s",
+      "status": "passed"
+    },
+    {
+      "file": "final-product.spec.ts",
+      "line": 524,
+      "column": 1,
+      "name": "a real owner-approved investigation publishes inline native evidence, shared selections and an attributed decision across reload and viewer access",
+      "durationAsReported": "8.5s",
+      "status": "passed"
+    },
+    {
+      "file": "final-product.spec.ts",
+      "line": 812,
+      "column": 1,
+      "name": "independent decision selection and semantic review preserve uncertainty, anchored discussion and stale provenance in the full app",
+      "durationAsReported": "3.2s",
+      "status": "passed"
+    },
+    {
+      "file": "final-product.spec.ts",
+      "line": 1069,
+      "column": 1,
+      "name": "passage slash commands place exact research and investigation cards inline and keep run controls owner scoped",
+      "durationAsReported": "7.2s",
+      "status": "passed"
+    },
+    {
+      "file": "findings-ui.spec.ts",
+      "line": 246,
+      "column": 1,
+      "name": "actual App reviews findings through native decision and frozen harness, then a person applies an exact edit while questionnaire readiness remains blocked",
+      "durationAsReported": "6.6s",
+      "status": "passed"
+    },
+    {
+      "file": "findings-ui.spec.ts",
+      "line": 350,
+      "column": 1,
+      "name": "a person can incorporate text-only evidence with an explicit rationale and no model call or source rewrite",
+      "durationAsReported": "899ms",
+      "status": "passed"
+    },
+    {
+      "file": "identity.spec.ts",
+      "line": 109,
+      "column": 1,
+      "name": "real issuer verifies an admitted user through PKCE, signed ID token and UserInfo; callback replay cannot mint another session",
+      "durationAsReported": "1.0s",
+      "status": "passed"
+    },
+    {
+      "file": "identity.spec.ts",
+      "line": 163,
+      "column": 1,
+      "name": "GitHub web connection uses the signed-in user and repository membership never substitutes for GitHub entitlement",
+      "durationAsReported": "1.6s",
+      "status": "passed"
+    },
+    {
+      "file": "identity.spec.ts",
+      "line": 249,
+      "column": 1,
+      "name": "verified but unadmitted issuer accounts cannot create a Studio account or session",
+      "durationAsReported": "704ms",
+      "status": "passed"
+    },
+    {
+      "file": "identity.spec.ts",
+      "line": 261,
+      "column": 1,
+      "name": "an admitted account still cannot sign in with an unverified issuer email",
+      "durationAsReported": "689ms",
+      "status": "passed"
+    },
+    {
+      "file": "identity.spec.ts",
+      "line": 270,
+      "column": 1,
+      "name": "expired durable state is denied before the real issuer authorization code can be exchanged",
+      "durationAsReported": "675ms",
+      "status": "passed"
+    },
+    {
+      "file": "identity.spec.ts",
+      "line": 286,
+      "column": 1,
+      "name": "issuer token endpoint failure leaves the browser unsigned in and consumes the attempted state",
+      "durationAsReported": "588ms",
+      "status": "passed"
+    },
+    {
+      "file": "implementation-ui.spec.ts",
+      "line": 161,
+      "column": 1,
+      "name": "Build plan authors a real DAG through forms, approves an exact version, reports blockers/no-change work and requires independent criterion review",
+      "durationAsReported": "4.2s",
+      "status": "passed"
+    },
+    {
+      "file": "implementation-ui.spec.ts",
+      "line": 369,
+      "column": 1,
+      "name": "Planner drafting invokes the actual HTTP model transport and publishes an unapproved source-fenced graph",
+      "durationAsReported": "1.4s",
+      "status": "passed"
+    },
+    {
+      "file": "integrations.spec.ts",
+      "line": 7,
+      "column": 1,
+      "name": "keeps machine work approved, reviewable, scoped, and separate from test evidence",
+      "durationAsReported": "1.6s",
+      "status": "passed"
+    },
+    {
+      "file": "integrations.spec.ts",
+      "line": 156,
+      "column": 1,
+      "name": "shows shared connections to a fresh viewer without exposing write or pairing controls",
+      "durationAsReported": "1.5s",
+      "status": "passed"
+    },
+    {
+      "file": "messages.spec.ts",
+      "line": 8,
+      "column": 1,
+      "name": "pages artifact-thread history without losing loaded messages or the reading position",
+      "durationAsReported": "2.2s",
+      "status": "passed"
+    },
+    {
+      "file": "midi-editor.spec.ts",
+      "line": 181,
+      "column": 1,
+      "name": "piano-roll edits persist, untouched sources retain exact bytes, and actual synth audio follows MIDI timing and pitch",
+      "durationAsReported": "4.3s",
+      "status": "passed"
+    },
+    {
+      "file": "midi-editor.spec.ts",
+      "line": 430,
+      "column": 1,
+      "name": "draft conflicts retain local notes and viewers can audition/export while editing remains protected on mobile",
+      "durationAsReported": "3.3s",
+      "status": "passed"
+    },
+    {
+      "file": "rebuild-ui.spec.ts",
+      "line": 237,
+      "column": 1,
+      "name": "living document rebuild preserves baseline, uses own machine, persists explicit automatic consent, and stays read-only for a fresh mobile viewer",
+      "durationAsReported": "15.1s",
+      "status": "passed"
+    },
+    {
+      "file": "remote-agent-ui.spec.ts",
+      "line": 196,
+      "column": 1,
+      "name": "actual remote stream and all typed questions persist through refresh, acknowledged pause and artifact export",
+      "durationAsReported": "6.2s",
+      "status": "passed"
+    },
+    {
+      "file": "remote-agent-ui.spec.ts",
+      "line": 535,
+      "column": 1,
+      "name": "viewer cannot answer, source changes withdraw questions, and durable stop fences late remote output on mobile",
+      "durationAsReported": "3.7s",
+      "status": "passed"
+    },
+    {
+      "file": "remote-agent-ui.spec.ts",
+      "line": 659,
+      "column": 1,
+      "name": "older remote questions remain browseable after more than eight completed turns and a fresh page load",
+      "durationAsReported": "5.7s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 52,
+      "column": 1,
+      "name": "creates a project from the UI and persists edited document, chat, and attributed ADR",
+      "durationAsReported": "2.0s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 118,
+      "column": 1,
+      "name": "keeps artifact chats isolated and exposes honest test configuration state",
+      "durationAsReported": "1.2s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 166,
+      "column": 1,
+      "name": "runs code preview and Pact boundary replay without integration access or parent privileges",
+      "durationAsReported": "1.1s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 213,
+      "column": 1,
+      "name": "edits code locally and retains unsaved work when a teammate saves a conflicting revision",
+      "durationAsReported": "2.2s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 282,
+      "column": 1,
+      "name": "renders and persists both bounded UI engines with working local interactions",
+      "durationAsReported": "2.9s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 352,
+      "column": 1,
+      "name": "preserves anchored discussions and restores a document through attributed history",
+      "durationAsReported": "2.1s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 418,
+      "column": 1,
+      "name": "shows view-only documents to invited viewers without editable controls",
+      "durationAsReported": "1.1s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 457,
+      "column": 1,
+      "name": "keeps mobile keyboard navigation within the visible panel and restores focus on Escape",
+      "durationAsReported": "1.3s",
+      "status": "passed"
+    },
+    {
+      "file": "studio.spec.ts",
+      "line": 522,
+      "column": 1,
+      "name": "captures the collaborative document, project canvas, and narrow viewport without page overflow",
+      "durationAsReported": "1.3s",
+      "status": "passed"
+    },
+    {
+      "file": "title-goal.spec.ts",
+      "line": 274,
+      "column": 1,
+      "name": "explicit title and goal consent seeds the empty main design document once with canonical Yjs and attributed live markers",
+      "durationAsReported": "7.3s",
+      "status": "passed"
+    },
+    {
+      "file": "title-goal.spec.ts",
+      "line": 402,
+      "column": 1,
+      "name": "automatic titles preserve source without goal consent and preserve an already authored body despite goal opt-in",
+      "durationAsReported": "10.2s",
+      "status": "passed"
+    },
+    {
+      "file": "title-goal.spec.ts",
+      "line": 435,
+      "column": 1,
+      "name": "manual document edits and a claimed human title win over an in-flight structured goal request",
+      "durationAsReported": "6.1s",
+      "status": "passed"
+    },
+    {
+      "file": "video-workspace.spec.ts",
+      "line": 9,
+      "column": 1,
+      "name": "authors and reloads a keyframed timeline, exports a portable project and decodes the rendered MP4",
+      "durationAsReported": "6.7s",
+      "status": "passed"
+    },
+    {
+      "file": "visual-design.spec.ts",
+      "line": 60,
+      "column": 1,
+      "name": "authored glyphs export a browser-valid typeface and portable vector brand project",
+      "durationAsReported": "3.4s",
+      "status": "passed"
+    },
+    {
+      "file": "visual-design.spec.ts",
+      "line": 201,
+      "column": 1,
+      "name": "raster masks, adjustments and edge matte persist and re-import their own uploaded assets",
+      "durationAsReported": "2.4s",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "line": 44,
+      "column": 1,
+      "name": "image layers and uploaded typography persist and export as self-contained vector and raster assets",
+      "durationAsReported": "2.7s",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "line": 167,
+      "column": 1,
+      "name": "video canvas exports an actual encoded WebM from the timeline",
+      "durationAsReported": "4.1s",
+      "status": "passed"
+    },
+    {
+      "file": "scene.spec.ts",
+      "line": 76,
+      "column": 1,
+      "name": "edits a 3D scene parametrically, saves it, and reloads the same dimensions",
+      "durationAsReported": "3.4s",
+      "status": "passed"
+    },
+    {
+      "file": "scene.spec.ts",
+      "line": 157,
+      "column": 1,
+      "name": "executes CAD subtraction in the production worker and exports the actual cut solid as STL and GLB",
+      "durationAsReported": "5.6s",
+      "status": "passed"
+    },
+    {
+      "file": "scene.spec.ts",
+      "line": 245,
+      "column": 1,
+      "name": "persists interactive charts, diagrams, and tabs in the collaborative main design document",
+      "durationAsReported": "3.0s",
+      "status": "passed"
+    },
+    {
+      "file": "video-editor.spec.ts",
+      "line": 103,
+      "column": 1,
+      "name": "multi-track media, nonlinear keyframes, source trims, MP4 audio, and portable projects work end to end",
+      "durationAsReported": "9.6s",
+      "status": "passed"
+    },
+    {
+      "file": "video-editor.spec.ts",
+      "line": 304,
+      "column": 1,
+      "name": "bundled Chromium rejects an unsupported codec in a valid MP4 without adding or saving a clip",
+      "durationAsReported": "1.2s",
+      "status": "passed"
+    },
+    {
+      "file": "video-editor.spec.ts",
+      "line": 409,
+      "column": 1,
+      "name": "new revisions retain local video drafts and viewer controls prevent edits",
+      "durationAsReported": "2.2s",
+      "status": "passed"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "passage-research-brief-desktop.png",
+      "sha256": "bb33c9ff9bc0e6ab85db3efbef5fd550546084cf3dd25eff2413815f2fd6cd02",
+      "bytes": 128178,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-research-highlight-desktop.png",
+      "sha256": "726532cd0618faf5d9860d01a01f685652ee338649bed4d6c620661e41af6929",
+      "bytes": 112020,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-investigation-ready-desktop.png",
+      "sha256": "042d2c3566e0036768afcefd8e87c28ccb79a19f905c599c4dc0a5cc79323b1b",
+      "bytes": 126670,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-investigation-queued-desktop.png",
+      "sha256": "a03eefcb26caf494e6e10c32c62dbdc49a72f822366a053b01a6f1c6b59b3301",
+      "bytes": 125833,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-investigation-viewer-mobile.png",
+      "sha256": "8f513aa0f6049554881f895ad2e8f33509d87fd74590a5f7d8dbe44fe546135f",
+      "bytes": 49540,
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "toolchain": {
+    "node": "24.19.0",
+    "pnpm": "10.28.0"
+  }
+}
