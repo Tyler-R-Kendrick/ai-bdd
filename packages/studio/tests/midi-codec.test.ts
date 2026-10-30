@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseMidi, writeMidi, type MidiData } from 'midi-file';
 import { parseMidiFile, writeMidiFile } from '../shared/midi-file.ts';
 import {
+  midiContentSchema,
   beatSeconds,
   secondsBeat,
   initialMidiContent,
@@ -230,4 +231,45 @@ describe('independently decoded Standard MIDI Files', () => {
     project.meta = [{ kind: 'midi', tick: 0, data: [0x90, 60, 100] }];
     expect(() => writeMidiFile(project)).toThrow('channel event');
   });
+});
+
+it('rejects shortening the composition past tempo, meter or preserved event markers', () => {
+  const content = initialMidiContent();
+  content.lengthBeats = 4;
+  for (const patch of [
+    {
+      tempo: [
+        { beat: 0, bpm: 120 },
+        { beat: 5, bpm: 90 },
+      ],
+    },
+    {
+      timeSignatures: [
+        { beat: 0, numerator: 4, denominator: 4 },
+        { beat: 5, numerator: 3, denominator: 4 },
+      ],
+    },
+    { meta: [{ tick: 1921, kind: 'meta', type: 6, data: [65] }] },
+    {
+      tracks: [
+        {
+          id: 'track',
+          title: 'Piano',
+          channel: 0,
+          instrument: 0,
+          notes: [],
+          events: [{ tick: 1921, kind: 'midi', data: [0xb0, 7, 90] }],
+        },
+      ],
+    },
+  ])
+    expect(midiContentSchema.safeParse({ ...content, ...patch }).success).toBe(
+      false,
+    );
+  expect(
+    midiContentSchema.safeParse({
+      ...content,
+      meta: [{ tick: 1920, kind: 'meta', type: 6, data: [65] }],
+    }).success,
+  ).toBe(true);
 });

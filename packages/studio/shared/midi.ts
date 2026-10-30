@@ -89,6 +89,22 @@ export const midiContentSchema = z
             message:
               'Tempo and meter changes must be ordered with unique beats',
           });
+    if (
+      [...content.tempo, ...content.timeSignatures].some(
+        (marker) => marker.beat > content.lengthBeats,
+      ) ||
+      [
+        ...content.meta,
+        ...content.tracks.flatMap((track) => track.events),
+      ].some(
+        (event) => event.tick > Math.round(content.lengthBeats * content.ppq),
+      )
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'MIDI tempo, meter and preserved events must fit the composition timeline',
+      });
     const tracks = new Set<string>(),
       notes = new Set<string>();
     let count = 0,
