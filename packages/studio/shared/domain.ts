@@ -352,7 +352,10 @@ export function contentSchema(kind: ArtifactKind) {
         unit: z.enum(['m', 'mm']),
         grid: z.boolean(),
         features: z.array(cadFeatureSchema).max(40).optional(),
-        imports: z.array(sceneImportSchema).max(30).optional(),
+        imports: z
+          .array(sceneImportSchema)
+          .max(kind === 'cad' ? 4 : 30)
+          .optional(),
         environment: sceneEnvironmentSchema.optional(),
       })
       .strict();

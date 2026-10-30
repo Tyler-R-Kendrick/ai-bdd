@@ -65,6 +65,7 @@ import {
 } from '../shared/domain.ts';
 const CodeEditor = lazy(() => import('./editors/CodeEditor.tsx'));
 const VisualEditor = lazy(() => import('./editors/VisualEditor.tsx'));
+const VideoEditor = lazy(() => import('./editors/VideoEditor.tsx'));
 const SceneEditor = lazy(() => import('./editors/SceneEditor.tsx'));
 const GenerativeEditor = lazy(() => import('./editors/GenerativeEditor.tsx'));
 export const kindIcons = {
@@ -792,9 +793,10 @@ export function App() {
                       />
                     ) : artifact.kind === 'code' ? (
                       <CodeEditor key={artifact.id} {...mediaProps!} />
+                    ) : artifact.kind === 'video' ? (
+                      <VideoEditor key={artifact.id} {...mediaProps!} />
                     ) : artifact.kind === 'image' ||
-                      artifact.kind === 'brand' ||
-                      artifact.kind === 'video' ? (
+                      artifact.kind === 'brand' ? (
                       <VisualEditor key={artifact.id} {...mediaProps!} />
                     ) : artifact.kind === 'scene' ||
                       artifact.kind === 'cad' ? (

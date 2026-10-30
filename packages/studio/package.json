@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch server/main.ts",
     "dev:ui": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server",
+    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server",
     "start": "node dist/server/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
@@ -15,7 +15,9 @@
     "test:contracts": "vitest run --config vitest.config.ts tests/pact.test.ts",
     "verify": "node --experimental-strip-types verification/check.ts",
     "mcp": "node dist/server/mcp.js",
-    "mcp:dev": "tsx server/mcp.ts"
+    "mcp:dev": "tsx server/mcp.ts",
+    "machine:connect": "node dist/server/machine-worker.js",
+    "verify:live": "tsx server/integrations/live-check.ts"
   },
   "dependencies": {
     "@ai-bdd/driver-playwright": "workspace:*",
@@ -51,6 +53,8 @@
     "@tiptap/pm": "^3.32.1",
     "@tiptap/react": "^3.32.1",
     "@tiptap/starter-kit": "^3.32.1",
+    "@vercel/blob": "2.8.2",
+    "@vercel/queue": "0.10.0",
     "@xyflow/react": "^12.12.0",
     "ai": "^7.0.137",
     "class-variance-authority": "^0.7.1",
@@ -65,6 +69,7 @@
     "marked": "14.0.0",
     "monaco-editor": "^0.57.0",
     "openid-client": "^6.8.8",
+    "pg": "8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "replicad": "1.2.0",
@@ -86,6 +91,7 @@
     "@playwright/test": "1.64.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/oidc-provider": "9.13.1",
+    "@types/pg": "8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",

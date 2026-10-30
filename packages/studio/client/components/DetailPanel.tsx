@@ -1,3 +1,4 @@
+import { IntegrationPanel } from './integrations/IntegrationPanel.tsx';
 import {
   Fragment,
   useCallback,
@@ -82,7 +83,10 @@ type Props = {
   onClearAnchor: () => void;
   onOpenArtifact: (id: string) => void;
 };
-type CommonProps = Pick<Props, 'bundle' | 'project' | 'onRefresh' | 'onError'>;
+type CommonProps = Pick<
+  Props,
+  'bundle' | 'project' | 'onRefresh' | 'onError'
+>;
 type Tone = 'neutral' | 'green' | 'amber' | 'red' | 'purple';
 const statusTone = (status: string): Tone =>
   ['passed', 'accepted', 'merged', 'holds'].includes(status)
@@ -112,6 +116,7 @@ const tabs = [
   { id: 'decisions', label: 'Decisions', Icon: CheckCheck },
   { id: 'tests', label: 'Tests', Icon: FlaskConical },
   { id: 'history', label: 'History', Icon: History },
+  { id: 'integrations', label: 'Connections', Icon: Link2 },
 ];
 
 function useTask(onError: Props['onError']) {
@@ -179,7 +184,11 @@ export function DetailPanel(props: Props) {
           {props.project.role === 'viewer' ? 'View only' : 'Shared'}
         </Badge>
       </div>
-      <div className="detail-tabs" role="tablist" aria-label="Artifact context">
+      <div
+        className="detail-tabs"
+        role="tablist"
+        aria-label="Artifact context"
+      >
         {tabs.map(({ id, label, Icon }, index) => (
           <button
             key={id}
@@ -224,6 +233,15 @@ export function DetailPanel(props: Props) {
         )}
         {selected === 'tests' && (
           <TestsPanel key={props.bundle.artifact.id} {...props} />
+        )}
+        {selected === 'integrations' && (
+          <IntegrationPanel
+            key={props.bundle.artifact.id}
+            artifact={props.bundle.artifact}
+            project={props.project}
+            onOpenArtifact={props.onOpenArtifact}
+            onRefresh={props.onRefresh}
+          />
         )}
         {selected === 'history' && (
           <HistoryPanel key={props.bundle.artifact.id} {...props} />
@@ -290,7 +308,8 @@ function ChatPanel({
     if (nearBottom.current)
       end.current?.scrollIntoView({
         block: 'nearest',
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)')
+          .matches
           ? 'auto'
           : 'smooth',
       });
@@ -355,7 +374,8 @@ function ChatPanel({
         ? CSS.escape(thread.anchor ?? '')
         : (thread.anchor ?? '').replace(/["\\]/g, '\\$&');
     const target = document.querySelector(`[data-id="${escaped}"]`);
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (target)
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     else
       onError(
         'The original paragraph is no longer in the document. Its discussion and quote are preserved.',
@@ -365,7 +385,9 @@ function ChatPanel({
     <div className="chat-panel">
       <div className="panel-section chat-context">
         <div className="panel-heading">
-          <h2>{selectedThread ? 'Comment thread' : 'Artifact conversation'}</h2>
+          <h2>
+            {selectedThread ? 'Comment thread' : 'Artifact conversation'}
+          </h2>
           {selectedThread && (
             <Button
               variant="ghost"
@@ -424,7 +446,9 @@ function ChatPanel({
           const element = conversation.current;
           if (element)
             nearBottom.current =
-              element.scrollHeight - element.scrollTop - element.clientHeight <
+              element.scrollHeight -
+                element.scrollTop -
+                element.clientHeight <
               80;
         }}
         aria-live="polite"
@@ -462,8 +486,8 @@ function ChatPanel({
             <MessageSquare size={24} />
             <h3>Keep the thinking here.</h3>
             <p>
-              Discuss this artifact, ask for a change, or select a paragraph and
-              leave a comment.
+              Discuss this artifact, ask for a change, or select a paragraph
+              and leave a comment.
             </p>
           </div>
         )}
@@ -477,7 +501,8 @@ function ChatPanel({
                   key={`${gap.afterSequence}-${gap.before}`}
                 >
                   <p>
-                    More messages were posted while this conversation was open.
+                    More messages were posted while this conversation was
+                    open.
                   </p>
                   <Button
                     variant="outline"
@@ -621,7 +646,9 @@ function ChatPanel({
           {anchor && (
             <div className="composer-anchor">
               <MessageSquarePlus size={14} />
-              <span>{anchor.quote || 'Comment on the selected paragraph'}</span>
+              <span>
+                {anchor.quote || 'Comment on the selected paragraph'}
+              </span>
               <IconButton
                 label="Cancel anchored comment"
                 onClick={onClearAnchor}
@@ -782,8 +809,8 @@ function DecisionsPanel(props: Props) {
           <Badge>{props.bundle.decisions.length} ADR</Badge>
         </div>
         <p className="small muted">
-          The reasoning belongs to the artifact. Changes retain their author and
-          previous values in history.
+          The reasoning belongs to the artifact. Changes retain their author
+          and previous values in history.
         </p>
       </section>
       {(props.bundle.decisions as Decision[]).map((decision) => (
@@ -838,8 +865,8 @@ function DecisionEditor({
         <form className="decision-fields" onSubmit={submit}>
           {stale && (
             <p className="panel-warning" role="status">
-              Another teammate updated this ADR. Your draft is preserved. Cancel
-              and reopen to edit the latest revision.
+              Another teammate updated this ADR. Your draft is preserved.
+              Cancel and reopen to edit the latest revision.
             </p>
           )}
           <Field label="ADR title">
@@ -958,10 +985,9 @@ function TestsPanel({
     setDocumentHash('');
     if (!isDocument || !globalThis.crypto?.subtle) return;
     const raw = docText(bundle.artifact.content.doc),
-      normalized = (raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw).replace(
-        /\r\n?/g,
-        '\n',
-      );
+      normalized = (
+        raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
+      ).replace(/\r\n?/g, '\n');
     void crypto.subtle
       .digest('SHA-256', new TextEncoder().encode(normalized))
       .then((digest) => {
@@ -1022,8 +1048,8 @@ function TestsPanel({
           <FlaskConical size={17} />
         </div>
         <p className="small muted">
-          Executable intent, grounded in the document. Characterize once; replay
-          deterministic actions with captured evidence.
+          Executable intent, grounded in the document. Characterize once;
+          replay deterministic actions with captured evidence.
         </p>
         {!isDocument ? (
           <div className="panel-hint">
@@ -1037,9 +1063,9 @@ function TestsPanel({
           <div className="panel-hint">
             <h3>Runner not configured</h3>
             <p className="small muted">
-              An operator must configure a trusted ai-bdd runner with a driver,
-              model access, and a preview target. New tests cannot run until the
-              runner is configured.
+              An operator must configure a trusted ai-bdd runner with a
+              driver, model access, and a preview target. New tests cannot run
+              until the runner is configured.
             </p>
           </div>
         ) : (
@@ -1065,7 +1091,10 @@ function TestsPanel({
                 }
                 onClick={() =>
                   task(async () => {
-                    await api(`/artifacts/${bundle.artifact.id}/runs`, 'POST');
+                    await api(
+                      `/artifacts/${bundle.artifact.id}/runs`,
+                      'POST',
+                    );
                     await onRefresh();
                   })
                 }
@@ -1111,8 +1140,8 @@ function TestsPanel({
         )}
         {stalePlans && (
           <p className="panel-warning small" role="status">
-            The document changed since these scenarios were compiled. An editor
-            must compile the current requirements before running them.
+            The document changed since these scenarios were compiled. An
+            editor must compile the current requirements before running them.
           </p>
         )}
       </section>
@@ -1131,10 +1160,14 @@ function TestsPanel({
               disabled={busy || bundle.runnerActive}
               onReview={(target, action) =>
                 task(async () => {
-                  await api(`/artifacts/${bundle.artifact.id}/review`, 'POST', {
-                    target,
-                    action,
-                  });
+                  await api(
+                    `/artifacts/${bundle.artifact.id}/review`,
+                    'POST',
+                    {
+                      target,
+                      action,
+                    },
+                  );
                   await loadPlans();
                   await onRefresh();
                 })
@@ -1200,7 +1233,9 @@ function TestsPanel({
                 )}
                 <p className="small muted">
                   Started {date(run.createdAt)}
-                  {run.finishedAt ? ` · Finished ${date(run.finishedAt)}` : ''}
+                  {run.finishedAt
+                    ? ` · Finished ${date(run.finishedAt)}`
+                    : ''}
                 </p>
                 {run.error && <p className="error-text">{run.error}</p>}
                 {run.result && (
@@ -1222,7 +1257,9 @@ function TestsPanel({
                     {run.result.integrity && (
                       <p
                         className={
-                          run.result.integrity.ok ? 'small muted' : 'error-text'
+                          run.result.integrity.ok
+                            ? 'small muted'
+                            : 'error-text'
                         }
                       >
                         {run.result.integrity.ok
@@ -1243,8 +1280,8 @@ function TestsPanel({
                     )}
                     {!run.result.scenarios?.length && (
                       <p className="panel-warning small">
-                        This report contains no scenarios. It does not establish
-                        acceptance coverage.
+                        This report contains no scenarios. It does not
+                        establish acceptance coverage.
                       </p>
                     )}
                     <Button
@@ -1313,7 +1350,9 @@ function PlanFeature({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          onClick={() => onReview(feature.id, feature.pinned ? 'unpin' : 'pin')}
+          onClick={() =>
+            onReview(feature.id, feature.pinned ? 'unpin' : 'pin')
+          }
         >
           {feature.pinned ? 'Unpin feature' : 'Pin feature'}
         </Button>
@@ -1532,7 +1571,8 @@ function EvidenceButton({
   return (
     <>
       <Button size="sm" variant="outline" disabled={busy} onClick={inspect}>
-        {busy ? <Spinner label="" /> : <FileClock size={12} />} {evidence.kind}
+        {busy ? <Spinner label="" /> : <FileClock size={12} />}{' '}
+        {evidence.kind}
       </Button>
       <Modal
         open={open}
@@ -1705,7 +1745,9 @@ type Audit = {
   createdAt: string;
 };
 function readableContent(content: Record<string, any>) {
-  return content.doc ? docText(content.doc) : JSON.stringify(content, null, 2);
+  return content.doc
+    ? docText(content.doc)
+    : JSON.stringify(content, null, 2);
 }
 function HistoryPanel({ bundle, project, onRefresh, onError }: Props) {
   const [history, setHistory] = useState<{
@@ -1743,8 +1785,8 @@ function HistoryPanel({ bundle, project, onRefresh, onError }: Props) {
           <Badge>v{bundle.artifact.version}</Badge>
         </div>
         <p className="small muted">
-          Content revisions and decision changes retain their author. Restoring
-          content creates a new revision.
+          Content revisions and decision changes retain their author.
+          Restoring content creates a new revision.
         </p>
         {busy && !history.revisions.length && (
           <Spinner label="Loading history…" />
@@ -1792,7 +1834,9 @@ function HistoryPanel({ bundle, project, onRefresh, onError }: Props) {
                   <strong>{entry.actor}</strong>
                   <small>{entry.action.split('.').join(' · ')}</small>
                 </span>
-                <time dateTime={entry.createdAt}>{date(entry.createdAt)}</time>
+                <time dateTime={entry.createdAt}>
+                  {date(entry.createdAt)}
+                </time>
               </summary>
               {entry.detail && (
                 <pre className="activity-detail">

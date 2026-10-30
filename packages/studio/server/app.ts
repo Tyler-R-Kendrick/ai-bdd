@@ -1,4 +1,8 @@
 import {
+  registerIntegrationRoutes,
+  integrationExportRows,
+} from './integrations/routes.ts';
+import {
   compileCodePreview,
   codePreviewDependencies,
   CodeBuildError,
@@ -144,6 +148,13 @@ export async function createApp(
   await auth.routes(app);
   registerDocumentReview(app, { store, auth, collab });
   const video = registerVideoRoutes(app, { store, auth, settings });
+  const integrations = registerIntegrationRoutes(app, {
+    store,
+    auth,
+    collab,
+    agent,
+    settings,
+  });
   app.get('/api/health', async () => {
     store.one('SELECT 1');
     return { ok: true };
@@ -157,7 +168,9 @@ export async function createApp(
       github: true,
       githubAuthenticated:
         !!settings.githubToken && !!settings.githubRepositories?.length,
-      openDesign: false,
+      openDesign: !!settings.integrations?.openDesign,
+      research: true,
+      machines: true,
       magnetar: false,
     };
   });
@@ -1058,6 +1071,13 @@ export async function createApp(
             renderCursor = row.sequence;
           }
         }
+        yield '],"integrationHistory":[';
+        let firstIntegration = true;
+        for await (const row of integrationExportRows(store, user, a.id)) {
+          checkAccess();
+          yield (firstIntegration ? '' : ',') + JSON.stringify(row);
+          firstIntegration = false;
+        }
         yield ']}';
       }
       return reply
@@ -1155,5 +1175,5 @@ export async function createApp(
     collab.close();
     store.close();
   });
-  return { app, store, auth, collab, runner, agent, video };
+  return { app, store, auth, collab, runner, agent, video, integrations };
 }
