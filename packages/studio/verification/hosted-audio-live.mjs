@@ -1,7 +1,7 @@
 // Explicit, bounded, model-free acceptance on the reviewed protected preview.
 // Credentials stay in memory and are sent only to this exact host; redirects are never followed.
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdir, lstat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, lstat, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 const selected = new URL(
@@ -47,6 +47,7 @@ const report = {
   deploymentIdProvidedByOperator: deploymentId,
   kind: 'model-free hosted audio durable publication',
   passed: false,
+  state: 'running',
   steps: [],
   resources: {},
   jobHistory: [],
@@ -67,6 +68,16 @@ try {
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;
 }
+async function persistReport() {
+  const path = process.env.STUDIO_HOSTED_AUDIO_REPORT,
+    temp = path + '.tmp';
+  await writeFile(temp, JSON.stringify(report, null, 2) + '\n', {
+    mode: 0o600,
+    flag: 'wx',
+  });
+  await rename(temp, path);
+}
+await persistReport();
 const password = (
   await readFile(process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE, 'utf8')
 ).replace(/\r?\n$/, '');
@@ -137,6 +148,7 @@ async function request(
     durationMs: Date.now() - started,
     at: new Date().toISOString(),
   });
+  await persistReport();
   const bytes = await bounded(
     response,
     binary ? 4 * 1024 * 1024 : 2 * 1024 * 1024,
@@ -246,6 +258,7 @@ try {
     );
   assert(project.id);
   report.resources.projectId = project.id;
+  await persistReport();
   const content = {
     schemaVersion: 1,
     sampleRate: 48000,
@@ -271,6 +284,7 @@ try {
   assert.equal(artifact.content.duration, 0.25);
   report.resources.artifactId = artifact.id;
   report.resources.artifactVersion = artifact.version;
+  await persistReport();
   const idempotencyKey = randomUUID(),
     { value: initial } = await request(
       'enqueue-audio',
@@ -284,6 +298,7 @@ try {
     );
   assert(initial.id);
   report.resources.jobId = initial.id;
+  await persistReport();
   let job = initial;
   const deadline = Date.now() + 480000;
   let lastStatus = '',
@@ -297,6 +312,7 @@ try {
         progress: job.progress ?? null,
         finishedAt: job.finishedAt ?? null,
       });
+      await persistReport();
       lastStatus = job.status;
       lastProgress = job.progress;
     }
@@ -429,12 +445,9 @@ try {
   process.exitCode = 1;
 }
 report.completedAt = new Date().toISOString();
+report.state = report.passed ? 'completed' : 'incomplete';
 report.syntheticResourcesRetainedForReview = true;
-await writeFile(
-  process.env.STUDIO_HOSTED_AUDIO_REPORT,
-  JSON.stringify(report, null, 2) + '\n',
-  { mode: 0o600 },
-);
+await persistReport();
 console.log(
   JSON.stringify({
     passed: report.passed,
