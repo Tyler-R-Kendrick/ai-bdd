@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { HttpError } from './store.ts';
+import type { GitHubSignInObserver } from './github-signin-diagnostics.ts';
 
 export type GitHubSignInIdentity = {
   id: string;
@@ -12,6 +13,7 @@ export type GitHubSignInAuthorization = {
   codeChallenge: string;
   redirectUri: string;
   nonce?: string;
+  onDiagnostic?: GitHubSignInObserver;
 };
 /** Trusted server dependency. A browser cannot select or construct a provider. */
 export interface GitHubSignInProvider {
@@ -22,6 +24,7 @@ export interface GitHubSignInProvider {
     redirectUri: string;
     state?: string;
     nonce?: string;
+    onDiagnostic?: GitHubSignInObserver;
   }): Promise<GitHubSignInIdentity>;
 }
 export type GitHubSignInSettings = { clientId: string; clientSecret: string };

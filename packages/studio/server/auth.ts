@@ -13,6 +13,7 @@ import {
 } from './github-signin.ts';
 import { VercelConnectGitHubSignInProvider, githubSignInConnectorFromEnv } from './github-connect-signin.ts';
 import type { IdentityExecutionContext } from './hosting/identity-context.ts';
+import { emitGitHubSignIn, githubSignInFailure, observeGitHubSignIn, type GitHubSignInObserver } from './github-signin-diagnostics.ts';
 
 // Retained for reading historical test/migration fixtures. No HTTP endpoint uses passwords.
 const derive = promisify(scrypt);
@@ -174,10 +175,11 @@ export class Auth {
       reply.clearCookie('studio_session', { path: '/' });
       return { ok: true };
     });
-    app.get('/api/auth/github', {config:{rateLimit:{max:8,timeWindow:'1 minute'}}}, async (_req, reply) => {
+    app.get('/api/auth/github', {config:{rateLimit:{max:8,timeWindow:'1 minute'}}}, async (req, reply) => {
+      const observer:GitHubSignInObserver=event=>{req.log[event.state==='failure'?'warn':'info']({githubSignIn:event},'GitHub sign-in');};
       if (!this.github) throw new HttpError(503, 'GitHub sign-in is not configured');
       const state = randomBytes(32).toString('base64url'), binding = randomBytes(32).toString('base64url'), verifier = randomBytes(32).toString('base64url'), nonce = randomBytes(32).toString('base64url');
-      const authorizationUrl = await this.github.authorizationUrl({ state, nonce, codeChallenge: githubCodeChallenge(verifier), redirectUri: this.settings.origin + '/api/auth/github/callback' });
+      const authorizationUrl = await observeGitHubSignIn(observer,'authorization',async()=>this.github!.authorizationUrl({ state, nonce, codeChallenge: githubCodeChallenge(verifier), redirectUri: this.settings.origin + '/api/auth/github/callback',onDiagnostic:observer }));
       await this.store.tx(async () => {
         await this.store.db.lock('identity:github-signin-challenges');
         await this.challenges.put('github-signin', state, binding, { verifier, nonce }, Date.now() + 300000);
@@ -186,18 +188,23 @@ export class Auth {
       return reply.redirect(authorizationUrl);
     });
     app.get('/api/auth/github/callback', async (req, reply) => {
+      const observer:GitHubSignInObserver=event=>{req.log[event.state==='failure'?'warn':'info']({githubSignIn:event},'GitHub sign-in');};
       reply.clearCookie('studio_github_signin', { path: '/api/auth/github' });
       try {
         const url = new URL(req.url, this.settings.origin), state = url.searchParams.get('state') ?? '';
-        const challenge = await this.challenges.consume<{verifier: string; nonce?: string}>('github-signin', state, req.cookies.studio_github_signin ?? '');
         const code = url.searchParams.get('code') ?? '';
+        const challenge=await observeGitHubSignIn(observer,'challenge',async()=>{
+        const challenge=await this.challenges.consume<{verifier:string;nonce?:string}>('github-signin',state,req.cookies.studio_github_signin??'');
         if (!this.github || !challenge || url.searchParams.has('error') || code.length<1 || code.length>4096 || [...code].some(character=>character.charCodeAt(0)<=32 || character.charCodeAt(0)>126))
           throw new HttpError(401, 'GitHub sign-in expired. Start again.');
-        const identity = await this.github.authenticate({ code, state, nonce: challenge.payload.nonce, verifier: challenge.payload.verifier, redirectUri: this.settings.origin + '/api/auth/github/callback' });
-        const user = await this.admit(identity);
-        await this.session(user, reply);
+        return challenge;
+        });
+        const identity = await observeGitHubSignIn(observer,'provider',()=>this.github!.authenticate({ code, state, nonce: challenge.payload.nonce, verifier: challenge.payload.verifier, redirectUri: this.settings.origin + '/api/auth/github/callback',onDiagnostic:observer }));
+        const user = await observeGitHubSignIn(observer,'admission',()=>this.admit(identity));
+        await observeGitHubSignIn(observer,'session',()=>this.session(user, reply));
         return reply.redirect('/');
-      } catch {
+      } catch (error) {
+        emitGitHubSignIn(observer,{stage:'callback',state:'failure',elapsedMs:0,...githubSignInFailure(error)});
         // Never put OAuth codes, state, tokens, provider messages or return URLs in a redirect.
         return reply.redirect('/?signin=failed');
       }
