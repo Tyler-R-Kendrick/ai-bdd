@@ -2,7 +2,6 @@ import {
   beatSeconds,
   midiContentSchema,
   type MidiContent,
-  type MidiNote,
   type MidiTrack,
 } from '../../../shared/midi.ts';
 export const MAX_SYNTH_VOICES = 64,
