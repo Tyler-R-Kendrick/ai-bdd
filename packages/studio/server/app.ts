@@ -1,3 +1,4 @@
+import { probeAudio } from './audio-renderer.ts';
 import { investigationExportRows } from './integrations/investigation-export.ts';
 import { registerAgentProfileRoutes } from './integrations/agent-profiles.ts';
 import { registerImplementationMachineRoutes } from './integrations/implementation-machines.ts';
@@ -325,6 +326,18 @@ export async function createApp(
             permission,
           );
       };
+    if (hosting.uploads) {
+      if (hosting.uploads.store !== store)
+        throw new Error(
+          'Upload admission and application must share one Store',
+        );
+      const previousValidator = hosting.uploads.validateAsset;
+      hosting.uploads.validateAsset = async (input) => {
+        await previousValidator?.(input);
+        if (input.mime.startsWith('audio/') && input.mime !== 'audio/midi')
+          await probeAudio(input.bytes);
+      };
+    }
     await registerHostingRoutes(app, {
       uploads: hosting.uploads,
       user: (req) => auth.user(req),
@@ -1450,6 +1463,8 @@ export async function createApp(
       const bytes = await part.toBuffer();
       await store.artifact(a.id, u.id, 'write');
       const mime = uploadedMediaType(bytes, part.filename, part.mimetype);
+      if (mime.startsWith('audio/') && mime !== 'audio/midi')
+        await probeAudio(bytes);
       const fid = randomUUID(),
         sha256 = hash(bytes);
       const storageKey = `studio/v1/files/${a.projectId}/${sha256}`;

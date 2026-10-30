@@ -337,6 +337,11 @@ export class Store {
             'Generated font layers require an editable font design',
           );
       }
+    if (kind === 'audio')
+      for (const track of parsed.tracks)
+        for (const clip of track.clips) file(clip.src, 'audio');
+    if (kind === 'midi' && parsed.sourceSrc)
+      file(parsed.sourceSrc, 'audio/midi');
     if (kind === 'video')
       for (const clip of parsed.clips ?? []) {
         if (['image', 'audio', 'video'].includes(clip.type))
@@ -400,6 +405,7 @@ export class Store {
         for (const expected of wanted)
           if (
             !mime ||
+            (kind === 'audio' && mime === 'audio/midi') ||
             !(['image', 'audio', 'video'].includes(expected)
               ? mime.startsWith(expected + '/') ||
                 (expected === 'audio' && mime === 'video/webm')
