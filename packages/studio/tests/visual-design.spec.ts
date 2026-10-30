@@ -61,7 +61,7 @@ test('authored glyphs export a browser-valid typeface and portable vector brand 
   page,
 }) => {
   test.setTimeout(90000);
-  const { artifact, project, origin } = await open(page, 'brand');
+  const { project, origin } = await open(page, 'brand');
   await page
     .getByRole('complementary', { name: 'Composition layers' })
     .getByRole('button', { name: 'STUDIO', exact: true })

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, MousePointer2, PenLine, Plus, Trash2 } from 'lucide-react';
+import { Check, MousePointer2, PenLine, Trash2 } from 'lucide-react';
 import { Button, Field, Input } from '../../components/ui.tsx';
 import {
   pathData,
