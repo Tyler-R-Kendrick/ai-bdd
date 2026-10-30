@@ -19,7 +19,10 @@
     "packages/studio/server/local/model-manifest.json": "554b62a79c01ffa6918956e39a2b0ae095f991730dc6e9ac83a1d2274bff0700",
     "packages/studio/server/decisions/local.ts": "1d5455675e3da765632842764a5288364bf513cdf47b566646f05c246401b450",
     "packages/studio/server/decisions/models.ts": "49821bdf50269a8e881ee747134f2597dd1d4d4833d300ef3afad18e9f47b6ad",
-    "packages/studio/tests/local-decisions.test.ts": "7d42df6c31166686f74cb14ca6978ba9f70585406f1620c310fdf06756379000"
+    "packages/studio/tests/local-decisions.test.ts": "7d42df6c31166686f74cb14ca6978ba9f70585406f1620c310fdf06756379000",
+    "packages/studio/server/local/model.ts": "d95ffe0327207fe734de916b1fec967e133245c49aa29e418ce56e3d520a87ca",
+    "packages/studio/server/local/studio-local-worker.mjs": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+    "packages/studio/server/local/catalog.ts": "f1fe2214ce3022bdabc77af34844c48ccef31998432e9f0d9f04d1e99ef0cc79"
   },
   "command": "STUDIO_REQUIRE_LOCAL_MODEL_TEST=1 STUDIO_LOCAL_TEST_MODEL_DIR=<verified-model-directory> STUDIO_TEST_POSTGRES_URL=<disposable-local-postgres17> pnpm --dir packages/studio exec vitest run --config vitest.config.ts tests/local-decisions.test.ts --reporter=json",
   "execution": {
