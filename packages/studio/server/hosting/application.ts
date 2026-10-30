@@ -147,6 +147,7 @@ export async function createHostingApplication(
       runtime,
       hosting,
       identityExecutionContext,
+      startupDispatchLimit: config.provider === 'vercel' ? 0 : undefined,
       decisionSettings: decisionSettingsFromEnv(env, settings.production),
       ...(media
         ? {
