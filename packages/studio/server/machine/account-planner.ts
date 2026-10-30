@@ -5,7 +5,12 @@ import type {
   AccountMachineCredentials,
   CheckoutRegistration,
 } from '../../shared/account-machines.ts';
-import { agentProfileSchema } from '../../shared/agent-profile.ts';
+import {
+  plannerPollResponseSchema,
+  plannerClaimSchema,
+  plannerRenewSchema,
+  plannerReleaseSchema,
+} from '../../shared/account-planners.ts';
 import { machineApi } from '../machine-worker.ts';
 import { canonicalCloneRepository } from './clone-registry.ts';
 import {
@@ -14,37 +19,9 @@ import {
   privateJson,
   readPrivateJson,
   reconnect,
+  prepareWorktree,
 } from './runtime.ts';
 
-const assignment = z
-  .object({
-    id: z.string().uuid(),
-    artifactId: z.string().uuid(),
-    projectId: z.string().uuid(),
-    repository: z.string(),
-    checkoutKey: z.string(),
-    epoch: z.number().int().positive(),
-    status: z.string(),
-    artifactVersion: z.number().int().positive(),
-    sourceHash: z.string(),
-    profile: agentProfileSchema,
-  })
-  .strict();
-const claimed = z
-  .object({
-    assignmentId: z.string().uuid(),
-    epoch: z.number().int().positive(),
-    artifactId: z.string().uuid(),
-    projectId: z.string().uuid(),
-    repository: z.string(),
-    checkoutKey: z.string(),
-    profile: agentProfileSchema,
-    artifactVersion: z.number().int().positive(),
-    sourceHash: z.string(),
-    token: z.string().min(32).max(300),
-    expiresAt: z.string().datetime(),
-  })
-  .strict();
 const pending = z
   .object({
     version: z.literal(1),
@@ -80,7 +57,7 @@ async function release(
   file: string,
 ) {
   try {
-    await reconnect(
+    const response = await reconnect(
       () =>
         machineApi(
           credentials.origin,
@@ -91,6 +68,7 @@ async function release(
         ),
       { maxElapsedMs: 5000, maxDelayMs: 500 },
     );
+    plannerReleaseSchema.parse(response);
   } catch (error) {
     if (!permanentRejection(error)) throw error;
   }
@@ -142,18 +120,15 @@ export async function runAccountPlannerOnce(
   },
 ) {
   await resumeAccountPlanners(credentials, options.stateDirectory);
-  const response = z
-    .object({ assignments: z.array(assignment).max(100) })
-    .strict()
-    .parse(
-      await machineApi(
-        credentials.origin,
-        `/account-machines/${credentials.id}/planners/poll`,
-        credentials.token,
-        { checkouts: checkouts.map((entry) => entry.registration) },
-        options.signal,
-      ),
-    );
+  const response = plannerPollResponseSchema.parse(
+    await machineApi(
+      credentials.origin,
+      `/account-machines/${credentials.id}/planners/poll`,
+      credentials.token,
+      { checkouts: checkouts.map((entry) => entry.registration) },
+      options.signal,
+    ),
+  );
   const next = response.assignments.find((value) => value.status === 'queued');
   if (!next) return { claimed: false };
   const local = checkouts.find(
@@ -162,7 +137,11 @@ export async function runAccountPlannerOnce(
       entry.registration.repository ===
         canonicalCloneRepository(next.repository),
   );
-  if (!local || next.profile.harness !== 'remote-planner')
+  if (
+    !local ||
+    next.deviceId !== credentials.id ||
+    next.profile.harness !== 'remote-planner'
+  )
     throw new Error(
       'The Planner assignment is outside the registered repository or selected harness',
     );
@@ -186,10 +165,12 @@ export async function runAccountPlannerOnce(
   const controller = new AbortController();
   const signal = AbortSignal.any([options.signal, controller.signal]);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   const outcome: { reason: Pending['reason'] } = { reason: 'failed' };
   let renewal: Promise<void> | undefined;
+  let tree: Awaited<ReturnType<typeof prepareWorktree>> | undefined;
   try {
-    const lease = claimed.parse(
+    const lease = plannerClaimSchema.parse(
       await machineApi(
         credentials.origin,
         `/account-machines/${credentials.id}/planners/${next.id}/claim`,
@@ -212,47 +193,50 @@ export async function runAccountPlannerOnce(
     )
       throw new Error('The claimed Planner identity or frozen source changed');
     let expires = Date.parse(lease.expiresAt);
-    if (expires <= Date.now())
-      throw new Error('The Planner scoped credential already expired');
+    const armExpiry = () => {
+      const remaining = expires - Date.now();
+      if (remaining <= 0 || remaining > 120000)
+        throw new Error(
+          'The Planner scoped credential has an invalid short-lived expiry',
+        );
+      if (expiryTimer) clearTimeout(expiryTimer);
+      expiryTimer = setTimeout(() => controller.abort(), remaining);
+      expiryTimer.unref();
+    };
+    armExpiry();
     const renew = () => {
       timer = setTimeout(
         () => {
           renewal = (async () => {
             try {
-              const value = z
-                .object({
-                  expiresAt: z.string().datetime(),
-                  idle: z.boolean().optional(),
-                })
-                .strict()
-                .parse(
-                  await reconnect(
-                    () =>
-                      machineApi(
-                        credentials.origin,
-                        `/account-machines/${credentials.id}/planners/${next.id}/renew`,
-                        credentials.token,
-                        { epoch: next.epoch },
-                        signal,
-                      ),
-                    {
+              const value = plannerRenewSchema.parse(
+                await reconnect(
+                  () =>
+                    machineApi(
+                      credentials.origin,
+                      `/account-machines/${credentials.id}/planners/${next.id}/renew`,
+                      credentials.token,
+                      { epoch: next.epoch },
                       signal,
-                      maxElapsedMs: Math.max(
-                        1,
-                        Math.min(20000, expires - Date.now() - 5000),
-                      ),
-                      maxDelayMs: 1000,
-                    },
-                  ),
-                );
+                    ),
+                  {
+                    signal,
+                    maxElapsedMs: Math.max(
+                      1,
+                      Math.min(20000, expires - Date.now() - 5000),
+                    ),
+                    maxDelayMs: 1000,
+                  },
+                ),
+              );
               if (value.idle) {
                 outcome.reason = 'idle';
                 controller.abort();
                 return;
               }
+              signal.throwIfAborted();
               expires = Date.parse(value.expiresAt);
-              if (expires <= Date.now())
-                throw new Error('The renewed Planner credential expired');
+              armExpiry();
               if (!signal.aborted) renew();
             } catch {
               controller.abort();
@@ -269,6 +253,16 @@ export async function runAccountPlannerOnce(
     state = { ...state, phase: 'running' };
     await privateJson(file, state);
     renew();
+    tree = await prepareWorktree({
+      cwd: local.path,
+      stateDirectory: join(options.stateDirectory, 'planner-worktrees'),
+      workId: next.id,
+      generation: next.epoch,
+      repository: lease.repository,
+      sourceCommit: local.registration.sourceCommit,
+      spike: true,
+    });
+    signal.throwIfAborted();
     await options.run({
       origin: credentials.origin,
       token: lease.token,
@@ -281,7 +275,7 @@ export async function runAccountPlannerOnce(
       artifactId: lease.artifactId,
       command: options.command,
       args: options.args,
-      cwd: local.path,
+      cwd: tree.path,
       signal,
       allowPermissions: options.allowPermissions,
     });
@@ -298,11 +292,20 @@ export async function runAccountPlannerOnce(
       outcome.reason = 'failed';
   } finally {
     if (timer) clearTimeout(timer);
+    if (expiryTimer) clearTimeout(expiryTimer);
     controller.abort();
     await renewal;
     state = { ...state, phase: 'release', reason: outcome.reason };
     await privateJson(file, state);
-    await release(credentials, state, file);
+    try {
+      await release(credentials, state, file);
+    } finally {
+      await tree?.cleanup().catch(() => {
+        process.stderr.write(
+          'The private Planner worktree could not be cleaned; inspect retained connector state before removing it.\n',
+        );
+      });
+    }
   }
   return { claimed: true, workId: next.id, status: outcome.reason };
 }

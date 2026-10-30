@@ -4,6 +4,11 @@ import { realpath, mkdir, open, rm } from 'node:fs/promises';
 import { z } from 'zod';
 import { canonicalCloneRepository, managedClone } from './clone-registry.ts';
 import {
+  runAccountPlannerOnce,
+  resumeAccountPlanners,
+} from './account-planner.ts';
+import { runRemotePlanner } from './planner-client.ts';
+import {
   accountCredentialsSchema,
   type AccountMachineCredentials,
   type CheckoutRegistration,
@@ -219,6 +224,10 @@ export async function accountAssignments(
           z.object({ projectId: z.string().uuid(), code: z.string() }).strict(),
         )
         .max(500),
+      capabilities: z
+        .array(z.literal('planner-assignments-v1'))
+        .max(1)
+        .optional(),
     })
     .strict()
     .parse(response);
@@ -320,6 +329,7 @@ export async function runAccountMachineWorker(
   let cursor = 0,
     lastBlocked = '';
   try {
+    await resumeAccountPlanners(credentials, stateDirectory);
     do {
       const connected = await accountAssignments(
           credentials,
@@ -338,7 +348,21 @@ export async function runAccountMachineWorker(
       let result: { claimed: boolean; status?: string; workId?: string } = {
         claimed: false,
       };
-      for (let offset = 0; offset < connected.assignments.length; offset++) {
+      if (connected.capabilities?.includes('planner-assignments-v1')) {
+        result = await runAccountPlannerOnce(credentials, connected.registry, {
+          command,
+          args,
+          allowPermissions,
+          stateDirectory,
+          signal: controller.signal,
+          run: runRemotePlanner,
+        });
+      }
+      for (
+        let offset = 0;
+        !result.claimed && offset < connected.assignments.length;
+        offset++
+      ) {
         const index = (cursor + offset) % connected.assignments.length,
           assignment = connected.assignments[index]!,
           projectState = join(stateDirectory, 'projects', assignment.projectId);

@@ -27,6 +27,7 @@ export type AccountMachineDependencies = {
   auth: Auth;
   graphs?: ImplementationGraphs;
   notify?: (projectId: string, artifactId?: string) => void;
+  plannerAssignments?: boolean;
 };
 export class AccountMachines {
   readonly ready: Promise<void>;
@@ -469,7 +470,13 @@ export class AccountMachines {
       });
     }
     await this.heartbeat(principal);
-    return { assignments, blocked };
+    return {
+      assignments,
+      blocked,
+      ...(this.dependencies.plannerAssignments
+        ? { capabilities: ['planner-assignments-v1'] }
+        : {}),
+    };
   }
   /** An opt-in connector catalogue: no paths, credentials or executable input. */
   async repositories(principal: AccountPrincipal) {
