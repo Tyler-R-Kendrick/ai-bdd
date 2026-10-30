@@ -248,6 +248,7 @@ function ActivityCard({
     stale =
       request.artifactVersion !== artifactVersion ||
       request.status === 'stale';
+  const streamPhase = stale ? 'Source changed' : view.runs.paused.length ? 'Paused' : view.questions.some(question => question.status === 'open') ? 'Waiting for a response…' : 'Writing…';
   const pending = request.controls.some(
     (control) => control.status === 'pending',
   );
@@ -318,7 +319,7 @@ function ActivityCard({
         block.kind === 'text' ? (
           <div key={block.id} className="remote-stream-text">
             <MessageMarkdown text={block.text} onError={onError} />
-            {!block.ended && <span role="status">Writing…</span>}
+            {!block.ended && <span role="status">{streamPhase}</span>}
           </div>
         ) : (
           <details key={block.id} className="remote-stream-details">
@@ -326,7 +327,7 @@ function ActivityCard({
               {block.kind === 'reasoning'
                 ? 'Agent reasoning'
                 : `Tool input · ${block.name ?? 'tool'}`}
-              {!block.ended ? ' · streaming' : ''}
+              {!block.ended ? ' · ' + streamPhase.replace('…', '').toLowerCase() : ''}
             </summary>
             {block.kind === 'reasoning' ? (
               <MessageMarkdown text={block.text} onError={onError} />
