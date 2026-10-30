@@ -49,6 +49,7 @@ import {
   documentImplementationReadiness,
 } from './document-readiness.ts';
 import { ArtifactTitles } from './integrations/titles.ts';
+import { createTargetedPublication } from './runtime/targeted-publication.ts';
 import {
   registerConversationRoutes,
   conversationExportTables,
@@ -189,6 +190,15 @@ export async function createApp(
       );
     startupCleanup.unshift(() => runtime.close());
     localDispatcher?.bind(runtime.executeJob);
+    const followupPublication = createTargetedPublication({
+      runtime,
+      onError: (category) =>
+        app.log.warn(
+          { category },
+          'Targeted follow-up publication remains recoverable',
+        ),
+    });
+    startupCleanup.unshift(() => followupPublication.close());
     const auth = new Auth(store, settings);
     await auth.initialize();
     const collab = new Collaboration(store, auth);
@@ -1461,12 +1471,12 @@ export async function createApp(
             .strict(),
           req.body,
         );
-      const m = await projectWrite(req, a.projectId, 'write', async () => {
-        const saved = await store.message(u, a.id, b.threadId, b.body);
-        await conversation.observe(u, a.id, b.threadId);
-        return saved;
-      });
-      const followups = async () => {
+      const processMessage = async () => {
+        const saved = await projectWrite(req, a.projectId, 'write', async () => {
+          const message = await store.message(u, a.id, b.threadId, b.body);
+          await conversation.observe(u, a.id, b.threadId);
+          return message;
+        });
         for (const operation of [
           ...(startupLimit === 0 ? [] : [() => runtime.flushOutbox()]),
           () => agent.observeMessage(u, a.id, b.threadId, b.body),
@@ -1474,18 +1484,25 @@ export async function createApp(
           try {
             await operation();
           } catch (error) {
-            // The human text already committed. A safely persisted queue retry
-            // must not turn its acknowledgment into an apparent failed save.
+            // The human text already committed. Only a confirmed durable retry
+            // can leave its acknowledgment successful after a dispatch failure.
             if (!(error instanceof OutboxDispatchPendingError)) throw error;
           }
         }
+        return saved;
       };
-      // Title/agent observers may admit durable work and call flush internally.
-      // Cloud authoring leaves those publications to native maintenance too.
-      if (startupLimit === 0 && runtime.deferDispatch)
-        await runtime.deferDispatch(followups);
-      else await followups();
+      const admitted: string[] = [],
+        m =
+          startupLimit === 0 && runtime.deferDispatch
+            ? await runtime.deferDispatch(processMessage, {
+                onAdmitted: (ids) => admitted.push(...ids),
+              })
+            : await processMessage();
       await collab.notify(a.projectId, a.id);
+      // Healthy follow-ups are published promptly after the human acknowledgment.
+      // Only fresh, committed IDs are eligible; a crash leaves maintenance intact.
+      if (admitted.length)
+        reply.raw.once('finish', () => followupPublication.publish(admitted));
       return reply.code(201).send(m);
     });
     app.post<{
@@ -2219,6 +2236,7 @@ export async function createApp(
       );
     }
     app.addHook('onClose', async () => {
+      await followupPublication.close();
       await remotePlanner?.close();
       await runtime.close();
       await agent.close();

@@ -73,7 +73,9 @@ export class DurableJobCoordinator implements DurableJobRuntime {
   private readonly executions = new Map<string, Promise<void>>();
   private readonly controllers = new Map<string, AbortController>();
   private readonly clock: () => number;
-  private readonly dispatchDeferred = new AsyncLocalStorage<boolean>();
+  private readonly dispatchDeferred = new AsyncLocalStorage<{
+    jobIds: Set<string>;
+  }>();
   private closing = false;
   constructor(readonly options: DurableJobOptions) {
     this.instanceId = options.instanceId ?? randomUUID();
@@ -280,6 +282,11 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         timestamp,
       );
       await this.intent(id, 'enqueue:' + id, available);
+      const deferred = this.dispatchDeferred.getStore();
+      if (deferred)
+        this.store.db.afterCommit(async () => {
+          deferred.jobIds.add(id);
+        });
       await this.notifications.publish('project:' + input.projectId, {
         type: 'changed',
         projectId: input.projectId,
@@ -781,9 +788,20 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     this.controllers.get(id)?.abort(new Error('Cancelled by a project member'));
   }
   /** Admit durable follow-up work without depending on a provider in this async request scope. */
-  async deferDispatch<T>(operation: () => Promise<T>): Promise<T> {
+  async deferDispatch<T>(
+    operation: () => Promise<T>,
+    options: { onAdmitted?: (jobIds: readonly string[]) => void } = {},
+  ): Promise<T> {
     await this.ready;
-    return this.dispatchDeferred.run(true, operation);
+    const scope = this.dispatchDeferred.getStore() ?? {
+        jobIds: new Set<string>(),
+      },
+      previous = new Set(scope.jobIds),
+      result = await this.dispatchDeferred.run(scope, operation);
+    options.onAdmitted?.(
+      Object.freeze([...scope.jobIds].filter((id) => !previous.has(id))),
+    );
+    return result;
   }
   async flushOutbox(limit = 20, jobId?: string) {
     await this.ready;
