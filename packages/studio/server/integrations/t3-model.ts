@@ -98,7 +98,6 @@ export async function t3Command(
     const finish = (error?: Error, value?: unknown) => {
       if (settled) return;
       settled = true;
-      clearTimeout(kill);
       signal.removeEventListener('abort', abort);
       error ? reject(error) : resolve(value);
     };
@@ -115,6 +114,7 @@ export async function t3Command(
     );
     child.stdin.on('error', () => {});
     child.stderr.on('data', (chunk) => {
+      if (settled) return;
       bytes += chunk.length;
       if (bytes > 2 * 1024 * 1024) {
         abort();
@@ -124,6 +124,7 @@ export async function t3Command(
       }
     });
     child.stdout.on('data', (chunk) => {
+      if (settled) return;
       bytes += chunk.length;
       out += String(chunk);
       if (bytes > 2 * 1024 * 1024) {
@@ -134,6 +135,7 @@ export async function t3Command(
       }
     });
     child.on('close', (code) => {
+      clearTimeout(kill);
       if (signal.aborted) {
         finish(new Error('T3 Code request aborted'));
         return;

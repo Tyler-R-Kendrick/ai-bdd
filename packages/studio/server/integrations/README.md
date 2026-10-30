@@ -60,3 +60,52 @@ Implementation/investigation work is explicitly approved against an artifact rev
 `server/integrations/live-check.ts` deliberately fails closed unless a concrete HTTPS deployment, owner API token, dedicated test project and `STUDIO_LIVE_ALLOW_PROVIDER_USAGE=1` are supplied. Optional `STUDIO_LIVE_VERIFY_RESEARCH=1` also exercises its actual source service. The gate creates synthetic temporary artifacts, calls the configured model, verifies persisted responses and source-backed child context, then archives its fixtures. It never treats deterministic transport fixtures as live-provider evidence.
 
 The tests in `integration-agent.test.ts`, `integration-lifecycle.test.ts` and `integration-worker.test.ts` cover real HTTP protocol fixtures, real SDK MCP message exchanges, an actual ACP child process, cancellation, scoped credentials, revision conflicts, and atomic review rollback. These fixtures do not represent real OIDC, AI-provider, or Open Design account acceptance.
+
+## Durable execution and harness selection
+
+`GET` and `PUT /api/artifacts/:id/agent/profile` expose an artifact's separate harness, provider and model choices. T3 Code is the default. An unavailable T3 registration returns a visible capability reason and a 503 when invoked; configuring Vercel AI Gateway never changes that selection implicitly. Writers may explicitly select `vercel-fx`. When enabled, `remote-planner` is a third explicit selection; attaching a remote client cannot override the saved harness.
+
+Register a trusted T3 executable with `STUDIO_T3_COMMAND` and its existing project with `STUDIO_T3_PROJECT`, both absolute paths. `STUDIO_T3_ARGS` is an optional bounded JSON argument array. `STUDIO_T3_PROVIDERS_JSON` contains the actual provider instance IDs and concrete model slugs registered in that T3 environment, shaped as `[{"id":"instance-id","label":"Operator label","models":["model-slug"]}]`. The first concrete registration supplies the default T3 provider and model. A registered runtime without a concrete catalog remains unavailable; durable jobs must not resolve mutable T3 project defaults later. The offline `project-default` entry lets the UI represent an unconfigured default honestly.
+
+T3 executes through a Vercel AI SDK language-model provider. It calls the public `thread list/start/show --json` CLI, passes provider and model independently, sends private prompts through stdin, and uses stable opaque thread titles to recover completed calls. The AI SDK still performs tool dispatch and structured-output validation. T3 cannot call an unadvertised server tool or publish directly. Local T3 permissions and its own workspace belong to that operator-controlled environment; configure its permission policy before registering it. The child receives a small environment allowlist and no Studio credential variables.
+
+The public CLI has no stop command. If `STUDIO_T3_MCP_URL` names the actual approved environment MCP endpoint and `STUDIO_T3_MCP_ACCESS_TOKEN` supplies its approved OAuth bearer, an aborted model call requests the advertised `t3_thread_interrupt` tool through the real MCP SDK. This is an interrupt request, not a claim that an external provider stopped billing. Without that registration Studio still cancels and fences publication, while the T3 run may continue in its own environment. Studio does not invent a T3 endpoint or silently replace unavailable T3 execution with a Gateway call. `STUDIO_FX_MODELS_JSON` optionally extends the explicitly selectable Gateway model catalog.
+
+Every primary turn freezes its harness/provider/model, actor, source revision, bounded artifact/chat/ADR/reference context, and request hash in SQL. Title and implementation-drafting providers accept the same captured profile. Durable leases, monotonically increasing fences, bounded retries, step receipts and final atomic publication survive duplicate queue deliveries and process death. Completed provider calls may repeat if a worker dies before their receipt commits; there is no universal exactly-once model guarantee. A final SQL publication, receipt and completed status commit together. Cancellation, membership revocation, shared pause, source-version checks and implementation locks prevent stale publication. Queue messages carry job IDs only, and a transactional dispatch outbox retains uncertain sends for recovery.
+
+Automatic participation is a durable delayed job rather than a process timer. A newer saved message supersedes queued automatic work; explicit mentions, solo conversations and group discussions use different quiet periods. Planner ownership is shared in SQL, with a bounded grace period and an explicit owner release operation. Human edits remain human-reviewed proposals, and research completion merges its request card into the latest canonical document while preserving concurrent human prose.
+
+With per-user repository identity configured, both local and remote Planner tools require the selected owner's verified repository-read port. They fail closed if it is missing. The operator token cannot replace the user's credential. Only legacy workspaces without that identity feature can use the explicitly allowlisted operator GitHub credential.
+
+## External Planner client
+
+Enable the operator-owned transport with `STUDIO_REMOTE_PLANNER=on`, select `remote-planner` for the artifact, and run the already installed, authenticated ACP agent from its approved checkout:
+
+```sh
+# Keep the API credential in the environment or deployment secret storage.
+node dist/server/planner-worker.js <artifact-uuid> \
+  --checkout /absolute/approved-checkout -- /absolute/acp-agent <actual-args>
+```
+
+The client reads `STUDIO_API_URL` and `STUDIO_API_TOKEN`, negotiates `studio.planner.v1` at `/api/planner/connect`, and reconnects after ordinary transport loss. It never installs an agent. Credential, ownership and protocol rejection require resolving the reported condition. The server queues bounded incoming frames before asynchronous authentication and rechecks current authentication, project access, shared pause, implementation locks and connection epoch before outgoing data. Replacing a same-account socket fences the old attachment. A reconnect can receive the same outstanding request from another server instance; the durable job fence guards its result.
+
+A custom client sends `{type:"attach",version:1,artifactId}` and receives `attached`, followed by `turn` messages containing `requestId` and frozen input. It replies with `{type:"result",requestId,output:{text,content:null}}`, or a complete proposed content object for an edit. `{type:"failed",requestId}` reports failure without exposing provider errors. Read-only repository RPC uses `{type:"tool",requestId,callId,name,input}` with the advertised tree/file/PR names and receives `tool-result`. Each turn has a bounded tool budget and its pinned repository revision. Cancellation or an expired/superseded execution lease rejects late results. This is Studio's versioned protocol, not a claim of Chopin wire compatibility.
+
+## Paragraph visuals and verification scope
+
+`PLANNER_VISUALS=on` (or `STUDIO_PLANNER_VISUALS=on`) enables routing for one anchored explanatory paragraph at a time, only for explicit member requests of at most 1,000 characters and bounded complete document source. `#block:<id>` selects a paragraph explicitly; otherwise the first eligible explanatory paragraph is considered. Possibility, comprehension and type decisions precede authoring a validated chart, diagram or tabbed comparison. The result is a source-version and block-digest-bound proposal for human review. No numeric evidence or passing test is synthesized as an execution result.
+
+The executable source/test map is:
+
+| Boundary | Source | Acceptance evidence |
+| --- | --- | --- |
+| Fenced jobs, recovery, final publication | `runtime/jobs.ts`, `runtime/contracts.ts` | `durable-jobs.test.ts`, `durable-jobs-postgres.test.ts` (actual SIGKILL, redelivery, multi-instance race, revocation) |
+| Artifact agent, exact research, shared ownership, title/graph providers | `agent.ts`, `runtime/document-write.ts` | `agent-durable.test.ts` (actual SDK HTTP model/source/tool exchanges, reviewed proposals, pause, locks, idempotence, concurrent human prose) |
+| T3 defaults and explicit alternatives | `agent-profiles.ts`, `t3-model.ts`, `shared/agent-profile.ts` | `t3-harness.test.ts` (actual child CLI protocol, real AI SDK tools and Output.object, profile persistence/freeze, MCP interrupt transport) |
+| Cross-instance documents and authenticated fanout | `collaboration.ts`, `realtime/transport.ts` | `collaboration-distributed.test.ts` (real PostgreSQL and WebSockets, canonical seed/restart, incoming handshake queue, honest large presence, passive revocation, rollback) |
+| External Planner and user-scoped repository tools | `remote-planner.ts`, `planner-worker.ts`, `repository.ts` | `remote-planner.test.ts`, `remote-planner-postgres.test.ts` (actual WebSockets and ACP child; independent server replacement preserves one publication), `agent-durable.test.ts` (user token distinct from operator token) |
+| Signed local Open Design workflow | `open-design.ts` | `integration-lifecycle.test.ts` (actual MCP protocol fixture, immutable source, mode/start identity/poll/cancel, atomic review); requires the real installed signed runtime for live acceptance |
+
+The public T3 0.1.5 npm archive was checked against its published SHA-512, and its Linux x64 release against SHA-256 `21d50dcc9c634221b11b58d6a94350d2c6ee36905737b054b11fa4eba295a98b`. The actual executable returned `t3 v0.1.5`; its `thread start --help` confirmed stdin `-`, separate `--provider`/`--model`, `--title`, and `--json`. This verifies the executable/CLI contract, not a provider login or a completed live T3 model call. No real T3 provider account or signed Open Design runtime is bound to the managed test environment.
+
+The live gate now waits for the exact returned durable job ID. `STUDIO_LIVE_HARNESS=vercel-fx`, with optional `STUDIO_LIVE_PROVIDER` and `STUDIO_LIVE_MODEL`, explicitly selects the user-authorized alternative for that synthetic acceptance artifact. Omitting it retains the default T3 choice. The existing owner credential, dedicated project and explicit provider-usage gate remain required. Deterministic protocol fixtures cannot satisfy live-provider certification.
