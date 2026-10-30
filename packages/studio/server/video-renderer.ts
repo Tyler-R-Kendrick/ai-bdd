@@ -15,12 +15,14 @@ export type RenderOptions = {
   signal: AbortSignal;
   onProgress?: (progress: number) => void | Promise<void>;
   chromiumPath?: string;
+  chromium?: (typeof import('@playwright/test'))['chromium'];
   ffmpegPath?: string;
   interFont?: Buffer;
 };
 /** A renderer runs on a durable background worker, never implicitly inside a Vercel response lifecycle. */
 export interface VideoRenderDriver {
   readonly name: string;
+  readonly fingerprint?: string;
   readonly runtime: 'long-lived-worker' | 'remote-worker';
   render(options: RenderOptions): Promise<Buffer>;
 }
@@ -301,11 +303,15 @@ export async function renderVideo(options: RenderOptions): Promise<Buffer> {
     });
     // Observe rejection during browser initialization and frame capture as well.
     void finished.catch(() => {});
-    const require = createRequire(
-      import.meta.resolve('@ai-bdd/driver-playwright'),
-    );
-    const { chromium } =
-      require('playwright-core') as typeof import('@playwright/test');
+    const chromium =
+      options.chromium ??
+      (() => {
+        const require = createRequire(
+          import.meta.resolve('@ai-bdd/driver-playwright'),
+        );
+        return (require('playwright-core') as typeof import('@playwright/test'))
+          .chromium;
+      })();
     browser = await chromium.launch({
       executablePath:
         options.chromiumPath ??

@@ -59,6 +59,7 @@ function deferred<T = void>() {
 }
 class FixtureRenderer implements VideoRenderDriver {
   readonly name = 'explicit-worker-contract-fixture';
+  fingerprint = 'fixture-image-v1';
   readonly runtime = 'remote-worker' as const;
   calls: RenderOptions[] = [];
   beforeReturn?: (options: RenderOptions) => Promise<void>;
@@ -275,6 +276,7 @@ describe(`durable video worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
       status: 'completed',
       artifactVersion: 1,
       progress: 1,
+      runtimeFingerprint: 'fixture-image-v1',
     });
     expect(c.renderer.calls).toHaveLength(1);
     const file = await c.store.file(result.fileId, c.user.id);
@@ -536,6 +538,31 @@ describe(`durable video worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
       (
         await c.store.one(
           "SELECT count(*) AS n FROM files WHERE artifact_id=? AND mime='video/mp4'",
+          artifact.id,
+        )
+      ).n,
+    ).toBe(0);
+  });
+  it('pins a new render to its admitted runtime and rejects a changed worker image before source materialization or rendering', async () => {
+    const c = await context(),
+      { artifact } = await fixture(c),
+      queued = await enqueue(c, artifact.id);
+    expect(
+      ((await c.runtime.get(queued.id))!.snapshot as any).runtimeFingerprint,
+    ).toBe('fixture-image-v1');
+    c.renderer.fingerprint = 'fixture-image-v2';
+    await c.service.executeVideoJob(queued.id, {
+      messageId: 'different-image',
+      deliveryCount: 1,
+    });
+    const current = (await c.runtime.get(queued.id))!;
+    expect(current.status).toBe('failed');
+    expect(current.error).toContain('runtime changed');
+    expect(c.renderer.calls).toHaveLength(0);
+    expect(
+      (
+        await c.store.one(
+          'SELECT count(*) AS n FROM files WHERE artifact_id=?',
           artifact.id,
         )
       ).n,

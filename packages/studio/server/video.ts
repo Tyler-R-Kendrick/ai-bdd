@@ -22,6 +22,7 @@ export type VideoRenderTask = {
   title: string;
   content: TimelineContent;
   format: 'mp4' | 'webm';
+  runtimeFingerprint?: string;
 };
 const snapshotSchema = z
   .object({
@@ -29,6 +30,7 @@ const snapshotSchema = z
     title: z.string().min(1).max(180),
     content: z.unknown(),
     format: z.enum(['mp4', 'webm']),
+    runtimeFingerprint: z.string().min(1).max(300).optional(),
   })
   .strict();
 const outputSchema = z
@@ -39,6 +41,7 @@ const outputSchema = z
     format: z.enum(['mp4', 'webm']),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     byteSize: z.number().int().nonnegative(),
+    runtimeFingerprint: z.string().min(1).max(300).optional(),
   })
   .strict();
 const KIND = 'video.render';
@@ -97,6 +100,7 @@ export async function registerVideoRoutes(
       progress:
         job.status === 'completed' ? 1 : (job.progress?.percent ?? 0) / 100,
       error: job.error,
+      runtimeFingerprint: output?.runtimeFingerprint ?? null,
       fileId: output?.fileId ?? null,
       downloadUrl: output?.downloadUrl ?? null,
       finishedAt: ['completed', 'cancelled', 'failed'].includes(job.status)
@@ -212,6 +216,13 @@ export async function registerVideoRoutes(
   async function execute(context: DurableJobContext) {
     const task = snapshot(context.job);
     await context.assertCurrent({ requireCurrentVersion: true });
+    if (
+      task.runtimeFingerprint &&
+      task.runtimeFingerprint !== (renderer.fingerprint ?? renderer.name)
+    )
+      throw new TerminalJobError(
+        'The video renderer runtime changed after this job was queued. Resubmit against the configured renderer.',
+      );
     await store.exec(
       "UPDATE video_render_jobs SET status='rendering',error=NULL WHERE id=?",
       context.job.id,
@@ -340,6 +351,8 @@ export async function registerVideoRoutes(
             format: task.format,
             sha256: digest,
             byteSize: bytes.length,
+            runtimeFingerprint:
+              task.runtimeFingerprint ?? renderer.fingerprint ?? renderer.name,
           };
         },
         { requireCurrentVersion: true },
@@ -423,6 +436,11 @@ export async function registerVideoRoutes(
             title: artifact.title,
             content,
             format: input.format,
+            runtimeFingerprint: z
+              .string()
+              .min(1)
+              .max(300)
+              .parse(renderer.fingerprint ?? renderer.name),
           },
           idempotencyKey: key,
           maxAttempts: 3,

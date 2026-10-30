@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { chromium } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -78,6 +79,7 @@ describe('Deterministic video encoder', () => {
         clips: [title, track],
       };
       const options: RenderOptions = {
+        chromium,
         content,
         title: 'Deterministic fixture',
         assets: new Map([
