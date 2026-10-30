@@ -42,9 +42,7 @@ test('keeps machine work approved, reviewable, scoped, and separate from test ev
   await expect(
     panel.getByText('No machines are paired with this project.'),
   ).toBeVisible();
-  await panel
-    .getByRole('button', { name: 'Pause agent', exact: true })
-    .click();
+  await panel.getByRole('button', { name: 'Pause agent', exact: true }).click();
   await expect(
     panel.getByRole('button', { name: 'Resume agent', exact: true }),
   ).toBeVisible();
@@ -199,8 +197,9 @@ test('shows shared connections to a fresh viewer without exposing write or pairi
       `${origin}/?project=${project.id}&artifact=${project.mainArtifactId}`,
     );
     await viewer
-      .getByRole('tab', { name: 'Connections', exact: true })
+      .getByRole('button', { name: 'Show artifact panel', exact: true })
       .click();
+    await viewer.getByRole('tab', { name: 'Connections', exact: true }).click();
     const panel = viewer.getByLabel('Artifact connections', { exact: true });
     await expect(panel.getByText('Paused', { exact: true })).toBeVisible();
     await expect(
