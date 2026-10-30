@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Store } from '../store.ts';
 import { HttpError } from '../store.ts';
 import type { User } from '../../shared/domain.ts';
+import { SqlRealtimeTransport } from '../realtime/transport.ts';
 import type {
   DurableJob,
   DurableJobContext,
@@ -53,6 +54,11 @@ export class DurableJobCoordinator implements DurableJobRuntime {
   readonly instanceId: string;
   readonly leaseMs: number;
   private readonly handlers = new Map<string, DurableJobHandler>();
+  private readonly listeners = new Map<
+    string,
+    (job: DurableJob) => Promise<void>
+  >();
+  private readonly notifications: SqlRealtimeTransport;
   private readonly executions = new Map<string, Promise<void>>();
   private readonly controllers = new Map<string, AbortController>();
   private readonly clock: () => number;
@@ -67,6 +73,9 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     )
       throw new Error('Durable job lease must be between100 and300000ms');
     this.clock = options.clock ?? Date.now;
+    this.notifications = new SqlRealtimeTransport(options.store, {
+      instanceId: 'jobs-' + this.instanceId,
+    });
     this.ready = this.initialize();
     void this.ready.catch(() => {});
   }
@@ -77,6 +86,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     return new Date(this.clock()).toISOString();
   }
   private async initialize() {
+    await this.notifications.ready;
     await this.store.tx(async () => {
       await this.store.db.lock('schema:studio.jobs');
       await this.store.db.exec(`
@@ -95,6 +105,29 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     if (this.handlers.has(kind) && this.handlers.get(kind) !== handler)
       throw new Error('A durable job kind already has a registered handler');
     this.handlers.set(kind, handler);
+  }
+  onStatus(kind: string, listener: (job: DurableJob) => Promise<void>) {
+    if (this.listeners.has(kind))
+      throw new Error('Job kind already has a lifecycle projection');
+    this.listeners.set(kind, listener);
+  }
+  private async statusChanged(row: any) {
+    const listener = this.listeners.get(row.kind);
+    if (listener) {
+      let job: DurableJob | undefined;
+      try {
+        job = this.read(row);
+      } catch (error) {
+        if (!(error instanceof TerminalJobError)) throw error;
+      }
+      if (job) await listener(job);
+    }
+    await this.notifications.publish('project:' + row.project_id, {
+      type: 'changed',
+      projectId: row.project_id,
+      artifactId: row.artifact_id,
+      jobId: row.id,
+    });
   }
   private read(row: any): DurableJob {
     if (digest(row.input_json) !== row.input_sha256)
@@ -238,6 +271,12 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         timestamp,
       );
       await this.intent(id, 'enqueue:' + id, available);
+      await this.notifications.publish('project:' + input.projectId, {
+        type: 'changed',
+        projectId: input.projectId,
+        artifactId: input.artifactId,
+        jobId: id,
+      });
       return this.read(
         await this.store.one(
           'SELECT * FROM studio_durable_jobs WHERE id=?',
@@ -265,7 +304,14 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       );
       if (!row)
         throw new JobLeaseLostError('The durable job no longer exists');
-      return operation(row);
+      const result = await operation(row);
+      const after = await this.store.one(
+        'SELECT * FROM studio_durable_jobs WHERE id=?',
+        jobId,
+      );
+      if (after && row.status !== after.status)
+        await this.statusChanged(after);
+      return result;
     });
   }
   private lease(row: any, job: DurableJob) {
@@ -789,6 +835,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       controller.abort(new Error('Worker is shutting down'));
     await Promise.allSettled([...this.executions.values()]);
     await this.ready.catch(() => {});
+    await this.notifications.close();
   }
 }
 export async function createDurableJobRuntime(options: DurableJobOptions) {

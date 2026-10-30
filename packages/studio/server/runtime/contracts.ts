@@ -74,6 +74,8 @@ export interface DurableJobRuntime {
   enqueue(input: EnqueueJob): Promise<DurableJob>;
   get(id: string): Promise<DurableJob | null>;
   register(kind: string, handler: DurableJobHandler): void;
+  /** SQL-only lifecycle projection; awaited in the same fenced source transaction. */
+  onStatus?(kind: string, listener: (job: DurableJob) => Promise<void>): void;
   executeJob(id: string, delivery: JobDelivery): Promise<void>;
   cancel(id: string, user: User): Promise<void>;
   flushOutbox(limit?: number): Promise<void>;
