@@ -203,20 +203,18 @@ export async function createApp(
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       });
     await agent.initialize();
-    const remotePlanner = settings.integrations?.remotePlanner
-      ? new RemotePlanner({
-          store,
-          settings,
-          authenticate: (req) => auth.user(req),
-          claim: (user, id) => agent.claimPlanner(user, id),
-          allowed: (user, id) => agent.canParticipate(user, id),
-        })
-      : undefined;
-    if (remotePlanner) {
-      startupCleanup.unshift(() => remotePlanner.close());
-      await remotePlanner.initialize();
+    const remotePlanner = new RemotePlanner({
+      store,
+      settings,
+      authenticate: (req) => auth.user(req),
+      claim: (user, id) => agent.claimPlanner(user, id),
+      allowed: (user, id) => agent.canParticipate(user, id),
+      cancelJob: (id, user) => runtime.cancel(id, user),
+    });
+    startupCleanup.unshift(() => remotePlanner.close());
+    await remotePlanner.initialize();
+    if (settings.integrations?.remotePlanner)
       agent.options.remote = remotePlanner;
-    }
     await runner.initialize();
     const titles = new ArtifactTitles({
       store,
@@ -359,7 +357,8 @@ export async function createApp(
     });
     await designReviews.initialize();
     registerDesignReviewRoutes(app, auth, designReviews);
-    remotePlanner?.register(app);
+    if (settings.integrations?.remotePlanner) remotePlanner.register(app);
+    else remotePlanner.activity.register(app);
     const identity = await registerRepositoryIdentity(app, {
       store,
       auth,
@@ -708,7 +707,7 @@ export async function createApp(
       await auth.user(req);
       return {
         agent: agent.profiles.catalog().some((harness) => harness.configured),
-        remotePlanner: !!remotePlanner,
+        remotePlanner: !!settings.integrations?.remotePlanner,
         runner: !!settings.runnerConfig,
         oidc: !!settings.oidcIssuer,
         github: true,
@@ -1933,6 +1932,33 @@ export async function createApp(
             yield (firstAudio ? '' : ',') + JSON.stringify(row);
             firstAudio = false;
             audioCursor = row.sequence;
+          }
+        }
+        yield '],"remoteActivity":[';
+        const remoteCutoff = Number(
+          (
+            await store.one(
+              'SELECT COALESCE(MAX(a.ordinal),0) AS n FROM studio_remote_activity a JOIN studio_remote_requests r ON r.id=a.request_id WHERE r.artifact_id=?',
+              a.id,
+            )
+          ).n,
+        );
+        let remoteCursor = 0,
+          firstRemote = true;
+        while (remoteCursor < remoteCutoff) {
+          await checkAccess();
+          const rows = await remotePlanner.exportPage(
+            a.id,
+            remoteCursor,
+            remoteCutoff,
+            10,
+            user,
+          );
+          if (!rows.length) break;
+          for (const row of rows) {
+            yield (firstRemote ? '' : ',') + JSON.stringify(row);
+            firstRemote = false;
+            remoteCursor = row.sequence;
           }
         }
         yield '],"decisionModels":[';

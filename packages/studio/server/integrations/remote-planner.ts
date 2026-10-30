@@ -87,6 +87,8 @@ export class RemotePlanner {
     return { user: await this.options.authenticate(request) };
   }
   private readonly sockets = new Set<WebSocket>();
+  private readonly connections = new Set<Promise<void>>();
+  private closing = false;
   async initialize() {
     await this.options.store.tx(async () => {
       await this.options.store.db.lock('schema:studio.remote-planner');
@@ -105,6 +107,29 @@ export class RemotePlanner {
         if (!columns.some((column) => column.name === 'tool_calls'))
           await this.options.store.db.exec(
             'ALTER TABLE studio_remote_requests ADD COLUMN tool_calls INTEGER NOT NULL DEFAULT 0',
+          );
+      }
+    });
+    await this.options.store.tx(async () => {
+      await this.options.store.lock('schema:studio.remote-planner');
+      if (this.options.store.db.dialect === 'postgres') {
+        await this.options.store.exec(
+          'ALTER TABLE studio_remote_planners ADD COLUMN IF NOT EXISTS assignment_id TEXT',
+        );
+        await this.options.store.exec(
+          'ALTER TABLE studio_remote_planners ADD COLUMN IF NOT EXISTS assignment_epoch BIGINT',
+        );
+      } else {
+        const columns = await this.options.store.all(
+          'PRAGMA table_info(studio_remote_planners)',
+        );
+        if (!columns.some((c) => c.name === 'assignment_id'))
+          await this.options.store.exec(
+            'ALTER TABLE studio_remote_planners ADD COLUMN assignment_id TEXT',
+          );
+        if (!columns.some((c) => c.name === 'assignment_epoch'))
+          await this.options.store.exec(
+            'ALTER TABLE studio_remote_planners ADD COLUMN assignment_epoch BIGINT',
           );
       }
     });
@@ -131,7 +156,7 @@ export class RemotePlanner {
       store = this.options.store;
     await ctx.assertCurrent({ requireCurrentVersion: false });
     const attached = await store.one(
-      'SELECT user_id,expires FROM studio_remote_planners WHERE artifact_id=?',
+      'SELECT user_id,expires,assignment_id,assignment_epoch FROM studio_remote_planners WHERE artifact_id=?',
       turn.artifactId,
     );
     if (
@@ -158,10 +183,28 @@ export class RemotePlanner {
         new Date().toISOString(),
       );
     });
-    await this.activity.prepare(id, ctx.job, turn.threadId);
+    await this.activity.prepare(
+      id,
+      ctx.job,
+      turn.threadId,
+      attached.assignment_id
+        ? {
+            assignmentId: attached.assignment_id,
+            epoch: Number(attached.assignment_epoch),
+          }
+        : undefined,
+    );
+    let completed = false;
     try {
       while (true) {
         await ctx.assertCurrent({ requireCurrentVersion: false });
+        if (attached.assignment_id)
+          await this.options.assertScoped?.({
+            user: await store.publicUser(ctx.job.principalId),
+            artifactId: turn.artifactId,
+            assignmentId: attached.assignment_id,
+            epoch: Number(attached.assignment_epoch),
+          });
         ctx.signal.throwIfAborted();
         const row = await store.one(
           'SELECT status,output_json,input_sha256 FROM studio_remote_requests WHERE id=?',
@@ -169,21 +212,31 @@ export class RemotePlanner {
         );
         if (!row || row.input_sha256 !== digest(source))
           throw new HttpError(409, 'Remote Planner request integrity changed');
-        if (row.status === 'completed')
+        if (row.status === 'completed') {
+          completed = true;
           return outputSchema.parse(JSON.parse(row.output_json));
+        }
         if (row.status === 'cancelled')
           throw new HttpError(409, 'Remote Planner request was cancelled');
-        if (row.status === 'failed')
-          throw new HttpError(
-            502,
-            'The attached remote Planner could not complete this turn',
+        if (row.status === 'failed') {
+          const activity = await store.one(
+            'SELECT stream_json FROM studio_remote_activity WHERE request_id=?',
+            id,
           );
+          const protocolError =
+            activity && JSON.parse(activity.stream_json).error;
+          throw new HttpError(
+            protocolError ? 400 : 502,
+            protocolError ||
+              'The attached remote Planner could not complete this turn',
+          );
+        }
         await delay(this.options.pollMs ?? 100, undefined, {
           signal: ctx.signal,
         });
       }
     } finally {
-      if (ctx.signal.aborted) {
+      if (!completed) {
         await store
           .exec(
             "UPDATE studio_remote_requests SET status='cancelled' WHERE id=? AND status='pending'",
@@ -193,6 +246,13 @@ export class RemotePlanner {
         await this.activity.ended(id).catch(() => {});
       }
     }
+  }
+  async hasLiveActivity(
+    artifactId: string,
+    userId: string,
+    scope?: { assignmentId: string; epoch: number },
+  ) {
+    return this.activity.hasLiveActivity(artifactId, userId, scope);
   }
   async exportPage(
     artifactId: string,
@@ -204,7 +264,16 @@ export class RemotePlanner {
     return this.activity.exportPage(artifactId, after, cutoff, limit, user);
   }
   private async connect(socket: WebSocket, request: FastifyRequest) {
+    if (this.closing) {
+      socket.close(1001, 'Planner service is shutting down');
+      return;
+    }
     this.sockets.add(socket);
+    let finishConnection!: () => void;
+    const connection = new Promise<void>((resolve) => {
+      finishConnection = resolve;
+    });
+    this.connections.add(connection);
     let peer:
       | {
           user: User;
@@ -220,10 +289,12 @@ export class RemotePlanner {
       closed = false,
       working = Promise.resolve();
     const inbox: { data: Buffer; binary: boolean }[] = [];
+    let currentFrameRequest: string | undefined;
     let ready = false,
       draining = false,
       timer: ReturnType<typeof setInterval> | undefined,
-      polling = false;
+      polling = false,
+      pollWork = Promise.resolve();
     const sent = new Set<string>(),
       sentInputs = new Set<string>(),
       sentControls = new Set<string>(),
@@ -235,6 +306,7 @@ export class RemotePlanner {
     });
     const store = this.options.store;
     const check = async () => {
+      if (closed) throw new HttpError(409, 'Planner connection closed');
       if (!peer) throw new HttpError(401, 'Attach a Planner first');
       const currentUser = peer.scope
         ? (await this.options.assertScoped?.(peer.scope), peer.scope.user)
@@ -272,7 +344,7 @@ export class RemotePlanner {
         throw new HttpError(429, 'Remote Planner output queue is full');
       if (socket.readyState === 1) socket.send(data);
     };
-    const requestRow = async (id: string) => {
+    const requestRow = async (id: string, background = false) => {
       await check();
       const row = await store.one(
         'SELECT r.*,j.status AS job_status,j.fence AS job_fence,j.lease_expires,j.project_id FROM studio_remote_requests r JOIN studio_durable_jobs j ON j.id=r.job_id WHERE r.id=? AND r.artifact_id=? AND r.user_id=?',
@@ -282,13 +354,25 @@ export class RemotePlanner {
       );
       if (
         !row ||
-        row.job_status !== 'running' ||
+        !(
+          row.job_status === 'running' ||
+          (background &&
+            row.job_status === 'completed' &&
+            row.status === 'completed')
+        ) ||
         Number(row.fence) !== Number(row.job_fence) ||
-        Number(row.lease_expires) <= Date.now()
+        (row.job_status === 'running' &&
+          Number(row.lease_expires) <= Date.now())
       )
         throw new HttpError(
           409,
           'Remote Planner request lost its execution lease',
+        );
+      const activity = await this.activity.row(id);
+      if (activity && !this.activity.bindingCurrent(activity))
+        throw new HttpError(
+          409,
+          'This request belongs to a replaced Planner assignment',
         );
       if (digest(row.input_json) !== row.input_sha256)
         throw new HttpError(409, 'Remote Planner input integrity changed');
@@ -297,7 +381,12 @@ export class RemotePlanner {
     const consume = async (data: Buffer, binary: boolean) => {
       if (binary)
         throw new HttpError(400, 'Remote Planner uses JSON text frames');
-      const message = incoming.parse(JSON.parse(data.toString()));
+      const raw = JSON.parse(data.toString());
+      currentFrameRequest =
+        typeof raw?.requestId === 'string' && raw.requestId.length <= 128
+          ? raw.requestId
+          : undefined;
+      const message = incoming.parse(raw);
       if (message.type === 'attach') {
         if (peer)
           throw new HttpError(409, 'This connection is already attached');
@@ -341,12 +430,14 @@ export class RemotePlanner {
             features,
           };
           await store.exec(
-            'INSERT INTO studio_remote_planners VALUES(?,?,?,?,?) ON CONFLICT(artifact_id) DO UPDATE SET user_id=excluded.user_id,connection_id=excluded.connection_id,epoch=excluded.epoch,expires=excluded.expires',
+            'INSERT INTO studio_remote_planners(artifact_id,user_id,connection_id,epoch,expires,assignment_id,assignment_epoch) VALUES(?,?,?,?,?,?,?) ON CONFLICT(artifact_id) DO UPDATE SET user_id=excluded.user_id,connection_id=excluded.connection_id,epoch=excluded.epoch,expires=excluded.expires,assignment_id=excluded.assignment_id,assignment_epoch=excluded.assignment_epoch',
             artifact.id,
             user.id,
             peer.connectionId,
             peer.epoch,
             Date.now() + 30000,
+            peer.scope?.assignmentId ?? null,
+            peer.scope?.epoch ?? null,
           );
         });
         await send({
@@ -369,7 +460,7 @@ export class RemotePlanner {
         const receipt = await this.activity.accept(
           message,
           peer!.features,
-          () => requestRow(message.requestId),
+          () => requestRow(message.requestId, true),
         );
         await send({
           type: 'event-accepted',
@@ -422,7 +513,7 @@ export class RemotePlanner {
               row.id,
             );
           });
-        await this.activity.ended(row.id);
+        await this.activity.finishTurn(row.id);
         await send({ type: 'result-accepted', requestId: row.id });
         return;
       }
@@ -564,7 +655,24 @@ export class RemotePlanner {
             await consume(next.data, next.binary);
           }
         })
-        .catch(() => {
+        .catch(async (error) => {
+          const message = redactRemoteError(
+            error instanceof Error ? error.message : 'Invalid remote frame',
+          ).slice(0, 4000);
+          if (currentFrameRequest)
+            await this.activity
+              .failProtocol(currentFrameRequest, message, () =>
+                requestRow(currentFrameRequest!),
+              )
+              .catch(() => {});
+          if (socket.readyState === 1)
+            socket.send(
+              JSON.stringify({
+                type: 'error',
+                code: 'frame-rejected',
+                message,
+              }),
+            );
           socket.close(
             4403,
             'Planner frame rejected; check access and protocol',
@@ -595,15 +703,21 @@ export class RemotePlanner {
       closed = true;
       this.sockets.delete(socket);
       clearInterval(timer);
-      if (peer)
-        void store
-          .exec(
-            'UPDATE studio_remote_planners SET expires=0 WHERE artifact_id=? AND connection_id=? AND epoch=?',
-            peer.artifactId,
-            peer.connectionId,
-            peer.epoch,
-          )
-          .catch(() => {});
+      void (async () => {
+        if (peer)
+          await store
+            .exec(
+              'UPDATE studio_remote_planners SET expires=0 WHERE artifact_id=? AND connection_id=? AND epoch=?',
+              peer.artifactId,
+              peer.connectionId,
+              peer.epoch,
+            )
+            .catch(() => {});
+        await Promise.allSettled([working, pollWork]);
+      })().finally(() => {
+        this.connections.delete(connection);
+        finishConnection();
+      });
     });
     try {
       const origin = request.headers.origin;
@@ -622,7 +736,7 @@ export class RemotePlanner {
       timer = setInterval(() => {
         if (polling || !peer || closed) return;
         polling = true;
-        void (async () => {
+        pollWork = (async () => {
           await check();
           if (Date.now() - lastHeard > 120000) {
             socket.close(1001, 'Unresponsive Planner');
@@ -668,14 +782,38 @@ export class RemotePlanner {
               });
               sent.add(row.id);
             }
+          if (peer!.features.has('run-cards')) {
+            const completed = await store.all(
+              "SELECT r.id,r.input_json FROM studio_remote_requests r JOIN studio_durable_jobs j ON j.id=r.job_id JOIN studio_remote_activity a ON a.request_id=r.id WHERE r.artifact_id=? AND r.user_id=? AND r.status='completed' AND j.status='completed' AND j.fence=r.fence ORDER BY a.ordinal DESC LIMIT 8",
+              peer!.artifactId,
+              peer!.user.id,
+            );
+            for (const value of completed)
+              if (!sent.has(value.id)) {
+                const state = await this.activity.row(value.id);
+                if (
+                  state &&
+                  this.activity.bindingCurrent(state) &&
+                  this.activity.hasBackgroundWork(state)
+                ) {
+                  await send({
+                    type: 'resume-session',
+                    requestId: value.id,
+                    input: JSON.parse(value.input_json),
+                    resume: { cursor: Number(state.cursor) },
+                  });
+                  sent.add(value.id);
+                }
+              }
+          }
           for (const id of sent) {
             const current = await this.activity.row(id);
             if (!current) continue;
             if (
               (['failed', 'cancelled'].includes(current.request_status) ||
-                ['failed', 'cancelled', 'completed'].includes(
-                  current.job_status,
-                ) ||
+                ['failed', 'cancelled'].includes(current.job_status) ||
+                (current.job_status === 'completed' &&
+                  !this.activity.hasBackgroundWork(current)) ||
                 Number(current.fence) !== Number(current.job_fence)) &&
               !aborted.has(id)
             ) {
@@ -720,8 +858,16 @@ export class RemotePlanner {
     }
   }
   async close() {
-    for (const socket of this.sockets)
+    this.closing = true;
+    const sockets = [...this.sockets];
+    for (const socket of sockets)
       socket.close(1001, 'Planner service is shutting down');
-    this.sockets.clear();
+    const terminate = setTimeout(() => {
+      for (const socket of sockets) socket.terminate();
+    }, 1000);
+    terminate.unref();
+    await Promise.allSettled([...this.connections]);
+    clearTimeout(terminate);
+    this.closing = false;
   }
 }

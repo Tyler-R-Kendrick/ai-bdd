@@ -57,6 +57,12 @@ export type PlannerClientOptions = {
     context: RemotePlannerClientContext,
   ) => Promise<PlannerOutput>;
   onAttached?: () => void;
+  activeTurnMs?: number;
+  resumeSession?: (
+    turn: RemoteTurn,
+    signal: AbortSignal,
+    context: RemotePlannerClientContext,
+  ) => Promise<void>;
   onActivity?: (event: {
     requestId: string;
     status: 'running' | 'waiting' | 'paused' | 'finished';
@@ -253,18 +259,77 @@ export async function connectRemotePlanner(options: PlannerClientOptions) {
             })();
             return;
           }
-          if (message.type !== 'turn') return;
+          if (message.type !== 'turn' && message.type !== 'resume-session')
+            return;
           if (controllers.has(message.requestId)) return;
           if (tasks.size >= 4)
             throw new Error('Planner concurrency limit exceeded');
           const controller = new AbortController(),
             requestId = String(message.requestId);
           controllers.set(requestId, controller);
+          const limit = new AbortController();
           const signal = AbortSignal.any([
             options.signal,
             controller.signal,
-            AbortSignal.timeout(120000),
+            limit.signal,
           ]);
+          let remaining = options.activeTurnMs ?? 120000,
+            started = Date.now(),
+            waiters = 0,
+            finished = false,
+            timer: ReturnType<typeof setTimeout> | undefined;
+          if (
+            !Number.isSafeInteger(remaining) ||
+            remaining < 100 ||
+            remaining > 600000
+          )
+            throw new Error(
+              'Choose an active turn budget between100 and600000ms',
+            );
+          const schedule = () => {
+            if (finished || waiters || signal.aborted) return;
+            started = Date.now();
+            timer = setTimeout(
+              () =>
+                limit.abort(
+                  new Error(
+                    'Active remote model work exceeded its time budget',
+                  ),
+                ),
+              Math.max(1, remaining),
+            );
+            timer.unref();
+          };
+          const hold = () => {
+            if (waiters++ === 0) {
+              clearTimeout(timer);
+              remaining -= Date.now() - started;
+            }
+          };
+          const release = () => {
+            waiters = Math.max(0, waiters - 1);
+            if (!waiters) schedule();
+          };
+          signal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timer);
+              if (limit.signal.aborted && socket.readyState === 1)
+                send({
+                  type: 'failed',
+                  requestId,
+                  ...(features.size
+                    ? {
+                        message:
+                          'Active remote model work exceeded its time budget',
+                      }
+                    : {}),
+                });
+              endRequest(requestId, signal.reason);
+            },
+            { once: true },
+          );
+          schedule();
           const task = (async () => {
             try {
               let resume: RemoteActivity | undefined;
@@ -360,8 +425,13 @@ export async function connectRemotePlanner(options: PlannerClientOptions) {
                         input: parsed,
                         ...scope,
                       });
+                    hold();
                     options.onActivity?.({ requestId, status: 'waiting' });
-                    return await waiting;
+                    try {
+                      return await waiting;
+                    } finally {
+                      release();
+                    }
                   } catch (error) {
                     questions.delete(key);
                     throw error;
@@ -374,6 +444,28 @@ export async function connectRemotePlanner(options: PlannerClientOptions) {
               entry.context = context;
               contexts.set(requestId, entry);
               options.onActivity?.({ requestId, status: 'running' });
+              if (message.type === 'resume-session') {
+                if (options.resumeSession)
+                  await options.resumeSession(message.input, signal, context);
+                else if (resume)
+                  await context.reportRuns({
+                    active: [],
+                    paused: [],
+                    cards: resume.runs.cards.map((card) => ({
+                      ...card,
+                      status: ['running', 'waiting', 'paused'].includes(
+                        card.status,
+                      )
+                        ? 'stopped'
+                        : card.status,
+                      updated: Math.floor(Date.now() / 1000),
+                      stagesDelta: true,
+                      earlierStages: undefined,
+                      stages: [],
+                    })),
+                  });
+                return;
+              }
               const output = await options.run(message.input, signal, context);
               signal.throwIfAborted();
               send({ type: 'result', requestId, output });
@@ -390,6 +482,8 @@ export async function connectRemotePlanner(options: PlannerClientOptions) {
                 });
             }
           })().finally(() => {
+            finished = true;
+            clearTimeout(timer);
             tasks.delete(task);
           });
           tasks.add(task);

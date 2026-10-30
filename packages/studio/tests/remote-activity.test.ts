@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { remoteFixture, until } from './remote-fixture.ts';
 import { paragraph } from '../shared/domain.ts';
+import { connectRemotePlanner } from '../server/machine/planner-client.ts';
+import { HttpError } from '../server/store.ts';
 const event = (ws: any, requestId: string, value: Record<string, unknown>) => {
   const eventId = crypto.randomUUID();
   ws.send(JSON.stringify({ requestId, eventId, ...value }));
@@ -29,6 +31,273 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('keeps real human input waiting beyond the active model time budget without granting tool authority', async () => {
+    const w = await remoteFixture(),
+      controller = new AbortController();
+    let attached = false;
+    const client = connectRemotePlanner({
+      origin: w.origin,
+      token: 'explicit-fixture-token',
+      artifactId: w.artifact.id,
+      signal: controller.signal,
+      activeTurnMs: 1000,
+      onAttached: () => {
+        attached = true;
+      },
+      run: async (_turn, _signal, ctx) => {
+        await ctx.sendPart({ type: 'stream-start' });
+        await ctx.sendPart({ type: 'text-start', id: 'answer' });
+        await ctx.sendPart({
+          type: 'text-delta',
+          id: 'answer',
+          delta: 'Waiting for a person to choose the boundary.',
+        });
+        const answer = await ctx.ask('human-wait', {
+          method: 'confirm',
+          title: 'Keep the current boundary?',
+          message: 'This is an answer, not permission to run a tool.',
+        });
+        expect(answer).toMatchObject({ status: 'answered', value: true });
+        await ctx.sendPart({ type: 'text-end', id: 'answer' });
+        return { text: 'The person confirmed the boundary.', content: null };
+      },
+    });
+    try {
+      await until(() => attached);
+      const run = await w.start();
+      let requestId = '';
+      await until(async () => {
+        const response = await w.request(
+          `/api/artifacts/${w.artifact.id}/planner/activity`,
+        );
+        requestId = response.value.requests[0]?.id ?? '';
+        return !!response.value.requests[0]?.questions.length;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      expect((await w.runtime.get(run.job.id))?.status).toBe('running');
+      expect(
+        (
+          await w.request(path(w, requestId) + '/questions/human-wait', {
+            idempotencyKey: crypto.randomUUID(),
+            expectedRevision: 1,
+            action: 'answer',
+            value: true,
+          })
+        ).status,
+      ).toBe(200);
+      await run.done;
+      expect((await w.runtime.get(run.job.id))?.status).toBe('completed');
+    } finally {
+      controller.abort();
+      await client;
+    }
+  });
+  it('retains background workflow stages and questions after the chat turn ends, without admitting a new root', async () => {
+    const w = await remoteFixture(),
+      client = await w.connect(),
+      run = await turn(w, client),
+      now = Math.floor(Date.now() / 1000);
+    event(client.ws, run.requestId, {
+      type: 'runs',
+      active: ['background'],
+      paused: [],
+      cards: [
+        {
+          id: 'background',
+          name: 'Retained boundary workflow',
+          status: 'running',
+          started: now,
+          updated: now,
+          waiting: 0,
+          stages: [{ id: 'work', name: 'Collect evidence', status: 'running' }],
+        },
+      ],
+    });
+    await until(() =>
+      client.frames.some((frame: any) => frame.type === 'event-accepted'),
+    );
+    complete(client.ws, run.requestId);
+    await run.done;
+    expect((await w.runtime.get(run.job.id))?.status).toBe('completed');
+    event(client.ws, run.requestId, {
+      type: 'input-request',
+      questionId: 'retained-question',
+      runId: 'background',
+      input: {
+        method: 'confirm',
+        title: 'Continue collecting evidence?',
+        message: 'The previous response is already published.',
+      },
+    });
+    await until(
+      () =>
+        client.frames.filter((frame: any) => frame.type === 'event-accepted')
+          .length === 2,
+    );
+    const snapshot = await w.request(path(w, run.requestId));
+    expect(snapshot.value.canAnswer).toBe(true);
+    expect(
+      (
+        await w.request(
+          path(w, run.requestId) + '/questions/retained-question',
+          {
+            idempotencyKey: crypto.randomUUID(),
+            expectedRevision: 1,
+            action: 'answer',
+            value: false,
+          },
+        )
+      ).status,
+    ).toBe(200);
+    await until(() =>
+      client.frames.some((frame: any) => frame.type === 'input-result'),
+    );
+    event(client.ws, run.requestId, {
+      type: 'runs',
+      active: [],
+      paused: [],
+      cards: [
+        {
+          id: 'background',
+          name: 'Retained boundary workflow',
+          status: 'finished',
+          started: now,
+          updated: now + 1,
+          ended: now + 1,
+          waiting: 0,
+          stagesDelta: true,
+          stages: [
+            { id: 'work', name: 'Collect evidence', status: 'completed' },
+          ],
+        },
+      ],
+    });
+    await until(
+      () =>
+        client.frames.filter((frame: any) => frame.type === 'event-accepted')
+          .length === 3,
+    );
+    expect(
+      (await w.request(path(w, run.requestId))).value.runs.cards[0].stages[0]
+        .status,
+    ).toBe('completed');
+  });
+  it('binds activity to server-selected assignment epochs and closes replaced scoped credentials', async () => {
+    const w = await remoteFixture();
+    let epoch = 1;
+    const assignmentId = crypto.randomUUID();
+    w.remote.options.authenticateScoped = async (request) =>
+      request.headers.authorization === 'Bearer explicit-fixture-token'
+        ? { user: w.user, artifactId: w.artifact.id, assignmentId, epoch }
+        : null;
+    w.remote.options.assertScoped = async (scope) => {
+      if (scope.assignmentId !== assignmentId || scope.epoch !== epoch)
+        throw new HttpError(401, 'Planner assignment was replaced');
+    };
+    const client = await w.connect(),
+      run = await turn(w, client);
+    event(client.ws, run.requestId, {
+      type: 'input-request',
+      questionId: 'scoped-question',
+      input: { method: 'input', title: 'Name the boundary' },
+    });
+    await until(() =>
+      client.frames.some((frame: any) => frame.type === 'event-accepted'),
+    );
+    expect(
+      await w.remote.hasLiveActivity(w.artifact.id, w.user.id, {
+        assignmentId,
+        epoch: 1,
+      }),
+    ).toBe(true);
+    expect(
+      await w.remote.hasLiveActivity(w.artifact.id, w.user.id, {
+        assignmentId,
+        epoch: 2,
+      }),
+    ).toBe(false);
+    epoch = 2;
+    await run.done;
+    expect((await w.runtime.get(run.job.id))?.status).not.toBe('completed');
+    expect(
+      await w.remote.hasLiveActivity(w.artifact.id, w.user.id, {
+        assignmentId,
+        epoch: 2,
+      }),
+    ).toBe(false);
+  });
+  it('restores retained background cards on a fresh portable client without rerunning a completed model turn', async () => {
+    const w = await remoteFixture();
+    const initialController = new AbortController();
+    let initialAttached = false;
+    const initial = connectRemotePlanner({
+      origin: w.origin,
+      artifactId: w.artifact.id,
+      token: 'explicit-fixture-token',
+      signal: initialController.signal,
+      onAttached: () => {
+        initialAttached = true;
+      },
+      run: async (_turn, _signal, ctx) => {
+        const now = Math.floor(Date.now() / 1000);
+        await ctx.reportRuns({
+          active: ['retained'],
+          paused: [],
+          cards: [
+            {
+              id: 'retained',
+              name: 'Retained external work',
+              status: 'running',
+              started: now,
+              updated: now,
+              waiting: 0,
+              stages: [
+                { id: 'observe', name: 'Observe boundary', status: 'running' },
+              ],
+            },
+          ],
+        });
+        return { text: 'The chat response is complete.', content: null };
+      },
+    });
+    await until(() => initialAttached);
+    const run = await w.start();
+    await run.done;
+    expect((await w.runtime.get(run.job.id))?.status).toBe('completed');
+    initialController.abort();
+    await initial;
+    const replacementController = new AbortController();
+    let reruns = 0;
+    const replacement = connectRemotePlanner({
+      origin: w.origin,
+      artifactId: w.artifact.id,
+      token: 'explicit-fixture-token',
+      signal: replacementController.signal,
+      run: async () => {
+        reruns++;
+        return { text: 'Should never run again', content: null };
+      },
+    });
+    try {
+      await until(async () => {
+        const response = await w.request(
+          `/api/artifacts/${w.artifact.id}/planner/activity`,
+        );
+        return response.value.requests[0]?.runs.cards[0]?.status === 'stopped';
+      });
+      expect(reruns).toBe(0);
+      expect(await w.remote.hasLiveActivity(w.artifact.id, w.user.id)).toBe(
+        false,
+      );
+      const response = await w.request(
+        `/api/artifacts/${w.artifact.id}/planner/activity`,
+      );
+      expect(response.value.requests[0].runs.cards[0].stages).toHaveLength(1);
+    } finally {
+      replacementController.abort();
+      await replacement;
+    }
+  });
   it('persists ordered incremental output, authenticates human answers, resumes after reconnect and publishes once', async () => {
     const w = await remoteFixture(),
       first = await w.connect(),
@@ -407,16 +676,22 @@ describe('durable remote stream/question/run actions over actual WS and HTTP', (
       }),
     );
     await until(() => client.ws.readyState === 3);
+    await run.done;
+    expect((await w.runtime.get(run.job.id))?.status).toBe('failed');
     const replacement = await w.connect();
-    await until(() =>
-      replacement.frames.some((frame: any) => frame.type === 'turn'),
+    await w.store.message(
+      w.user,
+      w.artifact.id,
+      w.threadId,
+      'Check a new turn after the rejected replay.',
     );
-    event(replacement.ws, run.requestId, {
+    const replacementRun = await turn(w, replacement);
+    event(replacement.ws, replacementRun.requestId, {
       type: 'tools',
       names: ['repository_file'],
     });
     await until(() => replacement.ws.readyState === 3);
-    await w.runtime.cancel(run.job.id, w.user);
-    await run.done;
+    await replacementRun.done;
+    expect((await w.runtime.get(replacementRun.job.id))?.status).toBe('failed');
   });
 });

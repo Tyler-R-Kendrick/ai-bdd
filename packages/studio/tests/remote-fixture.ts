@@ -9,13 +9,23 @@ import { DurableJobCoordinator } from '../server/runtime/jobs.ts';
 import { Agent } from '../server/agent.ts';
 import { RemotePlanner } from '../server/integrations/remote-planner.ts';
 import { HttpError } from '../server/store.ts';
+import { openDatabase } from '../server/persistence/index.ts';
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanups.splice(0).reverse()) await close();
 });
 export async function remoteFixture() {
-  const store = await Store.open(':memory:');
-  cleanups.push(() => store.close());
+  const postgres = process.env.STUDIO_REMOTE_TEST_POSTGRES_URL;
+  const schema = 'remote_' + crypto.randomUUID().replaceAll('-', '');
+  const store = await Store.open(
+    postgres
+      ? await openDatabase({ adapter: 'postgres', url: postgres, schema })
+      : ':memory:',
+  );
+  cleanups.push(async () => {
+    if (postgres) await store.db.exec(`DROP SCHEMA "${schema}" CASCADE`);
+    await store.close();
+  });
   const settings: any = {
     production: false,
     origin: 'http://localhost',

@@ -50,9 +50,34 @@ CREATE TABLE IF NOT EXISTS studio_remote_questions(request_id TEXT NOT NULL REFE
 CREATE TABLE IF NOT EXISTS studio_remote_controls(id TEXT PRIMARY KEY,request_id TEXT NOT NULL REFERENCES studio_remote_requests(id) ON DELETE CASCADE,action TEXT NOT NULL,run_id TEXT,status TEXT NOT NULL,message TEXT,created_at TEXT NOT NULL,expires BIGINT NOT NULL);
 CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questions(request_id,status);
 `);
+      if (this.store.db.dialect === 'postgres') {
+        await this.store.exec(
+          'ALTER TABLE studio_remote_activity ADD COLUMN IF NOT EXISTS assignment_id TEXT',
+        );
+        await this.store.exec(
+          'ALTER TABLE studio_remote_activity ADD COLUMN IF NOT EXISTS assignment_epoch BIGINT',
+        );
+      } else {
+        const columns = await this.store.all(
+          'PRAGMA table_info(studio_remote_activity)',
+        );
+        if (!columns.some((c) => c.name === 'assignment_id'))
+          await this.store.exec(
+            'ALTER TABLE studio_remote_activity ADD COLUMN assignment_id TEXT',
+          );
+        if (!columns.some((c) => c.name === 'assignment_epoch'))
+          await this.store.exec(
+            'ALTER TABLE studio_remote_activity ADD COLUMN assignment_epoch BIGINT',
+          );
+      }
     });
   }
-  async prepare(requestId: string, job: any, threadId: string) {
+  async prepare(
+    requestId: string,
+    job: any,
+    threadId: string,
+    scope?: { assignmentId: string; epoch: number },
+  ) {
     const artifact = await this.store.artifact(
       job.artifactId,
       job.principalId,
@@ -96,23 +121,82 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
         stamp(),
         stamp(),
       );
+      if (scope)
+        await this.store.exec(
+          'UPDATE studio_remote_activity SET assignment_id=?,assignment_epoch=? WHERE request_id=? AND assignment_id IS NULL',
+          scope.assignmentId,
+          scope.epoch,
+          requestId,
+        );
     });
     return artifact;
   }
   async row(id: string) {
     return this.store.one(
-      'SELECT r.*,r.status AS request_status,j.project_id,j.status AS job_status,j.artifact_version,j.fence AS job_fence,j.lease_expires,a.thread_id,a.source_version,a.source_sha256,a.anchors_json,a.stream_json,a.runs_json,a.cursor,a.event_bytes,a.updated_at FROM studio_remote_requests r JOIN studio_durable_jobs j ON j.id=r.job_id JOIN studio_remote_activity a ON a.request_id=r.id WHERE r.id=?',
+      'SELECT r.*,r.status AS request_status,j.project_id,j.status AS job_status,j.artifact_version,j.fence AS job_fence,j.lease_expires,a.thread_id,a.source_version,a.source_sha256,a.anchors_json,a.stream_json,a.runs_json,a.cursor,a.event_bytes,a.updated_at,a.assignment_id,a.assignment_epoch,p.user_id AS planner_user_id,p.expires AS planner_expires,p.assignment_id AS planner_assignment_id,p.assignment_epoch AS planner_assignment_epoch FROM studio_remote_requests r JOIN studio_durable_jobs j ON j.id=r.job_id JOIN studio_remote_activity a ON a.request_id=r.id LEFT JOIN studio_remote_planners p ON p.artifact_id=r.artifact_id WHERE r.id=?',
       id,
+    );
+  }
+  bindingCurrent(row: any) {
+    return (
+      (row.assignment_id ?? null) === (row.planner_assignment_id ?? null) &&
+      Number(row.assignment_epoch ?? 0) ===
+        Number(row.planner_assignment_epoch ?? 0)
+    );
+  }
+  hasBackgroundWork(row: any) {
+    const runs = JSON.parse(row.runs_json) as RemoteRunState;
+    return !!(
+      runs.active.length ||
+      runs.paused.length ||
+      runs.cards.some(
+        (card) =>
+          ['running', 'waiting', 'paused'].includes(card.status) ||
+          (card.status === 'finished' && card.ended === undefined),
+      )
+    );
+  }
+  private background(row: any) {
+    return (
+      row &&
+      row.request_status === 'completed' &&
+      row.job_status === 'completed' &&
+      Number(row.fence) === Number(row.job_fence) &&
+      row.planner_user_id === row.user_id &&
+      Number(row.planner_expires) > Date.now() &&
+      this.bindingCurrent(row) &&
+      JSON.parse(row.runs_json).cards.length > 0
     );
   }
   private live(row: any) {
     return (
       row &&
-      row.request_status === 'pending' &&
-      row.job_status === 'running' &&
-      Number(row.fence) === Number(row.job_fence) &&
-      Number(row.lease_expires) > Date.now()
+      this.bindingCurrent(row) &&
+      ((row.request_status === 'pending' &&
+        row.job_status === 'running' &&
+        Number(row.fence) === Number(row.job_fence) &&
+        Number(row.lease_expires) > Date.now()) ||
+        (this.background(row) && this.hasBackgroundWork(row)))
     );
+  }
+  async hasLiveActivity(
+    artifactId: string,
+    userId: string,
+    scope?: { assignmentId: string; epoch: number },
+  ) {
+    const rows = await this.store.all(
+      'SELECT r.id FROM studio_remote_requests r JOIN studio_remote_activity a ON a.request_id=r.id WHERE r.artifact_id=? AND r.user_id=?' +
+        (scope ? ' AND a.assignment_id=? AND a.assignment_epoch=?' : '') +
+        ' ORDER BY a.ordinal DESC LIMIT 20',
+      artifactId,
+      userId,
+      ...(scope ? [scope.assignmentId, scope.epoch] : []),
+    );
+    for (const value of rows) {
+      const row = await this.row(value.id);
+      if (this.live(row)) return true;
+    }
+    return false;
   }
   private async exactSource(row: any) {
     const artifact = await this.store.artifact(
@@ -144,7 +228,7 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
       ].sort())
         await this.store.lock('repository-identity:' + userId);
       const row = await this.row(id);
-      if (!this.live(row))
+      if (!this.live(row) && !this.background(row))
         throw new HttpError(
           409,
           'This remote turn lost its active execution lease',
@@ -237,6 +321,35 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
         let stream = JSON.parse(row.stream_json) as RemoteStreamState,
           runs = JSON.parse(row.runs_json) as RemoteRunState,
           event: unknown = message;
+        if (row.job_status === 'completed') {
+          if (!['runs', 'input-request', 'input-cancel'].includes(message.type))
+            throw new HttpError(
+              409,
+              'Only retained workflow reports and questions may follow a completed turn',
+            );
+          if (
+            message.type === 'runs' &&
+            message.cards.some(
+              (card) => !runs.cards.some((old) => old.id === card.id),
+            )
+          )
+            throw new HttpError(
+              409,
+              'A completed turn cannot declare new workflow roots',
+            );
+          if (
+            message.type === 'input-request' &&
+            !runs.cards.some(
+              (card) =>
+                card.id === (message.rootRunId ?? message.runId) &&
+                ['running', 'waiting', 'paused'].includes(card.status),
+            )
+          )
+            throw new HttpError(
+              409,
+              'Post-turn questions require a retained live workflow root',
+            );
+        }
         if (message.type === 'tools') {
           if (!features.has('stream-parts'))
             throw new HttpError(400, 'Stream parts were not negotiated');
@@ -278,6 +391,17 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
             message,
             features.has('run-stage-deltas'),
           );
+          for (const card of runs.cards)
+            if (
+              ['failed', 'stopped', 'blocked'].includes(card.status) ||
+              (card.status === 'finished' && card.ended !== undefined)
+            )
+              await this.store.exec(
+                "UPDATE studio_remote_questions SET status='cancelled',revision=revision+1,updated_at=? WHERE request_id=? AND root_run_id=? AND status='open'",
+                stamp(),
+                row.id,
+                card.id,
+              );
         }
         if (message.type === 'input-request') {
           if (!features.has('questions'))
@@ -295,6 +419,23 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
             )
           )
             throw new HttpError(409, 'Question identity was already used');
+          const textLength =
+            this.store.db.dialect === 'postgres'
+              ? 'octet_length(payload_json)'
+              : 'length(CAST(payload_json AS BLOB))';
+          const used = Number(
+            (
+              await this.store.one(
+                `SELECT COALESCE(SUM(${textLength}),0) AS n FROM studio_remote_questions WHERE request_id=?`,
+                row.id,
+              )
+            ).n,
+          );
+          if (used + Buffer.byteLength(JSON.stringify(message.input)) > 256000)
+            throw new HttpError(
+              413,
+              'This turn reached its retained question text budget',
+            );
           const count = await this.store.one(
             "SELECT COUNT(*) AS n FROM studio_remote_questions WHERE request_id=? AND status='open'",
             row.id,
@@ -397,6 +538,37 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
       stamp(),
       id,
     );
+  }
+  async finishTurn(id: string) {
+    const row = await this.row(id);
+    if (row && this.hasBackgroundWork(row)) {
+      await this.store.exec(
+        "UPDATE studio_remote_questions SET status='cancelled',revision=revision+1,updated_at=? WHERE request_id=? AND root_run_id IS NULL AND status='open'",
+        stamp(),
+        id,
+      );
+    } else await this.ended(id);
+  }
+  async failProtocol(
+    id: string,
+    message: string,
+    guard: () => Promise<unknown>,
+  ) {
+    await this.write(id, undefined, guard, async (row) => {
+      const stream = JSON.parse(row.stream_json) as RemoteStreamState;
+      stream.error = message.slice(0, 4000);
+      await this.store.exec(
+        'UPDATE studio_remote_activity SET stream_json=?,updated_at=? WHERE request_id=?',
+        JSON.stringify(stream),
+        stamp(),
+        id,
+      );
+      await this.store.exec(
+        "UPDATE studio_remote_requests SET status='failed' WHERE id=? AND status='pending'",
+        id,
+      );
+      await this.ended(id);
+    });
   }
   async ended(id: string) {
     await this.withdraw(id);
@@ -679,7 +851,7 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
         );
       await this.options.cancelJob(initial.job_id, user);
       await this.store.exec(
-        "UPDATE studio_remote_requests SET status='cancelled' WHERE id=? AND status='pending'",
+        "UPDATE studio_remote_requests SET status='cancelled' WHERE id=? AND status IN ('pending','completed')",
         id,
       );
       await this.ended(id);
@@ -837,6 +1009,11 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
               (card.earlierStages ?? 0) + Math.max(0, card.stages.length - 64),
             stages: card.stages.slice(-64),
           }));
+          if (
+            result.length &&
+            Buffer.byteLength(JSON.stringify([...result, value])) > 2500000
+          )
+            break;
           result.push(value);
         }
         return { requests: result };
@@ -936,6 +1113,15 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
     return Promise.all(
       rows.map(async (row) => ({
         sequence: Number(row.ordinal),
+        events: (
+          await this.store.all(
+            'SELECT sequence,event_json FROM studio_remote_events WHERE request_id=? ORDER BY sequence',
+            row.id,
+          )
+        ).map((event) => ({
+          sequence: Number(event.sequence),
+          event: JSON.parse(event.event_json),
+        })),
         ...(await this.snapshot(
           user ?? (await this.store.publicUser(row.user_id)),
           row.id,
