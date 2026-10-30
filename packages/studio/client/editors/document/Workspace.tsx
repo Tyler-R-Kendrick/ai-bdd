@@ -86,7 +86,9 @@ export function DocumentWorkspaceProvider({
     [jobs, setJobs] = useState<Job[]>([]),
     [reviewOpen, setReviewOpen] = useState(false),
     active = useRef(true),
-    refreshing = useRef(false);
+    refreshing = useRef(false),
+    lastContextRead = useRef(0),
+    lastJobRead = useRef(0);
   useEffect(() => {
     active.current = true;
     return () => {
@@ -96,6 +98,7 @@ export function DocumentWorkspaceProvider({
   const refresh = useCallback(async () => {
     if (refreshing.current) return;
     refreshing.current = true;
+    lastContextRead.current = Date.now();
     try {
       const result = await api<ReviewResponse>(
         `/artifacts/${props.artifact.id}/document/review`,
@@ -166,16 +169,20 @@ export function DocumentWorkspaceProvider({
     void refreshArtifacts();
   }, [props.artifact.id, refresh, refreshArtifacts]);
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      void refresh();
-      void refreshArtifacts();
-    }, 1000);
+    const timeout = setTimeout(
+      () => {
+        void refresh();
+        void refreshArtifacts();
+      },
+      Math.max(250, 4000 - (Date.now() - lastContextRead.current)),
+    );
     return () => clearTimeout(timeout);
   }, [props.artifact, refresh, refreshArtifacts]);
   useEffect(() => {
     let stopped = false,
       timeout: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
+      lastJobRead.current = Date.now();
       try {
         const result = await api<{ jobs: Job[] }>(
           `/artifacts/${props.artifact.id}/integrations/jobs`,
@@ -192,7 +199,10 @@ export function DocumentWorkspaceProvider({
           props.onError((error as Error).message);
       }
     };
-    void load();
+    timeout = setTimeout(
+      load,
+      Math.max(0, 4000 - (Date.now() - lastJobRead.current)),
+    );
     return () => {
       stopped = true;
       if (timeout) clearTimeout(timeout);

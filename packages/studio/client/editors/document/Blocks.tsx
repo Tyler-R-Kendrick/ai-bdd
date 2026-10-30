@@ -517,7 +517,11 @@ function Questionnaire({
     [choices, setChoices] = useState<Record<string, string>>({}),
     [answers, setAnswers] = useState<Record<string, string>>({}),
     [busy, setBusy] = useState('');
-  const submit = async (questionId: string) => {
+  const submit = async (
+    questionId: string,
+    optionId: string,
+    answer: string,
+  ) => {
     setBusy(questionId);
     try {
       const current = await api<{ artifact: Artifact }>(
@@ -529,8 +533,8 @@ function Questionnaire({
         {
           version: current.artifact.version,
           questionId,
-          optionId: choices[questionId],
-          answer: answers[questionId] ?? '',
+          optionId,
+          answer,
         },
       );
       await refresh();
@@ -578,7 +582,11 @@ function Questionnaire({
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void submit(question.id);
+                  void submit(
+                    question.id,
+                    choices[question.id] ?? mine?.optionId ?? '',
+                    answers[question.id] ?? mine?.answer ?? '',
+                  );
                 }}
               >
                 <fieldset disabled={!!busy || !anchor}>
@@ -605,7 +613,7 @@ function Questionnaire({
                       aria-label={`Reason for ${question.question}`}
                       placeholder="Add the reasoning behind your choice"
                       maxLength={4000}
-                      value={answers[question.id] ?? ''}
+                      value={answers[question.id] ?? mine?.answer ?? ''}
                       onChange={(event) =>
                         setAnswers({
                           ...answers,
@@ -618,7 +626,13 @@ function Questionnaire({
                     type="submit"
                     variant="outline"
                     size="sm"
-                    disabled={!choices[question.id]}
+                    disabled={
+                      !(choices[question.id] ?? mine?.optionId) ||
+                      (!!mine &&
+                        (choices[question.id] ?? mine.optionId) ===
+                          mine.optionId &&
+                        (answers[question.id] ?? mine.answer) === mine.answer)
+                    }
                   >
                     {busy === question.id
                       ? 'Saving…'
@@ -847,7 +861,12 @@ function Evidence({ data }: { data: any }) {
               ? 'Evidence out of date'
               : source.run.status === 'error'
                 ? 'Run error'
-                : status.status}
+                : source.run.status === 'interrupted'
+                  ? 'Run interrupted'
+                  : source.run.status === 'failed' &&
+                      status.scenario?.status === 'passed'
+                    ? 'Source scenario passed · run failed'
+                    : status.status}
         </Badge>
         <span>
           {source.artifact.title} · executed v{source.run.artifactVersion}
