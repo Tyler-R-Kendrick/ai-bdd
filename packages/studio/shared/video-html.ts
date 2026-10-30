@@ -299,6 +299,10 @@ export function videoHTML(
       return `<div ${attrs} style="${style}">${clip.type === 'text' ? html(clip.text) : ''}</div>`;
     })
     .join('\n');
-  const script = `<script>(${options.renderer ? runtime.toString() : timelineRuntime.toString()})(${scriptJSON(content)});</script>`;
+  // tsx/esbuild keepNames inserts __name calls into these trusted functions.
+  // Function#toString omits the compiler's module-scoped helper, so supply its
+  // name-only behavior inside this script's lexical scope for dev and exports.
+  // Keep user data exclusively in scriptJSON; never interpolate it as code.
+  const script = `<script>{const __name=(target,name)=>Object.defineProperty(target,"name",{value:name,configurable:true});(${options.renderer ? runtime.toString() : timelineRuntime.toString()})(${scriptJSON(content)});}</script>`;
   return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(title)}</title><style>${css}*{box-sizing:border-box}html,body{margin:0;width:${content.width}px;height:${content.height}px;overflow:hidden}#studio-composition{position:relative;width:${content.width}px;height:${content.height}px;background:${content.background};overflow:hidden}</style></head><body><div id="studio-composition" data-composition-id="studio-composition" data-start="0" data-duration="${content.duration}" data-fps="${content.fps}" data-width="${content.width}" data-height="${content.height}">${nodes}</div>${script}</body></html>\n`;
 }
