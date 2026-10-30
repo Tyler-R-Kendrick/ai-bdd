@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { createApp } from '../server/app.ts';
 import { passwordHash } from '../server/auth.ts';
@@ -166,6 +168,7 @@ async function fixture(adapter: Adapter) {
   };
   return {
     dir,
+    schema,
     user,
     project,
     artifact,
@@ -708,7 +711,93 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         },
       );
 
-      it('defers actual automatic-title observer admission during cloud chat and publishes it only through later maintenance', async () => {
+      it('publishes healthy automatic follow-ups promptly after the response without touching unrelated backlog or removing the schedule', async () => {
+        const w = await fixture(adapter), application = await w.start(undefined, 0), request = await w.login(application), events: string[] = [];
+        const provider = vi.fn(async () => 'Explicit healthy automatic title');
+        application.titles.options.provider = provider;
+        application.titles.options.allowed = async () => true;
+        application.titles.options.available = async () => true;
+        application.titles.options.onAdmit = async () => {};
+        application.titles.options.quietMs = 15000;
+        const artifact = await application.store.createArtifact(w.user, w.project.id, 'document', 'Healthy targeted fixture'),
+          thread = (await application.store.threads(artifact.id))[0]!;
+        await application.titles.policy(w.user, artifact.id, 'automatic');
+        w.dispatcher.publish.mockImplementation(async () => {
+          events.push('publisher');
+          return { provider: w.dispatcher.provider, messageId: 'healthy-new-target-only' };
+        });
+        const before = Date.now(), posted = await request('POST', `/api/artifacts/${artifact.id}/messages`, { threadId: thread.id, body: 'Preserve the human acknowledgment and the scheduled follow-up.' });
+        events.push('response');
+        expect(posted.statusCode, posted.body).toBe(201);
+        const after = Date.now();
+        await vi.waitFor(() => expect(w.dispatcher.publish).toHaveBeenCalledTimes(1));
+        expect(events[0]).toBe('response');
+        const [target, options] = w.dispatcher.publish.mock.calls[0]!;
+        expect(target).not.toBe(w.job.id);
+        const job = await application.runtime.get(target);
+        expect(job).toMatchObject({ kind: 'artifact.title', status: 'queued', attempt: 0 });
+        expect(job!.availableAt).toBeGreaterThanOrEqual(before + 15000);
+        expect(job!.availableAt).toBeLessThanOrEqual(after + 15000);
+        expect((options as {delaySeconds:number}).delaySeconds).toBeGreaterThanOrEqual(15);
+        expect(provider).not.toHaveBeenCalled();
+        expect(await application.store.one('SELECT status,attempts,receipt_json FROM studio_job_outbox WHERE job_id=?', w.job.id)).toMatchObject({status:'pending',attempts:0,receipt_json:null});
+      });
+
+      it('captures only newly committed admission IDs, excluding duplicate and rolled-back jobs', async () => {
+        const w = await fixture(adapter), sourceStore = await w.openStore(), runtime = await w.runtimeFor(sourceStore);
+        runtime.register(kind, async () => null);
+        const collected: string[] = [], input = {kind,projectId:w.project.id,artifactId:w.artifact.id,principalId:w.user.id,artifactVersion:w.artifact.version,snapshot:{approved:'Fresh committed follow-up'},idempotencyKey:randomUUID()};
+        const created = await runtime.deferDispatch(async () => {
+          const fresh = await runtime.enqueue(input);
+          expect((await runtime.enqueue(input)).id).toBe(fresh.id);
+          await expect(sourceStore.tx(async () => { await runtime.enqueue({...input,idempotencyKey:randomUUID()}); throw new Error('fixture rollback'); })).rejects.toThrow('fixture rollback');
+          return fresh;
+        }, {onAdmitted:(ids) => collected.push(...ids)});
+        expect(collected).toEqual([created.id]);
+        expect(collected).not.toContain(w.job.id);
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
+        expect((await sourceStore.all('SELECT id FROM studio_durable_jobs')).map(row => row.id).sort()).toEqual([w.job.id,created.id].sort());
+      });
+
+      it('recovers a real SIGKILL after SQL admission before response-targeted publication', async () => {
+        const w = await fixture(adapter), input = {adapter,file:join(w.dir,'studio.sqlite'),url:postgresUrl,schema:w.schema,job:{kind,projectId:w.project.id,artifactId:w.artifact.id,principalId:w.user.id,artifactVersion:w.artifact.version,snapshot:{approved:'Recover after the process dies before sending its response'},idempotencyKey:randomUUID()}},
+          child = spawn(process.execPath, ['--import','tsx',fileURLToPath(new URL('./fixtures/targeted-admission-worker.ts',import.meta.url))], {env:{...process.env,STUDIO_TARGETED_ADMISSION_FIXTURE:JSON.stringify(input)},stdio:['ignore','pipe','ignore']}),
+          exited = new Promise<string | null>((resolve) => child.once('exit', (_code,signal) => resolve(signal)));
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const admitted = new Promise<string[]>((resolve,reject) => {
+          let data='';
+          timer=setTimeout(() => reject(new Error('Fixture child did not confirm SQL admission')),10000);
+          child.stdout.on('data', bytes => {
+            data += String(bytes);
+            if(data.length>8192) return reject(new Error('Fixture child response exceeded its bound'));
+            if(data.includes('\n')) {
+              try { const row=JSON.parse(data.split('\n')[0]!); if(row.stage==='committed-before-response') resolve(row.ids); }
+              catch { reject(new Error('Fixture child response was invalid')); }
+            }
+          });
+          child.once('error', () => reject(new Error('Fixture child could not launch')));
+        });
+        let ids: string[];
+        try { ids=await admitted; } finally { if(timer) clearTimeout(timer); child.kill('SIGKILL'); }
+        expect(await exited).toBe('SIGKILL');
+        expect(ids!).toHaveLength(1);
+        const application = await w.start(async (ctx,store) => ctx.commit('publish-recovered-followup', async () => {
+          await store.exec('INSERT INTO startup_publications(job_id,fence,source) VALUES(?,?,?)',ctx.job.id,ctx.fence,'Recovered after real process death'); return {published:true};
+        }),0);
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
+        expect(await application.runtime.get(ids![0]!)).toMatchObject({status:'queued',attempt:0,result:null});
+        w.setFailure(undefined);
+        // The killed child used the real clock; this fixture's parent clock is frozen.
+        // Advance through the maintenance interval before reconciling its committed intent.
+        w.advance(60000);
+        await application.runtime.recover();
+        expect(w.dispatcher.publish.mock.calls.some(call => call[0]===ids![0])).toBe(true);
+        await application.runtime.executeJob(ids![0]!,{messageId:'maintenance-after-real-sigkill',deliveryCount:1});
+        expect(await application.runtime.get(ids![0]!)).toMatchObject({status:'completed',result:{published:true}});
+        expect((await application.store.all('SELECT job_id FROM startup_publications')).map(row => row.job_id)).toEqual(ids!);
+      });
+
+      it('acknowledges automatic-title admission before a held targeted publisher and retains later maintenance recovery', async () => {
         const w = await fixture(adapter),
           application = await w.start(undefined, 0),
           request = await w.login(application),
@@ -735,13 +824,13 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           ),
           thread = (await application.store.threads(artifact.id))[0]!;
         await application.titles.policy(w.user, artifact.id, 'automatic');
-        let signalPublisherCalled!: () => void;
-        const publisherCalled = new Promise<void>((resolve) => {
-          signalPublisherCalled = resolve;
-        });
+        let signalPublisherCalled!: () => void, releasePublication!: () => void;
+        const publisherCalled = new Promise<void>((resolve) => { signalPublisherCalled = resolve; }),
+          publicationGate = new Promise<void>((resolve) => { releasePublication = resolve; });
         w.dispatcher.publish.mockImplementation(async () => {
           signalPublisherCalled();
-          return new Promise<{ provider: string; messageId: string }>(() => {});
+          await publicationGate;
+          throw new Error('Explicit held target queue failure');
         });
         const outcome = await Promise.race([
           request('POST', `/api/artifacts/${artifact.id}/messages`, {
@@ -759,13 +848,21 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(admitted).toHaveBeenCalledTimes(1);
         expect(captureProfile).toHaveBeenCalledTimes(1);
         expect(provider).not.toHaveBeenCalled();
-        expect(w.dispatcher.publish).not.toHaveBeenCalled();
         const jobs = await application.store.all(
           "SELECT id FROM studio_durable_jobs WHERE kind='artifact.title' AND artifact_id=?",
           artifact.id,
         );
         expect(jobs).toHaveLength(1);
         const titleJob = jobs[0]!.id;
+        await publisherCalled;
+        expect(w.dispatcher.publish).toHaveBeenCalledTimes(1);
+        expect(w.dispatcher.publish.mock.calls[0]![0]).toBe(titleJob);
+        expect(await application.runtime.get(w.job.id)).toMatchObject({ status: 'queued', attempt: 0 });
+        releasePublication();
+        await vi.waitFor(async () => {
+          const row = await application.store.one("SELECT status,error FROM studio_job_outbox WHERE job_id=?", titleJob);
+          expect(row).toMatchObject({ status: 'pending', error: expect.any(String) });
+        });
         expect(await application.runtime.get(titleJob)).toMatchObject({
           status: 'queued',
           attempt: 0,
