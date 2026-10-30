@@ -24,7 +24,12 @@ export async function validateInvestigationReferences(
     const result = new Map<string, string[]>();
     const walk = (node: RichNode) => {
       if (node.type === 'investigationCard') {
-        const id = String(node.attrs?.data?.investigationId ?? ''),
+        const value = node.attrs?.data;
+        const data =
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : {};
+        const id = String(data.investigationId ?? ''),
           anchor = String(node.attrs?.id ?? '');
         result.set(id, [...(result.get(id) ?? []), anchor]);
       }
