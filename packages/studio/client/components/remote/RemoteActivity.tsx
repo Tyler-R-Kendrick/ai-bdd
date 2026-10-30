@@ -248,7 +248,7 @@ function ActivityCard({
     stale =
       request.artifactVersion !== artifactVersion ||
       request.status === 'stale';
-  const streamPhase = stale ? 'Source changed' : view.runs.paused.length ? 'Paused' : view.questions.some(question => question.status === 'open') ? 'Waiting for a response…' : 'Writing…';
+  const streamPhase = stale ? 'Source changed' : (view.runs.paused.length || view.runs.cards.some(card => card.status === 'paused')) ? 'Paused' : view.questions.some(question => question.status === 'open') ? 'Waiting for a response…' : 'Writing…';
   const pending = request.controls.some(
     (control) => control.status === 'pending',
   );
