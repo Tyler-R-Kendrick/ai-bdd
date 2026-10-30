@@ -205,6 +205,7 @@ export function DocumentCommands({
         description="Review the exact brief before starting research with this artifact's selected agent. The report stays linked beside this passage."
       >
         <form
+          className="document-dialog-fields"
           onSubmit={(e) => {
             e.preventDefault();
             void start();
@@ -221,13 +222,15 @@ export function DocumentCommands({
               className="document-command-brief"
             />
           </label>
-          {research && <p>Selected passage · source v{research.version}</p>}
+          {research && (
+            <p className="muted small">Selected passage · source v{research.version}</p>
+          )}
           {error && (
             <p role="alert" className="document-error">
               {error}
             </p>
           )}
-          <div className="modal-footer">
+          <div className="document-dialog-actions">
             <Button
               type="button"
               variant="outline"
