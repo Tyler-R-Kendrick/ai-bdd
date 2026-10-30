@@ -1,0 +1,5 @@
+Actual production App acceptance at canonical `https://ai-bdd-studio.vercel.app`, source `a4c7fdd85e36ca366587b2dbbdd8557d255da758`, deployment `dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U`.
+
+The owner added a pull-request reference to the retained synthetic acceptance document and invoked the App's supported refresh endpoint. The server read the actual public GitHub PR25 API and changed the stored link state from `unknown` to `open`. A distinct fresh owner session read the retained `open` state; an anonymous artifact read returned401. Both sessions were logged out. The [receipt](receipt.json) records the ten exact App HTTP statuses and owned artifact/link identities.
+
+This exercised a real public-repository PR read and persisted state indicator, without a model, AI Gateway, repository OAuth credential, private repository, PR creation, merge or repository checkout. It does not establish private GitHub OAuth enrollment or connected-machine rebuild execution. The separate operator PR comments and stacked review branches remain their own workflow evidence.
