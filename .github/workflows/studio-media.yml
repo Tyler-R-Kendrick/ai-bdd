@@ -1,0 +1,53 @@
+name: studio-media-runtime
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: studio-media-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  media-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare a whitelisted worker-only context (no repository or package manager store)
+        working-directory: packages/studio
+        env:
+          STUDIO_MEDIA_BUILD_CONTEXT: ${{ runner.temp }}/studio-media-worker
+          STUDIO_SOURCE_REVISION: ${{ github.sha }}
+        run: node verification/prepare-media-image.mjs
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the private-source worker locally (no registry publication)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ runner.temp }}/studio-media-worker
+          file: ${{ runner.temp }}/studio-media-worker/Dockerfile
+          push: false
+          load: true
+          tags: ai-bdd-studio-media:ci
+          cache-from: type=gha,scope=studio-media
+          cache-to: type=gha,scope=studio-media,mode=max
+      - name: Real network-denied worker probes, five audio formats, MP4/WebM, integrity and cancellation
+        env:
+          STUDIO_MEDIA_TEST_IMAGE: ai-bdd-studio-media:ci
+          STUDIO_MEDIA_TEST_REPORT: work/review/media-container-smoke.json
+        run: node packages/studio/verification/media-container.mjs
+      - name: Preserve actual worker/binary provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-media-container-evidence
+          path: work/review/media-container-smoke.json
+          if-no-files-found: error
+          retention-days: 14
