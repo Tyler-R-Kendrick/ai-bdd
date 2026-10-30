@@ -17,6 +17,9 @@ it('accepts only finite worker phases and projects out all input/output/error pa
     { type: 'phase', phase: 'model-loaded', rss: Infinity },
     Object.defineProperty({}, 'type', { get() { throw new Error('SECRET'); } }),
   ]) expect(localWorkerPhase(value)).toBeUndefined();
+  expect(localWorkerPhase({ type: 'phase', phase: 'prompt-validated', rss: 1, inputTokens: 123, outputTokens: 4, prompt: 'SECRET' })).toEqual({ phase: 'prompt-validated', rssBytes: 1, inputTokens: 123, outputTokens: 4 });
+  expect(localWorkerPhase({ type: 'phase', phase: 'prefill-start', rss: 1, inputTokens: Infinity, outputTokens: 'SECRET' })).toEqual({ phase: 'prefill-start', rssBytes: 1 });
+  expect(localWorkerPhase({ type: 'phase', phase: 'worker-start', rss: 1, availableParallelism: 1 })).toEqual({ phase: 'worker-start', rssBytes: 1, availableParallelism: 1 });
   observer.finish(Object.assign(new Error('SECRET'), { code: 'deadline', cause: 'SECRET', toJSON() { throw new Error('SECRET'); } }));
   observer.finish(new Error('SECRET'));
   expect(events).toHaveLength(2);
@@ -59,9 +62,16 @@ describe.skipIf(!directory)('actual shared CPU phase IPC', () => {
     expect(decision.probabilityKind).toBe('conditional-option-likelihood');
     expect(generation.every(event => event.command === 'generate')).toBe(true);
     expect(decisions.every(event => event.command === 'decide')).toBe(true);
-    for (const phase of ['worker-start', 'weights-verified', 'binding-loaded', 'model-loaded', 'inference-start', 'complete'])
+    expect(generation.find(event => event.phase === 'worker-start')?.availableParallelism).toBeGreaterThanOrEqual(1);
+    for (const phase of ['worker-start', 'weights-verified', 'binding-loaded', 'model-loaded', 'inference-start', 'grammar-start', 'grammar-ready', 'prompt-validated', 'context-create', 'context-created', 'session-ready', 'prefill-start', 'decode-start', 'response-ready', 'context-dispose-start', 'context-disposed', 'complete'])
       expect([...generation, ...decisions].some(event => event.phase === phase)).toBe(true);
     expect(decisions.some(event => event.phase === 'inference-start')).toBe(true);
+    expect(decisions.some(event => event.phase === 'prefill-complete' && event.inputTokens! > 0)).toBe(true);
+    for (const events of [generation, decisions]) {
+      expect(events.findIndex(event => event.phase === 'response-ready')).toBeLessThan(events.findIndex(event => event.phase === 'context-dispose-start'));
+      expect(events.findIndex(event => event.phase === 'context-disposed')).toBeLessThan(events.findIndex(event => event.phase === 'complete'));
+      expect(events.find(event => event.phase === 'prompt-validated')?.inputTokens).toBeGreaterThan(0);
+    }
     expect(generation.at(-1)).toMatchObject({ phase: 'request', state: 'complete' });
     expect(decisions.at(-1)).toMatchObject({ phase: 'request', state: 'complete' });
     expect(JSON.stringify([...generation, ...decisions])).not.toMatch(/SECRET|chosen color|What is/);

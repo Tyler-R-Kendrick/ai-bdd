@@ -19,7 +19,10 @@ function normalize(logs) {
   const total = weights.reduce((sum, value) => sum + value, 0);
   return weights.map((value) => value / total);
 }
-export async function evaluateLocalDecisions({ model, input }) {
+export async function evaluateLocalDecisions({ model, input, onPhase = () => {} }) {
+  const phase = (name, counts) => {
+    try { void Promise.resolve(onPhase(name, counts)).catch(() => {}); } catch { /* Diagnostics cannot change inference. */ }
+  };
   if (
     !input ||
     typeof input.input !== 'string' ||
@@ -31,15 +34,18 @@ export async function evaluateLocalDecisions({ model, input }) {
   let context;
   try {
     const wrapper = resolveChatWrapper(model);
+    phase('context-create');
     context = await model.createContext({
       contextSize: 4096,
       threads: 2,
       batchSize: 128,
       flashAttention: false,
     });
+    phase('context-created');
     const sequence = context.getSequence();
     let sampledPeakRss = process.memoryUsage().rss;
-    const probabilities = async (tokens) => {
+    const probabilities = async (tokens, initialPrompt = false) => {
+      if (initialPrompt) phase('prefill-start', { inputTokens: tokens.length });
       const iterator = sequence.evaluateWithMetadata(
         tokens,
         { probabilities: true },
@@ -49,6 +55,7 @@ export async function evaluateLocalDecisions({ model, input }) {
         const next = await iterator.next();
         if (next.done || !(next.value.probabilities instanceof Map))
           throw new Error('inference');
+        if (initialPrompt) phase('prefill-complete', { inputTokens: tokens.length });
         sampledPeakRss = Math.max(sampledPeakRss, process.memoryUsage().rss);
         return next.value.probabilities;
       } finally {
@@ -106,8 +113,9 @@ export async function evaluateLocalDecisions({ model, input }) {
         .contextText.tokenize(model.tokenizer);
       // Source is never shortened or shifted. Include the entire question/options and chat framing in this exact token check.
       if (prompt.length + 8 > 4096) throw new Error('context');
+      phase('prompt-validated', { inputTokens: prompt.length });
       await sequence.clearHistory();
-      const initial = await probabilities(prompt);
+      const initial = await probabilities(prompt, true);
       const logs = [];
       for (const text of labels) {
         const variants =
@@ -180,6 +188,7 @@ export async function evaluateLocalDecisions({ model, input }) {
         });
     }
     const meter = sequence.tokenMeter.getState();
+    phase('response-ready', { inputTokens: meter.usedInputTokens, outputTokens: meter.usedOutputTokens });
     return {
       answers,
       inputTokens: meter.usedInputTokens,
@@ -192,6 +201,8 @@ export async function evaluateLocalDecisions({ model, input }) {
     if (error?.message === 'context') throw error;
     throw new Error('inference');
   } finally {
+    phase('context-dispose-start');
     await context?.dispose();
+    phase('context-disposed');
   }
 }

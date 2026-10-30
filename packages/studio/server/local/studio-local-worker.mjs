@@ -3,12 +3,17 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import { availableParallelism } from 'node:os';
 // Runtime downloads are forbidden; model/binary preparation belongs to the controlled build.
 globalThis.fetch = async () => {
   throw new Error('Local inference has no HTTP transport');
 };
 const port = { postMessage: (value) => process.send?.(value) };
-const phase = (name) => port.postMessage({ type: 'phase', phase: name, rss: process.memoryUsage().rss });
+const phase = (name, counts = {}) => port.postMessage({ type: 'phase', phase: name, rss: process.memoryUsage().rss,
+  ...(Number.isSafeInteger(counts.availableParallelism) ? { availableParallelism: counts.availableParallelism } : {}),
+  ...(Number.isSafeInteger(counts.inputTokens) ? { inputTokens: counts.inputTokens } : {}),
+  ...(Number.isSafeInteger(counts.outputTokens) ? { outputTokens: counts.outputTokens } : {}),
+});
 process.once('disconnect', () => process.exit(0));
 let workerData;
 let refusingMemory = false;
@@ -69,7 +74,7 @@ process.on('message', async (request) => {
   workerData = request.configuration;
   checkMemory();
   if (refusingMemory) return;
-  phase('worker-start');
+  phase('worker-start', { availableParallelism: availableParallelism() });
   let context, response;
   try {
     await load();
@@ -80,14 +85,16 @@ process.on('message', async (request) => {
       );
       response = {
         type: 'decision',
-        result: await evaluateLocalDecisions({ model, input: request.input }),
+        result: await evaluateLocalDecisions({ model, input: request.input, onPhase: phase }),
       };
       return;
     }
     const { LlamaChatSession } = await import('node-llama-cpp');
+    phase('grammar-start');
     const grammar = request.schema
       ? await llama.createGrammarForJsonSchema(request.schema)
       : undefined;
+    phase('grammar-ready');
     const tokens = model.tokenize(
       request.system +
         '\n' +
@@ -97,12 +104,15 @@ process.on('message', async (request) => {
     ).length;
     // Reserve native chat framing and output; never silently shift or drop source context.
     if (tokens + request.maxTokens + 128 > 4096) throw new Error('context');
+    phase('prompt-validated', { inputTokens: tokens });
+    phase('context-create');
     context = await model.createContext({
       contextSize: 4096,
       threads: 2,
       batchSize: 128,
       flashAttention: false,
     });
+    phase('context-created');
     const session = new LlamaChatSession({
       contextSequence: context.getSequence(),
       systemPrompt: request.system,
@@ -121,16 +131,24 @@ process.on('message', async (request) => {
             : { type: 'user', text: item.text },
         ),
       ]);
+    phase('session-ready');
+    phase('prefill-start');
+    let decoding = false, outputTokens = 0;
     const result = await session.promptWithMeta(request.prompt, {
       maxTokens: request.maxTokens,
       temperature: 0,
       grammar,
       onTextChunk: (text) => port.postMessage({ type: 'delta', text }),
+      onToken: (tokens) => {
+        outputTokens += tokens.length;
+        if (!decoding && outputTokens > 0) { decoding = true; phase('decode-start', { outputTokens }); }
+      },
       customStopTriggers: request.stopSequences,
     });
     // Native parse verifies grammar completion; independent parent validation checks the original schema too.
     if (grammar) grammar.parse(result.responseText);
     const meter = session.sequence.tokenMeter.getState();
+    phase('response-ready', { inputTokens: meter.usedInputTokens, outputTokens: meter.usedOutputTokens });
     response = {
       type: 'result',
       text: result.responseText,
@@ -147,7 +165,11 @@ process.on('message', async (request) => {
     // No library error strings, prompts, paths, or generated text in error metadata.
     response = { type: 'error', code };
   } finally {
-    await context?.dispose();
+    if (context) {
+      phase('context-dispose-start');
+      await context.dispose();
+      phase('context-disposed');
+    }
     if (response?.type === 'result' || response?.type === 'decision') phase('complete');
     port.postMessage(response);
   }

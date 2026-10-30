@@ -1,8 +1,8 @@
 /** Finite IPC metadata only. Never expose model input/output, environment, paths or library errors. */
 const workerPhases = new Set([
-  'worker-start', 'weights-verified', 'binding-loaded', 'model-loaded', 'inference-start', 'complete',
+  'worker-start', 'weights-verified', 'binding-loaded', 'model-loaded', 'inference-start', 'grammar-start', 'grammar-ready', 'prompt-validated', 'context-create', 'context-created', 'session-ready', 'prefill-start', 'prefill-complete', 'decode-start', 'response-ready', 'context-dispose-start', 'context-disposed', 'complete',
 ]);
-export type LocalWorkerPhase = 'worker-start' | 'weights-verified' | 'binding-loaded' | 'model-loaded' | 'inference-start' | 'complete';
+export type LocalWorkerPhase = 'worker-start' | 'weights-verified' | 'binding-loaded' | 'model-loaded' | 'inference-start' | 'grammar-start' | 'grammar-ready' | 'prompt-validated' | 'context-create' | 'context-created' | 'session-ready' | 'prefill-start' | 'prefill-complete' | 'decode-start' | 'response-ready' | 'context-dispose-start' | 'context-disposed' | 'complete';
 const errorCodes = new Set(['configuration', 'assets', 'context', 'schema', 'inference', 'busy', 'deadline', 'memory', 'ENOENT', 'EACCES', 'EPERM', 'EPIPE', 'ERR_DLOPEN_FAILED']);
 const signals = new Set(['SIGTERM', 'SIGKILL', 'SIGABRT', 'SIGSEGV', 'SIGBUS', 'SIGILL']);
 export type LocalInferenceEvent = Readonly<{
@@ -11,17 +11,25 @@ export type LocalInferenceEvent = Readonly<{
   state: 'start' | 'progress' | 'complete' | 'failure' | 'exit';
   elapsedMs: number;
   rssBytes?: number;
+  availableParallelism?: number;
+  inputTokens?: number;
+  outputTokens?: number;
   code?: string;
   exitCode?: number;
   signal?: string;
 }>;
 export type LocalInferenceObserver = (event: LocalInferenceEvent) => void | Promise<void>;
-export function localWorkerPhase(value: unknown): { phase: LocalWorkerPhase; rssBytes: number } | undefined {
+export function localWorkerPhase(value: unknown): { phase: LocalWorkerPhase; rssBytes: number; availableParallelism?: number; inputTokens?: number; outputTokens?: number } | undefined {
   try {
     const input = value as any;
     const type = input?.type, phase = input?.phase, rss = input?.rss;
     if (type !== 'phase' || !workerPhases.has(phase) || !Number.isSafeInteger(rss) || rss < 0) return;
-    return { phase, rssBytes: rss };
+    const inputTokens = input?.inputTokens, outputTokens = input?.outputTokens, availableParallelism = input?.availableParallelism;
+    return { phase, rssBytes: rss,
+      ...(Number.isSafeInteger(availableParallelism) && availableParallelism >= 1 && availableParallelism <= 65536 ? { availableParallelism } : {}),
+      ...(Number.isSafeInteger(inputTokens) && inputTokens >= 0 && inputTokens <= 262144 ? { inputTokens } : {}),
+      ...(Number.isSafeInteger(outputTokens) && outputTokens >= 0 && outputTokens <= 65536 ? { outputTokens } : {}),
+    };
   } catch { return; }
 }
 /** A fresh instance belongs to one queued task, never to the process-wide shared model pool. */
