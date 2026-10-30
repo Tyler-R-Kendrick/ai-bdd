@@ -327,6 +327,79 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           (await w.studio.graphs.read(w.user, w.id)).graph!.definition,
         ).toEqual(definition);
       });
+      it('preserves explicit ADR statuses and removes a superseded human choice from current source', async () => {
+        const w = await fixture(),
+          before = await w.state(),
+          decision = (await w.studio.store.decisions(w.id)).find(
+            (d) => d.id === w.decisionId,
+          )!;
+        const result = await w.request(
+          'PUT',
+          `/api/artifacts/${w.id}/decisions/${decision.id}`,
+          {
+            title: decision.title,
+            context: decision.context,
+            decision: decision.decision,
+            consequences: decision.consequences,
+            status: 'superseded',
+            version: decision.version,
+          },
+        );
+        expect(result.statusCode, result.body).toBe(200);
+        expect((await w.state()).version).toBe(before.version + 1);
+        const source = await readPlanSource(w.studio.store, await w.state());
+        expect(source).not.toHaveProperty('acceptedDecisions');
+        expect(JSON.stringify(source)).toBe(JSON.stringify(before.content));
+        expect(
+          (await w.studio.store.decisions(w.id)).find(
+            (d) => d.id === decision.id,
+          ),
+        ).toMatchObject({
+          status: 'superseded',
+          version: decision.version + 1,
+        });
+      });
+      it('rolls an ADR change and its semantic revision back together when source publication fails', async () => {
+        const w = await fixture(),
+          before = await w.state(),
+          decision = (await w.studio.store.decisions(w.id)).find(
+            (d) => d.id === w.decisionId,
+          )!,
+          observer = w.studio.store.sourceObserver;
+        w.studio.store.sourceObserver = async () => {
+          throw new Error('Explicit source observer rollback fixture');
+        };
+        try {
+          const result = await w.request(
+            'PUT',
+            `/api/artifacts/${w.id}/decisions/${decision.id}`,
+            {
+              title: decision.title,
+              context: decision.context,
+              decision: 'Must not survive failed semantic publication',
+              consequences: decision.consequences,
+              status: 'accepted',
+              version: decision.version,
+            },
+          );
+          expect(result.statusCode).toBe(500);
+        } finally {
+          w.studio.store.sourceObserver = observer;
+        }
+        expect((await w.state()).version).toBe(before.version);
+        expect(
+          (await w.studio.store.decisions(w.id)).find(
+            (d) => d.id === decision.id,
+          ),
+        ).toEqual(decision);
+        expect(
+          await w.studio.store.one(
+            'SELECT version FROM revisions WHERE artifact_id=? AND version=?',
+            w.id,
+            before.version + 1,
+          ),
+        ).toBeUndefined();
+      });
       it('rejects complete oversized decision context instead of silently truncating the accepted choice', async () => {
         const w = await fixture(),
           decision = (await w.studio.store.decisions(w.id)).find(
