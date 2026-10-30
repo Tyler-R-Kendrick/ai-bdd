@@ -206,6 +206,15 @@ export async function createHostingApplication(
         services: {
           database: { state: 'verified', verifiedAt },
           objects: { state: 'configured' },
+          ...(config.provider === 'vercel'
+            ? {
+                identity: {
+                  adapter: 'private-native-function',
+                  state: identityExecutionContext ? 'configured' : 'unconfigured',
+                  verified: false,
+                },
+              }
+            : {}),
           media: media?.diagnostics() ?? {
             adapter: 'local-cpu',
             state: 'configured',
