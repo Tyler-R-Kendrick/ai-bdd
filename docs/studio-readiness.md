@@ -10,6 +10,15 @@ Published commit `5220dfe144f5d844d57abaf9fbc9967267047495` passed hosted `ci`, 
 
 Subsequent component suites exercise actual SQLite and PostgreSQL 17 transactions, two-instance permission races, process-death recovery, source/version fences, immutable object snapshots, real Chromium testing and media rendering, and native provider HTTP protocols. The matrix names those checks instead of adding overlapping counts into a final total. The assembled release needs fresh complete CI and reviewed captures on its exact published head. The later [full-application evidence](studio-evidence/continuation/full-product/README.md) records four real Chromium cases and twelve reviewed captures at `28ea384`, using the actual built application, SQL and local durable runtime. Its native decision/model/search/workstation endpoints are explicitly local protocol fixtures; those are not live vendor or real workstation execution receipts.
 
+Later, separately scoped receipts are:
+
+| Receipt | Observed result | Boundary |
+| --- | --- | --- |
+| Standard assembled browser baseline, `ec2894d` | [43 cases passed](studio-evidence/continuation/baseline-browser.md), one worker, zero retries, built client/server/connector | Four self-hosted cases and dedicated audio/MIDI acceptance are separate; this predates subsequent rebuild UI changes. |
+| Full product, `28ea384` | [Four cases and twelve reviewed captures](studio-evidence/continuation/full-product/README.md) | Actual App/SQL/runtime; native model/search/workstation endpoints are local protocol fixtures. |
+| Audio, `1599bcd` / evidence `940bd68` | [Two full-product cases and four reviewed captures](studio-evidence/audio-authoring/README.md); actual PCM/export/playback and SQLite/PG publication checks | Local CPU proven; hosted Sandbox execution and external music providers are separate. |
+| Living-document rebuild, `cecb5b3` and follow-ups | Twelve cases include actual SQLite/PG and a standalone connector with real Git/ACP/MCP | Existing-PR identity is a local protocol fixture; assembled UI/live repository acceptance remains separate. |
+
 Screenshots establish only their captured state. Saved/reloaded artifacts, unsaved font drafts, isolated harnesses and application test targets must be labelled accordingly. The runner's Acme billing capture is a **test target**, not Studio UI. Older reports and captures under `docs/studio-evidence` remain historical receipts; their former counts and limits are not current final-head evidence.
 
 ## Deployment state
