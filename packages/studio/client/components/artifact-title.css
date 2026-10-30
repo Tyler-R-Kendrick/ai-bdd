@@ -1,0 +1,22 @@
+.artifact-title-form {
+  display: grid;
+  gap: 16px;
+}
+.artifact-title-form .title-policy-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.6;
+}
+.artifact-title-form .title-policy-option input {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 3px 0 0;
+  accent-color: var(--primary);
+}
+.artifact-title-form .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
