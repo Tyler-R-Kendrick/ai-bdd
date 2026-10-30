@@ -27,7 +27,7 @@ const runtime = {
   model: null,
   provenance: 'connector-reported' as const,
 };
-async function fixture(postgres = false) {
+async function fixture(postgres = false, secondary = false) {
   const store = await Store.open(
     postgres
       ? await openDatabase({
@@ -45,7 +45,14 @@ async function fixture(postgres = false) {
       '',
       'https://github.com/example/living',
     ))!;
-  let artifact = await store.artifact(project.mainArtifactId, user.id, 'write');
+  let artifact = secondary
+    ? await store.createArtifact(
+        user,
+        project.id,
+        'document',
+        'Archived rebuild source',
+      )
+    : await store.artifact(project.mainArtifactId, user.id, 'write');
   artifact = await store.updateArtifact(user, artifact.id, artifact.version, {
     ...artifact.content,
     doc: { type: 'doc', content: [paragraph('Approved first build')] },
@@ -262,6 +269,54 @@ for (const postgres of [false, true])
   describe.skipIf(postgres && !pg)(
     `living document existing PR rebuild (${postgres ? 'PostgreSQL' : 'SQLite'})`,
     () => {
+      it('finishes an already-started rebuild after archive without enabling new claims or approvals', async () => {
+        const c = await fixture(postgres, true);
+        await c.change('Changed source before archival');
+        const run = await c.start();
+        const { ArtifactLifecycle } = await import(
+            '../server/artifact-lifecycle.ts'
+          ),
+          lifecycle = new ArtifactLifecycle({
+            store: c.store,
+            auth: {} as any,
+            objects: {} as any,
+          });
+        await lifecycle.ready;
+        await lifecycle.archive(c.user, c.artifact.id);
+        await expect(
+          c.service.heartbeat(c.principal, run.id, run.lease),
+        ).resolves.toEqual({ ok: true });
+        c.setHead('c'.repeat(40));
+        const report = c.report(run.work.sourceSha256);
+        await c.service.report(c.principal, run.id, { ...run.lease, report });
+        const verifier = await c.service.verifier(
+          c.principal,
+          run.id,
+          run.lease,
+        );
+        await expect(
+          c.service.report(c.principal, run.id, {
+            ...run.lease,
+            verifierToken: verifier.verifierToken,
+            report: { ...report, idempotencyKey: 'archived-independent' },
+          }),
+        ).resolves.toEqual({ status: 'completed' });
+        expect(
+          (await c.service.snapshot(c.user, c.artifact.id)).baseline?.revision,
+        ).toBe(2);
+        expect(
+          (await c.graphs.read(c.user, c.artifact.id)).versions,
+        ).toHaveLength(1);
+        await expect(c.queue()).rejects.toThrow('archived');
+        const state = (await lifecycle.inspect(c.user, c.artifact.id)).artifact;
+        await expect(
+          lifecycle.purge(c.user, c.artifact.id, {
+            version: state.version,
+            archiveRevision: state.archiveRevision,
+            confirmTitle: state.title,
+          }),
+        ).rejects.toMatchObject({ statusCode: 409 });
+      });
       it('captures delivered source, counts changes, rebuilds same PR and advances only after independent verified receipt', async () => {
         const c = await fixture(postgres),
           initial = await c.service.snapshot(c.user, c.artifact.id);

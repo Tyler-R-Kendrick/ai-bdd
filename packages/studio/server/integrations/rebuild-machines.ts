@@ -109,12 +109,19 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       return work();
     });
   }
-  private async context(user: User, artifactId: string, write = true) {
+  private async context(
+    user: User,
+    artifactId: string,
+    write = true,
+    allowArchived = false,
+  ) {
     const artifact = await this.store.artifact(
       artifactId,
       user.id,
-      write ? 'write' : 'read',
+      write && !allowArchived ? 'write' : 'read',
     );
+    if (write && allowArchived)
+      await this.store.role(artifact.projectId, user.id, 'write');
     if (!['design', 'document'].includes(artifact.kind))
       throw new HttpError(
         400,
@@ -1065,6 +1072,8 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       const current = await this.context(
           await this.store.publicUser(row.user_id),
           row.artifact_id,
+          true,
+          true,
         ),
         baseline = await this.store.one(
           'SELECT * FROM studio_rebuild_baselines WHERE artifact_id=?',
