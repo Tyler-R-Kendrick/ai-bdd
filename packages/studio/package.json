@@ -89,7 +89,8 @@
     "yjs": "^13.6.33",
     "zod": "^4.6.5",
     "node-llama-cpp": "3.22.2",
-    "ajv": "8.20.0"
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
   },
   "devDependencies": {
     "@ai-bdd/testing": "workspace:*",

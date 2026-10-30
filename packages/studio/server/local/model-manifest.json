@@ -1,11 +1,32 @@
 {
-  "id": "smollm2-135m-instruct-q4-k-m",
-  "repository": "bartowski/SmolLM2-135M-Instruct-GGUF",
-  "revision": "09816acd5d99df7be770d85ea30822623dab342c",
+  "id": "qwen2.5-0.5b-instruct-q4-k-m",
+  "repository": "bartowski/Qwen2.5-0.5B-Instruct-GGUF",
+  "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
   "license": "Apache-2.0",
-  "baseModel": "HuggingFaceTB/SmolLM2-135M-Instruct",
+  "baseModel": "Qwen/Qwen2.5-0.5B-Instruct",
   "runtime": "node-llama-cpp@3.22.2",
   "files": [
-    { "path": "SmolLM2-135M-Instruct-Q4_K_M.gguf", "bytes": 105454432, "sha256": "2e8040ceae7815abe0dcb3540b9995eaa1fa0d2ca9e797d0a635ae4433c68c2d" }
+    {
+      "path": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+      "bytes": 397808192,
+      "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653"
+    }
+  ],
+  "alternatives": [
+    {
+      "id": "smollm2-135m-instruct-q4-k-m",
+      "repository": "bartowski/SmolLM2-135M-Instruct-GGUF",
+      "revision": "09816acd5d99df7be770d85ea30822623dab342c",
+      "license": "Apache-2.0",
+      "baseModel": "HuggingFaceTB/SmolLM2-135M-Instruct",
+      "runtime": "node-llama-cpp@3.22.2",
+      "files": [
+        {
+          "path": "SmolLM2-135M-Instruct-Q4_K_M.gguf",
+          "bytes": 105454432,
+          "sha256": "2e8040ceae7815abe0dcb3540b9995eaa1fa0d2ca9e797d0a635ae4433c68c2d"
+        }
+      ]
+    }
   ]
 }

@@ -20,17 +20,22 @@ export async function verifyLocalModelFile(path, file) {
   for await (const chunk of createReadStream(path)) hash.update(chunk);
   return hash.digest('hex') === file.sha256;
 }
-export async function downloadLocalModel(directory) {
+export async function downloadLocalModel(directory, modelId = manifest.id) {
+  const selected = [manifest, ...manifest.alternatives].find(
+    (model) => model.id === modelId,
+  );
+  if (!selected)
+    throw new Error('Choose an immutable operator-registered local model');
   if (!isAbsolute(directory))
     throw new Error('Choose an absolute local model directory');
-  for (const file of manifest.files) {
+  for (const file of selected.files) {
     const target = join(directory, file.path);
     if (await verifyLocalModelFile(target, file).catch(() => false)) continue;
     const temporary = target + '.' + randomUUID() + '.partial';
     await mkdir(join(target, '..'), { recursive: true });
     let handle;
     try {
-      const url = `https://huggingface.co/${manifest.repository}/resolve/${manifest.revision}/${file.path}`;
+      const url = `https://huggingface.co/${selected.repository}/resolve/${selected.revision}/${file.path}`;
       const response = await fetch(url, {
         signal: AbortSignal.timeout(900000),
       });
@@ -73,7 +78,7 @@ export async function downloadLocalModel(directory) {
       await rm(temporary, { force: true });
     }
     // Public IDs and artifact sizes only; no runtime prompts, headers or credentials.
-    console.log(`Verified ${manifest.id}: ${file.path} (${file.bytes} bytes)`);
+    console.log(`Verified ${selected.id}: ${file.path} (${file.bytes} bytes)`);
   }
   await writeFile(
     join(directory, 'MODEL-LICENSE.txt'),
@@ -83,5 +88,5 @@ export async function downloadLocalModel(directory) {
   );
 }
 if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
-  await downloadLocalModel(process.argv[2] ?? '');
+  await downloadLocalModel(process.argv[2] ?? '', process.argv[3]);
 }

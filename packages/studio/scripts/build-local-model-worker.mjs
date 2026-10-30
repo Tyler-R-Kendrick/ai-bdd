@@ -4,3 +4,8 @@ await copyFile(
   new URL('../server/local/studio-local-worker.mjs', import.meta.url),
   new URL('../dist/server/studio-local-worker.mjs', import.meta.url),
 );
+
+await copyFile(
+  new URL('../server/local/studio-local-decisions.mjs', import.meta.url),
+  new URL('../dist/server/studio-local-decisions.mjs', import.meta.url),
+);

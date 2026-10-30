@@ -8,13 +8,14 @@ globalThis.fetch = async () => {
   throw new Error('Local inference has no HTTP transport');
 };
 const port = { postMessage: (value) => process.send?.(value) };
+process.once('disconnect', () => process.exit(0));
 let workerData;
-let model, llama;
+let model, llama, loadedPath;
 async function load() {
-  if (model) return;
   const root = await realpath(workerData.directory);
   const file = workerData.file;
   const path = join(root, file.path);
+  if (model && loadedPath === path) return;
   const info = await lstat(path);
   if (
     !info.isFile() ||
@@ -27,7 +28,10 @@ async function load() {
   for await (const bytes of createReadStream(path)) hash.update(bytes);
   if (hash.digest('hex') !== file.sha256) throw new Error('assets');
   const runtime = await import('node-llama-cpp');
-  llama = await runtime.getLlama({
+  await model?.dispose();
+  model = undefined;
+  loadedPath = undefined;
+  llama ??= await runtime.getLlama({
     gpu: false,
     build: 'never',
     skipDownload: true,
@@ -37,12 +41,23 @@ async function load() {
     logger: () => {},
   });
   model = await llama.loadModel({ modelPath: path, gpuLayers: 0 });
+  loadedPath = path;
 }
 process.on('message', async (request) => {
   workerData = request.configuration;
   let context, response;
   try {
     await load();
+    if (request.command === 'decide') {
+      const { evaluateLocalDecisions } = await import(
+        './studio-local-decisions.mjs'
+      );
+      response = {
+        type: 'decision',
+        result: await evaluateLocalDecisions({ model, input: request.input }),
+      };
+      return;
+    }
     const { LlamaChatSession } = await import('node-llama-cpp');
     const grammar = request.schema
       ? await llama.createGrammarForJsonSchema(request.schema)
@@ -65,6 +80,11 @@ process.on('message', async (request) => {
     const session = new LlamaChatSession({
       contextSequence: context.getSequence(),
       systemPrompt: request.system,
+      contextShift: {
+        strategy: () => {
+          throw new Error('context');
+        },
+      },
     });
     if (request.history.length)
       session.setChatHistory([
