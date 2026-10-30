@@ -1099,16 +1099,88 @@ test('passage slash commands place exact research and investigation cards inline
     await page.goto(`${f.address}/?project=${project.id}&artifact=${id}`);
     await f.selectFx(page);
     const editor = page.locator('[aria-label="Document editor"]');
+    const caretState = () => editor.evaluate((element) => {
+      // Read the real mounted editor, provider and native caret. A detached
+      // range measures native text offset; it is never applied to selection.
+      const mounted = (element as HTMLElement & {
+        editor?: import('@tiptap/core').Editor;
+      }).editor;
+      if (!mounted || mounted.isDestroyed) return null;
+      const selection = mounted.state.selection;
+      const native = element.ownerDocument.getSelection();
+      const anchor = native?.anchorNode;
+      const paragraph = (
+        anchor?.nodeType === Node.TEXT_NODE
+          ? anchor.parentElement
+          : anchor as Element | null
+      )?.closest?.('p');
+      let nativeOffset: number | null = null;
+      if (paragraph && native && anchor && paragraph.contains(anchor)) {
+        const prefix = element.ownerDocument.createRange();
+        prefix.selectNodeContents(paragraph);
+        prefix.setEnd(anchor, native.anchorOffset);
+        nativeOffset = prefix.toString().length;
+      }
+      const provider = mounted.extensionManager.extensions.find(
+        (extension) => extension.name === 'collaborationCaret',
+      )?.options.provider;
+      return {
+        initialized: mounted.isInitialized,
+        synced: provider?.synced === true,
+        focused: mounted.view.hasFocus(),
+        editorFocused: mounted.isFocused,
+        editable: mounted.isEditable,
+        empty: selection.empty,
+        text: selection.$from.parent.textContent,
+        offset: selection.$from.parentOffset,
+        native: {
+          anchorText: anchor?.textContent,
+          anchorOffset: native?.anchorOffset,
+          focusText: native?.focusNode?.textContent,
+          focusOffset: native?.focusOffset,
+          paragraph: paragraph?.textContent,
+          textOffset: nativeOffset,
+          collapsed: native?.isCollapsed,
+        },
+        agrees: native?.isCollapsed === selection.empty &&
+          paragraph?.textContent === selection.$from.parent.textContent &&
+          nativeOffset === selection.$from.parentOffset,
+      };
+    });
+    const focusBlockStart = async (text: string) => {
+      const diagnostic: Record<string, unknown> = {initial: await caretState()};
+      try {
+        await expect.poll(caretState).toMatchObject({
+          initialized: true, synced: true, editable: true,
+        });
+        await editor.getByText(text, { exact: true }).click();
+        await expect.poll(caretState).toMatchObject({
+          initialized: true, synced: true, focused: true, editorFocused: true,
+          editable: true, empty: true, text, agrees: true,
+        });
+        diagnostic.beforeHome = await caretState();
+        await editor.press('Home');
+        diagnostic.afterHome = await caretState();
+        await expect.poll(caretState).toMatchObject({
+          initialized: true, synced: true, focused: true, editorFocused: true,
+          editable: true, empty: true, text, offset: 0, agrees: true,
+        });
+      } finally {
+        diagnostic.settled = await caretState();
+        await test.info().attach('slash-caret-' + text, {
+          body: JSON.stringify(diagnostic), contentType: 'application/json',
+        });
+      }
+    };
     // Cancelling a slash command preserves literal path text rather than swallowing it.
-    await editor.getByText('Closing requirement', { exact: true }).click();
-    await page.keyboard.press('Home'); await page.keyboard.type('/');
+    await focusBlockStart('Closing requirement');
+    await page.keyboard.type('/');
     await page.getByRole('textbox', { name: 'Document command', exact: true }).fill('usr/local');
     await page.keyboard.press('Escape');
     await expect(editor).toContainText('/usr/localClosing requirement');
     await expect.poll(async () => JSON.stringify((await f.instance.store.artifact(id, f.user.id)).content)).toContain('/usr/localClosing requirement');
     await page.reload();
-    await editor.getByText('Selected requirement', { exact: true }).click();
-    await page.keyboard.press('Home');
+    await focusBlockStart('Selected requirement');
     await page.keyboard.type('/');
     const menu = page.getByRole('dialog', {
       name: 'Document commands',
@@ -1185,15 +1257,7 @@ test('passage slash commands place exact research and investigation cards inline
       },
       machine.token,
     );
-    await editor.getByText('Following requirement', { exact: true }).click();
-    await page.keyboard.press('Home');
-    await expect
-      .poll(() =>
-        editor.evaluate(
-          () => window.getSelection()?.anchorNode?.parentElement?.textContent,
-        ),
-      )
-      .toBe('Following requirement');
+    await focusBlockStart('Following requirement');
     await page.keyboard.type('/');
     await expect(menu).toBeVisible();
     await menu
