@@ -1,0 +1,759 @@
+{
+  "schemaVersion": 1,
+  "kind": "hosted downloaded local-model chat and decisions",
+  "origin": "https://ai-bdd-studio-flzjhy7u7-tyler-r-kendricks-projects.vercel.app",
+  "environment": "preview",
+  "previewIdentityHeaderSent": true,
+  "deploymentSourceProvidedByOperator": "328c5eca86dcb2b70bd7879286c8cb5e5c5731ab",
+  "deploymentIdProvidedByOperator": "dpl_FLTCn2CwhnfaeKApto4gK5WBNTiL",
+  "startedAt": "2026-10-30T18:31:18.669Z",
+  "state": "incomplete",
+  "passed": false,
+  "fixture": {
+    "question": "What is 2 + 2? Reply with only the numeral.",
+    "source": "Implement a tiny calculator. When a user submits 2 + 2, display 4. Acceptance: the displayed result equals 4. Keep the existing T3 Code authoring runtime; no change in tools is required."
+  },
+  "resources": {
+    "projectId": "8832e006-fdfa-436a-905e-7c2b6a1fd86d",
+    "artifactId": "00dec18f-d448-4591-832c-9d75afad7c3d",
+    "threadId": "2a189416-b168-40df-993a-fb0f54641616",
+    "userMessageId": "fcf986b7-5a4c-4606-a26b-9e9b60eecde9",
+    "chatRequestId": "a3efb45d-b13c-4fcb-9e57-1f8fe07587bf",
+    "chatJobId": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d"
+  },
+  "steps": [
+    {
+      "stage": "health",
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "durationMs": 5250,
+      "at": "2026-10-30T18:31:23.920Z"
+    },
+    {
+      "stage": "readiness",
+      "method": "GET",
+      "path": "/api/hosting/readiness",
+      "status": 200,
+      "durationMs": 772,
+      "at": "2026-10-30T18:31:24.694Z"
+    },
+    {
+      "stage": "owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "durationMs": 1014,
+      "at": "2026-10-30T18:31:25.709Z"
+    },
+    {
+      "stage": "create-owned-synthetic-project",
+      "method": "POST",
+      "path": "/api/projects",
+      "status": 201,
+      "durationMs": 857,
+      "at": "2026-10-30T18:31:26.568Z"
+    },
+    {
+      "stage": "read-owned-artifact",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d",
+      "status": 200,
+      "durationMs": 957,
+      "at": "2026-10-30T18:31:27.526Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/agent/profile",
+      "status": 200,
+      "durationMs": 1053,
+      "at": "2026-10-30T18:31:28.581Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/decision/profile",
+      "status": 200,
+      "durationMs": 976,
+      "at": "2026-10-30T18:31:29.558Z"
+    },
+    {
+      "stage": "keep-title-human",
+      "method": "PATCH",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/title-policy",
+      "status": 200,
+      "durationMs": 407,
+      "at": "2026-10-30T18:31:29.968Z"
+    },
+    {
+      "stage": "keep-participation-manual",
+      "method": "PUT",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/policy",
+      "status": 200,
+      "durationMs": 779,
+      "at": "2026-10-30T18:31:30.749Z"
+    },
+    {
+      "stage": "save-explicit-fixture-source",
+      "method": "PATCH",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d",
+      "status": 200,
+      "durationMs": 645,
+      "at": "2026-10-30T18:31:31.395Z"
+    },
+    {
+      "stage": "read-saved-source",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d",
+      "status": 200,
+      "durationMs": 482,
+      "at": "2026-10-30T18:31:31.878Z"
+    },
+    {
+      "stage": "save-independent-threshold",
+      "method": "PUT",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/decision/profile",
+      "status": 200,
+      "durationMs": 371,
+      "at": "2026-10-30T18:31:32.251Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/agent/profile",
+      "status": 200,
+      "durationMs": 366,
+      "at": "2026-10-30T18:31:32.619Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/decision/profile",
+      "status": 200,
+      "durationMs": 382,
+      "at": "2026-10-30T18:31:33.002Z"
+    },
+    {
+      "stage": "restore-normal-threshold",
+      "method": "PUT",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/decision/profile",
+      "status": 200,
+      "durationMs": 453,
+      "at": "2026-10-30T18:31:33.457Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/agent/profile",
+      "status": 200,
+      "durationMs": 374,
+      "at": "2026-10-30T18:31:33.832Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/decision/profile",
+      "status": 200,
+      "durationMs": 340,
+      "at": "2026-10-30T18:31:34.173Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/agent/profile",
+      "status": 200,
+      "durationMs": 446,
+      "at": "2026-10-30T18:31:34.621Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/decision/profile",
+      "status": 200,
+      "durationMs": 349,
+      "at": "2026-10-30T18:31:34.970Z"
+    },
+    {
+      "stage": "retain-human-chat-question",
+      "method": "POST",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/messages",
+      "status": 201,
+      "durationMs": 647,
+      "at": "2026-10-30T18:31:35.618Z"
+    },
+    {
+      "stage": "read-agent-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/agent/profile",
+      "status": 200,
+      "durationMs": 371,
+      "at": "2026-10-30T18:31:35.991Z"
+    },
+    {
+      "stage": "read-decision-profile",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/decision/profile",
+      "status": 200,
+      "durationMs": 359,
+      "at": "2026-10-30T18:31:36.352Z"
+    },
+    {
+      "stage": "request-native-local-chat",
+      "method": "POST",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/agent",
+      "status": 200,
+      "durationMs": 1248,
+      "at": "2026-10-30T18:31:37.601Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 352,
+      "at": "2026-10-30T18:31:37.954Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 366,
+      "at": "2026-10-30T18:31:41.324Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 314,
+      "at": "2026-10-30T18:31:44.641Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 352,
+      "at": "2026-10-30T18:31:47.998Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 315,
+      "at": "2026-10-30T18:31:51.317Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 363,
+      "at": "2026-10-30T18:31:54.684Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 585,
+      "at": "2026-10-30T18:31:58.272Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 316,
+      "at": "2026-10-30T18:32:01.592Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 330,
+      "at": "2026-10-30T18:32:04.926Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 443,
+      "at": "2026-10-30T18:32:08.371Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 546,
+      "at": "2026-10-30T18:32:11.921Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 320,
+      "at": "2026-10-30T18:32:15.246Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 288,
+      "at": "2026-10-30T18:32:18.538Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 440,
+      "at": "2026-10-30T18:32:21.981Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 327,
+      "at": "2026-10-30T18:32:25.308Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 326,
+      "at": "2026-10-30T18:32:28.636Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 389,
+      "at": "2026-10-30T18:32:32.027Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 352,
+      "at": "2026-10-30T18:32:35.381Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 754,
+      "at": "2026-10-30T18:32:39.140Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 410,
+      "at": "2026-10-30T18:32:42.553Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 298,
+      "at": "2026-10-30T18:32:45.854Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 922,
+      "at": "2026-10-30T18:32:49.779Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 353,
+      "at": "2026-10-30T18:32:53.135Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 324,
+      "at": "2026-10-30T18:32:56.461Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 702,
+      "at": "2026-10-30T18:33:00.166Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 336,
+      "at": "2026-10-30T18:33:03.506Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 857,
+      "at": "2026-10-30T18:33:07.366Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 387,
+      "at": "2026-10-30T18:33:10.757Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 313,
+      "at": "2026-10-30T18:33:14.073Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 309,
+      "at": "2026-10-30T18:33:17.387Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 452,
+      "at": "2026-10-30T18:33:20.841Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 389,
+      "at": "2026-10-30T18:33:24.236Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 683,
+      "at": "2026-10-30T18:33:27.924Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 348,
+      "at": "2026-10-30T18:33:31.276Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 488,
+      "at": "2026-10-30T18:33:34.766Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 337,
+      "at": "2026-10-30T18:33:38.106Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 377,
+      "at": "2026-10-30T18:33:41.488Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 347,
+      "at": "2026-10-30T18:33:44.837Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 344,
+      "at": "2026-10-30T18:33:48.185Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 357,
+      "at": "2026-10-30T18:33:51.546Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 1708,
+      "at": "2026-10-30T18:33:56.257Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 322,
+      "at": "2026-10-30T18:33:59.582Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 324,
+      "at": "2026-10-30T18:34:02.909Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 304,
+      "at": "2026-10-30T18:34:06.217Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 791,
+      "at": "2026-10-30T18:34:10.010Z"
+    },
+    {
+      "stage": "poll-chat",
+      "method": "GET",
+      "path": "/api/artifacts/00dec18f-d448-4591-832c-9d75afad7c3d/integrations/jobs",
+      "status": 200,
+      "durationMs": 354,
+      "at": "2026-10-30T18:34:13.369Z"
+    },
+    {
+      "stage": "close-owned-verification-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200,
+      "durationMs": 830,
+      "at": "2026-10-30T18:34:14.201Z"
+    }
+  ],
+  "jobHistory": [
+    {
+      "stage": "native-local-chat",
+      "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+      "status": "queued",
+      "at": "2026-10-30T18:31:37.955Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+      "status": "running",
+      "at": "2026-10-30T18:31:41.325Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+      "status": "queued",
+      "at": "2026-10-30T18:32:28.637Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+      "status": "running",
+      "at": "2026-10-30T18:32:32.028Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+      "status": "queued",
+      "at": "2026-10-30T18:33:20.842Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+      "status": "running",
+      "at": "2026-10-30T18:33:24.237Z",
+      "finishedAt": null
+    },
+    {
+      "stage": "native-local-chat",
+      "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+      "status": "failed",
+      "at": "2026-10-30T18:34:13.370Z",
+      "finishedAt": "2026-10-30T18:34:12.743Z"
+    }
+  ],
+  "explicitInferenceAdmissions": {
+    "chat": 1,
+    "designReview": 0
+  },
+  "externalModelProvidersAllowed": false,
+  "credentialsRecorded": false,
+  "redirectsFollowed": 0,
+  "projectTitle": "Hosted local AI acceptance 263b72b4",
+  "localCatalogs": {
+    "agent": {
+      "profile": {
+        "harness": "t3-code",
+        "provider": "studioLocal",
+        "model": "studio-local/qwen2.5-0.5b-instruct-q4-k-m"
+      },
+      "harnesses": [
+        {
+          "id": "t3-code",
+          "configured": true,
+          "providers": [
+            {
+              "id": "studioLocal",
+              "models": [
+                "studio-local/qwen2.5-0.5b-instruct-q4-k-m"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local-cpu",
+          "configured": true,
+          "providers": [
+            {
+              "id": "llama-cpp-cpu",
+              "models": [
+                "qwen2.5-0.5b-instruct-q4-k-m"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "vercel-fx",
+          "configured": false,
+          "providers": []
+        }
+      ]
+    },
+    "decision": {
+      "profile": {
+        "provider": "llama-cpp-cpu",
+        "model": "qwen2.5-0.5b-instruct-q4-k-m",
+        "minimumConfidence": 0.7,
+        "policyVersion": "decision-policy-v1",
+        "configRevision": "6b0061724b6d4e243a0d01671cc8795082371b399b21f74f0e81e4ab0eae7fb5"
+      },
+      "providers": [
+        {
+          "id": "llama-cpp-cpu",
+          "configured": true,
+          "models": [
+            "qwen2.5-0.5b-instruct-q4-k-m",
+            "smollm2-135m-instruct-q4-k-m"
+          ]
+        },
+        {
+          "id": "openai-decisions",
+          "configured": false,
+          "models": []
+        },
+        {
+          "id": "jev",
+          "configured": false,
+          "models": []
+        },
+        {
+          "id": "vercel-structured",
+          "configured": false,
+          "models": []
+        }
+      ]
+    }
+  },
+  "sourceVersion": 2,
+  "sourceHash": "2c896b785fdb78bc89c84bf015876d377e7992073f2c114cfd59ef3202b92b7f",
+  "profilePersistence": {
+    "independentOfChat": true,
+    "changedFields": [
+      "minimumConfidence"
+    ],
+    "savedAndReloadedThreshold": 0.71,
+    "restoredEvaluationThreshold": 0.7,
+    "generativeUnchanged": true,
+    "chatProfile": {
+      "harness": "t3-code",
+      "provider": "studioLocal",
+      "model": "studio-local/qwen2.5-0.5b-instruct-q4-k-m"
+    },
+    "decisionProfile": {
+      "provider": "llama-cpp-cpu",
+      "model": "qwen2.5-0.5b-instruct-q4-k-m",
+      "minimumConfidence": 0.7,
+      "configRevision": "6b0061724b6d4e243a0d01671cc8795082371b399b21f74f0e81e4ab0eae7fb5",
+      "policyVersion": "decision-policy-v1"
+    }
+  },
+  "jobFailure": {
+    "id": "68a6d5aa-a8f8-48f0-807f-bb1cd2c7002d",
+    "status": "failed",
+    "errorPresent": true,
+    "errorSha256": "cfa18e14d7903a4fa7e7861c757edb5d33494ddb1d1578ae1133223dddf9afa5"
+  },
+  "failure": {
+    "phase": "poll-chat",
+    "code": "terminal-job-failure",
+    "httpStatus": null
+  },
+  "ownedSessionCleanup": {
+    "created": 1,
+    "closed": 1
+  },
+  "completedAt": "2026-10-30T18:34:14.202Z",
+  "syntheticResourcesRetainedForReview": true
+}
