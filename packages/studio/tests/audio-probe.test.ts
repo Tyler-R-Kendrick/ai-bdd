@@ -56,4 +56,10 @@ describe('actual FFprobe pre-decode admission', () => {
       'Admission cancelled',
     );
   });
+  it('does not trust a forged compressed duration header when actual decoding exceeds the budget', async () => {
+    const bytes = await tone(60, 192000, 2);
+    const packed = bytes.readBigUInt64BE(18);
+    bytes.writeBigUInt64BE((packed & ~((1n << 36n) - 1n)) | 48000n, 18);
+    await expect(probeAudio(bytes)).rejects.toMatchObject({ statusCode: 413 });
+  });
 });

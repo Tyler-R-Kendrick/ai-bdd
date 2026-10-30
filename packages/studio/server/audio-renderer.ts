@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -16,6 +16,99 @@ export type AudioProbe = {
   format: string;
 };
 const formats = 'wav,flac,mp3,ogg,mov,matroska,aiff';
+async function decodedFrames(
+  file: string,
+  sampleRate: number,
+  channels: number,
+  signal?: AbortSignal,
+): Promise<number> {
+  const byteLimit = Math.min(
+    MAX_AUDIO_DECODED_BYTES,
+    Math.floor(MAX_AUDIO_DECODED_BYTES * Math.min(1, sampleRate / 48000)),
+    Math.floor(300 * sampleRate * channels * 4),
+  );
+  const timeout = AbortSignal.timeout(15000),
+    combined = AbortSignal.any([timeout, ...(signal ? [signal] : [])]);
+  return new Promise<number>((resolve, reject) => {
+    let bytes = 0,
+      settled = false,
+      overflow = false;
+    const process = spawn(
+      globalThis.process.env.STUDIO_FFMPEG_PATH ?? 'ffmpeg',
+      [
+        '-v',
+        'error',
+        '-nostdin',
+        '-threads',
+        '1',
+        '-protocol_whitelist',
+        'file,pipe',
+        '-format_whitelist',
+        formats,
+        '-i',
+        file,
+        '-map',
+        '0:a:0',
+        '-vn',
+        '-sn',
+        '-dn',
+        '-ac',
+        String(channels),
+        '-ar',
+        String(sampleRate),
+        '-c:a',
+        'pcm_f32le',
+        '-f',
+        'f32le',
+        'pipe:1',
+      ],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        signal: combined,
+        killSignal: 'SIGKILL',
+      },
+    );
+    const finish = (error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve(bytes / (channels * 4));
+    };
+    process.stdout.on('data', (chunk: Buffer) => {
+      bytes += chunk.length;
+      if (bytes > byteLimit) {
+        overflow = true;
+        process.kill('SIGKILL');
+      }
+    });
+    process.stderr.resume();
+    process.on('error', (error) =>
+      finish(signal?.aborted ? signal.reason : error),
+    );
+    process.on('close', (code) => {
+      if (overflow)
+        return finish(
+          new HttpError(
+            413,
+            'The actual decoded audio exceeds the source or browser PCM budget.',
+          ),
+        );
+      if (signal?.aborted) return finish(signal.reason);
+      if (timeout.aborted)
+        return finish(
+          new HttpError(413, 'Audio decoding exceeded its safe time budget.'),
+        );
+      if (code !== 0 || !bytes || bytes % (channels * 4))
+        return finish(
+          new HttpError(
+            400,
+            'The audio source could not be decoded completely.',
+          ),
+        );
+      finish();
+    });
+  });
+}
 export async function probeAudioFile(
   file: string,
   options: { signal?: AbortSignal } = {},
@@ -71,7 +164,8 @@ export async function probeAudioFile(
     duration = Number(stream.duration ?? value.format?.duration),
     sampleRate = Number(stream.sample_rate),
     channels = Number(stream.channels),
-    decodedBytes = Math.ceil(duration * sampleRate) * channels * 4;
+    decodedBytes =
+      Math.ceil(duration * Math.max(sampleRate, 48000)) * channels * 4;
   if (
     !Number.isFinite(duration) ||
     duration < 0.01 ||
@@ -87,11 +181,21 @@ export async function probeAudioFile(
       413,
       'Audio sources are limited to 300 seconds, mono or stereo, 8–192 kHz, and 64 MiB of decoded PCM. Trim or downsample this source before importing.',
     );
+  // Header durations alone are insufficient: decode the complete source through
+  // a streaming byte counter before any browser is permitted to decode it.
+  const frames = await decodedFrames(
+      file,
+      sampleRate,
+      channels,
+      options.signal,
+    ),
+    actualDuration = frames / sampleRate;
   return {
-    duration,
+    duration: actualDuration,
     sampleRate,
     channels: channels as 1 | 2,
-    decodedBytes,
+    decodedBytes:
+      Math.ceil(actualDuration * Math.max(sampleRate, 48000)) * channels * 4,
     codec: String(stream.codec_name ?? 'unknown').slice(0, 80),
     format: String(value.format?.format_name ?? 'unknown').slice(0, 80),
   };
