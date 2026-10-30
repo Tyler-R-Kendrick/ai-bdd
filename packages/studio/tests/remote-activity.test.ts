@@ -37,6 +37,95 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('bounds open questions across retained and current turns without failing the valid turn when its seventeenth question is refused', async () => {
+    const w = await remoteFixture(),
+      client = await w.connect(),
+      first = await turn(w, client),
+      now = Math.floor(Date.now() / 1000);
+    event(client.ws, first.requestId, {
+      type: 'runs',
+      active: ['background'],
+      paused: [],
+      cards: [
+        {
+          id: 'background',
+          name: 'Retained work',
+          status: 'running',
+          started: now,
+          updated: now,
+          waiting: 16,
+          stages: [],
+        },
+      ],
+    });
+    for (let index = 0; index < 16; index++)
+      event(client.ws, first.requestId, {
+        type: 'input-request',
+        questionId: 'retained-' + index,
+        runId: 'background',
+        input: {
+          method: 'confirm',
+          title: 'Retained question ' + index,
+          message: 'A bounded open question.',
+        },
+      });
+    await until(
+      () =>
+        client.frames.filter((frame: any) => frame.type === 'event-accepted')
+          .length === 17,
+    );
+    complete(client.ws, first.requestId);
+    await first.done;
+    client.frames.length = 0;
+    await w.store.message(
+      w.user,
+      w.artifact.id,
+      w.threadId,
+      'Review another boundary while background questions wait.',
+    );
+    const second = await turn(w, client);
+    const rejected = {
+      type: 'input-request',
+      questionId: 'seventeenth',
+      input: {
+        method: 'confirm',
+        title: 'Exceeds the connection budget',
+        message: 'Should fail this request only.',
+      },
+    };
+    const key = event(client.ws, second.requestId, rejected);
+    await until(() =>
+      client.frames.some(
+        (frame: any) =>
+          frame.type === 'input-result' && frame.questionId === 'seventeenth',
+      ),
+    );
+    expect(
+      client.frames.find((frame: any) => frame.type === 'input-result'),
+    ).toMatchObject({
+      status: 'failed',
+      message: expect.stringContaining('16 questions'),
+    });
+    expect(client.ws.readyState).toBe(1);
+    expect(
+      (await w.request(path(w, second.requestId))).value.questions,
+    ).toHaveLength(0);
+    client.ws.send(
+      JSON.stringify({
+        requestId: second.requestId,
+        eventId: key,
+        ...rejected,
+      }),
+    );
+    await until(
+      () =>
+        client.frames.filter((frame: any) => frame.type === 'input-result')
+          .length === 2,
+    );
+    complete(client.ws, second.requestId);
+    await second.done;
+    expect((await w.runtime.get(second.job.id))?.status).toBe('completed');
+  });
   it('paginates retained question history beyond the latest eight turns without losing thread scope or duplicating records', async () => {
     const w = await remoteFixture(),
       client = await w.connect(),

@@ -473,6 +473,13 @@ export class RemotePlanner {
           eventId: message.eventId,
           sequence: receipt.sequence,
         });
+        if ('failure' in receipt.value && receipt.value.failure)
+          await send({
+            type: 'input-result',
+            requestId: message.requestId,
+            status: 'failed',
+            ...receipt.value.failure,
+          });
         return;
       }
       if (message.type === 'control-result') {

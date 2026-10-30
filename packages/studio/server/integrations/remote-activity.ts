@@ -344,7 +344,10 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
     guard: () => Promise<unknown>,
   ) {
     return this.write(message.requestId, undefined, guard, (row) =>
-      this.record(row, message.eventId, message, async () => {
+      this.record<{
+        accepted: boolean;
+        failure?: { questionId: string; message: string };
+      }>(row, message.eventId, message, async () => {
         let stream = JSON.parse(row.stream_json) as RemoteStreamState,
           runs = JSON.parse(row.runs_json) as RemoteRunState,
           event: unknown = message;
@@ -464,11 +467,29 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
               'This turn reached its retained question text budget',
             );
           const count = await this.store.one(
-            "SELECT COUNT(*) AS n FROM studio_remote_questions WHERE request_id=? AND status='open'",
-            row.id,
+            "SELECT COUNT(*) AS n FROM studio_remote_questions q JOIN studio_remote_requests r ON r.id=q.request_id JOIN studio_remote_activity a ON a.request_id=r.id JOIN studio_durable_jobs j ON j.id=r.job_id WHERE r.artifact_id=? AND r.user_id=? AND q.status='open' AND r.status IN ('pending','completed') AND COALESCE(a.assignment_id,'')=? AND COALESCE(a.assignment_epoch,0)=? AND j.fence=r.fence AND ((j.status='running' AND j.lease_expires>?) OR j.status='completed')",
+            row.artifact_id,
+            row.user_id,
+            row.assignment_id ?? '',
+            Number(row.assignment_epoch ?? 0),
+            Date.now(),
           );
           if (Number(count.n) >= 16)
-            throw new HttpError(429, 'At most16questions may be open per turn');
+            return {
+              value: {
+                accepted: false,
+                failure: {
+                  questionId: message.questionId,
+                  message:
+                    'At most 16 questions may be open on this Planner connection',
+                },
+              },
+              event: {
+                type: 'input-rejected',
+                questionId: message.questionId,
+                reason: 'open-question-budget',
+              },
+            };
           const exact = await this.exactSource(row),
             anchors = JSON.parse(row.anchors_json) as any[];
           const candidate =
@@ -1053,7 +1074,7 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
       let cursor: number | null = null;
       for (const row of rows.slice(0, 8)) {
         const value = await this.snapshot(user, row.request_id);
-          value.historyOrdinal = Number(row.ordinal);
+        value.historyOrdinal = Number(row.ordinal);
         value.stream.blocks = value.stream.blocks.map((block) => ({
           ...block,
           text: block.text.slice(0, 20000),
