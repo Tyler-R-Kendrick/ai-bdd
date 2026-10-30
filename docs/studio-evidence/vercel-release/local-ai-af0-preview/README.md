@@ -8,7 +8,7 @@ Exactly one chat admission was made. Its request/job IDs were persisted before p
 
 Read-only SQL limited to this synthetic artifact/project found one native state row, generation three, a released lease, and no checkpoint pointer. The native implementation writes its first checkpoint before model inference, so these observations locate the failure before that checkpoint; they do not distinguish native startup from checkpoint upload. No auth rows, private object keys, tokens, native enrollment URLs, or credential values are recorded.
 
-The protocol stopped without cancelling, replacing, or resubmitting the failed job. A corrected source must be reviewed and deployed before another explicit admission. Original results remain available for comparison with any later passing receipt. No AI Gateway or paid provider was configured as an available model in the accepted catalogs.
+The native acceptance protocol stopped without cancelling, replacing, or resubmitting its failed job. A corrected source must be reviewed and deployed before that native acceptance is repeated. Original results remain available for comparison with any later passing receipt. No AI Gateway or paid provider was configured as an available model in the accepted catalogs.
 
 ## Separately selected CPU and decision diagnostics
 
