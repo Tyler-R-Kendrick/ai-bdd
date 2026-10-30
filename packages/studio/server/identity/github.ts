@@ -163,7 +163,7 @@ export class RepositoryIdentity {
         );
       if (this.config.webhookSecret && this.config.webhookSecret.length < 32)
         throw new Error(
-          'GitHub webhook secrets must have at least32 characters',
+          'GitHub webhook secrets must have at least 32 characters',
         );
     }
     this.authorizationUrl = endpoint(
@@ -585,20 +585,48 @@ export class RepositoryIdentity {
     // A disconnect/refresh racing the provider response must prevent the grant.
     await this.store.tx(async () => {
       await this.store.lock('repository-identity:' + user.id);
-      await this.store.one(
-        'INSERT INTO repository_identity_leases(user_id,repository,action,identity_version,identity_generation,permission_version,expires_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM repository_identities WHERE user_id=? AND version=? AND generation=? AND permission_version=?) ON CONFLICT(user_id,repository,action) DO UPDATE SET identity_version=excluded.identity_version,identity_generation=excluded.identity_generation,permission_version=excluded.permission_version,expires_at=excluded.expires_at RETURNING user_id',
+      if (
+        !(await this.store.one(
+          'SELECT user_id FROM repository_identities WHERE user_id=? AND version=? AND generation=? AND permission_version=?',
+          user.id,
+          row.version,
+          row.generation,
+          row.permission_version,
+        ))
+      )
+        throw new HttpError(
+          403,
+          'Your GitHub connection changed. Retry the request.',
+        );
+      // A provider response is authoritative for BOTH capabilities, including
+      // removal of a previously cached push grant after a pull-only response.
+      await this.store.exec(
+        'DELETE FROM repository_identity_leases WHERE user_id=? AND repository=?',
         user.id,
         key,
-        action,
-        row.version,
-        row.generation,
-        row.permission_version,
-        expires,
-        user.id,
-        row.version,
-        row.generation,
-        row.permission_version,
       );
+      for (const capability of ['read', 'write'] as const) {
+        if (
+          (capability === 'read'
+            ? result.permissions.pull
+            : result.permissions.push) !== true
+        )
+          continue;
+        await this.store.one(
+          'INSERT INTO repository_identity_leases(user_id,repository,action,identity_version,identity_generation,permission_version,expires_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM repository_identities WHERE user_id=? AND version=? AND generation=? AND permission_version=?) ON CONFLICT(user_id,repository,action) DO UPDATE SET identity_version=excluded.identity_version,identity_generation=excluded.identity_generation,permission_version=excluded.permission_version,expires_at=excluded.expires_at RETURNING user_id',
+          user.id,
+          key,
+          capability,
+          row.version,
+          row.generation,
+          row.permission_version,
+          expires,
+          user.id,
+          row.version,
+          row.generation,
+          row.permission_version,
+        );
+      }
       if (!(await this.checkLease(user.id, repository, action)))
         throw new HttpError(
           403,
@@ -698,7 +726,7 @@ export class RepositoryIdentity {
       typeof result?.size === 'number' &&
       result.size > 512000
     )
-      throw new HttpError(413, 'Repository file reads are limited to500 KB');
+      throw new HttpError(413, 'Repository file reads are limited to 500 KB');
     return result;
   }
   private async revokeProvider(access: string) {

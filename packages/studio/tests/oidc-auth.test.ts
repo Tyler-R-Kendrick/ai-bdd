@@ -7,7 +7,7 @@ import {
   expect,
   it,
 } from 'vitest';
-import Fastify from 'fastify';
+import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify';
 import { existsSync } from 'node:fs';
 import cookie from '@fastify/cookie';
 import {
@@ -65,15 +65,16 @@ beforeEach(async () => {
   await store.createUser('unverified@example.test', 'Unverified User', null);
   app = Fastify();
   await app.register(cookie);
-  app.setErrorHandler((error, _req, reply) =>
-    reply.code((error as any).statusCode ?? 500).send({
-      error: (error as any).statusCode
-        ? (error as Error).message
-        : 'The server could not complete this request',
-    }),
+  app.setErrorHandler(
+    (error: unknown, _req: FastifyRequest, reply: FastifyReply) =>
+      reply.code((error as any).statusCode ?? 500).send({
+        error: (error as any).statusCode
+          ? (error as Error).message
+          : 'The server could not complete this request',
+      }),
   );
   await auth.routes(app);
-  app.get('/', async (_req, reply) =>
+  app.get('/', async (_req: FastifyRequest, reply: FastifyReply) =>
     reply
       .type('text/html')
       .send(

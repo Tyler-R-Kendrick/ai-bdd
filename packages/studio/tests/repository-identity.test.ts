@@ -100,6 +100,9 @@ describe('actual HTTP GitHub OAuth and per-user repository permissions', () => {
     expect(
       await h.identity.checkLease(h.users[0]!.id, repository, 'write'),
     ).toBe(true);
+    expect(
+      await h.identity.checkLease(h.users[0]!.id, repository, 'read'),
+    ).toBe(true);
     (h.settings as any).githubToken = 'operator-master-test-token';
     (h.settings as any).githubRepositories = ['acme/private'];
     await expect(
@@ -117,6 +120,34 @@ describe('actual HTTP GitHub OAuth and per-user repository permissions', () => {
       headers: { cookie: 'studio_repository_oauth=' + connected.browserCookie },
     });
     expect(replay.statusCode).toBe(401);
+  });
+  it('replaces both leases with actual provider permissions and never infers pull from push or push from pull', async () => {
+    h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
+    await h.connect();
+    await h.identity.assertRepository(h.users[0]!, repository, 'write');
+    expect(
+      await h.identity.checkLease(h.users[0]!.id, repository, 'read'),
+    ).toBe(true);
+    h.fixture.permissions.set('101:acme/private', { pull: true, push: false });
+    await h.identity.assertRepository(h.users[0]!, repository, 'read', {
+      fresh: true,
+    });
+    expect(
+      await h.identity.checkLease(h.users[0]!.id, repository, 'write'),
+    ).toBe(false);
+    expect(
+      await h.identity.checkLease(h.users[0]!.id, repository, 'read'),
+    ).toBe(true);
+    h.fixture.permissions.set('101:acme/private', { pull: false, push: true });
+    await h.identity.assertRepository(h.users[0]!, repository, 'write', {
+      fresh: true,
+    });
+    expect(
+      await h.identity.checkLease(h.users[0]!.id, repository, 'write'),
+    ).toBe(true);
+    expect(
+      await h.identity.checkLease(h.users[0]!.id, repository, 'read'),
+    ).toBe(false);
   });
   it('uses the selected user token, requires both project membership and pull/push permission, and filters inaccessible projects', async () => {
     h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
