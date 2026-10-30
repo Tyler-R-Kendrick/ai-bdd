@@ -45,7 +45,7 @@ export type RebuildPullRequest = {
   branch: string;
   commit: string;
 };
-/** Compare stable top-level node identities, counting each added/removed/changed block once. */
+/** Count changed document blocks and attributed accepted decisions, each by stable identity. */
 export function changedDocumentBlocks(
   before: Record<string, any>,
   after: Record<string, any>,
@@ -61,6 +61,12 @@ export function changedDocumentBlocks(
     );
   const a = map(before),
     b = map(after);
+  for (const [source, entries] of [
+    [before, a],
+    [after, b],
+  ] as const)
+    for (const decision of source.acceptedDecisions ?? [])
+      entries.set('accepted-decision:' + decision.id, JSON.stringify(decision));
   return [...new Set([...a.keys(), ...b.keys()])].filter(
     (key) => a.get(key) !== b.get(key),
   ).length;

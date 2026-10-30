@@ -445,6 +445,71 @@ for (const postgres of [false, true])
           }),
         ).rejects.toMatchObject({ statusCode: 413 });
       });
+      it('rebuilds changed accepted human choices even when document JSON is unchanged', async () => {
+        const c = await fixture(postgres),
+          initial = await c.service.snapshot(c.user, c.artifact.id),
+          before = await c.store.artifact(c.artifact.id, c.user.id),
+          decision = (await c.store.decisions(c.artifact.id))[0]!;
+        await c.store.tx(async () => {
+          await c.store.lock('project:' + c.project.id);
+          await c.store.exec(
+            "UPDATE decisions SET status='accepted',decision=?,context=?,consequences=?,version=version+1 WHERE id=?",
+            'Use Pact contract fixtures',
+            'Preview must work offline',
+            'No live integration required',
+            decision.id,
+          );
+          await c.store.touchArtifactSource(c.user, c.artifact.id);
+        });
+        const after = await c.store.artifact(c.artifact.id, c.user.id),
+          updated = await c.service.snapshot(c.user, c.artifact.id);
+        expect(after.content).toEqual(before.content);
+        expect(after.version).toBe(before.version + 1);
+        expect(updated.changes).toBe(1);
+        expect(updated.currentSourceSha256).not.toBe(
+          initial.currentSourceSha256,
+        );
+        await expect(
+          c.service.queue(c.user, c.artifact.id, {
+            expectedSourceSha256: initial.currentSourceSha256,
+          }),
+        ).rejects.toMatchObject({ statusCode: 409 });
+        const queued = await c.queue(),
+          claimed = await c.service.claim(c.principal),
+          lease = {
+            leaseToken: claimed.leaseToken!,
+            generation: claimed.work!.generation,
+          },
+          read = await c.service.read(c.principal, queued.id!, lease);
+        expect(read.pullRequests[0].url).toBe(c.project.repository + '/pull/7');
+        expect(read.before.acceptedDecisions).toBeUndefined();
+        expect(read.after.acceptedDecisions).toMatchObject([
+          {
+            id: decision.id,
+            decision: 'Use Pact contract fixtures',
+            status: 'accepted',
+            context: 'Preview must work offline',
+            consequences: 'No live integration required',
+            version: decision.version + 1,
+          },
+        ]);
+        await c.store.tx(async () => {
+          await c.store.lock('project:' + c.project.id);
+          await c.store.exec(
+            'UPDATE decisions SET decision=?,version=version+1 WHERE id=?',
+            'Use a different accepted boundary',
+            decision.id,
+          );
+          await c.store.touchArtifactSource(c.user, c.artifact.id);
+        });
+        await expect(
+          c.service.start(c.principal, queued.id!, {
+            ...lease,
+            pullRequests: claimed.work!.pullRequests,
+            runtime,
+          }),
+        ).rejects.toMatchObject({ statusCode: 409 });
+      });
       it('does not replay expired execution; manual retry seals latest source and revoked access cannot report', async () => {
         const c = await fixture(postgres);
         await c.change('Initial change');

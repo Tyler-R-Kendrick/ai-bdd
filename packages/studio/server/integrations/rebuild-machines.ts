@@ -21,6 +21,7 @@ import {
   type AgentProfile,
 } from '../../shared/agent-profile.ts';
 import type { MachinePrincipal } from './investigations.ts';
+import { readPlanSource } from '../plan-source.ts';
 import type { ImplementationGraphs } from './implementation.ts';
 const at = () => new Date().toISOString(),
   opaque = () => randomBytes(32).toString('base64url');
@@ -200,26 +201,27 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       at(),
     );
   }
-  async observe(user: User, previous: Artifact, current: Artifact) {
-    if (
-      !['design', 'document'].includes(current.kind) ||
-      JSON.stringify(previous.content) === JSON.stringify(current.content)
-    )
-      return;
+  async observe(user: User, _previous: Artifact, current: Artifact) {
+    if (!['design', 'document'].includes(current.kind)) return;
     if (!this.store.db.inTransaction())
       throw new Error(
         'Living document observation requires the canonical source transaction',
       );
     await this.store.role(current.projectId, user.id, 'write');
     await this.captureDelivered(current.id);
-    if (
-      !(await this.store.one(
-        'SELECT artifact_id FROM studio_rebuild_baselines WHERE artifact_id=?',
+    const baseline = await this.store.one(
+      'SELECT source_sha256 FROM studio_rebuild_baselines WHERE artifact_id=?',
+      current.id,
+    );
+    if (!baseline) return;
+    const source = JSON.stringify(await readPlanSource(this.store, current));
+    if (hash(source) === baseline.source_sha256) {
+      await this.store.exec(
+        'DELETE FROM studio_rebuild_pending WHERE artifact_id=?',
         current.id,
-      ))
-    )
+      );
       return;
-    const source = JSON.stringify(current.content);
+    }
     await this.store.exec(
       'INSERT INTO studio_rebuild_pending(artifact_id,project_id,writer_id,source_sha256,due_at) VALUES(?,?,?,?,?) ON CONFLICT(artifact_id) DO UPDATE SET writer_id=excluded.writer_id,source_sha256=excluded.source_sha256,due_at=excluded.due_at,error=NULL',
       current.id,
@@ -238,7 +240,7 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
     );
     if (!initial) throw new HttpError(404, 'Your machine was not found');
     // Renew external entitlement before the locked SQL-only permission recheck.
-    await this.store.role(initial.project_id,user.id,'write');
+    await this.store.role(initial.project_id, user.id, 'write');
     return this.atomic(initial.project_id, async () => {
       await this.store.role(initial.project_id, user.id, 'write');
       const machine = await this.fresh(initial),
@@ -313,13 +315,37 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       );
     return machine;
   }
-  private async resolvePR(user:User,repository:string,url:string,signal:AbortSignal){
-    try{
+  private async resolvePR(
+    user: User,
+    repository: string,
+    url: string,
+    signal: AbortSignal,
+  ) {
+    try {
       signal.throwIfAborted();
-      const result=await this.dependencies.resolvePullRequest(user,repository,url,signal);
+      const result = await this.dependencies.resolvePullRequest(
+        user,
+        repository,
+        url,
+        signal,
+      );
       signal.throwIfAborted();
-      return z.object({url:z.string().url().max(500),repository:z.string().url().max(300),state:z.enum(['open','closed','merged']),branch:implementationClaimSchema.shape.branch,commit:implementationClaimSchema.shape.commit}).parse(result);
-    }catch(error){if(error instanceof HttpError)throw error;throw new HttpError(502,'The existing PR could not be verified; retry after repository access is restored');}
+      return z
+        .object({
+          url: z.string().url().max(500),
+          repository: z.string().url().max(300),
+          state: z.enum(['open', 'closed', 'merged']),
+          branch: implementationClaimSchema.shape.branch,
+          commit: implementationClaimSchema.shape.commit,
+        })
+        .parse(result);
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(
+        502,
+        'The existing PR could not be verified; retry after repository access is restored',
+      );
+    }
   }
   private async automaticConsent(
     machineId: string,
@@ -350,7 +376,8 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
         'SELECT id,status,automatic,error,source_version AS sourceVersion,created_at AS createdAt,updated_at AS updatedAt,user_id AS ownerId,machine_id AS machineId FROM studio_rebuild_runs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 100',
         artifactId,
       );
-      const current = await this.context(user, artifactId, false);
+      const current = await this.context(user, artifactId, false),
+        canonicalSource = await readPlanSource(this.store, current);
       const consent =
         baseline?.user_id === user.id
           ? await this.store.one(
@@ -367,8 +394,8 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       return {
         pending: pending ?? null,
         automaticEnabled: !!consent?.enabled,
-        currentSourceVersion:current.version,
-        currentSourceSha256: hash(JSON.stringify(current.content)),
+        currentSourceVersion: current.version,
+        currentSourceSha256: hash(JSON.stringify(canonicalSource)),
         baseline: baseline
           ? {
               revision: Number(baseline.revision),
@@ -384,7 +411,7 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
         changes: baseline
           ? changedDocumentBlocks(
               JSON.parse(baseline.source_json),
-              current.content,
+              canonicalSource,
             )
           : 0,
         runs: runs.map((row) =>
@@ -402,15 +429,16 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
     },
     automatic = false,
   ) {
-    const artifact = await this.context(user, artifactId),
-      source = this.boundedSource(artifact.content);
-    if (hash(source) !== input.expectedSourceSha256)
-      throw new HttpError(
-        409,
-        'The document changed; review the latest source before rebuilding',
-      );
+    let artifact = await this.context(user, artifactId),
+      source = '';
     const prepared = await this.atomic(artifact.projectId, async () => {
-      await this.context(user, artifactId);
+      artifact = await this.context(user, artifactId);
+      source = this.boundedSource(await readPlanSource(this.store, artifact));
+      if (hash(source) !== input.expectedSourceSha256)
+        throw new HttpError(
+          409,
+          'The canonical plan or accepted choices changed; review the latest source before rebuilding',
+        );
       await this.captureDelivered(artifactId);
       const baseline = await this.store.one(
         'SELECT * FROM studio_rebuild_baselines WHERE artifact_id=?',
@@ -498,7 +526,8 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
           artifactId,
         );
       if (
-        hash(this.boundedSource(current.content)) !== hash(source) ||
+        hash(this.boundedSource(await readPlanSource(this.store, current))) !==
+          hash(source) ||
         baseline?.revision !== prepared.baseline.revision
       )
         throw new HttpError(
@@ -533,7 +562,7 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       // Leave room for the bounded implementation receipt inside the portable 2 MiB transport.
       const transportSnapshot = JSON.stringify({
         before: JSON.parse(baseline.source_json),
-        after: current.content,
+        after: JSON.parse(source),
         reviewedGraph: JSON.parse(baseline.graph_json),
         pullRequests: prs,
       });
@@ -669,7 +698,10 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
         await this.store.publicUser(machine.user_id),
         row.artifact_id,
       );
-      if (hash(this.boundedSource(current.content)) !== row.source_sha256) {
+      if (
+        hash(this.boundedSource(await readPlanSource(this.store, current))) !==
+        row.source_sha256
+      ) {
         await this.stopRow(
           row,
           'The document changed before execution; request a fresh rebuild',
@@ -749,7 +781,10 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
     return this.atomic(principal.project_id, async () => {
       const row = await this.leased(principal, id, input),
         artifact = await this.context(user, row.artifact_id);
-      if (hash(this.boundedSource(artifact.content)) !== row.source_sha256)
+      if (
+        hash(this.boundedSource(await readPlanSource(this.store, artifact))) !==
+        row.source_sha256
+      )
         throw new HttpError(
           409,
           'The plan changed before execution; request a new rebuild',
