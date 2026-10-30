@@ -130,6 +130,9 @@ describe('free Gateway SDK request boundary', () => {
     ['foreign prefix', 'https://ai-gateway.vercel.sh/wrong/v4/ai/language-model'],
     ['prefix confusion', 'https://ai-gateway.vercel.sh/aaaaaa/language-model'],
     ['foreign origin', 'https://owned.invalid/v4/ai/language-model'],
+    ['URL username', 'https://owned@ai-gateway.vercel.sh/v4/ai/language-model'],
+    ['URL password', 'https://:owned@ai-gateway.vercel.sh/v4/ai/language-model'],
+    ['URL credentials', 'https://owned:fixture@ai-gateway.vercel.sh/v4/ai/language-model'],
     ['query override', path + '?model=owned/paid'],
     ['fragment override', path + '#owned/paid'],
   ])('refuses %s before metadata or inference', async (_name, url) => {
