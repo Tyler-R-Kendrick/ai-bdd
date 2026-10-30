@@ -7,7 +7,11 @@ export const EXPECTED_CHAT_PROFILE = {
   harness: 't3-code', provider: 'studioLocal', model: 'studio-local/qwen2.5-0.5b-instruct-q4-k-m',
 } as const;
 export class HostedLocalAIGuardError extends Error {
-  constructor(readonly code: string) { super('Hosted local AI acceptance guard rejected a condition'); }
+  readonly code: string;
+  constructor(code: string) {
+    super('Hosted local AI acceptance guard rejected a condition');
+    this.code = code;
+  }
 }
 function requireCondition(value: unknown, code: string): asserts value {
   if (!value) throw new HostedLocalAIGuardError(code);
