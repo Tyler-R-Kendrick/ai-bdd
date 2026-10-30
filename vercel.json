@@ -133,6 +133,13 @@
   },
   "rewrites": [
     {
+      "source": "/",
+      "destination": {
+        "service": "frontend",
+        "path": "/index.html"
+      }
+    },
+    {
       "source": "/api/studio-maintenance-bootstrap",
       "destination": {
         "service": "frontend"
