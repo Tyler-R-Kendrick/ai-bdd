@@ -14,6 +14,30 @@ import {
   redactRemoteError,
 } from '../shared/remote-stream.ts';
 describe('typed remote agent events and materialized display state', () => {
+  it('renders deep and cyclic stage graphs in linear work while preserving completed outcomes', () => {
+    const base: RemoteRun = {
+      id: 'deep',
+      name: 'Deep bounded report',
+      status: 'running',
+      started: 0,
+      updated: 0,
+      waiting: 0,
+      stages: Array.from({ length: 8000 }, (_, index) => ({
+        id: 's' + index,
+        name: 'Stage',
+        status: 'pending' as const,
+        parentIds: index ? ['s' + (index - 1)] : [],
+      })),
+    };
+    expect(displayRemoteStages(base).at(-1)?.status).toBe('pending');
+    base.stages[0].status = 'blocked';
+    base.stages[4000].status = 'completed';
+    base.stages[0].parentIds = ['s7999'];
+    const view = displayRemoteStages(base);
+    expect(view[4000].status).toBe('completed');
+    expect(view[7999].status).toBe('stopped');
+    expect(base.stages[7999].status).toBe('pending');
+  });
   it('enforces stream order, preserves text and usage, and never accepts remote impersonation of host tools', () => {
     let state = applyRemotePart(emptyRemoteStream(), {
       type: 'stream-start',

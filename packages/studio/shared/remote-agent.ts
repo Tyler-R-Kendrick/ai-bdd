@@ -516,20 +516,32 @@ export function mergeRemoteRuns(
 export function displayRemoteStages(card: RemoteRun): RemoteStage[] {
   const terminal = new Set(['completed', 'failed', 'skipped', 'stopped']);
   const stops = new Set(['failed', 'blocked', 'skipped', 'stopped']);
-  const byId = new Map(card.stages.map((stage) => [stage.id, stage]));
-  const blocked = (stage: RemoteStage, seen: Set<string>): boolean => {
-    if (seen.has(stage.id)) return false;
-    const next = new Set(seen).add(stage.id);
-    return (stage.parentIds ?? []).some((id) => {
-      const parent = byId.get(id);
-      return !!parent && (stops.has(parent.status) || blocked(parent, next));
-    });
-  };
+  const children = new Map<string, string[]>(),
+    descendants = new Set<string>(),
+    queue = card.stages
+      .filter((stage) => stops.has(stage.status))
+      .map((stage) => stage.id),
+    queued = new Set(queue);
+  for (const stage of card.stages)
+    for (const parent of stage.parentIds ?? []) {
+      const group = children.get(parent) ?? [];
+      group.push(stage.id);
+      children.set(parent, group);
+    }
+  // Each stage and parent edge is visited once, including deep or cyclic external reports.
+  for (let cursor = 0; cursor < queue.length; cursor++)
+    for (const child of children.get(queue[cursor]) ?? []) {
+      descendants.add(child);
+      if (!queued.has(child)) {
+        queued.add(child);
+        queue.push(child);
+      }
+    }
   return card.stages.map((stage) =>
     terminal.has(stage.status)
       ? stage
       : ['failed', 'blocked', 'stopped'].includes(card.status) ||
-          blocked(stage, new Set())
+          descendants.has(stage.id)
         ? { ...stage, status: 'stopped' }
         : stage,
   );
