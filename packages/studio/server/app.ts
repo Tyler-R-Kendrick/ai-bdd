@@ -50,6 +50,7 @@ import {
 } from './document-readiness.ts';
 import { ArtifactTitles } from './integrations/titles.ts';
 import { createTargetedPublication } from './runtime/targeted-publication.ts';
+import { cleanupManagedT3Checkpoints } from './local/native-t3-runtime.ts';
 import {
   registerConversationRoutes,
   conversationExportTables,
@@ -230,6 +231,7 @@ export async function createApp(
     const runner = new Runner(store, settings, collab, { runtime, hosting }),
       agent = new Agent(store, settings, collab, {
         runtime,
+        objects: hosting.objects,
         decisions,
         identityExecutionContext: options.identityExecutionContext,
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),
@@ -505,7 +507,7 @@ export async function createApp(
           agent.profiles.assertAvailable(profile);
           return profile;
         },
-        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+        modelForProfile: (profile, key, artifactId) => agent.modelForProfile(profile, key, artifactId),
       },
     });
     const video = await registerVideoRoutes(app, {
@@ -557,7 +559,7 @@ export async function createApp(
           agent.profiles.assertAvailable(profile);
           return profile;
         },
-        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+        modelForProfile: (profile, key, artifactId) => agent.modelForProfile(profile, key, artifactId),
       },
       allowed: (user, id) => agent.canParticipate(user, id),
       remote: remotePlanner,
@@ -2277,6 +2279,7 @@ export async function createApp(
         await accounts.cleanupRevoked(5);
         await accountPlanners.expire(5);
         await lifecycle.cleanup(3);
+        await cleanupManagedT3Checkpoints(store, hosting.objects, 3);
         await investigations!.expire();
         await implementationMachines.expire();
         await audio.cleanupStaged(10);

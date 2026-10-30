@@ -123,6 +123,8 @@ export function integrationSettingsFromEnv(
   if (modelId && !localModelById(modelId))
     throw new Error('STUDIO_LOCAL_MODEL_ID must select an operator-registered local model');
   const managedT3 = managedT3SettingsFromEnv(env, !!localDirectory);
+  if (managedT3 && t3?.providers.some(provider => provider.id === 'studioLocal'))
+    throw new Error('studioLocal is reserved for the managed native T3 provider');
   return {
     ...(localDirectory ? { localModel: { directory: localDirectory, ...(modelId ? { modelId } : {}) } } : {}),
     ...(managedT3 ? { managedT3 } : {}),

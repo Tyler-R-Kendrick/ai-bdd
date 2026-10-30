@@ -56,7 +56,7 @@ type Options = {
   models: Pick<DecisionModels, 'captureProfile' | 'capabilities' | 'decide'>;
   generation: {
     captureProfile(user: User, id: string): Promise<AgentProfile>;
-    modelForProfile(profile: AgentProfile, key: string): LanguageModel;
+    modelForProfile(profile: AgentProfile, key: string, artifactId: string): LanguageModel;
   };
   allowed(user: User, id: string): Promise<boolean>;
   remote?: Pick<RemotePlanner, 'invoke'>;
@@ -480,6 +480,7 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
           model: this.options.generation.modelForProfile(
             agentProfileSchema.parse(snapshot.generationProfile),
             key,
+            ctx.job.artifactId,
           ),
           system: instructions,
           prompt: snapshot.input,

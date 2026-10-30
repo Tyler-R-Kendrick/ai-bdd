@@ -61,6 +61,7 @@ export type ConversationOptions = {
     modelForProfile(
       profile: AgentProfile,
       idempotencyKey: string,
+      artifactId: string,
     ): LanguageModel;
   };
 };
@@ -453,6 +454,7 @@ export async function registerConversationRoutes(
       const model = options.generation!.modelForProfile(
         generationProfile,
         stableKey,
+        input.source.artifactId,
       );
       const result = await generateText({
         model,
