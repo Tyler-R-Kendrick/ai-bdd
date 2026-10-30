@@ -63,7 +63,14 @@ export function DesignReview({
           .map((p) => p.id),
       );
       initialized.current = true;
-    }
+    } else
+      setSelected((ids) => {
+        const current = new Set(data.passages.map((passage) => passage.id));
+        const next = ids.filter((id) => current.has(id));
+        if (next.length === ids.length) return ids;
+        intent.current = null;
+        return next;
+      });
   }, [artifact.id]);
   useEffect(() => {
     if (!open) return;
