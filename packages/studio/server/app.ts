@@ -1,3 +1,7 @@
+import { registerAudioRoutes } from './audio-api.ts';
+import type { AudioRenderDriver } from './audio-renderer.ts';
+import type { VideoRenderDriver } from './video-renderer.ts';
+import { decisionExportRows } from './decisions/export.ts';
 import { DecisionModels } from './decisions/models.ts';
 import { registerDecisionRoutes } from './decisions/routes.ts';
 import { decisionSettingsFromEnv } from './decisions/settings.ts';
@@ -101,6 +105,9 @@ export async function createApp(
     clientDir?: string;
     connectorFile?: string;
     decisionSettings?: DecisionSettings;
+    audioRenderDriver?: AudioRenderDriver;
+    videoRenderDriver?: VideoRenderDriver;
+    audioSourceProbe?: typeof probeAudio;
   } = {},
 ) {
   const app = Fastify({
@@ -133,6 +140,7 @@ export async function createApp(
         ? new LocalJobDispatcher()
         : undefined;
     if (localDispatcher) startupCleanup.unshift(() => localDispatcher.close());
+    const sourceProbe = options.audioSourceProbe ?? probeAudio;
     const objects =
       options.hosting?.objects ??
       new DiskObjectStore(resolve(settings.dataDir, 'objects'));
@@ -180,6 +188,7 @@ export async function createApp(
     const runner = new Runner(store, settings, collab, { runtime, hosting }),
       agent = new Agent(store, settings, collab, {
         runtime,
+        decisions,
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       });
     await agent.initialize();
@@ -390,7 +399,7 @@ export async function createApp(
       hosting.uploads.validateAsset = async (input) => {
         await previousValidator?.(input);
         if (input.mime.startsWith('audio/') && input.mime !== 'audio/midi')
-          await probeAudio(input.bytes);
+          await sourceProbe(input.bytes);
       };
     }
     await registerHostingRoutes(app, {
@@ -454,6 +463,18 @@ export async function createApp(
       settings,
       runtime,
       objects: hosting.objects,
+      renderDriver: options.videoRenderDriver,
+    });
+    const audio = await registerAudioRoutes(app, {
+      store,
+      auth,
+      settings,
+      runtime,
+      objects: hosting.objects,
+      renderDriver: options.audioRenderDriver,
+      ...(options.audioSourceProbe
+        ? { sourceProbe: options.audioSourceProbe }
+        : {}),
     });
     const integrations = await registerIntegrationRoutes(app, {
       store,
@@ -1564,7 +1585,7 @@ export async function createApp(
       await store.artifact(a.id, u.id, 'write');
       const mime = uploadedMediaType(bytes, part.filename, part.mimetype);
       if (mime.startsWith('audio/') && mime !== 'audio/midi')
-        await probeAudio(bytes);
+        await sourceProbe(bytes);
       const fid = randomUUID(),
         sha256 = hash(bytes);
       const storageKey = `studio/v1/files/${a.projectId}/${sha256}`;
@@ -1742,15 +1763,47 @@ export async function createApp(
             renderCursor = row.sequence;
           }
         }
+        yield '],"audioRenders":[';
+        const audioCutoff = (
+          await store.one(
+            'SELECT coalesce(max(sequence),0) AS last FROM audio_render_jobs WHERE artifact_id=?',
+            a.id,
+          )
+        ).last;
+        let audioCursor = 0,
+          firstAudio = true;
+        while (audioCursor < audioCutoff) {
+          await checkAccess();
+          const rows = await audio.exportPage(
+            a.id,
+            audioCursor,
+            audioCutoff,
+            25,
+          );
+          if (!rows.length) break;
+          for (const row of rows) {
+            yield (firstAudio ? '' : ',') + JSON.stringify(row);
+            firstAudio = false;
+            audioCursor = row.sequence;
+          }
+        }
+        yield '],"decisionModels":[';
+        let firstDecision = true;
+        for await (const row of decisionExportRows(store, a.id, checkAccess)) {
+          yield (firstDecision ? '' : ',') + JSON.stringify(row);
+          firstDecision = false;
+        }
         yield '],"implementation":{';
         await checkAccess();
-        const implementationSnapshot = await graphs.read(user, a.id);
+        const implementationSnapshot = ['design', 'document'].includes(a.kind)
+          ? await graphs.read(user, a.id)
+          : null;
         yield '"snapshot":' +
           JSON.stringify(implementationSnapshot) +
           ',"events":[';
         let implementationBefore = Number.MAX_SAFE_INTEGER,
           firstEvent = true;
-        while (true) {
+        while (implementationSnapshot) {
           await checkAccess();
           const events = await graphs.history(user, a.id, {
             before: implementationBefore,
@@ -1895,6 +1948,7 @@ export async function createApp(
       await agent.close();
       await decisions.close();
       await video.close();
+      await audio.close();
       await runner.close();
       await collab.close();
       await localDispatcher?.close();
@@ -1908,6 +1962,7 @@ export async function createApp(
       runner,
       agent,
       video,
+      audio,
       integrations,
       identity,
       decisions,
@@ -1923,6 +1978,8 @@ export async function createApp(
         await accounts.cleanupRevoked(5);
         await investigations!.expire();
         await implementationMachines.expire();
+        await audio.cleanupStaged(10);
+        await video.cleanupStaged(10);
       },
       spikes,
       drafting,

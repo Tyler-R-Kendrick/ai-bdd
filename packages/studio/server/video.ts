@@ -59,11 +59,14 @@ export async function registerVideoRoutes(
 ) {
   const { store, auth, runtime, objects } = dependencies;
   const renderer = dependencies.renderDriver ?? cpuVideoRenderDriver;
-  await store.db
-    .exec(`CREATE TABLE IF NOT EXISTS video_render_jobs(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,artifact_version INTEGER NOT NULL,user_id TEXT NOT NULL REFERENCES users(id),format TEXT NOT NULL,status TEXT NOT NULL,progress REAL NOT NULL DEFAULT 0,file_id TEXT REFERENCES files(id),error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
+  await store.tx(async () => {
+    await store.lock('schema:studio.video');
+    await store.db
+      .exec(`CREATE TABLE IF NOT EXISTS video_render_jobs(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,artifact_version INTEGER NOT NULL,user_id TEXT NOT NULL REFERENCES users(id),format TEXT NOT NULL,status TEXT NOT NULL,progress REAL NOT NULL DEFAULT 0,file_id TEXT REFERENCES files(id),error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
     CREATE INDEX IF NOT EXISTS video_render_artifact ON video_render_jobs(artifact_id,created_at);
     CREATE TABLE IF NOT EXISTS studio_video_staging(object_key TEXT PRIMARY KEY,job_id TEXT NOT NULL REFERENCES studio_durable_jobs(id) ON DELETE CASCADE,fence INTEGER NOT NULL,sha256 TEXT NOT NULL,byte_size INTEGER NOT NULL,state TEXT NOT NULL,created_at INTEGER NOT NULL,next_cleanup INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS studio_video_staging_due ON studio_video_staging(state,next_cleanup);`);
+  });
   function snapshot(job: DurableJob): VideoRenderTask {
     const value = snapshotSchema.parse(job.snapshot);
     return { ...value, content: normalizeVideo(value.content) };
@@ -253,7 +256,10 @@ export async function registerVideoRoutes(
       if (renderer.runtime === 'long-lived-worker')
         throw new TerminalJobError(
           'Video rendering failed: ' +
-            (error instanceof Error ? error.message : String(error)).slice(0, 1000),
+            (error instanceof Error ? error.message : String(error)).slice(
+              0,
+              1000,
+            ),
         );
       throw error;
     }

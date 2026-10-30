@@ -1,3 +1,5 @@
+import { cpuAudioRenderDriver, probeAudio } from '../server/audio-renderer.ts';
+import { initialAudioContent } from '../shared/audio.ts';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { decisionProfileSchema } from '../shared/decision-profile.ts';
@@ -17,6 +19,86 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
 describe('assembled cloud domain guards', () => {
+  it('composes the audio worker and verified source probe ports with authenticated output and complete export', async () => {
+    let renders = 0,
+      probes = 0;
+    const studio = await createApp(
+      testSettings('/tmp/studio-audio-composition'),
+      {
+        db: ':memory:',
+        audioRenderDriver: {
+          name: 'local-cpu-composition-test',
+          runtime: 'long-lived-worker',
+          render: async (input) => {
+            renders++;
+            return cpuAudioRenderDriver.render(input);
+          },
+        },
+        audioSourceProbe: async (bytes, options) => {
+          probes++;
+          return probeAudio(bytes, options);
+        },
+      },
+    );
+    cleanup.push(() => studio.app.close());
+    const { user, cookie } = await setup(studio.app),
+      request = client(studio.app, cookie),
+      project = await studio.store.createProject(user, 'Audio composition', ''),
+      content = initialAudioContent();
+    content.duration = 0.1;
+    content.tracks = [];
+    const artifact = await studio.store.createArtifact(
+        user,
+        project.id,
+        'audio',
+        'Verified mixdown',
+        content,
+      ),
+      started = await request(
+        'POST',
+        `/api/artifacts/${artifact.id}/audio/render`,
+        { version: artifact.version, format: 'wav' },
+      );
+    expect(started.statusCode, started.body).toBe(202);
+    await vi.waitFor(
+      async () =>
+        expect((await studio.runtime.get(started.json().id))?.status).toBe(
+          'completed',
+        ),
+      { timeout: 10000 },
+    );
+    expect(renders).toBe(1);
+    const result = await request(
+      'GET',
+      `/api/artifacts/${artifact.id}/audio/renders/${started.json().id}`,
+    );
+    expect(result.statusCode, result.body).toBe(200);
+    expect(result.json().status).toBe('completed');
+    const download = await request('GET', result.json().downloadUrl);
+    expect(download.statusCode).toBe(200);
+    expect(download.rawPayload.subarray(0, 4).toString()).toBe('RIFF');
+    const metadata = await request(
+      'GET',
+      `/api/artifacts/${artifact.id}/audio/sources/${result.json().fileId}`,
+    );
+    expect(metadata.statusCode, metadata.body).toBe(200);
+    expect(metadata.json().duration).toBeCloseTo(0.1, 2);
+    expect(probes).toBe(1);
+    const exported = await request(
+      'GET',
+      `/api/artifacts/${artifact.id}/export`,
+    );
+    expect(exported.statusCode, exported.body).toBe(200);
+    expect(exported.json().audioRenders).toHaveLength(1);
+    expect(exported.json().audioRenders[0]).toMatchObject({
+      status: 'completed',
+      sourceSnapshot: {
+        title: 'Verified mixdown',
+        format: 'wav',
+        content: { duration: 0.1, tracks: [] },
+      },
+    });
+  });
   it('persists an independent decision profile and executes an advisory review through the actual application runtime', async () => {
     const requests: any[] = [];
     const provider = createServer(async (req, res) => {
@@ -28,11 +110,21 @@ describe('assembled cloud domain guards', () => {
       res.end(
         JSON.stringify({
           model: body.model,
-          answers: body.questions.map((q: any) => ({
-            name: q.name,
-            type: 'predicate',
-            probability: 0.95,
-          })),
+          answers: body.questions.map((q: any) =>
+            q.type === 'score'
+              ? {
+                  name: q.name,
+                  type: 'score',
+                  score: 1.925,
+                  confidence: 0.95,
+                  probabilities: q.levels.map((level: any, index: number) => ({
+                    value: index,
+                    label: level.label,
+                    probability: index === 2 ? 0.95 : 0.025,
+                  })),
+                }
+              : { name: q.name, type: 'predicate', probability: 0.95 },
+          ),
           usage: { input_tokens: 10, output_tokens: 4, total_tokens: 14 },
         }),
       );
@@ -125,6 +217,23 @@ describe('assembled cloud domain guards', () => {
     );
     expect(history.statusCode, history.body).toBe(200);
     expect(history.json().evaluations).toHaveLength(1);
+    const exported = await request('GET', `/api/artifacts/${id}/export`);
+    expect(exported.statusCode, exported.body).toBe(200);
+    expect(
+      exported
+        .json()
+        .decisionModels.filter((row: any) => row.kind === 'admission'),
+    ).toHaveLength(1);
+    expect(
+      exported
+        .json()
+        .decisionModels.find((row: any) => row.kind === 'evaluation').value
+        .result.answers[0].status,
+    ).toBe('answered');
+    expect(JSON.stringify(exported.json().decisionModels)).not.toMatch(
+      /lease_owner|fixture-key|Authorization/,
+    );
+    expect(exported.json().audioRenders).toEqual([]);
     expect(history.json().evaluations[0].provenance).toMatchObject({
       provider: 'openai-decisions',
       requestedModel: 'gpt-6-luna',
