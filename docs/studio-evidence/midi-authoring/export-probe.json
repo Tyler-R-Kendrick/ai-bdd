@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "pcm_s16le",
+        "sample_rate": "44100",
+        "channels": 2
+      }
+    ],
+    "format": {
+      "duration": "5.423356"
+    }
+  },
+  "originalMidiBytes": 150,
+  "editedMidiBytes": 162,
+  "notes": [
+    {
+      "tick": 480,
+      "pitch": 64,
+      "velocity": 88,
+      "channel": 1
+    },
+    {
+      "tick": 960,
+      "pitch": 67,
+      "velocity": 55,
+      "channel": 1
+    },
+    {
+      "tick": 1920,
+      "pitch": 72,
+      "velocity": 100,
+      "channel": 1
+    }
+  ],
+  "rms": {
+    "intro": 0,
+    "quiet": 0.01011363432709719,
+    "loud": 0.024757338192480258,
+    "tail": 0
+  },
+  "c5Power": 0.00025116617482642763
+}
