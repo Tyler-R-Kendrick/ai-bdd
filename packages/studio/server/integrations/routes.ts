@@ -46,7 +46,7 @@ export async function registerIntegrationRoutes(
       artifact = await store.artifact(request.params.id, user.id);
     return {
       capabilities: {
-        model: !!settings.model || !!settings.integrations?.remotePlanner,
+        model: agent.profiles.catalog().some((harness) => harness.configured),
         research: {
           provider: integrations.searchUrl ? 'gateway' : 'wikipedia',
           configured: true,

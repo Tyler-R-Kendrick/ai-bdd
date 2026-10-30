@@ -35,25 +35,21 @@ describe('assembled cloud domain guards', () => {
       artifact.version,
       { doc: { type: 'doc', content: [{ type: 'paragraph' }] } },
     );
-    const graph = await studio.graphs.edit(
-      { user, kind: 'human' },
-      empty.id,
-      {
-        expected: null,
-        planRevision: empty.version,
-        definition: {
-          tasks: [
-            {
-              id: 'one',
-              title: 'Unfounded task',
-              description: 'No plan exists yet.',
-              acceptanceCriteria: ['Needs source intent.'],
-            },
-          ],
-          edges: [],
-        },
+    const graph = await studio.graphs.edit({ user, kind: 'human' }, empty.id, {
+      expected: null,
+      planRevision: empty.version,
+      definition: {
+        tasks: [
+          {
+            id: 'one',
+            title: 'Unfounded task',
+            description: 'No plan exists yet.',
+            acceptanceCriteria: ['Needs source intent.'],
+          },
+        ],
+        edges: [],
       },
-    );
+    });
     const approved = await request(
       'POST',
       `/api/artifacts/${empty.id}/implementation/approve`,
@@ -71,9 +67,7 @@ describe('assembled cloud domain guards', () => {
     });
   });
   it('releases database and background resources when application initialization fails', async () => {
-    const directory = await mkdtemp(
-        join(tmpdir(), 'studio-startup-cleanup-'),
-      ),
+    const directory = await mkdtemp(join(tmpdir(), 'studio-startup-cleanup-')),
       file = join(directory, 'studio.sqlite');
     cleanup.push(() => rm(directory, { recursive: true, force: true }));
     await expect(
@@ -233,5 +227,41 @@ describe('assembled cloud domain guards', () => {
       artifact.content,
       artifact.version,
     );
+  });
+  it('exposes the selected default T3 availability and requires an explicit configured FX selection', async () => {
+    const studio = await createApp(
+      { ...testSettings('/tmp/studio-profile-api'), model: 'fixture/model' },
+      { db: ':memory:' },
+    );
+    cleanup.push(() => studio.app.close());
+    const { user, cookie } = await setup(studio.app),
+      request = client(studio.app, cookie),
+      project = (await studio.store.createProject(
+        user,
+        'Harness profile',
+        '',
+      ))!,
+      id = project.mainArtifactId;
+    const profile = await request('GET', `/api/artifacts/${id}/agent/profile`);
+    expect(profile.statusCode, profile.body).toBe(200);
+    expect(profile.json().profile.harness).toBe('t3-code');
+    expect(
+      (await request('GET', `/api/artifacts/${id}`)).json().agentAvailable,
+    ).toBe(false);
+    const saved = await request('PUT', `/api/artifacts/${id}/agent/profile`, {
+      harness: 'vercel-fx',
+      provider: 'ai-gateway',
+      model: 'fixture/model',
+    });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(
+      (await request('GET', `/api/artifacts/${id}`)).json().agentAvailable,
+    ).toBe(true);
+    const draft = await request(
+      'GET',
+      `/api/artifacts/${id}/implementation/draft`,
+    );
+    expect(draft.statusCode, draft.body).toBe(200);
+    expect(draft.json()).toEqual({ jobs: [] });
   });
 });

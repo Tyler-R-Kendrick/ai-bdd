@@ -1,3 +1,5 @@
+import { registerAgentProfileRoutes } from './integrations/agent-profiles.ts';
+import { registerImplementationMachineRoutes } from './integrations/implementation-machines.ts';
 import { SpeculativeSpikes, createSpikeJudge } from './integrations/spikes.ts';
 import {
   ImplementationDrafting,
@@ -176,9 +178,10 @@ export async function createApp(
     const titles = new ArtifactTitles({
       store,
       runtime,
-      provider: settings.model
+      provider: agent.profiles.catalog().some((harness) => harness.configured)
         ? (input) => agent.generateTitle(input)
         : undefined,
+      captureProfile: (user, id) => agent.captureProfile(user, id),
       allowed: (user, id) => agent.canParticipate(user, id),
       notify: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
       onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
@@ -270,6 +273,11 @@ export async function createApp(
       return payload;
     });
     await auth.routes(app);
+    registerAgentProfileRoutes(app, {
+      auth,
+      profiles: agent.profiles,
+      notify: (projectId, id) => collab.notify(projectId, id),
+    });
     remotePlanner?.register(app);
     const identity = await registerRepositoryIdentity(app, {
       store,
@@ -414,9 +422,10 @@ export async function createApp(
       store,
       runtime,
       graphs,
-      provider: settings.model
+      provider: agent.profiles.catalog().some((harness) => harness.configured)
         ? (input) => agent.generateImplementationGraph(input)
         : undefined,
+      captureProfile: (user, id) => agent.captureProfile(user, id),
       allowed: (user, id) => agent.canParticipate(user, id),
       onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
       assertReady: async (artifact) => {
@@ -451,7 +460,7 @@ export async function createApp(
     app.get('/api/capabilities', async (req) => {
       await auth.user(req);
       return {
-        agent: !!settings.model || !!remotePlanner,
+        agent: agent.profiles.catalog().some((harness) => harness.configured),
         remotePlanner: !!remotePlanner,
         runner: !!settings.runnerConfig,
         oidc: !!settings.oidcIssuer,
@@ -859,6 +868,8 @@ export async function createApp(
           a.id,
         ),
         agentActive: await agent.isActive(a.id),
+        agentAvailable: await agent.canParticipate(await auth.user(req), a.id),
+        agentProfile: await agent.profiles.view(await auth.user(req), a.id),
         runnerActive: await runner.isActive(a.id),
       };
     });
