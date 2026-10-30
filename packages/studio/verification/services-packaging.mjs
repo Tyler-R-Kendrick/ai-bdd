@@ -49,6 +49,9 @@ const native = names.map((name, i) => {
   assert.equal(service.builder.use, '@vercel/backends');
   assert.equal(service.builder.src, 'packages/studio/' + entries[i]);
   assert.equal(service.builder.config.serviceName, name);
+  assert.equal(service.buildCommand, 'node --check ' + entries[i]);
+  assert.equal(service.outputDirectory, undefined);
+  assert.equal(service.builder.config.outputDirectory, undefined);
   assert.deepEqual(service.bindings, [
     {
       type: 'service',
@@ -86,6 +89,7 @@ const native = names.map((name, i) => {
     topic: topics[i],
     maxDuration: durations[i],
     binding: 'backend',
+    buildCommand: service.buildCommand,
     publicRoute: topics[i] ? null : '/api/studio-maintenance-bootstrap',
   };
 });
