@@ -16,6 +16,12 @@ import { DurableScheduler } from './scheduler.ts';
 import { VercelSchedulerDispatcher } from './vercel-scheduler.ts';
 import { registerInternalRoutes } from './internal-routes.ts';
 import type { HostingServices } from './ports.ts';
+import {
+  VercelSandboxMediaRuntime,
+  mediaSandboxConfigFromEnv,
+} from '../media/vercel-sandbox.ts';
+import { CachedAudioSourceProbe } from '../media/probe-cache.ts';
+import { decisionSettingsFromEnv } from '../decisions/settings.ts';
 /** The provider selection exists only here. Domain services receive replaceable ports. */
 export async function createHostingApplication(
   env: NodeJS.ProcessEnv,
@@ -27,6 +33,27 @@ export async function createHostingApplication(
 ) {
   const config = hostingConfigFromEnv(env);
   if (
+    env.STUDIO_MEDIA_RUNTIME &&
+    !['local-cpu', 'vercel-sandbox'].includes(env.STUDIO_MEDIA_RUNTIME)
+  )
+    throw new Error('Unknown media runtime adapter');
+  if (
+    config.provider === 'vercel' &&
+    env.STUDIO_MEDIA_RUNTIME === 'local-cpu'
+  )
+    throw new Error(
+      'Vercel media requires the isolated Sandbox adapter; local system binaries are not a cloud runtime',
+    );
+  const media =
+    config.provider === 'vercel' ||
+    env.STUDIO_MEDIA_RUNTIME === 'vercel-sandbox'
+      ? new VercelSandboxMediaRuntime(
+          mediaSandboxConfigFromEnv(env),
+          undefined,
+          (code) => console.warn(code),
+        )
+      : null;
+  if (
     config.provider === 'vercel' &&
     (!env.STUDIO_JOB_SECRET ||
       env.STUDIO_JOB_SECRET.length < 32 ||
@@ -36,7 +63,10 @@ export async function createHostingApplication(
     throw new Error(
       'Cloud execution requires a stable job secret and trusted deployment identity.',
     );
-  if (options.database && options.database.dialect !== config.database.adapter)
+  if (
+    options.database &&
+    options.database.dialect !== config.database.adapter
+  )
     throw new Error(
       'Injected SQL adapter must match the selected hosting provider.',
     );
@@ -50,6 +80,14 @@ export async function createHostingApplication(
     options.database ?? (await openDatabase(config.database)),
   );
   try {
+    const probe = media
+      ? new CachedAudioSourceProbe({
+          store,
+          fingerprint: 'studio-media-v1:' + media.config.image,
+          probe: media.audioSourceProbe,
+        })
+      : null;
+    if (probe) await probe.ready;
     const objects =
       config.objects.adapter === 'disk'
         ? new DiskObjectStore(config.objects.directory)
@@ -69,7 +107,10 @@ export async function createHostingApplication(
         objects,
         config.objects.token!,
       ).initialize();
-    const runtime = await createDurableJobRuntime({ store, dispatcher: jobs });
+    const runtime = await createDurableJobRuntime({
+      store,
+      dispatcher: jobs,
+    });
     if (jobs instanceof LocalJobDispatcher) jobs.bind(runtime.executeJob);
     const settings = settingsFromEnv({
       ...env,
@@ -82,6 +123,14 @@ export async function createHostingApplication(
       store,
       runtime,
       hosting,
+      decisionSettings: decisionSettingsFromEnv(env, settings.production),
+      ...(media
+        ? {
+            audioRenderDriver: media.audioRenderDriver,
+            videoRenderDriver: media.videoRenderDriver,
+            audioSourceProbe: probe!.probe,
+          }
+        : {}),
     });
     let draining = false;
     if (config.jobs.adapter === 'vercel-queue') {
@@ -102,7 +151,10 @@ export async function createHostingApplication(
         runtime,
         scheduler,
         uploads: hosting.uploads,
-        maintenance: result.maintenance,
+        maintenance: async () => {
+          await result.maintenance?.();
+          await probe?.cleanup();
+        },
         requestSeconds: config.maxRequestSeconds,
         deploymentId: env.VERCEL_DEPLOYMENT_ID,
       });
@@ -125,6 +177,10 @@ export async function createHostingApplication(
         services: {
           database: { state: 'verified', verifiedAt },
           objects: { state: 'configured' },
+          media: media?.diagnostics() ?? {
+            adapter: 'local-cpu',
+            state: 'configured',
+          },
           jobs: {
             state: 'configured',
             semantics: 'at-least-once; fenced SQL publication',

@@ -141,7 +141,10 @@ export async function registerAudioRoutes(
             'An audio source has the wrong type or belongs to another project.',
           );
         total += file.byteSize;
-        if (file.byteSize > MAX_AUDIO_SOURCE_BYTES || total > MAX_SOURCE_BYTES)
+        if (
+          file.byteSize > MAX_AUDIO_SOURCE_BYTES ||
+          total > MAX_SOURCE_BYTES
+        )
           throw new HttpError(
             413,
             'This project exceeds its bounded audio source budget.',
@@ -322,14 +325,18 @@ export async function registerAudioRoutes(
               'This output attempt is no longer eligible for publication.',
             );
           const user = await store.publicUser(context.job.principalId);
-          const file = await store.registerFile(user, context.job.artifactId, {
-            id: context.job.id,
-            name: `${task.title.slice(0, 160)}-v${context.job.artifactVersion}.${task.format}`,
-            mime,
-            sha256: digest,
-            storageKey: key,
-            byteSize: bytes.length,
-          });
+          const file = await store.registerFile(
+            user,
+            context.job.artifactId,
+            {
+              id: context.job.id,
+              name: `${task.title.slice(0, 160)}-v${context.job.artifactVersion}.${task.format}`,
+              mime,
+              sha256: digest,
+              storageKey: key,
+              byteSize: bytes.length,
+            },
+          );
           await store.exec(
             "UPDATE studio_audio_staging SET state='retained' WHERE object_key=?",
             key,
@@ -368,7 +375,7 @@ export async function registerAudioRoutes(
   runtime.register(KIND, execute);
   app.get<{ Params: { id: string; file: string } }>(
     '/api/artifacts/:id/audio/sources/:file',
-    async (request) => {
+    async (request, reply) => {
       const user = await auth.user(request),
         artifact = await store.artifact(request.params.id, user.id);
       if (artifact.kind !== 'audio')
@@ -400,9 +407,25 @@ export async function registerAudioRoutes(
         hash(bytes) !== file.sha256
       )
         throw new HttpError(409, 'The source failed its integrity check.');
-      const probe = await (dependencies.sourceProbe ?? probeAudio)(bytes);
-      await store.artifact(artifact.id, user.id);
-      return { ...probe, sha256: file.sha256, byteSize: file.byteSize };
+      const controller = new AbortController();
+      const disconnected = () => {
+        if (!reply.raw.writableEnded)
+          controller.abort(new Error('Audio source inspection disconnected'));
+      };
+      reply.raw.once('close', disconnected);
+      request.raw.once('aborted', disconnected);
+      if (reply.raw.destroyed) disconnected();
+      try {
+        const probe = await (dependencies.sourceProbe ?? probeAudio)(bytes, {
+          signal: controller.signal,
+        });
+        controller.signal.throwIfAborted();
+        await store.artifact(artifact.id, user.id);
+        return { ...probe, sha256: file.sha256, byteSize: file.byteSize };
+      } finally {
+        reply.raw.removeListener('close', disconnected);
+        request.raw.removeListener('aborted', disconnected);
+      }
     },
   );
   app.post<{ Params: { id: string } }>(

@@ -75,6 +75,7 @@ async function context(
     renderer?: FixtureRenderer;
     instanceId?: string;
     schema?: string;
+    sourceProbe?: typeof import('../server/audio-renderer.ts').probeAudio;
   } = {},
 ) {
   const directory =
@@ -143,6 +144,7 @@ async function context(
     runtime,
     objects,
     renderDriver: renderer,
+    sourceProbe: options.sourceProbe,
     auth,
     settings: { production: false, origin, dataDir: directory, demo: false },
   });
@@ -230,10 +232,14 @@ describe(`durable audio worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
     ).toBe(403);
     expect(
       (
-        await c.request('POST', `/api/artifacts/${artifact.id}/audio/render`, {
-          version: 99,
-          format: 'wav',
-        })
+        await c.request(
+          'POST',
+          `/api/artifacts/${artifact.id}/audio/render`,
+          {
+            version: 99,
+            format: 'wav',
+          },
+        )
       ).statusCode,
     ).toBe(409);
     const key = crypto.randomUUID(),
@@ -267,7 +273,9 @@ describe(`durable audio worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
     });
     expect(Buffer.from(object!.bytes).equals(encoded)).toBe(true);
     expect(
-      (await c.service.exportPage(artifact.id, 0, Number.MAX_SAFE_INTEGER))[0],
+      (
+        await c.service.exportPage(artifact.id, 0, Number.MAX_SAFE_INTEGER)
+      )[0],
     ).toMatchObject({ status: 'completed', sourceSnapshot: input });
   });
   it('rejects a runtime identity change after enqueue before provider work or publication', async () => {
@@ -289,8 +297,12 @@ describe(`durable audio worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
       status: 'failed',
     });
     expect(
-      (await c.store.one('SELECT count(*) AS n FROM files WHERE id=?', job.id))
-        .n,
+      (
+        await c.store.one(
+          'SELECT count(*) AS n FROM files WHERE id=?',
+          job.id,
+        )
+      ).n,
     ).toBe(0);
   });
   it('resumes a queued job after both the SQL connection and runtime are recreated', async () => {
@@ -561,4 +573,78 @@ describe(`durable audio worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
       ).n,
     ).toBe(0);
   });
+});
+
+it('cancels an actual HTTP source inspection when the requesting browser disconnects', async () => {
+  const entered = deferred(),
+    aborted = deferred();
+  const c = await context({
+    sourceProbe: async (_bytes, options = {}) => {
+      entered.resolve();
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () =>
+            resolve({
+              duration: 1,
+              sampleRate: 48000,
+              channels: 1,
+              decodedBytes: 192000,
+              codec: 'pcm_s16le',
+              format: 'wav',
+            }),
+          2000,
+        );
+        options.signal!.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer);
+            aborted.resolve();
+            reject(options.signal!.reason);
+          },
+          { once: true },
+        );
+      });
+    },
+  });
+  const { artifact } = await fixture(c),
+    key = 'sources/cancel.wav',
+    descriptor = await c.objects.put(key, encoded, {
+      contentType: 'audio/wav',
+    });
+  const file = await c.store.registerFile(c.user, artifact.id, {
+    name: 'cancel.wav',
+    mime: 'audio/wav',
+    byteSize: encoded.length,
+    sha256: descriptor.sha256,
+    storageKey: key,
+  });
+  await c.app.listen({ host: '127.0.0.1', port: 0 });
+  const address = c.app.server.address() as { port: number },
+    controller = new AbortController();
+  const request = fetch(
+    'http://127.0.0.1:' +
+      address.port +
+      '/api/artifacts/' +
+      artifact.id +
+      '/audio/sources/' +
+      file.id,
+    { headers: { 'x-fixture-actor': c.user.id }, signal: controller.signal },
+  ).catch((error) => error);
+  await entered.promise;
+  controller.abort();
+  expect((await request).name).toBe('AbortError');
+  await Promise.race([
+    aborted.promise,
+    new Promise((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'The source probe did not observe client disconnection',
+            ),
+          ),
+        1500,
+      ),
+    ),
+  ]);
 });

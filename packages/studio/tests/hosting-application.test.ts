@@ -70,7 +70,10 @@ describe('hosting composition root', () => {
     cleanup.pop();
     const second = await createHostingApplication(env);
     cleanup.push(() => second.close());
-    const projects = await second.app.inject({ url: '/api/projects', headers });
+    const projects = await second.app.inject({
+      url: '/api/projects',
+      headers,
+    });
     expect(projects.statusCode).toBe(200);
     expect(projects.json().map((p: { title: string }) => p.title)).toContain(
       'Durable composition',
@@ -83,9 +86,9 @@ describe('hosting composition root', () => {
       )?.bytes,
     ).toEqual(Buffer.from('private bytes'));
     second.beginDrain();
-    expect((await second.app.inject('/api/hosting/readiness')).statusCode).toBe(
-      503,
-    );
+    expect(
+      (await second.app.inject('/api/hosting/readiness')).statusCode,
+    ).toBe(503);
   });
   it.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
     'boots the Vercel graph on actual isolated PostgreSQL without claiming unprovisioned Blob/Queue verification',
@@ -102,9 +105,11 @@ describe('hosting composition root', () => {
           VERCEL_ENV: 'preview',
           VERCEL_URL: 'composition-preview.vercel.app',
           VERCEL_DEPLOYMENT_ID: 'dpl_composition_fixture',
+          STUDIO_MEDIA_SANDBOX_IMAGE: 'studio-media@sha256:' + 'a'.repeat(64),
           DATABASE_URL: process.env.STUDIO_TEST_POSTGRES_URL!,
           BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_fixture_test-only-key',
-          STUDIO_JOB_SECRET: 'fixture-stable-job-secret-at-least-32-characters',
+          STUDIO_JOB_SECRET:
+            'fixture-stable-job-secret-at-least-32-characters',
           STUDIO_ADMIN_EMAIL: 'owner@example.test',
           STUDIO_ADMIN_PASSWORD: password,
         },
