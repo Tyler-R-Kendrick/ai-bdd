@@ -72,8 +72,14 @@ import { registerVideoRoutes } from './video.ts';
 import { uploadedMediaType } from './media-files.ts';
 import Fastify, { type FastifyRequest } from 'fastify';
 import type { SqlDatabase } from './persistence/types.ts';
-import type { DurableJobRuntime } from './runtime/contracts.ts';
-import { createDurableJobRuntime } from './runtime/jobs.ts';
+import type {
+  DurableJobRuntime,
+  DispatchReadiness,
+} from './runtime/contracts.ts';
+import {
+  createDurableJobRuntime,
+  OutboxDispatchPendingError,
+} from './runtime/jobs.ts';
 import type { HostingServices } from './hosting/ports.ts';
 import { DiskObjectStore } from './hosting/disk-objects.ts';
 import { ObjectWorkspaceStore } from './hosting/workspaces.ts';
@@ -733,10 +739,32 @@ export async function createApp(
         await store.role(projectId, principal.id, action);
         return operation();
       });
-    await runtime.recover();
-    await runtime.flushOutbox();
-    app.get('/api/health', async () => {
+    let startupDispatchPending = false;
+    try {
+      await runtime.recover();
+      await runtime.flushOutbox();
+    } catch (error) {
+      if (!(error instanceof OutboxDispatchPendingError)) throw error;
+      // Only external publication degradation with a persisted retry can leave
+      // authoring available. SQL, schema and domain access failures remain fatal.
+      startupDispatchPending = true;
+    }
+    const executionReadiness = async (): Promise<DispatchReadiness> =>
+      runtime.dispatchReadiness
+        ? runtime.dispatchReadiness()
+        : startupDispatchPending
+          ? {
+              state: 'degraded',
+              reason: 'outbox-dispatch-pending',
+              verified: false,
+            }
+          : { state: 'configured', verified: false };
+    app.get('/api/health', async (_request, reply) => {
       await store.one('SELECT 1');
+      reply.header(
+        'x-studio-execution-state',
+        (await executionReadiness()).state,
+      );
       return { ok: true };
     });
     app.get('/api/capabilities', async (req) => {
@@ -753,6 +781,7 @@ export async function createApp(
         research: true,
         machines: true,
         magnetar: false,
+        execution: await executionReadiness(),
       };
     });
     const previews = new Map<
@@ -2204,6 +2233,7 @@ export async function createApp(
       drafting,
       runtime,
       hosting,
+      executionReadiness,
     };
   } catch (error) {
     await app.close().catch(() => {});

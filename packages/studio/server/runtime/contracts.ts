@@ -70,6 +70,12 @@ export interface DurableJobContext {
 export type DurableJobHandler = (
   context: DurableJobContext,
 ) => Promise<unknown>;
+/** Configuration and a persisted dispatch failure are distinct from proven queue delivery. */
+export type DispatchReadiness = {
+  state: 'configured' | 'degraded';
+  reason?: 'outbox-dispatch-pending';
+  verified: false;
+};
 export interface DurableJobRuntime {
   enqueue(input: EnqueueJob): Promise<DurableJob>;
   get(id: string): Promise<DurableJob | null>;
@@ -79,6 +85,8 @@ export interface DurableJobRuntime {
   executeJob(id: string, delivery: JobDelivery): Promise<void>;
   cancel(id: string, user: User): Promise<void>;
   flushOutbox(limit?: number): Promise<void>;
+  /** Observes persisted failed dispatch intents; does not certify delivery or execution. */
+  dispatchReadiness?(): Promise<DispatchReadiness>;
   recover(options?: { dispatchLimit?: number }): Promise<void>;
   close(): Promise<void>;
 }

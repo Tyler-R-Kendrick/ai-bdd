@@ -10,8 +10,18 @@ import type {
   DurableJobRuntime,
   EnqueueJob,
   JobDelivery,
+  DispatchReadiness,
 } from './contracts.ts';
 
+/** A provider did not confirm publication, and the retry intent is safely persisted. */
+export class OutboxDispatchPendingError extends Error {
+  readonly code = 'outbox-dispatch-pending';
+  readonly retryable = true;
+  constructor(readonly pendingIntents: number) {
+    super('One or more durable dispatch intents remain pending');
+    this.name = 'OutboxDispatchPendingError';
+  }
+}
 export class JobLeaseLostError extends Error {}
 export class TerminalJobError extends Error {}
 export type DurableJobOptions = {
@@ -781,7 +791,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
       ...(jobId ? [jobId] : []),
       limit,
     );
-    let failed = false;
+    let failed = 0;
     for (const candidate of rows) {
       const owner = randomUUID();
       const intent = await this.store.tx(async () => {
@@ -820,27 +830,25 @@ export class DurableJobCoordinator implements DurableJobRuntime {
         return row;
       });
       if (!intent) continue;
+      let receipt: { provider: string; messageId?: string };
       try {
-        const receipt = await this.options.dispatcher.publish(intent.job_id, {
+        receipt = await this.options.dispatcher.publish(intent.job_id, {
           dispatchId: intent.id,
           delaySeconds: Math.max(
             0,
             Math.ceil((Number(intent.available_at) - this.clock()) / 1000),
           ),
         });
-        await this.store.exec(
-          "UPDATE studio_job_outbox SET status='dispatched',receipt_json=?,dispatch_owner=NULL,dispatch_expires=NULL,error=NULL,updated_at=? WHERE id=? AND dispatch_owner=?",
-          json({
-            provider: receipt.provider,
-            ...(receipt.messageId ? { messageId: receipt.messageId } : {}),
-          }),
-          this.stamp(),
-          intent.id,
-          owner,
-        );
-      } catch {
-        failed = true;
-        await this.store.exec(
+      } catch (error) {
+        // Domain authorization failures remain fatal. Provider SDK HTTP401/403
+        // errors use their own classes and remain retryable dispatch failures.
+        if (
+          error instanceof HttpError &&
+          [401, 403, 404].includes(error.statusCode)
+        )
+          throw error;
+        // SQL failures here must propagate unchanged: no retry state was confirmed.
+        const restored = await this.store.exec(
           "UPDATE studio_job_outbox SET status='pending',dispatch_owner=NULL,dispatch_expires=NULL,retry_at=?,error=?,updated_at=? WHERE id=? AND dispatch_owner=?",
           this.clock() +
             Math.min(60000, 1000 * 2 ** Math.min(6, Number(intent.attempts))),
@@ -849,10 +857,43 @@ export class DurableJobCoordinator implements DurableJobRuntime {
           intent.id,
           owner,
         );
+        if (
+          restored.changes ||
+          (await this.store.one(
+            "SELECT id FROM studio_job_outbox WHERE id=? AND status='pending' AND error IS NOT NULL",
+            intent.id,
+          ))
+        )
+          failed++;
+        continue;
       }
+      // A provider acknowledgment followed by a failed SQL receipt write is a
+      // storage failure, not a provider outage. Keep the lease/intent for replay.
+      await this.store.exec(
+        "UPDATE studio_job_outbox SET status='dispatched',receipt_json=?,dispatch_owner=NULL,dispatch_expires=NULL,error=NULL,updated_at=? WHERE id=? AND dispatch_owner=?",
+        json({
+          provider: receipt.provider,
+          ...(receipt.messageId ? { messageId: receipt.messageId } : {}),
+        }),
+        this.stamp(),
+        intent.id,
+        owner,
+      );
     }
-    if (failed)
-      throw new Error('One or more durable dispatch intents remain pending');
+    if (failed) throw new OutboxDispatchPendingError(failed);
+  }
+  async dispatchReadiness(): Promise<DispatchReadiness> {
+    await this.ready;
+    const pending = await this.store.one(
+      "SELECT o.id FROM studio_job_outbox o JOIN studio_durable_jobs j ON j.id=o.job_id WHERE o.status IN ('pending','dispatching') AND o.error IS NOT NULL AND j.status IN ('queued','running') LIMIT 1",
+    );
+    return pending
+      ? {
+          state: 'degraded',
+          reason: 'outbox-dispatch-pending',
+          verified: false,
+        }
+      : { state: 'configured', verified: false };
   }
   async recover(options: { dispatchLimit?: number } = {}) {
     await this.ready;
