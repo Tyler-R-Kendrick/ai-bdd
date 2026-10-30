@@ -1,3 +1,6 @@
+import { documentNodeSource } from '../../shared/document-digest.ts';
+import { readPlanSource } from '../plan-source.ts';
+import type { PlanSource } from '../../shared/plan-source.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -13,6 +16,7 @@ import {
 } from '../../shared/domain.ts';
 import {
   commitSchema,
+  passagePlacementSchema as placementSchema,
   investigationCapabilities,
   investigationResultSchema,
   selectionSchema,
@@ -76,11 +80,18 @@ const semanticSourceHash = (content: any): string => {
         : value;
   return hash(JSON.stringify(withoutCards(content)));
 };
-const sourceMatches = (row: any, content: any) => {
+const sourcePolicy = 'studio-investigation-accepted-plan-v1';
+const sourceMatches = (row: any, source: PlanSource) => {
   const snapshot = JSON.parse(row.snapshot_json);
+  if (snapshot.sealed.sourcePolicy !== sourcePolicy) {
+    // Legacy content-only snapshots cannot establish which accepted choices the
+    // requester reviewed. Preserve history, but never run them against an ADR.
+    if (snapshot.sealed.sourcePolicy || source.acceptedDecisions?.length)
+      return false;
+  }
   return snapshot.sealed.meaningfulSourceHash
-    ? snapshot.sealed.meaningfulSourceHash === semanticSourceHash(content)
-    : snapshot.sealed.sourceHash === hash(JSON.stringify(content));
+    ? snapshot.sealed.meaningfulSourceHash === semanticSourceHash(source)
+    : snapshot.sealed.sourceHash === hash(JSON.stringify(source));
 };
 const normalizeRepository = (value: string) =>
   value
@@ -327,6 +338,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       sourceCommit?: string;
       requiredReason?: string;
       mode?: 'manual' | 'spike';
+      placement?: z.infer<typeof placementSchema>;
     },
   ) {
     await this.ready;
@@ -337,6 +349,22 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         throw new HttpError(
           409,
           'The document changed; review its current revision before proposing an investigation',
+        );
+      const placement = input.placement
+        ? placementSchema.parse(input.placement)
+        : undefined;
+      const blocks = artifact.content.doc?.content ?? [];
+      if (
+        placement &&
+        (!blocks[placement.blockIndex] ||
+          (hash(JSON.stringify(blocks[placement.blockIndex])) !==
+            placement.digest &&
+            hash(documentNodeSource(blocks[placement.blockIndex])) !==
+              placement.digest))
+      )
+        throw new HttpError(
+          409,
+          'The selected passage changed; select its current revision before proposing an investigation',
         );
       const project = await this.store.one(
         'SELECT repository FROM projects WHERE id=?',
@@ -360,18 +388,21 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       const commit = commitSchema.parse(
         input.sourceCommit ?? checkout?.source_commit,
       );
+      const planSource = await readPlanSource(this.store, artifact);
       const brief = z.string().trim().min(1).max(8000).parse(input.brief),
         id = randomUUID(),
         time = timestamp(),
-        source = JSON.stringify(artifact.content);
+        source = JSON.stringify(planSource);
       const sealed = {
         brief,
         artifactId,
         artifactVersion: artifact.version,
+        sourcePolicy,
         sourceHash: hash(source),
-        meaningfulSourceHash: semanticSourceHash(artifact.content),
+        meaningfulSourceHash: semanticSourceHash(planSource),
         sourceCommit: commit,
         repository,
+        ...(placement ? { placement } : {}),
       };
       if (
         (
@@ -396,13 +427,21 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         repository,
         brief,
         hash(JSON.stringify(sealed)),
-        JSON.stringify({ sealed, content: artifact.content }),
+        JSON.stringify({ sealed, content: planSource }),
         'proposed',
         input.requiredReason ?? null,
         input.mode ?? 'manual',
         time,
         time,
       );
+      const tail = blocks.at(-1);
+      // Keep the existing editable tail and its stable ID when adding an
+      // unanchored card. Explicit passage placement stays exactly as reviewed.
+      const insertionIndex = placement
+        ? placement.blockIndex + 1
+        : tail?.type === 'paragraph' && !tail.content?.length
+          ? blocks.length - 1
+          : blocks.length;
       const withCard = await this.store.updateArtifact(
         user,
         artifact.id,
@@ -412,26 +451,28 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           doc: {
             ...artifact.content.doc,
             content: [
-              ...(artifact.content.doc.content ?? []),
+              ...blocks.slice(0, insertionIndex),
               {
                 type: 'investigationCard',
                 attrs: { data: { investigationId: id } },
               },
+              ...blocks.slice(insertionIndex),
             ],
           },
         },
       );
+      const finalSource = await readPlanSource(this.store, withCard);
       const finalSealed = {
         ...sealed,
         artifactVersion: withCard.version,
-        sourceHash: hash(JSON.stringify(withCard.content)),
-        meaningfulSourceHash: semanticSourceHash(withCard.content),
+        sourceHash: hash(JSON.stringify(finalSource)),
+        meaningfulSourceHash: semanticSourceHash(finalSource),
       };
       await this.store.exec(
         'UPDATE studio_investigations SET artifact_version=?,brief_hash=?,snapshot_json=? WHERE id=?',
         withCard.version,
         hash(JSON.stringify(finalSealed)),
-        JSON.stringify({ sealed: finalSealed, content: withCard.content }),
+        JSON.stringify({ sealed: finalSealed, content: finalSource }),
         id,
       );
       this.emit({ project_id: artifact.projectId, artifact_id: artifactId });
@@ -455,7 +496,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           'Only the investigation owner can run work on their machine',
         );
       const artifact = await this.unlocked(row.artifact_id, user.id);
-      if (!sourceMatches(row, artifact.content))
+      if (!sourceMatches(row, await readPlanSource(this.store, artifact)))
         throw new HttpError(
           409,
           'The sealed document revision changed; propose a new investigation',
@@ -573,8 +614,11 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       );
       if (!row) return { work: null };
       try {
-        const artifact = await this.unlocked(row.artifact_id, machine.user_id);
-        if (!sourceMatches(row, artifact.content))
+        const artifact = await this.unlocked(
+          row.artifact_id,
+          machine.user_id,
+        );
+        if (!sourceMatches(row, await readPlanSource(this.store, artifact)))
           throw new HttpError(
             409,
             'The sealed document revision changed before claim',
@@ -659,7 +703,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         'This investigation exceeded its 20 minute execution limit',
       );
     const artifact = await this.unlocked(row.artifact_id, machine.user_id);
-    if (!sourceMatches(row, artifact.content))
+    if (!sourceMatches(row, await readPlanSource(this.store, artifact)))
       throw new HttpError(
         409,
         'The sealed document revision changed during execution',
@@ -738,7 +782,10 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           attrs: { level: 3 },
           content: [{ type: 'text', text: evidence.name }],
         },
-        { type: 'codeBlock', content: [{ type: 'text', text: evidence.text }] },
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: evidence.text }],
+        },
       );
     for (const image of result.images)
       content.push(
@@ -1129,7 +1176,10 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
     return this.atomic(initial.project_id, async () => {
       const row = await this.ownRow(user, id, true);
       if (row.status !== 'completed')
-        throw new HttpError(409, 'Only completed findings can be incorporated');
+        throw new HttpError(
+          409,
+          'Only completed findings can be incorporated',
+        );
       if (
         !(await this.store.one(
           'SELECT id FROM studio_investigation_decisions WHERE investigation_id=?',
@@ -1286,6 +1336,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         version: input.version,
         brief: checked.brief + '\n\nPrototype rationale: ' + checked.reason,
         mode: 'spike',
+        placement: { blockIndex: input.blockIndex, digest: input.digest },
       });
       await this.store.exec(
         'INSERT INTO studio_investigation_passages(artifact_id,user_id,digest,investigation_id) VALUES(?,?,?,?)',
@@ -1347,6 +1398,7 @@ export async function registerInvestigationRoutes(
             version: z.number().int().positive(),
             brief: z.string().trim().min(1).max(8000),
             sourceCommit: commitSchema.optional(),
+            placement: placementSchema.optional(),
             requiredReason: z.string().max(2000).optional(),
           })
           .strict()
@@ -1420,7 +1472,8 @@ export async function registerInvestigationRoutes(
       service.consent(
         await browser(request),
         id.parse(request.params.machineId),
-        z.object({ enabled: z.boolean() }).strict().parse(request.body).enabled,
+        z.object({ enabled: z.boolean() }).strict().parse(request.body)
+          .enabled,
       ),
   );
   app.post<{ Params: { machineId: string } }>(

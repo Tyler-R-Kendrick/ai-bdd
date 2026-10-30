@@ -34,6 +34,25 @@ export async function githubFixture() {
       mode: '100644',
     },
   ];
+  const searchQueries: {
+      query: string;
+      limit: string | null;
+      accept: string;
+    }[] = [],
+    historyQueries: URLSearchParams[] = [];
+  let searchResult: any = {
+      total_count: 1,
+      incomplete_results: false,
+      items: [
+        {
+          path: 'src/api.ts',
+          sha: 'b'.repeat(40),
+          repository: { full_name: 'acme/private' },
+          text_matches: [{ fragment: 'export const queue = durable();' }],
+        },
+      ],
+    },
+    searchGate: (() => Promise<void>) | undefined;
   let origin = '',
     lastAccess = '',
     refreshCount = 0,
@@ -157,6 +176,18 @@ export async function githubFixture() {
         if (userGate) await userGate();
         return json(res, 200, grant.user);
       }
+      if (url.pathname === '/search/code') {
+        searchQueries.push({
+          query: url.searchParams.get('q') ?? '',
+          limit: url.searchParams.get('per_page'),
+          accept: String(req.headers.accept ?? ''),
+        });
+        const permission = permissions.get(grant.user.id + ':acme/private');
+        if (!permission?.pull) return json(res, 404, { error: 'not_found' });
+        const captured = structuredClone(searchResult);
+        await searchGate?.();
+        return json(res, 200, captured);
+      }
       const match = /^\/repos\/([^/]+\/[^/]+)(.*)$/.exec(url.pathname);
       if (match) {
         const key = match[1]!.toLowerCase(),
@@ -200,13 +231,21 @@ export async function githubFixture() {
             encoding: 'base64',
             content: Buffer.from('Protected fixture source').toString('base64'),
           });
-        if (match[2] === '/commits')
+        if (match[2] === '/commits') {
+          historyQueries.push(new URLSearchParams(url.search));
           return json(res, 200, [
             {
               sha: 'a'.repeat(40),
-              commit: { message: 'Protected fixture commit' },
+              commit: {
+                message: 'Protected fixture commit',
+                author: {
+                  name: 'Fixture author',
+                  date: '2026-10-30T00:00:00Z',
+                },
+              },
             },
           ]);
+        }
       }
       return json(res, 404, { error: 'not_found' });
     } catch {
@@ -221,6 +260,14 @@ export async function githubFixture() {
     clientId,
     clientSecret,
     requests,
+    searchQueries,
+    historyQueries,
+    setSearch(value: unknown) {
+      searchResult = value;
+    },
+    gateSearch(value?: () => Promise<void>) {
+      searchGate = value;
+    },
     selected,
     setTree(entries: typeof treeEntries) {
       treeEntries = entries;

@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import Fastify from 'fastify';
-import { Store } from '../server/store.ts';
+import { Store, HttpError } from '../server/store.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { MachineService } from '../server/integrations/machines.ts';
 import { registerInvestigationRoutes } from '../server/integrations/investigations.ts';
@@ -185,6 +185,152 @@ async function fixture() {
   };
 }
 describe(`account-wide machine delegation (${url ? 'PostgreSQL' : 'SQLite'})`, () => {
+  it('blocks ordinary device claims while a scoped Planner reservation owns that account machine', async () => {
+    const c = await fixture();
+    const assignment = (await c.assignments()).assignments[0]!;
+    const project = c.projects.find(
+      (project) => project.id === assignment.projectId,
+    )!;
+    c.accounts.dependencies.plannerWorkActive = async (id) =>
+      id === c.credentials.id;
+    expect(await c.accounts.otherWorkActive(assignment.credentials.id)).toBe(
+      true,
+    );
+    expect(
+      await c.accounts.otherWorkActive(assignment.credentials.id, {
+        excludePlanner: true,
+      }),
+    ).toBe(false);
+    await c.machines.queue(c.user, project.mainArtifactId, {
+      version: 1,
+      kind: 'investigation',
+      brief: 'Explicit ordinary work must wait for the active Planner',
+    });
+    const principal = await c.store.one(
+      'SELECT * FROM studio_machines WHERE id=?',
+      assignment.credentials.id,
+    );
+    expect(await c.machines.claim(principal)).toEqual({ work: null });
+  });
+  it('discovers only currently authorized attached repositories and fences revoked or unavailable authority before cloning', async () => {
+    const c = await fixture();
+    const viewerProject = (await c.store.createProject(
+      c.user,
+      'View only',
+      '',
+      'https://github.com/example/view-only',
+    ))!;
+    await c.store.exec(
+      "UPDATE memberships SET role='viewer' WHERE project_id=? AND user_id=?",
+      viewerProject.id,
+      c.user.id,
+    );
+    await c.store.createProject(
+      c.other,
+      'Another owner',
+      '',
+      'https://github.com/example/other-private',
+    );
+    const get = () =>
+      c.app.inject({
+        method: 'GET',
+        url: `/api/account-machines/${c.credentials.id}/repositories`,
+        headers: { authorization: 'Bearer ' + c.credentials.token },
+      });
+    expect((await get()).json()).toEqual({
+      repositories: c.checkouts.map((checkout) => checkout.repository).sort(),
+    });
+    c.store.repositoryAuthorizer = async (id) => {
+      if (id === c.projects[1]!.id) throw new HttpError(403, 'Fixture denied');
+    };
+    expect((await get()).json()).toEqual({
+      repositories: [c.checkouts[0]!.repository],
+    });
+    c.store.repositoryAuthorizer = async () => {
+      throw new HttpError(503, 'Fixture unavailable');
+    };
+    expect((await get()).statusCode).toBe(503);
+    c.store.repositoryAuthorizer = undefined;
+    const assignments = await c.assignments();
+    const removed = assignments.assignments[0]!;
+    await c.machines.revoke(c.user, removed.projectId, removed.credentials.id);
+    expect((await get()).json()).toEqual({
+      repositories: c.checkouts
+        .map((checkout) => checkout.repository)
+        .filter((repo) => repo !== removed.repository),
+    });
+    await c.accounts.revoke(c.user, c.credentials.id);
+    expect((await get()).statusCode).toBe(401);
+  });
+  it('clones attached authorized repositories privately without changing dirty operator checkouts and reuses their exact origins', async () => {
+    const c = await fixture();
+    const config = join(c.dir, 'clone-git-config');
+    for (const checkout of c.checkouts)
+      await execute('git', [
+        'config',
+        '--file',
+        config,
+        'url.file://' + checkout.path + '.insteadOf',
+        checkout.repository + '.git',
+      ]);
+    const env = {
+      ...process.env,
+      STUDIO_MACHINE_CLONE_ATTACHED: 'true',
+      STUDIO_MACHINE_MANAGED_ROOT: join(c.dir, 'managed'),
+      GIT_CONFIG_GLOBAL: config,
+    };
+    const result = await accountAssignments(c.credentials, env, []);
+    expect(result.assignments).toHaveLength(2);
+    for (const assignment of result.assignments) {
+      const original = c.checkouts.find(
+        (checkout) => checkout.repository === assignment.repository,
+      )!;
+      expect(assignment.cwd).toContain(join(c.dir, 'managed', 'clone-'));
+      expect(assignment.cwd).not.toBe(original.path);
+      expect((await inspectCheckout(assignment.cwd)).sourceCommit).toBe(
+        original.sourceCommit,
+      );
+      expect(
+        await readFile(join(original.path, 'source.txt'), 'utf8'),
+      ).toContain('operator dirty edit');
+    }
+    expect(
+      (await accountAssignments(c.credentials, env, [])).assignments.map(
+        (entry) => entry.cwd,
+      ),
+    ).toEqual(result.assignments.map((entry) => entry.cwd));
+    expect((await stat(env.STUDIO_MACHINE_MANAGED_ROOT)).mode & 0o077).toBe(0);
+    const first = result.assignments[0]!;
+    await execute('git', [
+      '-C',
+      first.cwd,
+      'remote',
+      'set-url',
+      'origin',
+      'https://github.com/example/wrong-origin',
+    ]);
+    await expect(accountAssignments(c.credentials, env, [])).rejects.toThrow(
+      'origin changed',
+    );
+  });
+  it('rechecks account revocation after an awaited repository authorization', async () => {
+    const c = await fixture();
+    let revoked = false;
+    c.store.repositoryAuthorizer = async (
+      _project,
+      _user,
+      _action,
+      inTransaction,
+    ) => {
+      if (!revoked && !inTransaction) {
+        revoked = true;
+        await c.accounts.revoke(c.user, c.credentials.id);
+      }
+    };
+    await expect(c.accounts.repositories(c.principal)).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
   it('registers multiple explicit repositories and derives independent project-scoped credentials without exposing the account token', async () => {
     const c = await fixture(),
       result = await c.assignments();

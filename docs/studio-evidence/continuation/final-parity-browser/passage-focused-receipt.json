@@ -1,0 +1,102 @@
+{
+  "productSource": "cdac9aa4fa52b4c51a3d5039be0c11dea4aa09bb",
+  "fixtureCommit": "3dd9d49",
+  "recordedAt": "2026-10-30T04:56:41.372788+00:00",
+  "scope": "Focused passage screenshot refresh and browser-caret fixture synchronization, not a new full-suite run",
+  "productionBuild": {
+    "command": "pnpm --filter @ai-bdd/studio build",
+    "exitCode": 0
+  },
+  "acceptance": {
+    "command": "CI=1 PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright STUDIO_CHROMIUM_PATH=/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell STUDIO_MP4_CHROMIUM_PATH=/workspace/.cache/studio-mp4-chrome/156.0.8078.80/chrome-linux64/chrome STUDIO_CAPTURE_DIR=<isolated-worktree>/work/review/passage-spacing-cdac9aa pnpm --filter @ai-bdd/studio exec playwright test tests/final-product.spec.ts --grep 'passage slash commands place exact research and investigation cards inline and keep run controls owner scoped' --workers=1 --retries=0 --repeat-each=3",
+    "testFile": "final-product.spec.ts",
+    "distinctCases": 1,
+    "freshExecutions": 3,
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "retries": 0,
+    "workers": 1,
+    "durationAsReported": "33.0s",
+    "exitCode": 0
+  },
+  "browser": "Playwright Chromium Headless Shell 156.0.8078.4, matching the pinned hosted UI browser",
+  "fixtureOnlyChanges": "Read provider/editor readiness and native/ProseMirror selection agreement around real click, Home and slash. No selection setters, forced editor commands, sleeps, timeout increases, or retry increases.",
+  "diagnostics": {
+    "gestures": 9,
+    "targetParagraphs": [
+      "Closing requirement",
+      "Selected requirement",
+      "Following requirement"
+    ],
+    "immediateAfterHomeNativePmMismatches": [
+      {
+        "name": "slash-caret-Following requirement",
+        "pmOffset": 21,
+        "nativeOffset": 0
+      },
+      {
+        "name": "slash-caret-Following requirement",
+        "pmOffset": 21,
+        "nativeOffset": 0
+      },
+      {
+        "name": "slash-caret-Closing requirement",
+        "pmOffset": 19,
+        "nativeOffset": 0
+      },
+      {
+        "name": "slash-caret-Following requirement",
+        "pmOffset": 21,
+        "nativeOffset": 0
+      }
+    ],
+    "allSettledBeforeSlash": true,
+    "providerSyncedAndEditorInitializedBeforeInput": true
+  },
+  "unchangedEarlierFullSuiteArtifacts": {
+    "receipt.json": "6fc65aef4292db275863edfee680d45cd0a6a3b9fdc74bb356dfbd59b0e21ab3",
+    "browser.log": "eb71160c2fc32edba1e0186a1d515179cba0b8c6297715ac1ca8cab8e1943f43",
+    "test-list.txt": "0c5b2152e1906f66aba89537575086eea6f18d8e7f59ec8e351d7f364966b840"
+  },
+  "earlierFullSuiteSource": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+  "originalCaptureRevision": "a757acfb22858f3d120b538f68496511a32691af",
+  "screenshots": [
+    {
+      "file": "passage-research-brief-desktop.png",
+      "sha256": "05953d21f6a746eb004e131bc42628faf9107d689a80cafce94ba2d1b68e71e8",
+      "bytes": 113694,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-research-highlight-desktop.png",
+      "sha256": "7f0f4dd7e8bf0d0ed630cfa93bf2849ef237930ab048792042472bf9469f68f9",
+      "bytes": 100902,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-investigation-ready-desktop.png",
+      "sha256": "dcc49bc647f28420b23cd315b94ce90d928df21c79c8c82feb4751a2a74d0be0",
+      "bytes": 114211,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-investigation-queued-desktop.png",
+      "sha256": "4118c4b9c99f53da37c1253941bb672d673ce3fe52297e8d71a65e3412685570",
+      "bytes": 113538,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "passage-investigation-viewer-mobile.png",
+      "sha256": "db32b558ed4a2dcea6d241b02672cfaa1650b46188e66a85c9ee21c6241c525b",
+      "bytes": 45537,
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "productSourceChangesDuringValidation": false
+}

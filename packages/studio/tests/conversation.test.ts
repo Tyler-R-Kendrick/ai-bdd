@@ -476,13 +476,19 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(published.statusCode, published.body).toBe(200);
         const doc = await w.store.artifact(w.artifact.id, w.user.id);
         expect(doc.version).toBe(2);
-        expect(doc.content.doc.content.at(-1).attrs.id).toBe(
-          published.json().id,
-        );
+        const questionnaire = doc.content.doc.content.at(-2),
+          trailing = doc.content.doc.content.at(-1);
+        expect(questionnaire.type).toBe('questionnaireBlock');
+        expect(questionnaire.attrs.id).toBe(published.json().id);
+        expect(trailing).toMatchObject({
+          type: 'paragraph',
+          attrs: { id: expect.any(String) },
+        });
+        expect(trailing.content ?? []).toEqual([]);
         expect(
-          doc.content.doc.content
-            .at(-1)
-            .attrs.data.questions[0].options.map((o: any) => o.label),
+          questionnaire.attrs.data.questions[0].options.map(
+            (o: any) => o.label,
+          ),
         ).toEqual(w.offers[0]!.options);
         expect((await w.view()).cards[0]!.updatedBy).toBe(w.user.name);
         expect(

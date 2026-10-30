@@ -1,0 +1,190 @@
+{
+  "config": {
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/node_modules/@playwright/test/cli.js",
+      "test",
+      "--config",
+      "tests/artifact-lifecycle.playwright.config.ts"
+    ],
+    "configFile": "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/tests/artifact-lifecycle.playwright.config.ts",
+    "rootDir": "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "artifact-lifecycle-ui.spec.ts"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "",
+        "testDir": "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/tests",
+        "snapshotDir": "/workspace/ai-bdd/work/continuation/artifact-lifecycle-browser/packages/studio/tests",
+        "testIgnore": [],
+        "testMatch": "artifact-lifecycle-ui.spec.ts",
+        "timeout": 60000,
+        "use": {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "headless": true,
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "launchOptions": {
+            "args": [
+              "--no-sandbox"
+            ]
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": ""
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "work/archive-browser-report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "artifact-lifecycle-ui.spec.ts",
+      "file": "artifact-lifecycle-ui.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "owner archives restores and explicitly deletes an eligible draft while retaining acceptance evidence",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1944,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-30T04:03:56.893Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8f4877915cf2be95c864-58d32f55b44938ec4256",
+          "file": "artifact-lifecycle-ui.spec.ts",
+          "line": 174,
+          "column": 1
+        },
+        {
+          "title": "mobile viewer browses retained archives in read mode and cannot restore or delete",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 938,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-30T04:03:59.135Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8f4877915cf2be95c864-65a75c5510be5f985f70",
+          "file": "artifact-lifecycle-ui.spec.ts",
+          "line": 286,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-30T04:03:55.747Z",
+    "duration": 4394.595,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

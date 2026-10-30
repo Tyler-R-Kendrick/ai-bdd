@@ -3,6 +3,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store, hash } from '../server/store.ts';
+import { readPlanSource } from '../server/plan-source.ts';
+import { paragraph } from '../shared/domain.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { MachineService } from '../server/integrations/machines.ts';
 import {
@@ -103,7 +105,11 @@ async function fixture() {
       'Investigator',
       null,
     ),
-    other = await store.createUser('other@example.test', 'Other writer', null),
+    other = await store.createUser(
+      'other@example.test',
+      'Other writer',
+      null,
+    ),
     project = (await store.createProject(
       user,
       'Investigation fixture',
@@ -192,7 +198,315 @@ async function running(c: Awaited<ReturnType<typeof fixture>>) {
     },
   };
 }
+async function acceptSemanticChoice(
+  c: Awaited<ReturnType<typeof fixture>>,
+  decision: string,
+) {
+  return c.store.tx(async () => {
+    await c.store.db.lock('project:' + c.project.id);
+    const artifact = await c.store.artifact(
+      c.artifact.id,
+      c.user.id,
+      'write',
+    );
+    const before = await readPlanSource(c.store, artifact);
+    const adr = (await c.store.decisions(artifact.id))[0]!;
+    await c.store.exec(
+      "UPDATE decisions SET status='accepted',decision=?,author=?,version=version+1,updated_at=? WHERE id=?",
+      decision,
+      c.user.name,
+      new Date().toISOString(),
+      adr.id,
+    );
+    // Same durable semantic-source transition used by accepted ADR and questionnaire APIs.
+    const current = await c.store.touchArtifactSource(c.user, artifact.id);
+    const source = await readPlanSource(c.store, current);
+    expect(current.content).toEqual(artifact.content);
+    expect(current.version).toBe(artifact.version + 1);
+    expect(source).not.toEqual(before);
+    return { current, source };
+  });
+}
 describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => {
+  it('keeps pending evidence valid across another investigation card and unaccepted ADR draft edits', async () => {
+    const c = await fixture();
+    const first = await c.proposal();
+    const current = await c.store.artifact(c.artifact.id, c.user.id);
+    await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'A separate bounded investigation',
+    });
+    const withSecondCard = await c.store.artifact(c.artifact.id, c.user.id);
+    expect(current.content.doc.content.at(-1).type).toBe('paragraph');
+    expect(current.content.doc.content.at(-1).content ?? []).toEqual([]);
+    expect(withSecondCard.content.doc.content.at(-1)).toEqual(
+      current.content.doc.content.at(-1),
+    );
+    const withoutCards = (content: any) =>
+      content.doc.content.filter(
+        (node: any) => node.type !== 'investigationCard',
+      );
+    expect(withoutCards(withSecondCard.content)).toEqual(
+      withoutCards(current.content),
+    );
+    await c.store.tx(async () => {
+      await c.store.db.lock('project:' + c.project.id);
+      await c.store.exec(
+        "UPDATE decisions SET decision='Unaccepted alternative under discussion',version=version+1 WHERE artifact_id=? AND status='proposed'",
+        c.artifact.id,
+      );
+    });
+    await c.service.run(c.user, first.id);
+    expect((await c.service.claim(c.machine)).work?.id).toBe(first.id);
+  });
+  it('retains already published historical receipt replay after accepted ADR source changes', async () => {
+    const c = await fixture();
+    const { record, input } = await running(c);
+    const receipt = await c.service.complete(c.machine, record.id, input);
+    await acceptSemanticChoice(
+      c,
+      'A later human decision does not rewrite historical evidence.',
+    );
+    expect(await c.service.complete(c.machine, record.id, input)).toEqual(
+      receipt,
+    );
+    expect((await c.service.get(c.user, record.id)).status).toBe('completed');
+  });
+  it('seals accepted human ADR source into the actual claimed investigation context', async () => {
+    const c = await fixture();
+    const { current, source } = await acceptSemanticChoice(
+      c,
+      'Benchmark the accepted blue implementation, not the superseded red approach.',
+    );
+    const record = await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'Measure feasibility of the accepted implementation',
+    });
+    await c.service.run(c.user, record.id);
+    const claimed = await c.service.claim(c.machine);
+    expect(claimed.work?.id).toBe(record.id);
+    expect(claimed.work?.sealed.content.acceptedDecisions).toEqual(
+      source.acceptedDecisions,
+    );
+    expect(claimed.work?.briefHash).toBe(
+      hash(JSON.stringify(claimed.work!.sealed.sealed)),
+    );
+    expect(claimed.work?.sealed.sealed.sourceHash).toBe(
+      hash(JSON.stringify(claimed.work!.sealed.content)),
+    );
+  });
+  it.each([false, true])(
+    'runs legacy content-only snapshots only without current accepted choices (accepted=%s)',
+    async (accepted) => {
+      const c = await fixture();
+      if (accepted)
+        await acceptSemanticChoice(
+          c,
+          'This accepted choice was absent from the old snapshot.',
+        );
+      const current = await c.store.artifact(c.artifact.id, c.user.id);
+      const record = await c.service.propose(c.user, current.id, {
+        version: current.version,
+        brief: 'A previously persisted content-only investigation',
+      });
+      const row = await c.store.one(
+        'SELECT snapshot_json FROM studio_investigations WHERE id=?',
+        record.id,
+      );
+      const legacy = JSON.parse(row.snapshot_json);
+      delete legacy.sealed.sourcePolicy;
+      delete legacy.content.acceptedDecisions;
+      legacy.sealed.sourceHash = hash(JSON.stringify(legacy.content));
+      const meaningful = structuredClone(legacy.content);
+      meaningful.doc.content = meaningful.doc.content.filter(
+        (node: any) => node.type !== 'investigationCard',
+      );
+      legacy.sealed.meaningfulSourceHash = hash(JSON.stringify(meaningful));
+      await c.store.exec(
+        'UPDATE studio_investigations SET snapshot_json=?,brief_hash=? WHERE id=?',
+        JSON.stringify(legacy),
+        hash(JSON.stringify(legacy.sealed)),
+        record.id,
+      );
+      if (accepted) {
+        await expect(c.service.run(c.user, record.id)).rejects.toMatchObject({
+          statusCode: 409,
+        });
+      } else {
+        await c.service.run(c.user, record.id);
+        expect((await c.service.claim(c.machine)).work?.id).toBe(record.id);
+      }
+    },
+  );
+  it.each(['run', 'claim', 'complete'] as const)(
+    'fences accepted-ADR-only source edits at investigation %s',
+    async (stage) => {
+      const c = await fixture();
+      const record = await c.proposal();
+      if (stage !== 'run') await c.service.run(c.user, record.id);
+      const claimed =
+        stage === 'complete' ? await c.service.claim(c.machine) : undefined;
+      if (claimed) expect(claimed.work?.id).toBe(record.id);
+      await acceptSemanticChoice(
+        c,
+        'The human now selected another integration boundary; previous assumptions are stale.',
+      );
+      if (stage === 'run') {
+        await expect(c.service.run(c.user, record.id)).rejects.toMatchObject({
+          statusCode: 409,
+        });
+      } else if (stage === 'claim') {
+        expect((await c.service.claim(c.machine)).work).toBeNull();
+        expect((await c.service.get(c.user, record.id)).status).toBe(
+          'interrupted',
+        );
+      } else {
+        await expect(
+          c.service.complete(c.machine, record.id, {
+            leaseToken: claimed!.leaseToken!,
+            generation: claimed!.work!.generation,
+            result,
+          }),
+        ).rejects.toMatchObject({ statusCode: 409 });
+        expect(
+          (await c.service.get(c.user, record.id)).childArtifactId,
+        ).toBeNull();
+      }
+    },
+  );
+  it('inserts an investigation immediately after its exact selected passage and seals that placement', async () => {
+    const c = await fixture();
+    const current = await c.store.updateArtifact(
+      c.user,
+      c.artifact.id,
+      c.artifact.version,
+      {
+        ...c.artifact.content,
+        doc: {
+          type: 'doc',
+          content: [
+            paragraph('First passage'),
+            paragraph('Target passage'),
+            paragraph('Last passage'),
+          ],
+        },
+      },
+    );
+    const placement = {
+      blockIndex: 1,
+      digest: hash(JSON.stringify(current.content.doc.content[1])),
+    };
+    const record = await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'Measure this exact selected requirement',
+      placement,
+    });
+    const saved = await c.store.artifact(current.id, c.user.id);
+    expect(saved.content.doc.content.map((node: any) => node.type)).toEqual([
+      'paragraph',
+      'paragraph',
+      'investigationCard',
+      'paragraph',
+    ]);
+    expect(saved.content.doc.content[2].attrs.data.investigationId).toBe(
+      record.id,
+    );
+    expect(saved.content.doc.content[3]).toEqual(
+      current.content.doc.content[2],
+    );
+    const row = await c.store.one(
+      'SELECT snapshot_json FROM studio_investigations WHERE id=?',
+      record.id,
+    );
+    expect(JSON.parse(row.snapshot_json).sealed.placement).toEqual(placement);
+    await c.service.run(c.user, record.id);
+    expect((await c.service.get(c.user, record.id)).status).toBe('queued');
+  });
+  it('keeps explicit placement after an empty selected paragraph instead of moving before it', async () => {
+    const c = await fixture();
+    const current = await c.store.updateArtifact(
+      c.user,
+      c.artifact.id,
+      c.artifact.version,
+      {
+        doc: {
+          type: 'doc',
+          content: [paragraph('Requirement'), paragraph('')],
+        },
+      },
+    );
+    const selected = current.content.doc.content[1];
+    const record = await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'Investigate the explicitly selected empty passage',
+      placement: { blockIndex: 1, digest: hash(JSON.stringify(selected)) },
+    });
+    const saved = await c.store.artifact(current.id, c.user.id);
+    expect(saved.content.doc.content.map((node: any) => node.type)).toEqual([
+      'paragraph',
+      'paragraph',
+      'investigationCard',
+      'paragraph',
+    ]);
+    expect(saved.content.doc.content[1]).toEqual(selected);
+    expect(saved.content.doc.content[2].attrs.data.investigationId).toBe(
+      record.id,
+    );
+    expect(saved.content.doc.content[3].attrs.id).not.toBe(selected.attrs.id);
+    await c.service.run(c.user, record.id);
+    expect((await c.service.claim(c.machine)).work?.id).toBe(record.id);
+  });
+  it('rejects stale, moved, missing and forged passage placement without appending a replacement card', async () => {
+    const c = await fixture();
+    const current = await c.store.updateArtifact(
+      c.user,
+      c.artifact.id,
+      c.artifact.version,
+      {
+        ...c.artifact.content,
+        doc: {
+          type: 'doc',
+          content: [
+            paragraph('Target passage'),
+            paragraph('Different passage'),
+          ],
+        },
+      },
+    );
+    const digest = hash(JSON.stringify(current.content.doc.content[0]));
+    for (const placement of [
+      { blockIndex: 0, digest: '0'.repeat(64) },
+      { blockIndex: 1, digest },
+      { blockIndex: 9, digest },
+    ]) {
+      await expect(
+        c.service.propose(c.user, current.id, {
+          version: current.version,
+          brief: 'Investigate stale selection',
+          placement,
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    }
+    await expect(
+      c.service.propose(c.user, current.id, {
+        version: current.version - 1,
+        brief: 'Old revision',
+        placement: { blockIndex: 0, digest },
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect((await c.store.artifact(current.id, c.user.id)).content).toEqual(
+      current.content,
+    );
+    expect(
+      (
+        await c.store.one(
+          'SELECT count(*) AS n FROM studio_investigations WHERE artifact_id=?',
+          current.id,
+        )
+      ).n,
+    ).toBe(0);
+  });
+
   it('validates typed datasets and native view semantics without accepting executable UI or undeclared values', () => {
     expect(investigationResultSchema.parse(result).views).toHaveLength(3);
     expect(
@@ -308,7 +622,9 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
       'Required',
     );
     await c.service.acknowledgeFindings(c.other, record.id);
-    await expect(c.service.assertReady(c.artifact.id)).resolves.toBeUndefined();
+    await expect(
+      c.service.assertReady(c.artifact.id),
+    ).resolves.toBeUndefined();
   });
   it('preserves a live lease across service restart, then fences cancelled and expired attempts without replay', async () => {
     const c = await fixture(),
@@ -337,7 +653,9 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
       record.id,
     );
     await restarted.expire();
-    expect((await restarted.get(c.user, record.id)).status).toBe('interrupted');
+    expect((await restarted.get(c.user, record.id)).status).toBe(
+      'interrupted',
+    );
     expect((await restarted.claim(c.machine)).work).toBeNull();
   });
   it('checks implementation locks, source revisions, and fresh machine revocation at publication', async () => {
@@ -407,7 +725,9 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
       JSON.stringify({ ...result, report: 'Tampered evidence' }),
       record.id,
     );
-    await expect(c.service.get(c.user, record.id)).rejects.toThrow('integrity');
+    await expect(c.service.get(c.user, record.id)).rejects.toThrow(
+      'integrity',
+    );
   });
   it('starts bounded automatic prototypes only for explicit machine-owner consent and deduplicates a passage', async () => {
     const c = await fixture(),

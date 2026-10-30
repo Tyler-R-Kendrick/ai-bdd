@@ -43,3 +43,10 @@
     display: none !important;
   }
 }
+
+.document-investigation-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 8px 8px 0;
+}

@@ -1,6 +1,22 @@
+import {
+  AgentChangeDecorations,
+  AgentChangeMarkers,
+} from './document/AgentChanges.tsx';
+import {
+  DocumentCommands,
+  passagePlacement,
+  type PassageCommandTarget,
+} from './document/Commands.tsx';
+import type { InvestigationPlacement } from '../../shared/investigations.ts';
 import { isInvestigationBlockKind } from '../../shared/investigation-blocks.ts';
 import { InvestigationBlockView } from './document/Investigations.tsx';
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from 'react';
 import {
   EditorContent,
   useEditor,
@@ -89,7 +105,8 @@ function TestView({ node, updateAttributes }: NodeViewProps) {
                   : 'neutral'
           }
         >
-          {passed ? <CheckCircle2 size={11} /> : <Clock3 size={11} />} {status}
+          {passed ? <CheckCircle2 size={11} /> : <Clock3 size={11} />}{' '}
+          {status}
         </Badge>
       </div>
       <p>
@@ -104,7 +121,8 @@ function TestView({ node, updateAttributes }: NodeViewProps) {
           value={node.attrs.scenarioId ?? ''}
           disabled={readOnly || scenarios.length === 0}
           onChange={(event) => {
-            if (!readOnly) updateAttributes({ scenarioId: event.target.value });
+            if (!readOnly)
+              updateAttributes({ scenarioId: event.target.value });
           }}
         >
           <option value="">Not linked</option>
@@ -172,7 +190,10 @@ export function DocumentEditor(props: {
   runs: any[];
   onTests: () => void;
   onDecisions?: () => void;
-  onInvestigations?: (id: string) => void;
+  onInvestigations?: (
+    id?: string,
+    placement?: InvestigationPlacement,
+  ) => void;
   onComment: (id: string, quote: string) => void;
   onError: (message: string) => void;
 }) {
@@ -242,7 +263,9 @@ export function DocumentEditor(props: {
     <div className="document-editor">
       <div className="document-presence">
         <span
-          className={'sync-label ' + (status === 'connected' ? '' : 'offline')}
+          className={
+            'sync-label ' + (status === 'connected' ? '' : 'offline')
+          }
         >
           <span className="status-dot" />
           {status === 'connected'
@@ -293,12 +316,19 @@ function EditorSession({
   runs: any[];
   onTests: () => void;
   onDecisions?: () => void;
-  onInvestigations?: (id: string) => void;
+  onInvestigations?: (
+    id?: string,
+    placement?: InvestigationPlacement,
+  ) => void;
   onComment: (id: string, quote: string) => void;
   onError: (m: string) => void;
   doc: Y.Doc;
   provider: WebsocketProvider;
 }) {
+  const currentArtifact = useRef(artifact);
+  currentArtifact.current = artifact;
+  const [commandTarget, setCommandTarget] =
+    useState<PassageCommandTarget | null>(null);
   const editor = useEditor(
     {
       extensions: [
@@ -325,6 +355,7 @@ function EditorSession({
         LiveDiagram,
         LiveTabs,
         DocumentSearch,
+        AgentChangeDecorations,
         LiveResearch,
         ...LiveDocumentBlocks,
         ...LiveInvestigations,
@@ -337,6 +368,30 @@ function EditorSession({
       editable: !readOnly,
       immediatelyRender: false,
       editorProps: {
+        handleKeyDown(view, event) {
+          if (
+            readOnly ||
+            event.key !== '/' ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey ||
+            !view.state.selection.empty ||
+            view.state.selection.$from.parentOffset !== 0
+          )
+            return false;
+          const blockIndex = view.state.selection.$from.index(0),
+            block = view.state.doc.maybeChild(blockIndex);
+          if (!block) return false;
+          const coords = view.coordsAtPos(view.state.selection.from);
+          setCommandTarget({
+            version: currentArtifact.current.version,
+            blockIndex,
+            block: block.toJSON(),
+            left: coords.left,
+            top: coords.bottom,
+          });
+          return true;
+        },
         attributes: {
           class: 'document-page',
           'aria-label': 'Document editor',
@@ -381,6 +436,16 @@ function EditorSession({
           onInvestigations={onInvestigations}
           onComment={onComment}
         >
+          <AgentChangeMarkers />
+          <DocumentCommands
+            target={commandTarget}
+            editor={editor}
+            artifact={artifact}
+            readOnly={readOnly}
+            onClose={() => setCommandTarget(null)}
+            onInvestigations={onInvestigations}
+            onError={onError}
+          />
           <div
             className="document-toolbar"
             role="toolbar"
@@ -465,7 +530,9 @@ function EditorSession({
             <IconButton
               label="Numbered list"
               disabled={readOnly}
-              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+              onClick={() =>
+                editor?.chain().focus().toggleOrderedList().run()
+              }
             >
               <ListOrdered />
             </IconButton>
@@ -583,13 +650,35 @@ function EditorSession({
               <FlaskConical />
             </IconButton>
             <IconButton
+              label="Investigate this passage"
+              disabled={readOnly || !editor || !onInvestigations}
+              onClick={() => {
+                if (!editor || !onInvestigations) return;
+                const blockIndex = editor.state.selection.$from.index(0);
+                const block = editor.state.doc.maybeChild(blockIndex);
+                if (!block) return;
+                void passagePlacement({
+                  version: artifact.version,
+                  blockIndex,
+                  block: block.toJSON(),
+                })
+                  .then((placement) => onInvestigations(undefined, placement))
+                  .catch((e) => onError((e as Error).message));
+              }}
+            >
+              <FlaskConical />
+            </IconButton>
+            <IconButton
               label="Comment on selection"
               disabled={readOnly}
               onClick={() => {
                 if (!editor) return;
                 const { from, to, $from } = editor.state.selection;
                 const anchor = String($from.parent.attrs.id ?? 'document');
-                onComment(anchor, editor.state.doc.textBetween(from, to, ' '));
+                onComment(
+                  anchor,
+                  editor.state.doc.textBetween(from, to, ' '),
+                );
               }}
             >
               <MessageSquarePlus />

@@ -13,6 +13,98 @@ import { startAcmeApp } from '@ai-bdd/testing';
 import { createApp } from '../server/app.ts';
 import { hash } from '../server/store.ts';
 import { client, project, setup, testSettings } from './helpers.ts';
+/** Failure metadata only: never print frozen input, results, configuration or provider errors. */
+async function runnerDeadlineDiagnostic(
+  studio: Awaited<ReturnType<typeof createApp>>,
+  runId: string,
+  artifactId: string,
+) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const safeStatus = (value: unknown) =>
+    [
+      'queued',
+      'running',
+      'passed',
+      'failed',
+      'completed',
+      'cancelled',
+      'error',
+    ].includes(String(value))
+      ? value
+      : 'unknown';
+  const integer = (value: unknown) =>
+    Number.isSafeInteger(Number(value)) ? Number(value) : null;
+  try {
+    return await Promise.race([
+      (async () => {
+        const run = await studio.store.one(
+          'SELECT status FROM runs WHERE id=? AND artifact_id=?',
+          runId,
+          artifactId,
+        );
+        const job = await studio.store.one(
+          "SELECT j.id,j.status,j.attempts,j.fence,j.available_at,j.lease_expires,j.progress_json FROM studio_runner_jobs r JOIN studio_durable_jobs j ON j.id=r.job_id WHERE r.run_id=? AND j.artifact_id=? AND j.kind='runner.run'",
+          runId,
+          artifactId,
+        );
+        if (!job) return { runStatus: safeStatus(run?.status), job: null };
+        let progress: any;
+        try {
+          progress = JSON.parse(job.progress_json ?? '{}');
+        } catch {
+          progress = {};
+        }
+        const receipts = await studio.store.all(
+          'SELECT name,phase FROM studio_job_receipts WHERE job_id=? ORDER BY created_at,name LIMIT 11',
+          job.id,
+        );
+        return {
+          runStatus: safeStatus(run?.status),
+          job: {
+            status: safeStatus(job.status),
+            attempts: integer(job.attempts),
+            fence: integer(job.fence),
+            availableAt: integer(job.available_at),
+            leaseExpires:
+              job.lease_expires === null ? null : integer(job.lease_expires),
+            progressPercent:
+              Number.isFinite(progress.percent) &&
+              progress.percent >= 0 &&
+              progress.percent <= 100
+                ? progress.percent
+                : null,
+            progressStage:
+              progress.label === 'Executing reviewed acceptance plans'
+                ? 'Executing reviewed acceptance plans'
+                : null,
+          },
+          receipts: receipts.slice(0, 10).map((r) => ({
+            name: [
+              'execute-and-capture',
+              'publish-run-and-evidence',
+            ].includes(r.name)
+              ? r.name
+              : 'unrecognized',
+            phase: ['step', 'publication'].includes(r.phase)
+              ? r.phase
+              : 'invalid',
+          })),
+          moreReceipts: receipts.length > 10,
+        };
+      })(),
+      new Promise((resolve) => {
+        timer = setTimeout(
+          () => resolve({ unavailable: 'diagnostic-read-deadline' }),
+          500,
+        );
+      }),
+    ]);
+  } catch {
+    return { unavailable: 'diagnostic-read-failed' };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 async function waitForRun(
   studio: Awaited<ReturnType<typeof createApp>>,
   runId: string,
@@ -24,7 +116,14 @@ async function waitForRun(
     if (run && !['queued', 'running'].includes(run.status)) return run;
     await new Promise((resolve) => setTimeout(resolve, 30));
   }
-  throw new Error('Durable runner did not finish before test deadline');
+  throw new Error(
+    'Durable runner did not finish before test deadline: ' +
+      runId +
+      ' ' +
+      JSON.stringify(
+        await runnerDeadlineDiagnostic(studio, runId, artifactId),
+      ),
+  );
 }
 describe('Trusted acceptance runner adapter', () => {
   it('compiles grounded requirements, reviews, drives real Chromium, serves evidence and replays without model calls', async () => {
@@ -70,7 +169,10 @@ describe('Trusted acceptance runner adapter', () => {
       const { cookie } = await setup(studio.app),
         request = client(studio.app, cookie),
         p = await project(request, 'Real browser runner');
-      const markdown = await readFile(join(corpus, 'docs/billing.md'), 'utf8');
+      const markdown = await readFile(
+        join(corpus, 'docs/billing.md'),
+        'utf8',
+      );
       const patched = await request(
         'PATCH',
         `/api/artifacts/${p.mainArtifactId}`,
@@ -153,7 +255,9 @@ describe('Trusted acceptance runner adapter', () => {
       expect(file.statusCode, file.body).toBe(200);
       expect(hash(file.rawPayload)).toBe(evidence.sha256);
       if (process.env.STUDIO_REVIEW_CAPTURE_DIR) {
-        await mkdir(process.env.STUDIO_REVIEW_CAPTURE_DIR, { recursive: true });
+        await mkdir(process.env.STUDIO_REVIEW_CAPTURE_DIR, {
+          recursive: true,
+        });
         await writeFile(
           join(
             process.env.STUDIO_REVIEW_CAPTURE_DIR,

@@ -1,3 +1,5 @@
+import { recordAgentDocumentChanges } from '../document-agent-changes.ts';
+import type { DocumentAgentChangeSource } from '../../shared/document-agent-changes.ts';
 import * as Y from 'yjs';
 import { prosemirrorToYXmlFragment } from 'y-prosemirror';
 import type { RichNode, User } from '../../shared/domain.ts';
@@ -12,6 +14,7 @@ export async function mutateDocument(
   user: User,
   id: string,
   mutate: (doc: RichNode) => boolean,
+  source?: DocumentAgentChangeSource,
 ) {
   return store.tx(async () => {
     const original = await store.artifact(id, user.id, 'write');
@@ -32,7 +35,17 @@ export async function mutateDocument(
           id,
           Y.encodeStateAsUpdate(doc),
           content,
-          () => collab.publishDocumentMetadata(artifact.projectId, id),
+          async () => {
+            if (source)
+              await recordAgentDocumentChanges(
+                store,
+                user,
+                id,
+                artifact.content.doc,
+                source,
+              );
+            await collab.publishDocumentMetadata(artifact.projectId, id);
+          },
           artifact.version,
         )
       ).artifact;

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,80}$/);
 const label = z.string().trim().min(1).max(180);
@@ -20,7 +20,7 @@ export const datasetSchema = z
           .object({
             id,
             label,
-            type: z.enum(["string", "number", "boolean", "date"]),
+            type: z.enum(['string', 'number', 'boolean', 'date']),
             unit: z.string().max(40).optional(),
           })
           .strict(),
@@ -37,7 +37,7 @@ export const nativeViewSchema = z
     id,
     title: label,
     datasetId: id,
-    type: z.enum(["table", "bar", "line", "metric"]),
+    type: z.enum(['table', 'bar', 'line', 'metric']),
     columns: z.array(id).min(1).max(24),
     x: id.optional(),
     y: id.optional(),
@@ -66,46 +66,47 @@ export const investigationResultSchema = z
   .strict()
   .superRefine((data, context) => {
     const issue = (message: string) =>
-      context.addIssue({ code: "custom", message });
+      context.addIssue({ code: 'custom', message });
     if (JSON.stringify(data).length > 1_500_000)
-      issue("The investigation result exceeds its 1.5 MB limit");
+      issue('The investigation result exceeds its 1.5 MB limit');
     if (new Set(data.datasets.map((d) => d.id)).size !== data.datasets.length)
-      issue("Dataset IDs must be unique");
+      issue('Dataset IDs must be unique');
     if (new Set(data.views.map((v) => v.id)).size !== data.views.length)
-      issue("View IDs must be unique");
+      issue('View IDs must be unique');
     for (const dataset of data.datasets) {
       const columns = new Map(dataset.columns.map((c) => [c.id, c]));
       if (columns.size !== dataset.columns.length)
-        issue("Column IDs must be unique");
+        issue('Column IDs must be unique');
       if (
-        new Set(dataset.rows.map((row) => row.id)).size !== dataset.rows.length
+        new Set(dataset.rows.map((row) => row.id)).size !==
+        dataset.rows.length
       )
-        issue("Row IDs must be unique");
+        issue('Row IDs must be unique');
       for (const row of dataset.rows) {
         if (
           Object.keys(row.values).length !== columns.size ||
           Object.keys(row.values).some((key) => !columns.has(key))
         )
-          issue("Rows must contain exactly the declared columns");
+          issue('Rows must contain exactly the declared columns');
         for (const column of dataset.columns) {
           const value = row.values[column.id];
           if (value === null) continue;
-          if (column.type === "date") {
+          if (column.type === 'date') {
             if (
-              typeof value !== "string" ||
+              typeof value !== 'string' ||
               !/^\d{4}-\d{2}-\d{2}(?:T.*Z)?$/.test(value) ||
               !Number.isFinite(Date.parse(value))
             )
-              issue("Date cells must be ISO dates");
+              issue('Date cells must be ISO dates');
           } else if (typeof value !== column.type)
-            issue("Cell type does not match its declared column");
+            issue('Cell type does not match its declared column');
         }
       }
     }
     for (const view of data.views) {
       const dataset = data.datasets.find((d) => d.id === view.datasetId);
       if (!dataset) {
-        issue("A view must reference an existing dataset");
+        issue('A view must reference an existing dataset');
         continue;
       }
       const columns = new Map(dataset.columns.map((c) => [c.id, c]));
@@ -113,23 +114,23 @@ export const investigationResultSchema = z
         new Set(view.columns).size !== view.columns.length ||
         view.columns.some((c) => !columns.has(c))
       )
-        issue("View columns must be unique declared columns");
+        issue('View columns must be unique declared columns');
       if (
-        view.type !== "table" &&
-        (!view.y || columns.get(view.y)?.type !== "number")
+        view.type !== 'table' &&
+        (!view.y || columns.get(view.y)?.type !== 'number')
       )
-        issue("Charts and metrics require a numeric y column");
+        issue('Charts and metrics require a numeric y column');
       if (
-        (view.type === "bar" || view.type === "line") &&
+        (view.type === 'bar' || view.type === 'line') &&
         (!view.x || !columns.has(view.x))
       )
-        issue("Charts require an x column");
+        issue('Charts require an x column');
       if (
-        view.type === "line" &&
+        view.type === 'line' &&
         view.x &&
-        !["number", "date"].includes(columns.get(view.x)?.type ?? "")
+        !['number', 'date'].includes(columns.get(view.x)?.type ?? '')
       )
-        issue("Line charts require a numeric or date x column");
+        issue('Line charts require a numeric or date x column');
     }
   });
 export const selectionSchema = z
@@ -140,7 +141,7 @@ export const selectionSchema = z
         z
           .object({
             columnId: id,
-            operator: z.enum(["eq", "contains", "gte", "lte"]),
+            operator: z.enum(['eq', 'contains', 'gte', 'lte']),
             value: cellSchema,
           })
           .strict(),
@@ -159,57 +160,62 @@ export function validateSelection(dataset: Dataset, selection: Selection) {
     new Set(selection.rowIds).size !== selection.rowIds.length ||
     selection.rowIds.some((id) => !dataset.rows.some((row) => row.id === id))
   )
-    throw new Error("Selection names an unknown or duplicate row");
+    throw new Error('Selection names an unknown or duplicate row');
   for (const filter of selection.filters) {
     const column = dataset.columns.find((c) => c.id === filter.columnId);
-    if (!column) throw new Error("Filter names an unknown column");
+    if (!column) throw new Error('Filter names an unknown column');
     if (
-      filter.operator === "contains" &&
-      (column.type !== "string" || typeof filter.value !== "string")
+      filter.operator === 'contains' &&
+      (column.type !== 'string' || typeof filter.value !== 'string')
     )
-      throw new Error("Contains filters require text");
+      throw new Error('Contains filters require text');
     if (
-      ["gte", "lte"].includes(filter.operator) &&
+      ['gte', 'lte'].includes(filter.operator) &&
       !(
-        (column.type === "number" && typeof filter.value === "number") ||
-        (column.type === "date" &&
-          typeof filter.value === "string" &&
+        (column.type === 'number' && typeof filter.value === 'number') ||
+        (column.type === 'date' &&
+          typeof filter.value === 'string' &&
           Number.isFinite(Date.parse(filter.value)))
       )
     )
-      throw new Error("Range filters require a compatible number or ISO date");
+      throw new Error(
+        'Range filters require a compatible number or ISO date',
+      );
     if (
-      filter.operator === "eq" &&
+      filter.operator === 'eq' &&
       filter.value !== null &&
-      typeof filter.value !== (column.type === "date" ? "string" : column.type)
+      typeof filter.value !==
+        (column.type === 'date' ? 'string' : column.type)
     )
-      throw new Error("Equality filter does not match its column type");
+      throw new Error('Equality filter does not match its column type');
   }
 }
 export function filteredRows(dataset: Dataset, selection: Selection) {
   return dataset.rows.filter((row) =>
     selection.filters.every((filter) => {
       const value = row.values[filter.columnId];
-      if (filter.operator === "eq") return value === filter.value;
-      if (filter.operator === "contains")
+      if (filter.operator === 'eq') return value === filter.value;
+      if (filter.operator === 'contains')
         return (
-          typeof value === "string" &&
+          typeof value === 'string' &&
           value.toLowerCase().includes(String(filter.value).toLowerCase())
         );
       if (value === null) return false;
       const column = dataset.columns.find((c) => c.id === filter.columnId)!;
       const a =
-          column.type === "date" ? Date.parse(String(value)) : Number(value),
+          column.type === 'date' ? Date.parse(String(value)) : Number(value),
         b =
-          column.type === "date"
+          column.type === 'date'
             ? Date.parse(String(filter.value))
             : Number(filter.value);
-      return filter.operator === "gte" ? a >= b : a <= b;
+      return filter.operator === 'gte' ? a >= b : a <= b;
     }),
   );
 }
 export const investigationBlockSchemas = {
-  investigationCard: z.object({ investigationId: z.string().uuid() }).strict(),
+  investigationCard: z
+    .object({ investigationId: z.string().uuid() })
+    .strict(),
   investigationView: z
     .object({ investigationId: z.string().uuid(), viewId: id })
     .strict(),
@@ -226,18 +232,18 @@ export const investigationCapabilities = {
     resultCharacters: 1500000,
   },
   outputSchema: z.toJSONSchema(investigationResultSchema, {
-    unrepresentable: "any",
+    unrepresentable: 'any',
   }),
 };
 export type InvestigationStatus =
-  | "proposed"
-  | "queued"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled"
-  | "interrupted"
-  | "withdrawn";
+  | 'proposed'
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted'
+  | 'withdrawn';
 export type Investigation = {
   id: string;
   artifactId: string;
@@ -255,7 +261,7 @@ export type Investigation = {
   resultHash: string | null;
   error: string | null;
   requiredReason: string | null;
-  mode: "manual" | "spike";
+  mode: 'manual' | 'spike';
   createdAt: string;
   updatedAt: string;
   selections: Record<string, SelectionRevision>;
@@ -275,3 +281,17 @@ export type InvestigationDecision = {
   createdAt: string;
   sha256: string;
 };
+
+/** Exact top-level passage selected when proposing an inline investigation. */
+export type InvestigationPlacement = {
+  version: number;
+  blockIndex: number;
+  digest: string;
+};
+
+export const passagePlacementSchema = z
+  .object({
+    blockIndex: z.number().int().min(0).max(10000),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();

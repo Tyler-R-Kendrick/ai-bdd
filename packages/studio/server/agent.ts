@@ -1,3 +1,5 @@
+import { documentNodeSource } from '../shared/document-digest.ts';
+import { passagePlacementSchema } from '../shared/investigations.ts';
 import { createGateway, generateText, Output, stepCountIs, tool } from 'ai';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -33,6 +35,7 @@ import type { AgentProfile } from '../shared/agent-profile.ts';
 import type { DecisionProfile } from '../shared/decision-profile.ts';
 import type { DecisionModels } from './decisions/models.ts';
 import { adviseParticipation } from './integrations/participation-adviser.ts';
+import { generateTitleGoal, type TitleGenerationInput } from './integrations/title-provider.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
 import {
   VisualRouting,
@@ -70,7 +73,11 @@ export type AgentOptions = {
   runtime: DurableJobRuntime;
   implementationLocked?: (id: string) => Promise<boolean>;
   onGeneratedArtifact?: (id: string) => Promise<void>;
-  observeMessage?: (user: User, id: string, threadId: string) => Promise<void>;
+  observeMessage?: (
+    user: User,
+    id: string,
+    threadId: string,
+  ) => Promise<void>;
   remote?: RemotePlanner;
   repositoryRead?: RepositoryReadPort;
   decisions?: DecisionModels;
@@ -321,7 +328,12 @@ export class Agent {
     }
   }
   /** Called only after a human message has committed. Title maintenance is independent of manual/automatic chat mode. */
-  async observeMessage(user: User, id: string, threadId: string, body: string) {
+  async observeMessage(
+    user: User,
+    id: string,
+    threadId: string,
+    body: string,
+  ) {
     await this.options.observeMessage?.(user, id, threadId);
     const policy = await this.policy(user, id),
       addressed = /(?:^|\s)@(studio|chopin)\b/i.test(body);
@@ -339,7 +351,8 @@ export class Agent {
       recent
         .filter(
           (m) =>
-            m.role === 'user' && Date.now() - Date.parse(m.createdAt) < 300000,
+            m.role === 'user' &&
+            Date.now() - Date.parse(m.createdAt) < 300000,
         )
         .map((m) => m.authorId),
     ).size;
@@ -367,8 +380,13 @@ export class Agent {
     threadId: string,
     intent: Intent,
     brief?: string,
+    options: {
+      artifactVersion?: number;
+      placement?: z.infer<typeof passagePlacementSchema>;
+      idempotencyKey?: string;
+    } = {},
   ) {
-    return this.start(user, id, threadId, intent, brief ?? '', {});
+    return this.start(user, id, threadId, intent, brief ?? '', options);
   }
   async startResearch(input: {
     user: User;
@@ -393,7 +411,10 @@ export class Agent {
   private async references(user: User, projectId: string, text: string) {
     const ids = [
       ...new Set(
-        Array.from(text.matchAll(/#artifact:([0-9a-f-]{36})/gi), (m) => m[1]!),
+        Array.from(
+          text.matchAll(/#artifact:([0-9a-f-]{36})/gi),
+          (m) => m[1]!,
+        ),
       ),
     ].slice(0, 8);
     return (
@@ -428,6 +449,7 @@ export class Agent {
     options: {
       idempotencyKey?: string;
       artifactVersion?: number;
+      placement?: z.infer<typeof passagePlacementSchema>;
       automatic?: boolean;
       addressed?: boolean;
       latestId?: string;
@@ -442,7 +464,8 @@ export class Agent {
       );
     const submittedBrief = brief.trim(),
       key =
-        'agent:' + hash([user.id, id, options.idempotencyKey ?? randomUUID()]);
+        'agent:' +
+        hash([user.id, id, options.idempotencyKey ?? randomUUID()]);
     const requestHash = hash({
       userId: user.id,
       id,
@@ -450,6 +473,7 @@ export class Agent {
       intent,
       brief: submittedBrief,
       artifactVersion: options.artifactVersion ?? null,
+      placement: options.placement ?? null,
       automatic: !!options.automatic,
       latestId: options.latestId ?? null,
     });
@@ -477,6 +501,22 @@ export class Agent {
           409,
           'The artifact changed before this exact research brief was approved',
         );
+      const placement = options.placement
+        ? passagePlacementSchema.parse(options.placement)
+        : undefined;
+      if (placement) {
+        if (intent !== 'research' || options.artifactVersion === undefined)
+          throw new HttpError(
+            400,
+            'Passage placement requires an exact-version research request',
+          );
+        const block = artifact.content.doc?.content?.[placement.blockIndex];
+        if (!block || (hash(block) !== placement.digest && createHash('sha256').update(documentNodeSource(block)).digest('hex') !== placement.digest))
+          throw new HttpError(
+            409,
+            'The selected passage changed; select its current revision before starting research',
+          );
+      }
       if ((await this.policy(user, id)).paused)
         throw new HttpError(
           409,
@@ -593,7 +633,11 @@ export class Agent {
             0,
             18000,
           ),
-          references: await this.references(user, artifact.projectId, messages),
+          references: await this.references(
+            user,
+            artifact.projectId,
+            messages,
+          ),
           artifact: {
             id,
             title: artifact.title,
@@ -649,6 +693,7 @@ export class Agent {
             error: '',
           },
           true,
+          placement,
         );
       return job;
     });
@@ -664,44 +709,60 @@ export class Agent {
     requestId: string,
     values: Record<string, string>,
     insert = false,
+    placement?: z.infer<typeof passagePlacementSchema>,
   ) {
-    return mutateDocument(this.store, this.collab, user, id, (doc) => {
-      let found = false;
-      const visit = (node: RichNode) => {
-        if (
-          node.type === 'researchBlock' &&
-          node.attrs?.requestId === requestId
-        ) {
-          node.attrs = { ...node.attrs, ...values };
-          found = true;
+    return mutateDocument(
+      this.store,
+      this.collab,
+      user,
+      id,
+      (doc) => {
+        let found = false;
+        const visit = (node: RichNode) => {
+          if (
+            node.type === 'researchBlock' &&
+            node.attrs?.requestId === requestId
+          ) {
+            node.attrs = { ...node.attrs, ...values };
+            found = true;
+          }
+          node.content?.forEach(visit);
+        };
+        visit(doc);
+        if (!found && insert) {
+          doc.content ??= [];
+          doc.content.splice(
+            placement ? placement.blockIndex + 1 : doc.content.length,
+            0,
+            {
+              type: 'researchBlock',
+              attrs: {
+                requestId,
+                brief: '',
+                status: 'running',
+                artifactId: '',
+                error: '',
+                ...values,
+              },
+            },
+          );
+          return true;
         }
-        node.content?.forEach(visit);
-      };
-      visit(doc);
-      if (!found && insert) {
-        doc.content ??= [];
-        doc.content.push({
-          type: 'researchBlock',
-          attrs: {
-            requestId,
-            brief: '',
-            status: 'running',
-            artifactId: '',
-            error: '',
-            ...values,
-          },
-        });
-        return true;
-      }
-      return found;
-    });
+        return found;
+      },
+      'Agent research update',
+    );
   }
   private async guard(ctx: DurableJobContext, snapshot: Snapshot) {
     await ctx.assertCurrent({ requireCurrentVersion: false });
     const policy = await this.policy(snapshot.user, ctx.job.artifactId);
-    if (policy.paused) throw new HttpError(409, 'The artifact agent is paused');
+    if (policy.paused)
+      throw new HttpError(409, 'The artifact agent is paused');
     if (await this.options.implementationLocked?.(ctx.job.artifactId))
-      throw new HttpError(409, 'An active implementation locks this artifact');
+      throw new HttpError(
+        409,
+        'An active implementation locks this artifact',
+      );
     const owner = await this.store.one(
       'SELECT * FROM studio_planner_owners WHERE artifact_id=?',
       ctx.job.artifactId,
@@ -779,6 +840,10 @@ export class Agent {
       .trim()
       .replace(/^['"]|['"]$/g, '')
       .slice(0, 100);
+  }
+  async generateTitleAndGoal(input: TitleGenerationInput) {
+    const profile=input.profile ?? await this.profiles.selected(input.artifact.id);
+    return generateTitleGoal(this.model(profile,input.idempotencyKey),input);
   }
   async generateImplementationGraph(input: {
     artifact: Artifact;
@@ -896,6 +961,28 @@ export class Agent {
               'Read a bounded repository file at this frozen turn revision.',
             inputSchema: z.object({ path: z.string().max(500) }).strict(),
             execute: ({ path }) => reader.file(path),
+          }),
+          repository_search: tool({
+            description:
+              'Search a bounded literal phrase only in this repository’s GitHub indexed default branch. Snippets are hints; use repository_file at this turn’s pinned revision to verify exact source.',
+            inputSchema: z
+              .object({
+                query: z.string().trim().min(1).max(200),
+                limit: z.number().int().min(1).max(20).optional(),
+              })
+              .strict(),
+            execute: ({ query, limit }) => reader.search(query, limit),
+          }),
+          repository_history: tool({
+            description:
+              'Read up to 20 commits ending at this turn’s pinned repository revision, optionally restricted to one repository-relative file path.',
+            inputSchema: z
+              .object({
+                path: z.string().min(1).max(500).optional(),
+                limit: z.number().int().min(1).max(20).optional(),
+              })
+              .strict(),
+            execute: (input) => reader.history(input),
           }),
           repository_pull_request: tool({
             description:

@@ -1,3 +1,5 @@
+import { ArchivePanel } from './components/ArchivePanel.tsx';
+import type { InvestigationPlacement } from '../shared/investigations.ts';
 import RepositoryIdentity from './components/RepositoryIdentity.tsx';
 import { ArtifactTitle } from './components/ArtifactTitle.tsx';
 import { AccountMachinesPanel } from './components/AccountMachinesPanel.tsx';
@@ -138,16 +140,17 @@ export function App() {
     [rightOpen, setRightOpen] = useState(window.innerWidth >= 1280),
     [sideOpen, setSideOpen] = useState(false),
     [panel, setPanel] = useState('chat'),
-    [anchor, setAnchor] = useState<{ id: string; quote: string } | null>(
-      null,
-    ),
+    [anchor, setAnchor] = useState<{ id: string; quote: string } | null>(null),
     [settings, setSettings] = useState(false),
     [more, setMore] = useState(false),
+    [archiveOpen, setArchiveOpen] = useState(false),
     [busy, setBusy] = useState(false);
   const [investigationsOpen, setInvestigationsOpen] = useState(false);
+  const [investigationPlacement, setInvestigationPlacement] =
+    useState<InvestigationPlacement>();
   const project = projects.find((p) => p.id === selection.project),
     artifact = bundle?.artifact,
-    readOnly = project?.role === 'viewer';
+    readOnly = project?.role === 'viewer' || !!artifact?.archived;
   const currentSelection = useRef(selection);
   currentSelection.current = selection;
   const dirtyRef = useRef(dirty);
@@ -193,10 +196,7 @@ export function App() {
         if (event.shiftKey && document.activeElement === items[0]) {
           event.preventDefault();
           items.at(-1)?.focus();
-        } else if (
-          !event.shiftKey &&
-          document.activeElement === items.at(-1)
-        ) {
+        } else if (!event.shiftKey && document.activeElement === items.at(-1)) {
           event.preventDefault();
           items[0]?.focus();
         }
@@ -213,6 +213,16 @@ export function App() {
   const report = useCallback((message: string) => setError(message), []);
   const navigate = useCallback(
     (project: string, artifact = '', canvas = false) => {
+      const current = currentSelection.current;
+      if (
+        current.project === project &&
+        current.artifact === artifact &&
+        current.canvas === canvas
+      ) {
+        setSideOpen(false);
+        setAnchor(null);
+        return;
+      }
       if (
         dirty &&
         !window.confirm('You have unsaved changes. Leave this artifact?')
@@ -445,10 +455,7 @@ export function App() {
           <PanelsTopLeft size={22} />
           <strong>ai-bdd</strong>
           <span>Studio</span>
-          <IconButton
-            label="Search artifacts"
-            onClick={() => setCommand(true)}
-          >
+          <IconButton label="Search artifacts" onClick={() => setCommand(true)}>
             <Search size={16} />
           </IconButton>
         </div>
@@ -459,8 +466,7 @@ export function App() {
           <span>
             {project?.title ?? 'Your workspace'}
             <small>
-              {projects.length}{' '}
-              {projects.length === 1 ? 'project' : 'projects'}
+              {projects.length} {projects.length === 1 ? 'project' : 'projects'}
             </small>
           </span>
           <ChevronDown size={14} />
@@ -493,7 +499,7 @@ export function App() {
           <IconButton
             label="New artifact"
             onClick={() => setNewArtifact(true)}
-            disabled={!project || readOnly}
+            disabled={!project || project.role === 'viewer'}
           >
             <Plus size={15} />
           </IconButton>
@@ -526,6 +532,17 @@ export function App() {
             </p>
           )}
         </nav>
+        <button
+          className="nav-link"
+          disabled={!project}
+          onClick={() => {
+            setArchiveOpen(true);
+            setSideOpen(false);
+          }}
+        >
+          <Archive size={16} />
+          Archived artifacts
+        </button>
         <div className="sidebar-bottom">
           {project?.repository && (
             <a
@@ -625,9 +642,7 @@ export function App() {
               </>
             )}
             <IconButton
-              label={
-                rightOpen ? 'Hide artifact panel' : 'Show artifact panel'
-              }
+              label={rightOpen ? 'Hide artifact panel' : 'Show artifact panel'}
               onClick={() => setRightOpen((v) => !v)}
             >
               {rightOpen ? <PanelRightClose /> : <PanelRightOpen />}
@@ -687,7 +702,11 @@ export function App() {
                   <div className="artifact-kind">
                     <KindIcon size={14} />
                     {kindLabels[artifact.kind]}
-                    {readOnly && <Badge>View only</Badge>}
+                    {artifact.archived ? (
+                      <Badge>Archived · read only</Badge>
+                    ) : (
+                      readOnly && <Badge>View only</Badge>
+                    )}
                   </div>
                   <ArtifactTitle
                     key={artifact.id}
@@ -720,7 +739,10 @@ export function App() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setInvestigationsOpen(true)}
+                        onClick={() => {
+                          setInvestigationPlacement(undefined);
+                          setInvestigationsOpen(true);
+                        }}
                         aria-label="Investigations"
                       >
                         <FlaskConical size={15} />
@@ -770,6 +792,7 @@ export function App() {
                           Version history
                         </button>
                         {project.role === 'owner' &&
+                          !artifact.archived &&
                           artifact.id !== project.mainArtifactId && (
                             <button
                               onClick={() => {
@@ -777,6 +800,7 @@ export function App() {
                                 api(
                                   `/artifacts/${artifact.id}/archive`,
                                   'POST',
+                                  { version: artifact.version },
                                 )
                                   .then(() =>
                                     navigate(
@@ -817,7 +841,10 @@ export function App() {
                           setPanel('decisions');
                           setRightOpen(true);
                         }}
-                        onInvestigations={() => setInvestigationsOpen(true)}
+                        onInvestigations={(_id, placement) => {
+                          setInvestigationPlacement(placement);
+                          setInvestigationsOpen(true);
+                        }}
                         onTests={() => {
                           setPanel('tests');
                           setRightOpen(true);
@@ -840,8 +867,7 @@ export function App() {
                     ) : artifact.kind === 'image' ||
                       artifact.kind === 'brand' ? (
                       <VisualEditor key={artifact.id} {...mediaProps!} />
-                    ) : artifact.kind === 'scene' ||
-                      artifact.kind === 'cad' ? (
+                    ) : artifact.kind === 'scene' || artifact.kind === 'cad' ? (
                       <SceneEditor key={artifact.id} {...mediaProps!} />
                     ) : (
                       <GenerativeEditor key={artifact.id} {...mediaProps!} />
@@ -887,8 +913,8 @@ export function App() {
               <Network size={22} />
               <h2>Built together.</h2>
               <p>
-                Projects are compositions of artifacts. Open any artifact to
-                see its dedicated discussion, decisions, and evidence.
+                Projects are compositions of artifacts. Open any artifact to see
+                its dedicated discussion, decisions, and evidence.
               </p>
               <div className="project-summary">
                 <span>{artifacts.length} artifacts</span>
@@ -998,6 +1024,29 @@ export function App() {
           </div>
         </form>
       </Modal>
+      {project && (
+        <ArchivePanel
+          project={project}
+          open={archiveOpen}
+          onOpenChange={setArchiveOpen}
+          onOpenArtifact={(id) => navigate(project.id, id)}
+          onChanged={async () => {
+            if (artifact?.archived) {
+              try {
+                await api(`/artifacts/${artifact.id}/lifecycle`);
+              } catch (error) {
+                if (error instanceof ApiError && error.status === 404) {
+                  navigate(project.id, project.mainArtifactId);
+                  return;
+                }
+                throw error;
+              }
+            }
+            await refresh();
+          }}
+          onError={report}
+        />
+      )}
       {artifact && (
         <Modal
           open={investigationsOpen}
@@ -1009,6 +1058,7 @@ export function App() {
             key={artifact.id}
             artifactId={artifact.id}
             artifactVersion={artifact.version}
+            placement={investigationPlacement}
             currentUserId={user.id}
             canWrite={!readOnly}
             onOpenArtifact={(id) => {
@@ -1028,9 +1078,7 @@ export function App() {
         />
         <div className="command-results">
           {projects
-            .filter((p) =>
-              p.title.toLowerCase().includes(query.toLowerCase()),
-            )
+            .filter((p) => p.title.toLowerCase().includes(query.toLowerCase()))
             .map((p) => (
               <button
                 key={p.id}
@@ -1048,9 +1096,7 @@ export function App() {
               </button>
             ))}
           {artifacts
-            .filter((a) =>
-              a.title.toLowerCase().includes(query.toLowerCase()),
-            )
+            .filter((a) => a.title.toLowerCase().includes(query.toLowerCase()))
             .map((a) => {
               const Icon = kindIcons[a.kind];
               return (
@@ -1121,10 +1167,7 @@ export function App() {
               <Input name="title" defaultValue={project.title} required />
             </Field>
             <Field label="Description">
-              <Textarea
-                name="description"
-                defaultValue={project.description}
-              />
+              <Textarea name="description" defaultValue={project.description} />
             </Field>
             <Field label="Repository">
               <Input name="repository" defaultValue={project.repository} />
@@ -1147,8 +1190,8 @@ export function App() {
             </div>
           ))}
           <p className="small muted">
-            Providers and credentials are configured by the deployment
-            operator. Preview remains available without them.
+            Providers and credentials are configured by the deployment operator.
+            Preview remains available without them.
           </p>
           <Button
             disabled={!project}

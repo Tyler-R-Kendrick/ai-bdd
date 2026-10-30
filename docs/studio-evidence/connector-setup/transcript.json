@@ -1,0 +1,25 @@
+{
+  "source": "48f25d9b32f4ef988f0b8202c672e63956bb963d",
+  "recordedAt": "2026-10-30T03:10:40.501Z",
+  "scope": "Recorded stdout from actual local connector commands and ACP fixture tests; no host service installed or live provider account used",
+  "results": [
+    {
+      "command": "node studio-connector.mjs --help",
+      "stdout": "Studio connected-machine connector (Node 22+, Git, installed ACP agent)\n\n  node studio-connector.mjs connect --agent copilot --checkout /absolute/repository\n  node studio-connector.mjs connect --agent atomic --clone https://github.com/owner/repo\n  node studio-connector.mjs connect --clone-attached -- /absolute/acp-agent [args]\n  node studio-connector.mjs connect --agent copilot --clone-attached --install-service\n  node studio-connector.mjs service status\n  node studio-connector.mjs service uninstall\n\n--agent copilot|atomic     Installed Copilot (--acp --stdio) or Atomic ACP.\n--checkout PATH            Register an existing checkout; repeat for multiple repos.\n--clone HTTPS_URL          Explicitly permit a managed GitHub clone; repeat as needed.\n--clone-attached           Opt in to cloning currently authorized attached project repos.\n--managed-root PATH        Absolute private directory for managed clones.\n--install-service          Explicit user service: Linux systemd or macOS LaunchAgent.\n--once                     Poll once, then exit; cannot be installed as a service.\n-- COMMAND [ARGS]          Use another installed stdio ACP agent without a shell.\n\nSet STUDIO_API_URL and a one-time STUDIO_MACHINE_PAIR_CODE for initial pairing.\nCredentials, reports and clones stay private. Pairing codes/provider tokens are\nnever stored in service definitions. Services reuse the paired credential file.\nInstall and sign in to the agent yourself. T3 uses Studio's thread/MCP integration;\nit is not a stdio ACP preset. No agent download or service install happens by default.\n",
+      "stderr": "",
+      "exitCode": 0
+    },
+    {
+      "command": "node studio-connector.mjs service status",
+      "stdout": "{\"installed\":false,\"active\":false}\n",
+      "stderr": "",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm exec vitest run --config vitest.config.ts tests/connector-permissions.test.ts --reporter verbose",
+      "stdout": "\n RUN  v5.0.3 /workspace/ai-bdd/work/continuation/connector-parity/packages/studio\n\n ✓ tests/connector-permissions.test.ts > Session-scoped ACP terminal permissions > asks once/session explicitly, defaults to denial, sanitizes terminal text and never grants the external permanent option 4ms\n ✓ tests/connector-permissions.test.ts > Session-scoped ACP terminal permissions > denies non-TTY, unknown kinds, timeout and cancellation without remembering an unapproved kind 40ms\n ✓ tests/connector-permissions.test.ts > Session-scoped ACP terminal permissions > sends actual ACP selected/cancelled responses, streams updates and keeps question answers separate from permissions 29ms\n\n Test Files  1 passed (1)\n      Tests  3 passed (3)\n   Start at  03:10:40\n   Duration  346ms (transform 37%, import 36%, tests 26%, worker 1%)\n\n",
+      "stderr": "",
+      "exitCode": 0
+    }
+  ]
+}

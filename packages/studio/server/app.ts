@@ -1,3 +1,15 @@
+import { registerArtifactLifecycle } from './artifact-lifecycle.ts';
+import { registerAccountPlannerRoutes } from './integrations/account-planners.ts';
+import {
+  FindingsReviews,
+  registerFindingsReviewRoutes,
+} from './integrations/findings-review.ts';
+import { findingsExportRows } from './integrations/findings-export.ts';
+import {
+  recentAgentDocumentChanges,
+  recordAgentDocumentChanges,
+} from './document-agent-changes.ts';
+import { passagePlacementSchema } from '../shared/investigations.ts';
 import { rebuildExportRows } from './integrations/rebuild-export.ts';
 import { registerRebuildRoutes } from './integrations/rebuild-machines.ts';
 import { resolveExistingPullRequest } from './integrations/pull-request-head.ts';
@@ -195,26 +207,24 @@ export async function createApp(
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       });
     await agent.initialize();
-    const remotePlanner = settings.integrations?.remotePlanner
-      ? new RemotePlanner({
-          store,
-          settings,
-          authenticate: (req) => auth.user(req),
-          claim: (user, id) => agent.claimPlanner(user, id),
-          allowed: (user, id) => agent.canParticipate(user, id),
-        })
-      : undefined;
-    if (remotePlanner) {
-      startupCleanup.unshift(() => remotePlanner.close());
-      await remotePlanner.initialize();
+    const remotePlanner = new RemotePlanner({
+      store,
+      settings,
+      authenticate: (req) => auth.user(req),
+      claim: (user, id) => agent.claimPlanner(user, id),
+      allowed: (user, id) => agent.canParticipate(user, id),
+      cancelJob: (id, user) => runtime.cancel(id, user),
+    });
+    startupCleanup.unshift(() => remotePlanner.close());
+    await remotePlanner.initialize();
+    if (settings.integrations?.remotePlanner)
       agent.options.remote = remotePlanner;
-    }
     await runner.initialize();
     const titles = new ArtifactTitles({
       store,
       runtime,
       provider: agent.profiles.catalog().some((harness) => harness.configured)
-        ? (input) => agent.generateTitle(input)
+        ? (input) => agent.generateTitleAndGoal(input)
         : undefined,
       captureProfile: (user, id) => agent.captureProfile(user, id),
       available: async (user, id) => {
@@ -234,6 +244,14 @@ export async function createApp(
       allowed: (user, id) => agent.canParticipate(user, id),
       notify: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
       onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
+      onGoalSeed: (user, artifact, beforeDoc) =>
+        recordAgentDocumentChanges(
+          store,
+          user,
+          artifact.id,
+          beforeDoc,
+          'Agent goal seed',
+        ),
     });
     await titles.initialize();
     agent.options.onGeneratedArtifact = (id) => titles.markGenerated(id);
@@ -347,7 +365,8 @@ export async function createApp(
     });
     await designReviews.initialize();
     registerDesignReviewRoutes(app, auth, designReviews);
-    remotePlanner?.register(app);
+    if (settings.integrations?.remotePlanner) remotePlanner.register(app);
+    else remotePlanner.activity.register(app);
     const identity = await registerRepositoryIdentity(app, {
       store,
       auth,
@@ -498,6 +517,32 @@ export async function createApp(
         void collab.notify(projectId, id).catch(() => {});
       },
     });
+    const findings = new FindingsReviews({
+      store,
+      runtime,
+      collab,
+      models: decisions,
+      generation: {
+        captureProfile: async (user, id) => {
+          const profile = await agent.captureProfile(user, id);
+          agent.profiles.assertAvailable(profile);
+          return profile;
+        },
+        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+      },
+      allowed: (user, id) => agent.canParticipate(user, id),
+      remote: remotePlanner,
+      onAccepted: (user, id, beforeDoc) =>
+        recordAgentDocumentChanges(
+          store,
+          user,
+          id,
+          beforeDoc,
+          'Applied investigation findings',
+        ),
+    });
+    await findings.initialize();
+    registerFindingsReviewRoutes(app, auth, findings);
     integrations.machines.hooks.otherWorkActive = (id) =>
       investigations!.activeOnMachine(id);
     store.contentReferenceValidator = (input) =>
@@ -533,6 +578,30 @@ export async function createApp(
         if (store.db.inTransaction()) store.db.afterCommit(notify);
         else void notify().catch(() => {});
       },
+    });
+    const accountPlanners = await registerAccountPlannerRoutes(app, {
+      store,
+      auth,
+      accounts,
+      profiles: agent.profiles,
+      enabled: !!settings.integrations?.remotePlanner,
+      hasLiveActivity: (id, userId, scope) =>
+        remotePlanner.hasLiveActivity(id, userId, scope),
+      notify: (projectId, id) => {
+        void collab.notify(projectId, id).catch(() => {});
+      },
+    });
+    remotePlanner.options.authenticateScoped = (request) =>
+      accountPlanners.authenticatePlanner(request);
+    remotePlanner.options.assertScoped = (scope) =>
+      accountPlanners.assertPlanner(scope);
+    const lifecycle = await registerArtifactLifecycle(app, {
+      store,
+      auth,
+      objects: hosting.objects,
+      assertEditable: (artifact) => graphs.assertPlanEditable(artifact.id),
+      hasActivity: (id) => remotePlanner.hasLiveActivityForArtifact(id),
+      notify: (projectId, id) => collab.notify(projectId, id),
     });
     const authorizeMachine = (machine: any) =>
       accounts.assertCurrentMachine(machine);
@@ -627,6 +696,7 @@ export async function createApp(
           void collab.refreshArtifact(current.id, user.id).catch(() => {});
         });
       }
+      await findings.observe(user, previous, current);
       await spikes.observe(user, previous, current);
       await rebuilds.observe(user, previous, current);
     };
@@ -673,7 +743,7 @@ export async function createApp(
       await auth.user(req);
       return {
         agent: agent.profiles.catalog().some((harness) => harness.configured),
-        remotePlanner: !!remotePlanner,
+        remotePlanner: !!settings.integrations?.remotePlanner,
         runner: !!settings.runnerConfig,
         oidc: !!settings.oidcIssuer,
         github: true,
@@ -1159,42 +1229,46 @@ export async function createApp(
     );
     app.patch<{ Params: { id: string } }>(
       '/api/artifacts/:id/title-policy',
-      async (req) =>
-        titles.policy(
+      async (req) => {
+        const input = parse(
+          z
+            .object({
+              mode: z.enum(['human', 'automatic']),
+              seedGoal: z.boolean().optional(),
+            })
+            .strict(),
+          req.body,
+        );
+        return titles.policy(
           await auth.user(req),
           req.params.id,
-          parse(
-            z.object({ mode: z.enum(['human', 'automatic']) }).strict(),
-            req.body,
-          ).mode,
-        ),
+          input.mode,
+          input.seedGoal,
+        );
+      },
     );
-    app.post<{
-      Params: {
-        id: string;
-      };
-    }>('/api/artifacts/:id/archive', async (req) => {
-      const u = await auth.user(req),
-        a = await store.artifact(req.params.id, u.id, 'admin');
-      await projectWrite(req, a.projectId, 'admin', async () => {
-        if (
-          (
-            await store.one(
-              'SELECT main_artifact_id FROM projects WHERE id=?',
-              a.projectId,
-            )
-          ).main_artifact_id === a.id
-        )
-          throw new HttpError(
-            409,
-            'The main design document cannot be archived',
-          );
-        await store.exec('UPDATE artifacts SET archived=1 WHERE id=?', a.id);
-        await store.audit(a.projectId, a.id, u.name, 'artifact.archived');
-      });
-      await collab.notify(a.projectId, a.id);
-      return { ok: true };
-    });
+    app.post<{ Params: { id: string } }>(
+      '/api/artifacts/:id/archive',
+      async (req) => {
+        auth.assertOrigin(req);
+        const body = parse(
+          z
+            .object({ version: z.number().int().positive().optional() })
+            .strict(),
+          req.body ?? {},
+        );
+        return lifecycle.archive(
+          await auth.user(req),
+          req.params.id,
+          body.version,
+        );
+      },
+    );
+    app.get<{ Params: { id: string } }>(
+      '/api/artifacts/:id/document/agent-changes',
+      async (req) =>
+        recentAgentDocumentChanges(store, await auth.user(req), req.params.id),
+    );
     app.get<{
       Params: {
         id: string;
@@ -1361,11 +1435,18 @@ export async function createApp(
               threadId: id,
               intent: z.enum(['chat', 'edit', 'research']),
               brief: z.string().max(2000).optional(),
+              artifactVersion: z.number().int().positive().optional(),
+              placement: passagePlacementSchema.optional(),
+              idempotencyKey: z.string().uuid().optional(),
             })
             .strict(),
           req.body,
         );
-      return agent.respond(u, req.params.id, b.threadId, b.intent, b.brief);
+      return agent.respond(u, req.params.id, b.threadId, b.intent, b.brief, {
+        artifactVersion: b.artifactVersion,
+        placement: b.placement,
+        idempotencyKey: b.idempotencyKey,
+      });
     });
     app.post<{
       Params: {
@@ -1429,6 +1510,13 @@ export async function createApp(
           m.proposal.content,
           m.proposal.version,
           async () => {
+            await recordAgentDocumentChanges(
+              store,
+              u,
+              a.id,
+              a.content.doc,
+              'Accepted agent proposal',
+            );
             await store.exec(
               'UPDATE messages SET proposal=NULL WHERE id=? AND artifact_id=?',
               m.id,
@@ -1745,6 +1833,10 @@ export async function createApp(
           }
           yield ']';
         }
+        await checkAccess();
+        yield ',"titlePolicy":' +
+          JSON.stringify(await titles.exportState(a.id));
+        await checkAccess();
         yield ',"documentReview":{';
         for (
           let index = 0;
@@ -1861,6 +1953,39 @@ export async function createApp(
             audioCursor = row.sequence;
           }
         }
+        yield '],"remoteActivity":[';
+        const remoteCutoff = Number(
+          (
+            await store.one(
+              'SELECT COALESCE(MAX(a.ordinal),0) AS n FROM studio_remote_activity a JOIN studio_remote_requests r ON r.id=a.request_id WHERE r.artifact_id=?',
+              a.id,
+            )
+          ).n,
+        );
+        let remoteCursor = 0,
+          firstRemote = true;
+        while (remoteCursor < remoteCutoff) {
+          await checkAccess();
+          const rows = await remotePlanner.exportPage(
+            a.id,
+            remoteCursor,
+            remoteCutoff,
+            10,
+            user,
+          );
+          if (!rows.length) break;
+          for (const row of rows) {
+            yield (firstRemote ? '' : ',') + JSON.stringify(row);
+            firstRemote = false;
+            remoteCursor = row.sequence;
+          }
+        }
+        yield '],"accountPlanners":[';
+        const assignments = await accountPlanners.exportState(a.id);
+        for (const [index, assignment] of assignments.entries()) {
+          await checkAccess();
+          yield (index ? ',' : '') + JSON.stringify(assignment);
+        }
         yield '],"decisionModels":[';
         let firstDecision = true;
         for await (const row of decisionExportRows(store, a.id, checkAccess)) {
@@ -1907,6 +2032,12 @@ export async function createApp(
         )) {
           yield (firstInvestigation ? '' : ',') + JSON.stringify(row);
           firstInvestigation = false;
+        }
+        yield '],"findingsReviews":[';
+        let firstFindings = true;
+        for await (const row of findingsExportRows(store, a.id, checkAccess)) {
+          yield (firstFindings ? '' : ',') + JSON.stringify(row);
+          firstFindings = false;
         }
         yield '],"integrationHistory":[';
         let firstIntegration = true;
@@ -2052,16 +2183,22 @@ export async function createApp(
       graphs,
       remotePlanner,
       investigations,
+      findings,
       implementationMachines,
       accounts,
+      accountPlanners,
+      lifecycle,
       rebuilds,
       maintenance: async () => {
         await accounts.cleanupRevoked(5);
+        await accountPlanners.expire(5);
+        await lifecycle.cleanup(3);
         await investigations!.expire();
         await implementationMachines.expire();
         await audio.cleanupStaged(10);
         await video.cleanupStaged(10);
         await rebuilds.tick();
+        await findings.tick(5);
       },
       spikes,
       drafting,

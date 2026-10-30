@@ -19,6 +19,8 @@ export function InvestigationBlockView({ node }: NodeViewProps) {
   const id = parsed?.success ? parsed.data.investigationId : null;
   const [record, setRecord] = useState<Investigation | null>(null),
     [error, setError] = useState(''),
+    [actionError, setActionError] = useState(''),
+    [busy, setBusy] = useState(false),
     request = useRef(0);
   const load = useCallback(async () => {
     if (!id) return;
@@ -57,6 +59,25 @@ export function InvestigationBlockView({ node }: NodeViewProps) {
       clearInterval(timer);
     };
   }, [load]);
+  const act = async (action: 'run' | 'retry' | 'cancel' | 'withdraw') => {
+    if (
+      !record ||
+      busy ||
+      workspace.readOnly ||
+      workspace.user.id !== record.ownerId
+    )
+      return;
+    setBusy(true);
+    setActionError('');
+    try {
+      await api(`/investigations/${record.id}/${action}`, 'POST', {});
+      await load();
+    } catch (e) {
+      setActionError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const viewData = investigationBlockSchemas.investigationView.safeParse(
     node.attrs.data,
   );
@@ -98,6 +119,52 @@ export function InvestigationBlockView({ node }: NodeViewProps) {
               </p>
               {record.error && <p role="alert">{record.error}</p>}
               {record.requiredReason && <p>{record.requiredReason}</p>}
+              {actionError && <p role="alert">{actionError}</p>}
+              {!workspace.readOnly &&
+                workspace.user.id === record.ownerId && (
+                  <span className="document-investigation-actions">
+                    {record.status === 'proposed' && (
+                      <>
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void act('run')}
+                        >
+                          Run on my machine
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => void act('withdraw')}
+                        >
+                          Withdraw
+                        </Button>
+                      </>
+                    )}
+                    {['failed', 'cancelled', 'interrupted'].includes(
+                      record.status,
+                    ) && (
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => void act('retry')}
+                      >
+                        Retry investigation
+                      </Button>
+                    )}
+                    {['queued', 'running'].includes(record.status) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => void act('cancel')}
+                      >
+                        Stop investigation
+                      </Button>
+                    )}
+                  </span>
+                )}
               <Button
                 size="sm"
                 variant="outline"
@@ -118,7 +185,9 @@ export function InvestigationBlockView({ node }: NodeViewProps) {
             <p>The referenced result has not been published.</p>
           ) : !viewId ||
             !record.result.views.some((view) => view.id === viewId) ? (
-            <p role="alert">The published result does not contain this view.</p>
+            <p role="alert">
+              The published result does not contain this view.
+            </p>
           ) : (
             <NativeInvestigationView
               investigation={record}

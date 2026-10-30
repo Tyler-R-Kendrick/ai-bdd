@@ -1,3 +1,4 @@
+import type { InvestigationPlacement } from '../../../shared/investigations.ts';
 import {
   createContext,
   useCallback,
@@ -53,7 +54,10 @@ type Workspace = {
   onError: (message: string) => void;
   onTests: () => void;
   onDecisions?: () => void;
-  onInvestigations?: (id: string) => void;
+  onInvestigations?: (
+    id?: string,
+    placement?: InvestigationPlacement,
+  ) => void;
   onComment: (anchor: string, quote: string) => void;
   reviewOpen: boolean;
   setReviewOpen: (value: boolean) => void;
@@ -242,7 +246,12 @@ export function replaceImportAttachments(
     ...(doc.attrs?.src &&
     typeof doc.attrs.src === 'string' &&
     doc.attrs.src.startsWith('attachment:')
-      ? { attrs: { ...doc.attrs, src: uploads[doc.attrs.src.slice(11)] ?? '' } }
+      ? {
+          attrs: {
+            ...doc.attrs,
+            src: uploads[doc.attrs.src.slice(11)] ?? '',
+          },
+        }
       : {}),
     ...(doc.content
       ? {

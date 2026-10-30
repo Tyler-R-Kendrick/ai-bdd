@@ -1,0 +1,749 @@
+[
+  {
+    "name": "slash-caret-Closing requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": false,
+        "editorFocused": false,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorOffset": 0,
+          "focusOffset": 0,
+          "textOffset": null,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 19,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 19,
+          "focusText": "Closing requirement",
+          "focusOffset": 19,
+          "paragraph": "Closing requirement",
+          "textOffset": 19,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 0,
+          "focusText": "Closing requirement",
+          "focusOffset": 0,
+          "paragraph": "Closing requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 0,
+          "focusText": "Closing requirement",
+          "focusOffset": 0,
+          "paragraph": "Closing requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Selected requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": false,
+        "editorFocused": false,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorOffset": 0,
+          "focusOffset": 0,
+          "textOffset": null,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 20,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 20,
+          "focusText": "Selected requirement",
+          "focusOffset": 20,
+          "paragraph": "Selected requirement",
+          "textOffset": 20,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Following requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 21,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 21,
+          "focusText": "Following requirement",
+          "focusOffset": 21,
+          "paragraph": "Following requirement",
+          "textOffset": 21,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 21,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 0,
+          "focusText": "Following requirement",
+          "focusOffset": 0,
+          "paragraph": "Following requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 0,
+          "focusText": "Following requirement",
+          "focusOffset": 0,
+          "paragraph": "Following requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Closing requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": false,
+        "editorFocused": false,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorOffset": 0,
+          "focusOffset": 0,
+          "textOffset": null,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 19,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 19,
+          "focusText": "Closing requirement",
+          "focusOffset": 19,
+          "paragraph": "Closing requirement",
+          "textOffset": 19,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 0,
+          "focusText": "Closing requirement",
+          "focusOffset": 0,
+          "paragraph": "Closing requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 0,
+          "focusText": "Closing requirement",
+          "focusOffset": 0,
+          "paragraph": "Closing requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Selected requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": false,
+        "editorFocused": false,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorOffset": 0,
+          "focusOffset": 0,
+          "textOffset": null,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 20,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 20,
+          "focusText": "Selected requirement",
+          "focusOffset": 20,
+          "paragraph": "Selected requirement",
+          "textOffset": 20,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Following requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 21,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 21,
+          "focusText": "Following requirement",
+          "focusOffset": 21,
+          "paragraph": "Following requirement",
+          "textOffset": 21,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 21,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 0,
+          "focusText": "Following requirement",
+          "focusOffset": 0,
+          "paragraph": "Following requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 0,
+          "focusText": "Following requirement",
+          "focusOffset": 0,
+          "paragraph": "Following requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Closing requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": false,
+        "editorFocused": false,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorOffset": 0,
+          "focusOffset": 0,
+          "textOffset": null,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 19,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 19,
+          "focusText": "Closing requirement",
+          "focusOffset": 19,
+          "paragraph": "Closing requirement",
+          "textOffset": 19,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 19,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 0,
+          "focusText": "Closing requirement",
+          "focusOffset": 0,
+          "paragraph": "Closing requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Closing requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Closing requirement",
+          "anchorOffset": 0,
+          "focusText": "Closing requirement",
+          "focusOffset": 0,
+          "paragraph": "Closing requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Selected requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": false,
+        "editorFocused": false,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorOffset": 0,
+          "focusOffset": 0,
+          "textOffset": null,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 20,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 20,
+          "focusText": "Selected requirement",
+          "focusOffset": 20,
+          "paragraph": "Selected requirement",
+          "textOffset": 20,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  },
+  {
+    "name": "slash-caret-Following requirement",
+    "diagnostic": {
+      "initial": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Selected requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Selected requirement",
+          "anchorOffset": 0,
+          "focusText": "Selected requirement",
+          "focusOffset": 0,
+          "paragraph": "Selected requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "beforeHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 21,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 21,
+          "focusText": "Following requirement",
+          "focusOffset": 21,
+          "paragraph": "Following requirement",
+          "textOffset": 21,
+          "collapsed": true
+        },
+        "agrees": true
+      },
+      "afterHome": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 21,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 0,
+          "focusText": "Following requirement",
+          "focusOffset": 0,
+          "paragraph": "Following requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": false
+      },
+      "settled": {
+        "initialized": true,
+        "synced": true,
+        "focused": true,
+        "editorFocused": true,
+        "editable": true,
+        "empty": true,
+        "text": "Following requirement",
+        "offset": 0,
+        "native": {
+          "anchorText": "Following requirement",
+          "anchorOffset": 0,
+          "focusText": "Following requirement",
+          "focusOffset": 0,
+          "paragraph": "Following requirement",
+          "textOffset": 0,
+          "collapsed": true
+        },
+        "agrees": true
+      }
+    }
+  }
+]

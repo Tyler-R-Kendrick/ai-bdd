@@ -30,6 +30,7 @@ export const decisionPurposes = [
   'visual-comprehension',
   'visual-type',
   'spike-worthiness',
+  'investigation-findings',
   'semantic-design-gap',
   'harness-suggestion',
   'implementation-readiness',

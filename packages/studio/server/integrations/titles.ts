@@ -4,12 +4,21 @@ import {
   agentProfileSchema,
   type AgentProfile,
 } from '../../shared/agent-profile.ts';
-import type { Artifact, User } from '../../shared/domain.ts';
+import type { Artifact, User, RichNode } from '../../shared/domain.ts';
 import { HttpError, type Store } from '../store.ts';
 import type {
   DurableJobContext,
   DurableJobRuntime,
 } from '../runtime/contracts.ts';
+import {
+  titleGoalSchema,
+  type TitleGenerationInput,
+  type TitleGoal,
+} from './title-provider.ts';
+import {
+  hasEmptyDocumentBody,
+  seedDocumentGoal,
+} from './title-goal-content.ts';
 
 const snapshotSchema = z.object({
   user: z.object({
@@ -23,17 +32,15 @@ const snapshotSchema = z.object({
   epoch: z.number().int(),
   profile: agentProfileSchema.optional(),
   title: z.string(),
-  messages: z
-    .array(z.object({ author: z.string(), body: z.string() }))
-    .max(12),
+  contentHash: z.string().optional(),
+  seedGoal: z.boolean().default(false),
+  messages: z.array(z.object({ author: z.string(), body: z.string() })).max(12),
 });
-export type TitleProvider = (input: {
-  artifact: Pick<Artifact, 'id' | 'title' | 'kind'>;
-  messages: { author: string; body: string }[];
-  signal: AbortSignal;
-  idempotencyKey: string;
-  profile?: AgentProfile;
-}) => Promise<string>;
+export type TitleProvider = (
+  input: TitleGenerationInput,
+) => Promise<string | TitleGoal>;
+const sourceHash = (artifact: Artifact) =>
+  createHash('sha256').update(JSON.stringify(artifact.content)).digest('hex');
 
 /** Human titles are protected by default. Background naming is explicit and durable. */
 export class ArtifactTitles {
@@ -50,6 +57,11 @@ export class ArtifactTitles {
         artifactId: string,
       ) => Promise<AgentProfile>;
       notify?: (projectId: string, artifactId: string) => Promise<void>;
+      onGoalSeed?: (
+        user: User,
+        artifact: Artifact,
+        beforeDoc: RichNode,
+      ) => Promise<void>;
       quietMs?: number;
     },
   ) {}
@@ -58,8 +70,20 @@ export class ArtifactTitles {
     await store.tx(async () => {
       await store.db.lock('schema:studio.titles');
       await store.db.exec(
-        'CREATE TABLE IF NOT EXISTS studio_title_state(artifact_id TEXT PRIMARY KEY REFERENCES artifacts(id) ON DELETE CASCADE,mode TEXT NOT NULL,epoch INTEGER NOT NULL DEFAULT 0)',
+        'CREATE TABLE IF NOT EXISTS studio_title_state(artifact_id TEXT PRIMARY KEY REFERENCES artifacts(id) ON DELETE CASCADE,mode TEXT NOT NULL,epoch INTEGER NOT NULL DEFAULT 0,seed_goal INTEGER NOT NULL DEFAULT 0)',
       );
+      if (store.db.dialect === 'postgres')
+        await store.db.exec(
+          'ALTER TABLE studio_title_state ADD COLUMN IF NOT EXISTS seed_goal INTEGER NOT NULL DEFAULT 0',
+        );
+      else if (
+        !(await store.all('PRAGMA table_info(studio_title_state)')).some(
+          (column) => column.name === 'seed_goal',
+        )
+      )
+        await store.db.exec(
+          'ALTER TABLE studio_title_state ADD COLUMN seed_goal INTEGER NOT NULL DEFAULT 0',
+        );
     });
     runtime.register('artifact.title', (ctx) => this.execute(ctx));
   }
@@ -69,7 +93,7 @@ export class ArtifactTitles {
     if (!store.db.inTransaction())
       throw new Error('Human title claims require the source transaction');
     await store.exec(
-      "INSERT INTO studio_title_state VALUES(?,'human',1) ON CONFLICT(artifact_id) DO UPDATE SET mode='human',epoch=studio_title_state.epoch+1",
+      "INSERT INTO studio_title_state(artifact_id,mode,epoch,seed_goal) VALUES(?,'human',1,0) ON CONFLICT(artifact_id) DO UPDATE SET mode='human',epoch=studio_title_state.epoch+1,seed_goal=0",
       id,
     );
   }
@@ -79,43 +103,61 @@ export class ArtifactTitles {
     if (!store.db.inTransaction())
       throw new Error('Generated titles require the source transaction');
     await store.exec(
-      "INSERT INTO studio_title_state VALUES(?,'automatic',0) ON CONFLICT(artifact_id) DO NOTHING",
+      "INSERT INTO studio_title_state(artifact_id,mode,epoch,seed_goal) VALUES(?,'automatic',0,0) ON CONFLICT(artifact_id) DO NOTHING",
       id,
     );
   }
-  async policy(user: User, id: string, mode?: 'human' | 'automatic') {
+  async policy(
+    user: User,
+    id: string,
+    mode?: 'human' | 'automatic',
+    seedGoal = false,
+  ) {
     const { store } = this.options;
-    const artifact = await store.artifact(
-      id,
-      user.id,
-      mode ? 'write' : 'read',
-    );
+    const artifact = await store.artifact(id, user.id, mode ? 'write' : 'read');
     if (mode)
       await store.tx(async () => {
         await store.db.lock('project:' + artifact.projectId);
-        await store.artifact(id, user.id, 'write');
+        const current = await store.artifact(id, user.id, 'write');
+        if (mode === 'automatic')
+          await store.artifactWriteGuard?.(current, user.id);
+        if (seedGoal && !['design', 'document'].includes(current.kind))
+          throw new HttpError(400, 'Goal seeding requires a document');
         await store.exec(
-          'INSERT INTO studio_title_state VALUES(?,?,1) ON CONFLICT(artifact_id) DO UPDATE SET mode=excluded.mode,epoch=studio_title_state.epoch+1',
+          'INSERT INTO studio_title_state(artifact_id,mode,epoch,seed_goal) VALUES(?,?,1,?) ON CONFLICT(artifact_id) DO UPDATE SET mode=excluded.mode,epoch=studio_title_state.epoch+1,seed_goal=excluded.seed_goal',
           id,
           mode,
+          mode === 'automatic' && seedGoal ? 1 : 0,
         );
         await store.audit(
           artifact.projectId,
           id,
           user.name,
           'artifact.title-policy',
-          mode,
+          JSON.stringify({ mode, seedGoal: mode === 'automatic' && seedGoal }),
         );
       });
     const row = await store.one(
-      'SELECT mode,epoch FROM studio_title_state WHERE artifact_id=?',
+      'SELECT mode,epoch,seed_goal FROM studio_title_state WHERE artifact_id=?',
       id,
     );
     return {
       mode: (row?.mode ?? 'human') as 'human' | 'automatic',
+      seedGoal: !!row?.seed_goal,
       available:
         !!this.options.provider &&
         (!this.options.available || (await this.options.available(user, id))),
+    };
+  }
+  async exportState(id: string) {
+    const row = await this.options.store.one(
+      'SELECT mode,epoch,seed_goal FROM studio_title_state WHERE artifact_id=?',
+      id,
+    );
+    return {
+      mode: row?.mode ?? 'human',
+      epoch: Number(row?.epoch ?? 0),
+      seedGoal: !!row?.seed_goal,
     };
   }
   async observeMessage(user: User, id: string, threadId: string) {
@@ -126,10 +168,11 @@ export class ArtifactTitles {
       await store.db.lock('project:' + artifact.projectId);
       const current = await store.artifact(id, user.id, 'write');
       const row = await store.one(
-        'SELECT mode,epoch FROM studio_title_state WHERE artifact_id=?',
+        'SELECT mode,epoch,seed_goal FROM studio_title_state WHERE artifact_id=?',
         id,
       );
       if (row?.mode !== 'automatic') return null;
+      if (allowed && !(await allowed(user, id))) return null;
       const messages = (
         await store.messagePage(id, threadId, { limit: 12 })
       ).messages.filter((m) => m.role === 'user');
@@ -144,6 +187,8 @@ export class ArtifactTitles {
         latestId: latest.id,
         epoch: row.epoch,
         title: current.title,
+        contentHash: sourceHash(current),
+        seedGoal: !!row.seed_goal && hasEmptyDocumentBody(current),
         messages: messages.map((m) => ({
           author: m.author.slice(0, 100),
           body: m.body.slice(0, 1000),
@@ -176,7 +221,7 @@ export class ArtifactTitles {
         'write',
       );
       const row = await store.one(
-        'SELECT mode,epoch FROM studio_title_state WHERE artifact_id=?',
+        'SELECT mode,epoch,seed_goal FROM studio_title_state WHERE artifact_id=?',
         artifact.id,
       );
       const latest = (
@@ -191,6 +236,9 @@ export class ArtifactTitles {
           row.epoch === s.epoch &&
           artifact.title === s.title &&
           artifact.version === ctx.job.artifactVersion &&
+          (!s.contentHash || sourceHash(artifact) === s.contentHash) &&
+          (!s.seedGoal ||
+            (!!row.seed_goal && hasEmptyDocumentBody(artifact))) &&
           latest?.id === s.latestId &&
           (!allowed || (await allowed(user, artifact.id))),
       };
@@ -198,50 +246,97 @@ export class ArtifactTitles {
     await ctx.assertCurrent();
     const initial = await eligible();
     if (!provider || !initial.valid)
-      return ctx.commit('title-result', async () => ({ skipped: true }));
-    const title = await ctx.step('model-title', async (idempotencyKey) => {
-      const value = (
-        await provider({
-          artifact: initial.artifact,
-          messages: s.messages,
-          signal: ctx.signal,
-          idempotencyKey,
-          profile: s.profile,
-        })
-      ).trim();
+      return ctx.commit('title-result', async () => ({ skipped: true }), {
+        requireCurrentVersion: false,
+      });
+    const generated = await ctx.step('model-title', async (idempotencyKey) => {
+      const value = await provider({
+        artifact: initial.artifact,
+        messages: s.messages,
+        signal: ctx.signal,
+        idempotencyKey,
+        profile: s.profile,
+      });
+      if (typeof value !== 'string') return titleGoalSchema.parse(value);
+      const title = value.trim();
       if (
-        !value ||
-        value.length > 180 ||
-        [...value].some((character) => character.charCodeAt(0) < 32)
+        !title ||
+        title.length > 180 ||
+        [...title].some((character) => character.charCodeAt(0) < 32)
       )
         throw new HttpError(
           502,
           'The title provider returned an invalid title',
         );
-      return value;
-    });
-    return ctx.commit('title-result', async () => {
-      const current = await eligible();
-      if (!current.valid) return { skipped: true };
-      await store.exec(
-        'UPDATE artifacts SET title=?,updated_at=? WHERE id=?',
-        title,
-        new Date().toISOString(),
-        current.artifact.id,
-      );
-      await store.exec(
-        'UPDATE studio_title_state SET epoch=epoch+1 WHERE artifact_id=?',
-        current.artifact.id,
-      );
-      await store.audit(
-        current.artifact.projectId,
-        current.artifact.id,
-        user.name,
-        'artifact.title-maintained',
-        title,
-      );
-      await notify?.(current.artifact.projectId, current.artifact.id);
+      if (s.seedGoal)
+        throw new HttpError(
+          502,
+          'The title provider returned no structured goal',
+        );
       return { title };
     });
+    // Earlier deployments stored this step's receipt as a string. Replays must
+    // retain that receipt without calling the provider again or seeding a body.
+    const proposal: { title: string; goal?: string } =
+      typeof generated === 'string'
+        ? { title: z.string().trim().min(1).max(180).parse(generated) }
+        : z
+            .object({
+              title: z.string().trim().min(1).max(180),
+              goal: titleGoalSchema.shape.goal.optional(),
+            })
+            .strict()
+            .parse(generated);
+    // The locked callback checks the exact version/hash and naming epoch. A
+    // superseded automatic request records a skip instead of a failed job;
+    // current membership/lease checks still precede this callback.
+    const result = await ctx.commit(
+      'title-result',
+      async () => {
+        const current = await eligible();
+        if (!current.valid) return { skipped: true };
+        await store.artifactWriteGuard?.(current.artifact, user.id);
+        const title = proposal.title;
+        let seeded = false;
+        if (s.seedGoal && 'goal' in proposal) {
+          await store.updateArtifact(
+            { ...user, name: 'Studio agent' },
+            current.artifact.id,
+            current.artifact.version,
+            seedDocumentGoal(current.artifact, title, proposal.goal!),
+            title,
+            () =>
+              this.options.onGoalSeed?.(
+                { ...user, name: 'Studio agent' },
+                current.artifact,
+                current.artifact.content.doc,
+              ),
+          );
+          seeded = true;
+        } else
+          await store.exec(
+            'UPDATE artifacts SET title=?,updated_at=? WHERE id=?',
+            title,
+            new Date().toISOString(),
+            current.artifact.id,
+          );
+        await store.exec(
+          'UPDATE studio_title_state SET epoch=epoch+1 WHERE artifact_id=?',
+          current.artifact.id,
+        );
+        await store.audit(
+          current.artifact.projectId,
+          current.artifact.id,
+          'Studio agent',
+          'artifact.title-maintained',
+          JSON.stringify({ title, goalSeeded: seeded, requestedBy: user.id }),
+        );
+        return { title, goalSeeded: seeded };
+      },
+      { requireCurrentVersion: false },
+    );
+    if (!('skipped' in result))
+      await notify?.(ctx.job.projectId, ctx.job.artifactId);
+    return result;
   }
 }

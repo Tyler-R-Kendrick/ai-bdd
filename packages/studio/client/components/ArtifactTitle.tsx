@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Artifact } from '../../shared/domain.ts';
 import { api } from '../lib.ts';
 import { Button, Field, Input, Modal } from './ui.tsx';
+import './artifact-title.css';
 
 export function ArtifactTitle({
   artifact,
@@ -18,6 +19,7 @@ export function ArtifactTitle({
     [busy, setBusy] = useState(false);
   const [title, setTitle] = useState(artifact.title),
     [automatic, setAutomatic] = useState(false),
+    [seedGoal, setSeedGoal] = useState(false),
     [available, setAvailable] = useState(false);
   async function edit() {
     setBusy(true);
@@ -30,6 +32,7 @@ export function ArtifactTitle({
       );
       setAvailable(policy.available);
       setAutomatic(false);
+      setSeedGoal(false);
       setTitle(artifact.title);
       setOpen(true);
     } catch (error) {
@@ -48,6 +51,7 @@ export function ArtifactTitle({
       if (automatic)
         await api(`/artifacts/${artifact.id}/title-policy`, 'PATCH', {
           mode: 'automatic',
+          seedGoal,
         });
       await refresh();
       setOpen(false);
@@ -73,7 +77,7 @@ export function ArtifactTitle({
         title="Artifact title"
         description="Choose a title for this artifact. Titles you choose stay yours unless you enable automatic updates."
       >
-        <form onSubmit={save} className="form-stack">
+        <form onSubmit={save} className="artifact-title-form">
           <Field label="Title">
             <Input
               value={title}
@@ -83,15 +87,32 @@ export function ArtifactTitle({
               autoFocus
             />
           </Field>
-          <label className="small">
+          <label className="small title-policy-option">
             <input
               type="checkbox"
               checked={automatic}
               disabled={!available || busy}
-              onChange={(event) => setAutomatic(event.target.checked)}
-            />{' '}
-            Maintain the title from this discussion
+              onChange={(event) => {
+                setAutomatic(event.target.checked);
+                if (!event.target.checked) setSeedGoal(false);
+              }}
+            />
+            <span>Maintain the title from this discussion</span>
           </label>
+          {['design', 'document'].includes(artifact.kind) && (
+            <label className="small title-policy-option">
+              <input
+                type="checkbox"
+                checked={seedGoal}
+                disabled={!automatic || !available || busy}
+                onChange={(event) => setSeedGoal(event.target.checked)}
+              />
+              <span>
+                Add a goal from this discussion only while the document body is
+                empty
+              </span>
+            </label>
+          )}
           {!available && (
             <p className="muted small">
               Connect a model to enable automatic titles.

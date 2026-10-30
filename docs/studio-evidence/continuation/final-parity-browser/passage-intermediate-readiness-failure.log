@@ -1,0 +1,65 @@
+[WebServer] (node:432774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:432860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped (11.6s)
+(node:432999) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped (7.7s)
+(node:433180) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped (7.7s)
+
+
+  1) tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "editable": true,
+        "empty": true,
+        "focused": true,
+    -   "offset": 0,
+    +   "offset": 19,
+        "text": "Closing requirement",
+      }
+
+    Call Log:
+    - Timeout 10000ms exceeded while waiting on the predicate
+
+      1116 |       });
+      1117 |       const before = await state();
+    > 1118 |       await expect.poll(state).toEqual({ focused: true, editable: true, empty: true, text, offset: 0 });
+           |                                ^
+      1119 |       await test.info().attach('slash-caret-' + text, {
+      1120 |         body: JSON.stringify({before, settled: await state()}),
+      1121 |         contentType: 'application/json',
+        at caretAtBlockStart (/workspace/ai-bdd/work/continuation/final-24-browser/packages/studio/tests/final-product.spec.ts:1118:32)
+        at /workspace/ai-bdd/work/continuation/final-24-browser/packages/studio/tests/final-product.spec.ts:1127:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped 
+  2 passed (31.3s)
+undefined
+/workspace/ai-bdd/work/continuation/final-24-browser/packages/studio:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test tests/final-product.spec.ts --grep passage slash commands place exact research and investigation cards inline and keep run controls owner scoped --workers=1 --retries=0 --repeat-each=3

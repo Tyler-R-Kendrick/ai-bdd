@@ -1,6 +1,6 @@
 import { HttpError } from './http-error.ts';
 export { HttpError } from './http-error.ts';
-import { canonicalDocumentIds } from '../shared/document-identity.ts';
+import { canonicalDocument } from '../shared/document-canonical.ts';
 import { openDatabase, type SqlDatabase } from './persistence/index.ts';
 import * as Y from 'yjs';
 import {
@@ -79,6 +79,8 @@ export class Store {
     projectId: string,
     exemptFileId: string,
   ) => Promise<number>;
+  /** SQL-only guard for immutable object keys scheduled for permanent removal. */
+  fileStorageGuard?: (storageKey:string,artifact:Artifact)=>Promise<void>;
   artifactWriteGuard?: (artifact: Artifact, userId: string) => Promise<void>;
   repositoryAuthorizer?: (
     projectId: string,
@@ -382,7 +384,7 @@ export class Store {
             );
         for (const child of node.content ?? []) walk(child);
       };
-      parsed.doc = canonicalDocumentIds(parsed.doc, randomUUID).doc;
+      parsed.doc = canonicalDocument(parsed.doc, randomUUID).doc;
       walk(parsed.doc);
     }
     if (assets.size) {
@@ -772,7 +774,7 @@ export class Store {
         const persisted = await this.state(id);
         if (persisted) Y.applyUpdate(doc, persisted);
         Y.applyUpdate(doc, state);
-        const normalized = canonicalDocumentIds(
+        const normalized = canonicalDocument(
           yXmlFragmentToProsemirrorJSON(
             doc.getXmlFragment('default'),
           ) as RichNode,
@@ -1127,6 +1129,7 @@ export class Store {
           );
         return this.file(id, user.id);
       }
+      if(input.storageKey)await this.fileStorageGuard?.(input.storageKey,artifact);
       const used = (
         await this.one(
           'SELECT coalesce(sum(byte_size),0) AS n FROM files WHERE project_id=?',

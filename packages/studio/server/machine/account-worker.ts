@@ -2,6 +2,12 @@ import { runRebuildOnce, resumeRebuildRuns } from './rebuild-worker.ts';
 import { resolve, join, isAbsolute } from 'node:path';
 import { realpath, mkdir, open, rm } from 'node:fs/promises';
 import { z } from 'zod';
+import { canonicalCloneRepository, managedClone } from './clone-registry.ts';
+import {
+  runAccountPlannerOnce,
+  resumeAccountPlanners,
+} from './account-planner.ts';
+import { runRemotePlanner } from './planner-client.ts';
 import {
   accountCredentialsSchema,
   type AccountMachineCredentials,
@@ -67,6 +73,8 @@ export async function readAccountMachineCredentials(file: string) {
 export async function explicitCheckoutRegistry(
   env: NodeJS.ProcessEnv,
   args: string[] = process.argv.slice(2),
+  attached: string[] = [],
+  signal?: AbortSignal,
 ) {
   const flags: string[] = [];
   for (let index = 0; index < args.length; index++) {
@@ -87,7 +95,16 @@ export async function explicitCheckoutRegistry(
       : env.STUDIO_MACHINE_CWD
         ? [{ key: 'default', path: env.STUDIO_MACHINE_CWD }]
         : [];
-  const entries = pathsSchema.parse(configured);
+  const cloneURLs = z
+    .array(z.string())
+    .max(16)
+    .parse(JSON.parse(env.STUDIO_MACHINE_CLONE_REPOSITORIES ?? '[]'));
+  const repositories = [
+    ...new Set([...cloneURLs, ...attached].map(canonicalCloneRepository)),
+  ];
+  if (repositories.length > 16)
+    throw new Error('At most sixteen repositories may be registered');
+  const entries = configured.length ? pathsSchema.parse(configured) : [];
   if (new Set(entries.map((entry) => entry.key)).size !== entries.length)
     throw new Error('Checkout registry keys must be unique');
   const result = [];
@@ -104,6 +121,38 @@ export async function explicitCheckoutRegistry(
       } satisfies CheckoutRegistration,
     });
   }
+  for (const repository of repositories) {
+    if (result.some((entry) => entry.registration.repository === repository))
+      continue;
+    if (result.length >= 16)
+      throw new Error('At most sixteen repositories may be registered');
+    const clone = await managedClone(
+      repository,
+      resolve(
+        env.STUDIO_MACHINE_MANAGED_ROOT ??
+          join(
+            env.STUDIO_MACHINE_STATE_DIR ?? 'studio-machine-state',
+            'repositories',
+          ),
+      ),
+      env,
+      signal,
+    );
+    result.push({
+      key: clone.key,
+      path: clone.path,
+      registration: {
+        checkoutKey: clone.key,
+        repository: clone.checkout.repository,
+        sourceCommit: clone.checkout.sourceCommit,
+        branch: clone.checkout.branch,
+      },
+    });
+  }
+  if (!result.length && env.STUDIO_MACHINE_CLONE_ATTACHED !== 'true')
+    throw new Error(
+      'Register --checkout, --clone, or opt in with --clone-attached to authorized attached repositories',
+    );
   if (
     new Set(result.map((entry) => entry.registration.repository)).size !==
     result.length
@@ -135,7 +184,27 @@ export async function accountAssignments(
   args?: string[],
   signal?: AbortSignal,
 ) {
-  const registry = await explicitCheckoutRegistry(env, args);
+  const attached =
+    env.STUDIO_MACHINE_CLONE_ATTACHED === 'true'
+      ? z
+          .object({ repositories: z.array(z.string()).max(16) })
+          .strict()
+          .parse(
+            await reconnect(
+              () =>
+                machineApi(
+                  credentials.origin,
+                  `/account-machines/${credentials.id}/repositories`,
+                  credentials.token,
+                  undefined,
+                  signal,
+                  'GET',
+                ),
+              { signal, maxDelayMs: 10000 },
+            ),
+          ).repositories
+      : [];
+  const registry = await explicitCheckoutRegistry(env, args, attached, signal);
   const response = await reconnect(
     () =>
       machineApi(
@@ -155,6 +224,10 @@ export async function accountAssignments(
           z.object({ projectId: z.string().uuid(), code: z.string() }).strict(),
         )
         .max(500),
+      capabilities: z
+        .array(z.literal('planner-assignments-v1'))
+        .max(1)
+        .optional(),
     })
     .strict()
     .parse(response);
@@ -179,7 +252,7 @@ export async function accountAssignments(
       } as MachineCredentials,
     };
   });
-  return { ...result, assignments };
+  return { ...result, assignments, registry };
 }
 export async function runAccountMachineWorker(
   credentials: AccountMachineCredentials,
@@ -256,6 +329,7 @@ export async function runAccountMachineWorker(
   let cursor = 0,
     lastBlocked = '';
   try {
+    await resumeAccountPlanners(credentials, stateDirectory);
     do {
       const connected = await accountAssignments(
           credentials,
@@ -274,7 +348,21 @@ export async function runAccountMachineWorker(
       let result: { claimed: boolean; status?: string; workId?: string } = {
         claimed: false,
       };
-      for (let offset = 0; offset < connected.assignments.length; offset++) {
+      if (connected.capabilities?.includes('planner-assignments-v1')) {
+        result = await runAccountPlannerOnce(credentials, connected.registry, {
+          command,
+          args,
+          allowPermissions,
+          stateDirectory,
+          signal: controller.signal,
+          run: runRemotePlanner,
+        });
+      }
+      for (
+        let offset = 0;
+        !result.claimed && offset < connected.assignments.length;
+        offset++
+      ) {
         const index = (cursor + offset) % connected.assignments.length,
           assignment = connected.assignments[index]!,
           projectState = join(stateDirectory, 'projects', assignment.projectId);
@@ -287,7 +375,11 @@ export async function runAccountMachineWorker(
           signal: controller.signal,
         };
         try {
-          await resumeRebuildRuns(assignment.credentials,projectState,controller.signal);
+          await resumeRebuildRuns(
+            assignment.credentials,
+            projectState,
+            controller.signal,
+          );
           await resumeImplementationRuns(
             assignment.credentials,
             projectState,
@@ -298,8 +390,12 @@ export async function runAccountMachineWorker(
             projectState,
             controller.signal,
           );
-          result=await runRebuildOnce(assignment.credentials,options);
-          if(!result.claimed)result = await runImplementationOnce(assignment.credentials, options);
+          result = await runRebuildOnce(assignment.credentials, options);
+          if (!result.claimed)
+            result = await runImplementationOnce(
+              assignment.credentials,
+              options,
+            );
           if (!result.claimed)
             result = await runInvestigationOnce(
               assignment.credentials,
@@ -338,6 +434,8 @@ export async function runAccountMachineWorker(
       process.stdout.write(JSON.stringify(result) + '\n');
       if (!once) await pause(2000, controller.signal);
     } while (!once && !controller.signal.aborted);
+  } catch (error) {
+    if (!controller.signal.aborted) throw error;
   } finally {
     clearInterval(heartbeat);
     controller.abort();
