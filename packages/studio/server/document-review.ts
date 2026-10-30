@@ -133,7 +133,9 @@ export async function registerDocumentReview(
     const initial = await document(id, user, 'write');
     const result = await store.tx(async () => {
       await store.db.lock('project:' + initial.projectId);
-      return operation(await document(id, user, 'write'));
+      const current = await document(id, user, 'write');
+      await store.artifactWriteGuard?.(current, user.id);
+      return operation(current);
     });
     await collab.notify(initial.projectId, initial.id);
     return result;

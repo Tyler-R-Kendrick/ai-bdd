@@ -540,6 +540,49 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           ).n,
         ).toBe(auditCount);
       });
+      it('honors an active execution-plan guard for metadata-only suggestions and questionnaire answers', async () => {
+        const f = await fixture(adapter),
+          before = await f.state();
+        f.first.artifactWriteGuard = async () => {
+          throw new HttpError(409, 'The execution plan is locked');
+        };
+        const suggestion = await f.request(f.a, 'POST', '/suggestions', {
+          version: before.version,
+          anchor: 'passage',
+          from: 11,
+          to: 16,
+          before: 'quick',
+          after: 'safer',
+        });
+        expect(suggestion.statusCode).toBe(409);
+        const answer = await f.request(
+          f.a,
+          'POST',
+          '/questionnaires/questionnaire/answers',
+          {
+            version: before.version,
+            questionId: 'approach',
+            optionId: 'a',
+            answer: 'Blocked',
+          },
+        );
+        expect(answer.statusCode).toBe(409);
+        expect(
+          Number(
+            (
+              await f.first.one(
+                'SELECT count(*) AS n FROM document_suggestions',
+              )
+            ).n,
+          ),
+        ).toBe(0);
+        expect(
+          Number(
+            (await f.first.one('SELECT count(*) AS n FROM document_answers')).n,
+          ),
+        ).toBe(0);
+        expect((await f.request(f.a, 'GET', '/review')).statusCode).toBe(200);
+      });
       it('rechecks the locked source question before accepting a concurrent answer as an ADR', async () => {
         const f = await fixture(adapter),
           before = await f.state(),
