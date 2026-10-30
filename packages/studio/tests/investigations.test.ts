@@ -236,6 +236,19 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
       version: current.version,
       brief: 'A separate bounded investigation',
     });
+    const withSecondCard = await c.store.artifact(c.artifact.id, c.user.id);
+    expect(current.content.doc.content.at(-1).type).toBe('paragraph');
+    expect(current.content.doc.content.at(-1).content ?? []).toEqual([]);
+    expect(withSecondCard.content.doc.content.at(-1)).toEqual(
+      current.content.doc.content.at(-1),
+    );
+    const withoutCards = (content: any) =>
+      content.doc.content.filter(
+        (node: any) => node.type !== 'investigationCard',
+      );
+    expect(withoutCards(withSecondCard.content)).toEqual(
+      withoutCards(current.content),
+    );
     await c.store.tx(async () => {
       await c.store.db.lock('project:' + c.project.id);
       await c.store.exec(
@@ -408,6 +421,40 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
     expect(JSON.parse(row.snapshot_json).sealed.placement).toEqual(placement);
     await c.service.run(c.user, record.id);
     expect((await c.service.get(c.user, record.id)).status).toBe('queued');
+  });
+  it('keeps explicit placement after an empty selected paragraph instead of moving before it', async () => {
+    const c = await fixture();
+    const current = await c.store.updateArtifact(
+      c.user,
+      c.artifact.id,
+      c.artifact.version,
+      {
+        doc: {
+          type: 'doc',
+          content: [paragraph('Requirement'), paragraph('')],
+        },
+      },
+    );
+    const selected = current.content.doc.content[1];
+    const record = await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'Investigate the explicitly selected empty passage',
+      placement: { blockIndex: 1, digest: hash(JSON.stringify(selected)) },
+    });
+    const saved = await c.store.artifact(current.id, c.user.id);
+    expect(saved.content.doc.content.map((node: any) => node.type)).toEqual([
+      'paragraph',
+      'paragraph',
+      'investigationCard',
+      'paragraph',
+    ]);
+    expect(saved.content.doc.content[1]).toEqual(selected);
+    expect(saved.content.doc.content[2].attrs.data.investigationId).toBe(
+      record.id,
+    );
+    expect(saved.content.doc.content[3].attrs.id).not.toBe(selected.attrs.id);
+    await c.service.run(c.user, record.id);
+    expect((await c.service.claim(c.machine)).work?.id).toBe(record.id);
   });
   it('rejects stale, moved, missing and forged passage placement without appending a replacement card', async () => {
     const c = await fixture();

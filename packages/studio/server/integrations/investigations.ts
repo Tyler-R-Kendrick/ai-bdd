@@ -434,6 +434,14 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         time,
         time,
       );
+      const tail = blocks.at(-1);
+      // Keep the existing editable tail and its stable ID when adding an
+      // unanchored card. Explicit passage placement stays exactly as reviewed.
+      const insertionIndex = placement
+        ? placement.blockIndex + 1
+        : tail?.type === 'paragraph' && !tail.content?.length
+          ? blocks.length - 1
+          : blocks.length;
       const withCard = await this.store.updateArtifact(
         user,
         artifact.id,
@@ -443,15 +451,12 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           doc: {
             ...artifact.content.doc,
             content: [
-              ...blocks.slice(
-                0,
-                placement ? placement.blockIndex + 1 : blocks.length,
-              ),
+              ...blocks.slice(0, insertionIndex),
               {
                 type: 'investigationCard',
                 attrs: { data: { investigationId: id } },
               },
-              ...(placement ? blocks.slice(placement.blockIndex + 1) : []),
+              ...blocks.slice(insertionIndex),
             ],
           },
         },
