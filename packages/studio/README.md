@@ -46,7 +46,7 @@ The existing repository checks remain required. Studio's workflow adds API/secur
 
 ## Production deployment
 
-The default hosted composition is **Vercel Services + external PostgreSQL (Neon) + private Blob + Queues**, behind replaceable runtime adapters. Follow the [Vercel deployment and recovery runbook](../../docs/studio-vercel-deployment.md) for configuration, identity, large uploads, queue bootstrap, deployment checks, and restore. Runtime staging is disposable; SQL and private object references carry durable state. Cloud service provisioning and live validation remain separate release evidence.
+The default hosted composition is **Vercel Services + external PostgreSQL (Neon) + private Blob + Queues**, behind replaceable runtime adapters. Follow the [Vercel deployment and recovery runbook](../../docs/studio-vercel-deployment.md) for configuration, identity, large uploads, queue bootstrap, deployment checks, and restore. Runtime staging is disposable; SQL and private object references carry durable state. T3 is the default artifact harness and requires its actual runtime/provider registration. Vercel/fx is an explicitly selected alternative; unavailable T3 does not silently switch providers. Cloud service provisioning and live validation remain separate release evidence.
 
 For the local SQLite/disk adapter, build from the repository root:
 
