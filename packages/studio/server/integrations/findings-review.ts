@@ -560,10 +560,15 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
         );
       block.content = [{ type: 'text', text: edit.replacement }];
     }
+    const trailing = blocks.at(-1);
+    let insertion =
+      trailing?.type === 'paragraph' && !trailing.content?.length
+        ? blocks.length - 1
+        : blocks.length;
     for (const question of proposal.questions) {
       if (new Set(question.options).size !== question.options.length)
         throw new HttpError(502, 'Findings question options must be distinct');
-      blocks.push({
+      blocks.splice(insertion++, 0, {
         type: 'questionnaireBlock',
         attrs: {
           id: randomUUID(),
@@ -584,6 +589,8 @@ CREATE INDEX IF NOT EXISTS studio_findings_artifact ON studio_findings_reviews(a
         },
       });
     }
+    if (proposal.questions.length && blocks.at(-1)?.type !== 'paragraph')
+      blocks.push({ type: 'paragraph', attrs: { id: randomUUID() } });
     const validated = validateContent(artifact.kind, content);
     editorSchema().nodeFromJSON(validated.doc).check();
     return validated;
