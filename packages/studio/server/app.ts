@@ -122,6 +122,8 @@ export async function createApp(
     database?: SqlDatabase;
     store?: Store;
     runtime?: DurableJobRuntime;
+    /** Zero reconciles durable SQL only; external dispatch belongs to maintenance. */
+    startupDispatchLimit?: number;
     hosting?: HostingServices;
     identityExecutionContext?: IdentityExecutionContext;
     logger?: boolean;
@@ -133,6 +135,12 @@ export async function createApp(
     audioSourceProbe?: typeof probeAudio;
   } = {},
 ) {
+  const startupLimit = options.startupDispatchLimit;
+  if (
+    startupLimit !== undefined &&
+    (!Number.isInteger(startupLimit) || startupLimit < 0 || startupLimit > 100)
+  )
+    throw new Error('Startup dispatch limit must be between 0 and 100');
   const app = Fastify({
     logger: options.logger
       ? {
@@ -745,10 +753,15 @@ export async function createApp(
       });
     let startupDispatchPending = false;
     try {
-      // Startup must not drain an outage backlog before manual authoring opens.
-      // Maintenance retains the broader durable recovery/dispatch budgets.
-      await runtime.recover({ dispatchLimit: 2 });
-      await runtime.flushOutbox(2);
+      if (startupLimit === undefined) {
+        // Preserve the standalone/local startup behavior.
+        await runtime.recover();
+        await runtime.flushOutbox();
+      } else {
+        // Cloud startup can reconcile SQL without contacting any provider.
+        await runtime.recover({ dispatchLimit: startupLimit });
+        if (startupLimit > 0) await runtime.flushOutbox(startupLimit);
+      }
     } catch (error) {
       if (!(error instanceof OutboxDispatchPendingError)) throw error;
       // Only external publication degradation with a persisted retry can leave

@@ -87,6 +87,7 @@ export interface DurableJobRuntime {
   flushOutbox(limit?: number): Promise<void>;
   /** Observes persisted failed dispatch intents; does not certify delivery or execution. */
   dispatchReadiness?(): Promise<DispatchReadiness>;
+  /** Zero reconciles SQL intents/leases without calling the external publisher. */
   recover(options?: { dispatchLimit?: number }): Promise<void>;
   close(): Promise<void>;
 }

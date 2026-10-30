@@ -897,6 +897,13 @@ export class DurableJobCoordinator implements DurableJobRuntime {
   }
   async recover(options: { dispatchLimit?: number } = {}) {
     await this.ready;
+    const dispatchLimit = options.dispatchLimit ?? 20;
+    if (
+      !Number.isInteger(dispatchLimit) ||
+      dispatchLimit < 0 ||
+      dispatchLimit > 100
+    )
+      throw new Error('Recovery dispatch limit must be between 0 and 100');
     const now = this.clock();
     const rows = await this.store.all(
       "SELECT id FROM studio_durable_jobs WHERE (status='queued' AND available_at<=?) OR (status='running' AND lease_expires<=?) ORDER BY created_at,id LIMIT 100",
@@ -917,7 +924,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
           now,
         );
       });
-    await this.flushOutbox(options.dispatchLimit ?? 20);
+    if (dispatchLimit > 0) await this.flushOutbox(dispatchLimit);
   }
   async close() {
     this.closing = true;
