@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch server/main.ts",
     "dev:ui": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server",
+    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts server/planner-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server && esbuild server/hosting/vercel-main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/vercel-main.js",
     "start": "node dist/server/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
@@ -17,7 +17,8 @@
     "mcp": "node dist/server/mcp.js",
     "mcp:dev": "tsx server/mcp.ts",
     "machine:connect": "node dist/server/machine-worker.js",
-    "verify:live": "tsx server/integrations/live-check.ts"
+    "verify:live": "tsx server/integrations/live-check.ts",
+    "planner:connect": "node dist/server/planner-worker.js"
   },
   "dependencies": {
     "@ai-bdd/driver-playwright": "workspace:*",

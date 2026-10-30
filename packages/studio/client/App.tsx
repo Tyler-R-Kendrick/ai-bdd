@@ -1,5 +1,7 @@
 import RepositoryIdentity from './components/RepositoryIdentity.tsx';
 import { ArtifactTitle } from './components/ArtifactTitle.tsx';
+import { ImplementationPanel } from './components/integrations/ImplementationPanel.tsx';
+import { InvestigationPanel } from './components/investigations/InvestigationPanel.tsx';
 import {
   lazy,
   Suspense,
@@ -39,6 +41,7 @@ import {
   Archive,
   History,
   ClipboardCheck,
+  FlaskConical,
 } from 'lucide-react';
 import { api, ApiError } from './lib.ts';
 import {
@@ -130,6 +133,7 @@ export function App() {
     [settings, setSettings] = useState(false),
     [more, setMore] = useState(false),
     [busy, setBusy] = useState(false);
+  const [investigationsOpen, setInvestigationsOpen] = useState(false);
   const project = projects.find((p) => p.id === selection.project),
     artifact = bundle?.artifact,
     readOnly = project?.role === 'viewer';
@@ -683,6 +687,28 @@ export function App() {
                   />
                 </div>
                 <div className="artifact-actions">
+                  {['design', 'document'].includes(artifact.kind) && (
+                    <>
+                      <ImplementationPanel
+                        artifact={artifact}
+                        project={project}
+                        readOnly={readOnly}
+                        onChanged={() => void refresh()}
+                        onError={report}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setInvestigationsOpen(true)}
+                        aria-label="Investigations"
+                      >
+                        <FlaskConical size={15} />
+                        <span className="investigation-header-label">
+                          Investigations
+                        </span>
+                      </Button>
+                    </>
+                  )}
                   {!['design', 'document'].includes(artifact.kind) && (
                     <span className="save-status">
                       {dirty ? (
@@ -770,6 +796,7 @@ export function App() {
                           setPanel('decisions');
                           setRightOpen(true);
                         }}
+                        onInvestigations={() => setInvestigationsOpen(true)}
                         onTests={() => {
                           setPanel('tests');
                           setRightOpen(true);
@@ -943,6 +970,26 @@ export function App() {
           </div>
         </form>
       </Modal>
+      {artifact && (
+        <Modal
+          open={investigationsOpen}
+          onOpenChange={setInvestigationsOpen}
+          title="Local investigations"
+          description="Run approved investigations on your connected machine and retain the evidence with this artifact."
+        >
+          <InvestigationPanel
+            key={artifact.id}
+            artifactId={artifact.id}
+            artifactVersion={artifact.version}
+            currentUserId={user.id}
+            canWrite={!readOnly}
+            onOpenArtifact={(id) => {
+              setInvestigationsOpen(false);
+              navigate(artifact.projectId, id);
+            }}
+          />
+        </Modal>
+      )}
       <Modal open={command} onOpenChange={setCommand} title="Jump to…">
         <Input
           value={query}

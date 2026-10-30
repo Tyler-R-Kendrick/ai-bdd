@@ -405,7 +405,16 @@ function ChatPanel({
             : 'Your team, decisions, and agent share this artifact’s context.'}
         </p>
       </div>
-      {threadId && <ConversationCards artifactId={bundle.artifact.id} artifactVersion={bundle.artifact.version} threadId={threadId} readOnly={readOnly} onChanged={()=>void onRefresh()} onError={error=>onError((error as Error).message)} />}
+      {threadId && (
+        <ConversationCards
+          artifactId={bundle.artifact.id}
+          artifactVersion={bundle.artifact.version}
+          threadId={threadId}
+          readOnly={readOnly}
+          onChanged={() => void onRefresh()}
+          onError={(error) => onError((error as Error).message)}
+        />
+      )}
       {selectedThread && (
         <div className="comment-quote">
           <button onClick={() => goToAnchor(selectedThread)}>
