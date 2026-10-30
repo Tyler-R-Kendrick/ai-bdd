@@ -15,6 +15,10 @@ await copyFile(
   new URL('../verification/native-app-smoke.mjs', import.meta.url),
   new URL('../dist/server/studio-native-app-smoke.mjs', import.meta.url),
 );
+await copyFile(
+  new URL('../verification/local-cpu-affinity.mjs', import.meta.url),
+  new URL('../dist/server/studio-local-cpu-affinity.mjs', import.meta.url),
+);
 
 // Explicit disposable verification artifact; shipping main never imports this fixture.
 await build({

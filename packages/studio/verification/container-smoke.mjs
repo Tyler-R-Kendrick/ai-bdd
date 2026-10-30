@@ -135,6 +135,17 @@ try {
   pass(
     'packaged pinned CPU model generates chat and schema JSON as non-root with no network',
   );
+  await docker([
+    'run', '--rm', '--name', identifier + '-cpu-affinity',
+    '--network', 'none', '--read-only', '--tmpfs', '/tmp',
+    '--memory=2g', '--cpus=1', '--cap-drop', 'ALL',
+    '--security-opt', 'no-new-privileges:true',
+    '-e', 'STUDIO_SMOKE_CPU_AFFINITY=1', image,
+    'node', 'dist/server/studio-local-cpu-affinity.mjs',
+  ], 120000);
+  pass(
+    'actual model subprocess inherits one permitted CPU affinity and completes chat, JSON, full-source prefill and balanced native decisions offline within original model budgets',
+  );
   await docker(
     [
       'run',
@@ -321,6 +332,7 @@ try {
     );
   throw error;
 } finally {
+  await docker(['rm', '-f', identifier + '-cpu-affinity']).catch(() => {});
   await docker(['rm', '-f', identifier]).catch(() => {});
   await docker(['volume', 'rm', identifier]).catch(() => {});
 }
