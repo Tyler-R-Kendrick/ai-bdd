@@ -182,7 +182,16 @@ export function openaiDecisionProvider(
           if (question.kind === 'choice' && answer.type === 'choice') {
             const expected = question.choices.map((option) => option.value);
             distribution(answer.probabilities, expected);
-            if (!expected.some((value) => same(value, answer.choice)))
+            if (
+              !expected.some((value) => same(value, answer.choice)) ||
+              answer.probabilities.find((entry) =>
+                same(entry.value, answer.choice),
+              )!.probability +
+                1e-9 <
+                Math.max(
+                  ...answer.probabilities.map((entry) => entry.probability),
+                )
+            )
               throw new DecisionProviderError('invalid-response', false);
             return {
               questionId: question.id,
@@ -304,7 +313,9 @@ export function jevDecisionProvider(
       const answers: ProviderAnswer[] = input.questions.map((question) => {
         const raw = response.answers[question.id];
         if (question.kind === 'boolean') {
-          const answer = z.object({ noul: probability }).parse(raw);
+          const answer = z
+            .object({ type: z.literal('noul'), noul: probability })
+            .parse(raw);
           return {
             questionId: question.id,
             kind: question.kind,
@@ -315,6 +326,7 @@ export function jevDecisionProvider(
         if (question.kind === 'choice') {
           const answer = z
             .object({
+              type: z.literal('choice'),
               choice: z.string(),
               confidence: probability,
               probabilities: z.record(z.string(), probability),
@@ -330,7 +342,11 @@ export function jevDecisionProvider(
           const index = question.choices.findIndex(
             (_, index) => 'option_' + index === answer.choice,
           );
-          if (index < 0)
+          if (
+            index < 0 ||
+            answer.probabilities[answer.choice]! + 1e-9 <
+              Math.max(...Object.values(answer.probabilities))
+          )
             throw new DecisionProviderError('invalid-response', false);
           return {
             questionId: question.id,
@@ -345,6 +361,7 @@ export function jevDecisionProvider(
         }
         const answer = z
           .object({
+            type: z.literal('score'),
             score: z.number().finite(),
             confidence: probability,
             legend: z.record(z.string(), z.string()),
@@ -361,7 +378,12 @@ export function jevDecisionProvider(
         if (
           Object.keys(answer.legend).length !== question.levels.length ||
           question.levels.some(
-            (_, index) => typeof answer.legend[String(index)] !== 'string',
+            (_, index) =>
+              answer.legend[String(index)] !==
+              question.levels[index]!.label +
+                (question.levels[index]!.description
+                  ? ' — ' + question.levels[index]!.description
+                  : ''),
           ) ||
           answer.score < 0 ||
           answer.score > question.levels.length - 1 ||

@@ -214,13 +214,15 @@ describe('independent typed decision models over actual native HTTP contracts', 
         JSON.stringify({
           model: 'jev-released-model',
           answers: {
-            relevant: { noul: 0.02 },
+            relevant: { type: 'noul', noul: 0.02 },
             typed: {
+              type: 'choice',
               choice: 'option_1',
               confidence: 0.95,
               probabilities: { option_0: 0.1, option_1: 0.9 },
             },
             severity: {
+              type: 'score',
               score: 0.3,
               confidence: 0.9,
               legend: { 0: 'Low', 1: 'High' },
@@ -273,7 +275,7 @@ describe('independent typed decision models over actual native HTTP contracts', 
     expect(result.provenance).toMatchObject({
       requestedModel: 'jev-latest',
       model: 'jev-released-model',
-      modelResolution: 'provider-resolved-at-execution',
+      modelResolution: 'provider-reported-unresolved',
       usage: { inputTokens: null, outputTokens: null, totalTokens: null },
     });
     expect(api.requests[0].path).toBe('/v1/systemone');
@@ -580,9 +582,11 @@ describe('independent typed decision models over actual native HTTP contracts', 
         profile: await w.models.captureProfile(w.user, w.artifact.id),
       }),
     );
-    expect(result.status).toBe('answered');
+    expect(result.status).toBe('abstained');
     expect(result.answers[0]).toMatchObject({
-      value: true,
+      value: null,
+      candidate: true,
+      error: 'unscored-answer',
       probability: null,
       confidence: null,
       probabilities: [],
@@ -604,5 +608,91 @@ describe('independent typed decision models over actual native HTTP contracts', 
         STUDIO_OPENAI_DECISIONS_BASE_URL: 'http://127.0.0.1:1',
       }),
     ).toThrow('HTTPS');
+  });
+  it('rejects mismatched native Jev answer types and inconsistent selected choice probabilities', async () => {
+    const jev = await http((_body, res) =>
+      res.end(
+        JSON.stringify({
+          model: 'jev-latest',
+          answers: { relevant: { type: 'choice', noul: 0.95 } },
+          usage: { input_tokens: null, output_tokens: null },
+        }),
+      ),
+    );
+    const w = await workspace(
+      native(jev.url, {
+        defaultProfile: decisionProfileSchema.parse({
+          provider: 'jev',
+          model: 'jev-latest',
+        }),
+        jev: {
+          baseUrl: jev.url,
+          apiKey: 'jev-fixture',
+          models: ['jev-latest'],
+        },
+      }),
+    );
+    expect((await w.models.decide(w.request())).answers[0]).toMatchObject({
+      status: 'error',
+      value: null,
+      error: 'invalid-response',
+    });
+    const api = await http((body, res) =>
+      res.end(
+        JSON.stringify({
+          model: body.model,
+          usage,
+          answers: [
+            {
+              type: 'choice',
+              name: 'kind',
+              choice: 'a',
+              confidence: 0.95,
+              probabilities: [
+                { value: 'a', probability: 0.1 },
+                { value: 'b', probability: 0.9 },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+    const other = new DecisionModels({
+      store: w.store,
+      settings: native(api.url),
+    });
+    await other.ready;
+    cleanup.push(() => other.close());
+    const profile = (
+      await other.profile(
+        w.user,
+        w.artifact.id,
+        decisionProfileSchema.parse({
+          provider: 'openai-decisions',
+          model: 'gpt-6-luna',
+        }),
+      )
+    ).profile;
+    expect(
+      (
+        await other.decide(
+          w.request({
+            profile,
+            questions: [
+              {
+                id: 'kind',
+                kind: 'choice',
+                instructions: 'Pick.',
+                choices: [{ value: 'a' }, { value: 'b' }],
+              },
+            ],
+          }),
+        )
+      ).answers[0],
+    ).toMatchObject({
+      status: 'error',
+      value: null,
+      error: 'invalid-response',
+    });
   });
 });

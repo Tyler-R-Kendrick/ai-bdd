@@ -319,6 +319,7 @@ export class DecisionModels {
             : native.confidence;
         const abstained =
           native.abstained ||
+          certainty === undefined ||
           (certainty !== undefined &&
             (certainty < input.profile.minimumConfidence ||
               (question.kind === 'boolean' && certainty === 0.5)));
@@ -331,7 +332,15 @@ export class DecisionModels {
           probability: native.probability ?? null,
           confidence: native.confidence ?? null,
           probabilities: native.probabilities ?? [],
-          ...(abstained ? { error: 'low-confidence' as const } : {}),
+          ...(abstained
+            ? {
+                error: (native.abstained
+                  ? 'provider-abstention'
+                  : certainty === undefined
+                    ? 'unscored-answer'
+                    : 'low-confidence') as DecisionAnswer['error'],
+              }
+            : {}),
         };
       },
     );
@@ -361,7 +370,7 @@ export class DecisionModels {
         configRevision:
           input.profile.configRevision ?? this.registration(input.profile),
         purpose: input.purpose,
-        modelResolution: 'provider-resolved-at-execution',
+        modelResolution: 'provider-reported-unresolved',
         startedAt,
         finishedAt,
         latencyMs: Date.parse(finishedAt) - Date.parse(startedAt),

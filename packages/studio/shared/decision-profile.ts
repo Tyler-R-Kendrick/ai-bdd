@@ -119,6 +119,8 @@ export type DecisionAnswer = {
   }[];
   error?:
     | 'low-confidence'
+    | 'unscored-answer'
+    | 'provider-abstention'
     | 'provider-refusal'
     | 'provider-error'
     | 'invalid-response'
@@ -147,7 +149,7 @@ export type DecisionEvaluation = {
     minimumConfidence: number;
     configRevision: string;
     purpose: DecisionPurpose;
-    modelResolution: 'provider-resolved-at-execution';
+    modelResolution: 'provider-reported-unresolved';
     startedAt: string;
     finishedAt: string;
     latencyMs: number;
