@@ -87,12 +87,15 @@ async function fixture(postgres: boolean) {
       role,
     );
   const objects = new DiskObjectStore(join(directory, 'objects')),
-    service = await registerArtifactLifecycle(studio.app, {
-      store: studio.store,
-      auth: studio.auth,
-      objects,
-      assertEditable: (a) => studio.graphs.assertPlanEditable(a.id),
-    });
+    service =
+      (studio as { lifecycle?: ArtifactLifecycle }).lifecycle ??
+      (await registerArtifactLifecycle(studio.app, {
+        store: studio.store,
+        auth: studio.auth,
+        objects,
+        assertEditable: (a) => studio.graphs.assertPlanEditable(a.id),
+      }));
+  service.options.objects = objects;
   const input = async () => {
     const state = (await service.inspect(owner, artifact.id)).artifact;
     return {
@@ -248,6 +251,107 @@ for (const postgres of [false, true])
         });
         expect(result.statusCode, result.body).toBe(200);
         expect(result.json()).toMatchObject({ deleted: true });
+      });
+      it('protects unknown indirect workflow dependencies and cascades only known terminal Planner metadata', async () => {
+        const c = await fixture(postgres),
+          thread = (await c.store.threads(c.artifact.id))[0]!;
+        await c.store.db.exec(
+          'CREATE TABLE studio_future_thread_receipts(id TEXT PRIMARY KEY,thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,payload TEXT NOT NULL)',
+        );
+        await c.store.exec(
+          'INSERT INTO studio_future_thread_receipts(id,thread_id,payload) VALUES(?,?,?)',
+          randomUUID(),
+          thread.id,
+          'Retained external workflow',
+        );
+        await c.service.archive(c.owner, c.artifact.id);
+        await expect(
+          c.service.purge(c.owner, c.artifact.id, await c.input()),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          blockers: expect.arrayContaining([
+            expect.objectContaining({ kind: 'retained-records' }),
+          ]),
+        });
+        const target = await c.store.createArtifact(
+            c.owner,
+            c.project.id,
+            'document',
+            'Terminal Planner draft',
+          ),
+          device = randomUUID(),
+          assignment = randomUUID();
+        await c.store.exec(
+          'INSERT INTO studio_account_machines(id,user_id,label,token_hash,expires,last_seen,status,created_at,trust_version,trusted_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
+          device,
+          c.owner.id,
+          'Archive fixture device',
+          hash(randomUUID()),
+          Date.now() + 60000,
+          Date.now(),
+          'active',
+          new Date().toISOString(),
+          'fixture',
+          new Date().toISOString(),
+        );
+        await c.store.db.exec(
+          `CREATE TABLE IF NOT EXISTS studio_account_planner_assignments(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,device_id TEXT NOT NULL REFERENCES studio_account_machines(id) ON DELETE CASCADE,repository TEXT NOT NULL,checkout_key TEXT NOT NULL,checkout_commit TEXT NOT NULL,artifact_version BIGINT NOT NULL,source_hash TEXT NOT NULL,profile_json TEXT NOT NULL,epoch BIGINT NOT NULL,status TEXT NOT NULL,token_hash TEXT UNIQUE,expires BIGINT,idle_expires BIGINT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,reason TEXT)`,
+        );
+        await c.store.exec(
+          'INSERT INTO studio_account_planner_assignments(id,artifact_id,project_id,user_id,device_id,repository,checkout_key,checkout_commit,artifact_version,source_hash,profile_json,epoch,status,token_hash,expires,idle_expires,created_at,updated_at,reason) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+          assignment,
+          target.id,
+          c.project.id,
+          c.owner.id,
+          device,
+          'https://github.com/example/archive',
+          'operator-key',
+          'a'.repeat(40),
+          target.version,
+          hash('{}'),
+          '{}',
+          1,
+          'queued',
+          null,
+          null,
+          0,
+          new Date().toISOString(),
+          new Date().toISOString(),
+          null,
+        );
+        await expect(
+          c.service.archive(c.owner, target.id),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          blockers: expect.arrayContaining([
+            expect.objectContaining({ kind: 'active-work' }),
+          ]),
+        });
+        await c.store.exec(
+          "UPDATE studio_account_planner_assignments SET status='stopped' WHERE id=?",
+          assignment,
+        );
+        await c.service.archive(c.owner, target.id);
+        const state = (await c.service.inspect(c.owner, target.id)).artifact;
+        await expect(
+          c.service.purge(c.owner, target.id, {
+            version: state.version,
+            archiveRevision: state.archiveRevision,
+            confirmTitle: state.title,
+          }),
+        ).resolves.toMatchObject({ deleted: true });
+        expect(
+          await c.store.one(
+            'SELECT id FROM studio_account_planner_assignments WHERE id=?',
+            assignment,
+          ),
+        ).toBeUndefined();
+        expect(
+          await c.store.one(
+            'SELECT id FROM studio_account_machines WHERE id=?',
+            device,
+          ),
+        ).toBeTruthy();
       });
       it('retains future cross-artifact workflow JSON references and live assistant questions', async () => {
         const c = await fixture(postgres),
@@ -538,6 +642,49 @@ for (const postgres of [false, true])
           deliveryCount: 2,
         });
         expect(executed).toBe(0);
+      });
+      it('collects terminal owned media staging through the durable deletion outbox', async () => {
+        const c = await fixture(postgres),
+          key = 'renders/' + randomUUID(),
+          bytes = Buffer.from('synthetic staged renderer bytes');
+        c.runtime.register('fixture.staging', async () => ({}));
+        const job = await c.runtime.enqueue({
+          kind: 'fixture.staging',
+          projectId: c.project.id,
+          artifactId: c.artifact.id,
+          principalId: c.owner.id,
+          artifactVersion: c.artifact.version,
+          snapshot: {},
+          idempotencyKey: 'terminal-stage',
+          maxAttempts: 1,
+        });
+        await c.runtime.cancel(job.id, c.owner);
+        await c.objects.put(key, bytes, {
+          contentType: 'application/octet-stream',
+        });
+        await c.store.exec(
+          'INSERT INTO studio_video_staging(object_key,job_id,fence,sha256,byte_size,state,created_at,next_cleanup) VALUES(?,?,?,?,?,?,?,?)',
+          key,
+          job.id,
+          1,
+          hash(bytes),
+          bytes.length,
+          'delete-pending',
+          Date.now(),
+          Date.now(),
+        );
+        await c.service.archive(c.owner, c.artifact.id);
+        await expect(
+          c.service.purge(c.owner, c.artifact.id, await c.input()),
+        ).resolves.toMatchObject({ deleted: true, cleanupPending: true });
+        expect(
+          await c.store.one(
+            'SELECT object_key FROM studio_video_staging WHERE object_key=?',
+            key,
+          ),
+        ).toBeUndefined();
+        await c.service.cleanup();
+        expect(await c.objects.get(key, { maxBytes: 100 })).toBeNull();
       });
       it('queues retryable private-object deletion and prevents key resurrection across service instances', async () => {
         const c = await fixture(postgres),

@@ -17,6 +17,13 @@ const now = () => new Date().toISOString(),
       throw new Error('Untrusted database identifier');
     return '"' + name + '"';
   };
+type ForeignEdge = {
+  table: string;
+  column: string;
+  target: string;
+  targetColumn: string;
+  rule: string;
+};
 const ownedCascade = new Set([
   'decisions',
   'threads',
@@ -60,6 +67,25 @@ const ownedCascade = new Set([
   'studio_runner_workspaces',
   'video_render_jobs',
   'audio_render_jobs',
+  'studio_decision_admissions',
+  'studio_job_receipts',
+  'studio_job_outbox',
+  'studio_video_staging',
+  'studio_audio_staging',
+  'studio_runner_jobs',
+  'implementation_commands',
+  'studio_rebuild_execution_receipts',
+  'studio_investigation_selections',
+  'studio_investigation_images',
+  'studio_remote_activity',
+  'studio_remote_events',
+  'studio_remote_questions',
+  'studio_remote_controls',
+  'studio_findings_reviews',
+  'studio_findings_candidates',
+  'studio_findings_seen',
+  'studio_findings_acknowledgements',
+  'studio_account_planner_assignments',
   'studio_artifact_lifecycle',
   'studio_investigation_passages',
 ]);
@@ -143,35 +169,31 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
     );
   }
   private async foreignEdges(tables: Set<string>) {
-    const edges: {
-      table: string;
-      column: string;
-      target: string;
-      rule: string;
-    }[] = [];
+    const edges: ForeignEdge[] = [];
     if (this.store.db.dialect === 'sqlite') {
       for (const table of tables) {
         if (table.startsWith('sqlite_')) continue;
         for (const row of await this.store.all(
           `PRAGMA foreign_key_list(${identifier(table)})`,
         ))
-          if (['artifacts', 'files'].includes(row.table))
-            edges.push({
-              table,
-              column: row.from,
-              target: row.table,
-              rule: row.on_delete,
-            });
+          edges.push({
+            table,
+            column: row.from,
+            target: row.table,
+            targetColumn: row.to ?? 'id',
+            rule: row.on_delete,
+          });
       }
     } else {
       const rows = await this.store.all(
-        "SELECT src.relname AS table_name,attr.attname AS column_name,dst.relname AS target,con.confdeltype AS rule FROM pg_constraint con JOIN pg_class src ON src.oid=con.conrelid JOIN pg_namespace ns ON ns.oid=src.relnamespace JOIN pg_class dst ON dst.oid=con.confrelid CROSS JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS key(attnum,position) JOIN pg_attribute attr ON attr.attrelid=src.oid AND attr.attnum=key.attnum WHERE con.contype='f' AND ns.nspname=current_schema() AND dst.relname IN ('artifacts','files')",
+        "SELECT src.relname AS table_name,attr.attname AS column_name,dst.relname AS target,refattr.attname AS target_column,con.confdeltype AS rule FROM pg_constraint con JOIN pg_class src ON src.oid=con.conrelid JOIN pg_namespace ns ON ns.oid=src.relnamespace JOIN pg_class dst ON dst.oid=con.confrelid JOIN pg_namespace dstns ON dstns.oid=dst.relnamespace CROSS JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS key(attnum,position) JOIN pg_attribute attr ON attr.attrelid=src.oid AND attr.attnum=key.attnum JOIN pg_attribute refattr ON refattr.attrelid=dst.oid AND refattr.attnum=con.confkey[key.position::int] WHERE con.contype='f' AND ns.nspname=current_schema() AND dstns.nspname=current_schema()",
       );
       for (const row of rows)
         edges.push({
           table: row.table_name,
           column: row.column_name,
           target: row.target,
+          targetColumn: row.target_column,
           rule:
             (
               {
@@ -185,6 +207,39 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
         });
     }
     return edges;
+  }
+  private ownershipPaths(edges: ForeignEdge[]) {
+    const paths = new Map<string, ForeignEdge[]>([['artifacts', []]]);
+    for (const edge of edges)
+      if (edge.target === 'artifacts' && edge.column === 'artifact_id')
+        paths.set(edge.table, [edge]);
+    for (let pass = 0; pass < edges.length; pass++) {
+      let changed = false;
+      for (const edge of edges)
+        if (
+          edge.target !== 'artifacts' &&
+          !paths.has(edge.table) &&
+          paths.has(edge.target)
+        ) {
+          paths.set(edge.table, [edge, ...paths.get(edge.target)!]);
+          changed = true;
+        }
+      if (!changed) break;
+    }
+    return paths;
+  }
+  private ownedPredicate(
+    path: ForeignEdge[],
+    alias: string,
+    artifactExpression: string,
+    depth = 0,
+  ): string {
+    if (!path.length) return `${alias}.id=${artifactExpression}`;
+    const [edge, ...rest] = path,
+      parent = 'owner_' + depth;
+    if (edge.target === 'artifacts')
+      return `${alias}.${identifier(edge.column)}=${artifactExpression}`;
+    return `EXISTS(SELECT 1 FROM ${identifier(edge.target)} ${parent} WHERE ${parent}.${identifier(edge.targetColumn)}=${alias}.${identifier(edge.column)} AND ${this.ownedPredicate(rest, parent, artifactExpression, depth + 1)})`;
   }
   private async main(artifact: Artifact) {
     return (
@@ -225,6 +280,11 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
         'studio_machine_work',
         "status IN ('queued','running')",
         'A connected machine still has active work. Stop it in Connections first.',
+      ],
+      [
+        'studio_account_planner_assignments',
+        "status IN ('queued','claimed')",
+        'A document Planner assignment is queued or claimed. Stop that assignment first.',
       ],
       [
         'studio_implementation_machine_queue',
@@ -420,15 +480,8 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
     const foreignEdges = await this.foreignEdges(tables);
     // Every artifact-owned text record participates, including future workflow JSON.
     // Unknown dependency tables still default to a typed denial below.
-    const referenceTables = new Set([
-      'artifacts',
-      ...foreignEdges
-        .filter(
-          (edge) =>
-            edge.target === 'artifacts' && edge.column === 'artifact_id',
-        )
-        .map((edge) => edge.table),
-    ]);
+    const ownership = this.ownershipPaths(foreignEdges);
+    const referenceTables = ownership.keys();
     for (const table of referenceTables) {
       const textRows = await this.store.all(
         this.store.db.dialect === 'sqlite'
@@ -458,13 +511,16 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
         own = table === 'artifacts',
         scope = own
           ? 's.project_id=? AND s.id<>?'
-          : 'a.project_id=? AND s.artifact_id<>?',
+          : 'a.project_id=? AND a.id<>?',
         from =
           identifier(table) +
           ' s' +
-          (own ? '' : ' JOIN artifacts a ON a.id=s.artifact_id');
+          (own
+            ? ''
+            : ' JOIN artifacts a ON ' +
+              this.ownedPredicate(ownership.get(table)!, 's', 'a.id'));
       const row = await this.store.one(
-        `SELECT ${own ? 's.id' : 's.artifact_id'} AS artifact_id FROM ${from} WHERE ${scope} AND (${contains(content, '?')} OR EXISTS(SELECT 1 FROM files f WHERE f.artifact_id=? AND ${contains(content, 'f.id')})) LIMIT 1`,
+        `SELECT ${own ? 's.id' : 'a.id'} AS artifact_id FROM ${from} WHERE ${scope} AND (${contains(content, '?')} OR EXISTS(SELECT 1 FROM files f WHERE f.artifact_id=? AND ${contains(content, 'f.id')})) LIMIT 1`,
         artifact.projectId,
         artifact.id,
         artifact.id,
@@ -504,7 +560,7 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
             message:
               'Related saved workflow records require this artifact. Restore it to review those dependencies.',
           });
-      } else {
+      } else if (edge.target === 'files') {
         const cols = await this.columns(edge.table),
           owned =
             cols.has('artifact_id') &&
@@ -520,6 +576,18 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
             count: Number(row.n),
             message:
               'An immutable evidence or workflow record still references an uploaded asset.',
+          });
+      } else if (ownership.has(edge.target) && !ownedCascade.has(edge.table)) {
+        const row = await this.store.one(
+          `SELECT COUNT(*) AS n FROM ${identifier(edge.table)} dependent WHERE EXISTS(SELECT 1 FROM ${identifier(edge.target)} retained WHERE retained.${identifier(edge.targetColumn)}=dependent.${identifier(edge.column)} AND ${this.ownedPredicate(ownership.get(edge.target)!, 'retained', '?')})`,
+          artifact.id,
+        );
+        if (Number(row.n))
+          blockers.push({
+            kind: 'retained-records',
+            count: Number(row.n),
+            message:
+              'A saved workflow record depends on this artifact’s retained discussion or job history. Restore it to review that dependency.',
           });
       }
     }
