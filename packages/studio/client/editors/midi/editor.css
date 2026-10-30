@@ -1,0 +1,517 @@
+.midi-editor {
+  height: 100%;
+  min-height: 660px;
+  display: flex;
+  flex-direction: column;
+  background: var(--background, #f8f8fa);
+  color: var(--foreground, #252430);
+  overflow: hidden;
+}
+.midi-toolbar {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border, #dedde5);
+  background: var(--card, #fff);
+}
+.midi-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+}
+.midi-heading > svg {
+  width: 25px;
+  height: 25px;
+  color: #7959c6;
+}
+.midi-heading > div {
+  display: grid;
+  gap: 3px;
+}
+.midi-heading strong {
+  font-size: 14px;
+}
+.midi-heading small {
+  font-size: 11px;
+  color: var(--muted-foreground, #777583);
+}
+.midi-toolbar-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.midi-toolbar-actions svg {
+  width: 15px;
+  height: 15px;
+}
+.midi-transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border, #dedde5);
+  background: var(--card, #fff);
+}
+.midi-transport output {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 145px;
+}
+.midi-transport output span {
+  color: var(--muted-foreground, #777583);
+}
+.midi-transport > input[type='range'] {
+  min-width: 90px;
+  flex: 1;
+  accent-color: #8260c9;
+}
+.midi-transport label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.midi-transport select {
+  width: 105px;
+}
+.midi-transport label input {
+  width: 80px;
+  accent-color: #8260c9;
+}
+.midi-workspace {
+  display: grid;
+  grid-template-columns: 190px minmax(250px, 1fr) 245px;
+  flex: 1;
+  min-height: 0;
+}
+.midi-tracks {
+  background: var(--card, #fff);
+  padding: 12px 9px;
+  border-right: 1px solid var(--border, #dedde5);
+  overflow: auto;
+}
+.midi-tracks > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px 12px;
+  font-size: 12px;
+}
+.midi-track {
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  margin-bottom: 7px;
+  background: var(--muted, #f6f5f8);
+}
+.midi-track.selected {
+  border-color: #9f86d7;
+  background: color-mix(in srgb, #a58cff 9%, var(--card, #fff));
+}
+.midi-track-select {
+  display: grid;
+  grid-template-columns: 7px 1fr;
+  gap: 5px 7px;
+  width: 100%;
+  text-align: left;
+  min-width: 0;
+}
+.midi-track-select i {
+  grid-row: span 2;
+  border-radius: 3px;
+}
+.midi-track-select strong {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.midi-track-select small {
+  font-size: 10px;
+  color: var(--muted-foreground, #777583);
+}
+.midi-track > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.midi-track > div svg {
+  width: 13px;
+  height: 13px;
+}
+.midi-solo {
+  font-weight: 600;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  width: 24px;
+  height: 22px;
+  font-size: 10px;
+}
+.midi-solo.active {
+  background: #e9d491;
+  color: #4a3514;
+}
+.midi-empty {
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-foreground, #777583);
+}
+.midi-empty button {
+  margin-top: 12px;
+}
+.midi-score {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #211f2a;
+  overflow: hidden;
+}
+.midi-score-tools {
+  height: 44px;
+  min-height: 44px;
+  padding: 7px 13px;
+  display: flex;
+  justify-content: space-between;
+  gap: 9px;
+  align-items: center;
+  color: #ddd7ed;
+  background: #2c2836;
+  font-size: 12px;
+}
+.midi-score-tools small {
+  font-size: 10px;
+  color: #aaa2b9;
+  display: block;
+  margin-top: 2px;
+}
+.midi-score-tools button {
+  color: #d7d0e9;
+  font-size: 11px;
+}
+.midi-roll-scroll {
+  flex: 1;
+  min-height: 340px;
+  max-height: 620px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  position: relative;
+  scrollbar-color: #51475f #211f2a;
+}
+.midi-roll-inner {
+  position: relative;
+}
+.midi-ruler {
+  height: 28px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: #282733;
+}
+.midi-piano {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  width: 64px;
+  display: grid;
+  background: #dddbe4;
+  box-shadow: 4px 0 10px #0004;
+}
+.midi-piano button {
+  width: 64px;
+  text-align: right;
+  padding-right: 7px;
+  font-size: 10px;
+  line-height: 18px;
+  background: #e6e3ed;
+  color: #514b61;
+  border-bottom: 1px solid #c9c5d2;
+  box-sizing: border-box;
+}
+.midi-piano button.black {
+  background: #3c354a;
+  color: #b6aec8;
+  border-bottom-color: #2c2637;
+  width: 55px;
+}
+.midi-piano button:active {
+  background: #c0a8eb;
+  color: #26183e;
+}
+.midi-grid {
+  position: absolute;
+  left: 64px;
+  top: 28px;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+}
+.midi-note {
+  cursor: grab;
+  outline: none;
+}
+.midi-note > rect:first-child {
+  fill: var(--note-color);
+  opacity: 0.9;
+  stroke: transparent;
+  stroke-width: 1.5;
+}
+.midi-note text {
+  fill: #241d32;
+  pointer-events: none;
+  font-weight: 600;
+}
+.midi-note.other-track {
+  opacity: 0.32;
+}
+.midi-note.selected > rect:first-child,
+.midi-note:focus > rect:first-child {
+  stroke: #fff;
+  opacity: 1;
+}
+.midi-note-velocity {
+  fill: #fff8;
+  pointer-events: none;
+}
+.midi-note-handle {
+  fill: transparent;
+  cursor: ew-resize;
+}
+.midi-note.selected .midi-note-handle {
+  fill: #fff4;
+}
+.midi-velocity-lane {
+  position: relative;
+  flex: none;
+  height: 48px;
+  background: #292532;
+  border-top: 1px solid #45404f;
+  overflow: hidden;
+}
+.midi-velocity-lane button {
+  position: absolute;
+  width: 5px;
+  background: #a58cff;
+  min-height: 3px;
+  opacity: 0.7;
+}
+.midi-velocity-lane button.selected {
+  background: #f5ca84;
+  opacity: 1;
+}
+.midi-velocity-lane > span {
+  position: sticky;
+  display: inline-block;
+  left: 0;
+  width: 64px;
+  height: 48px;
+  padding: 17px 3px;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  color: #aaa2b9;
+  background: #292532;
+}
+.midi-inspector {
+  background: var(--card, #fff);
+  overflow: auto;
+  border-left: 1px solid var(--border, #dedde5);
+  max-height: 760px;
+}
+.midi-inspector > details {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border, #dedde5);
+  display: grid;
+  gap: 10px;
+}
+.midi-inspector summary {
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.midi-inspector > details[open] > :not(summary) {
+  margin-top: 10px;
+}
+.midi-inspector p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted-foreground, #777583);
+}
+.midi-inspector input,
+.midi-inspector select {
+  height: 31px;
+  font-size: 11px;
+  min-width: 0;
+}
+.midi-inspector label {
+  font-size: 10px;
+}
+.midi-inspector button {
+  font-size: 10px;
+  max-width: 100%;
+}
+.midi-inspector button svg {
+  height: 13px;
+  width: 13px;
+}
+.midi-note-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.midi-note-title strong {
+  margin-right: auto;
+  font-size: 17px;
+}
+.midi-map-entry {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border, #dedde5);
+  display: grid;
+  gap: 8px;
+}
+.midi-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 18px;
+  padding: 9px 18px;
+  border-top: 1px solid var(--border, #dedde5);
+  font-size: 10px;
+  color: var(--muted-foreground, #777583);
+  background: var(--card, #fff);
+}
+.midi-conflict {
+  padding: 12px 18px;
+  background: #fff5df;
+  color: #79511a;
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  align-items: center;
+}
+.midi-conflict p {
+  flex: 1;
+  min-width: 230px;
+}
+.midi-notice {
+  padding: 9px 18px;
+  background: color-mix(in srgb, #8cc9ab 14%, var(--background, #fff));
+  font-size: 12px;
+  color: var(--foreground, #254737);
+}
+@media (max-width: 1150px) {
+  .midi-workspace {
+    grid-template-columns: 155px minmax(240px, 1fr);
+  }
+  .midi-inspector {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-height: 420px;
+    border-left: 0;
+    border-top: 1px solid var(--border, #ddd);
+  }
+  .midi-inspector > details {
+    border-right: 1px solid var(--border, #ddd);
+  }
+  .midi-editor {
+    overflow: auto;
+  }
+  .midi-workspace {
+    flex: none;
+  }
+  .midi-transport {
+    flex-wrap: wrap;
+  }
+  .midi-transport > input[type='range'] {
+    min-width: 140px;
+  }
+}
+@media (max-width: 650px) {
+  .midi-toolbar {
+    padding: 11px;
+  }
+  .midi-heading {
+    width: 100%;
+  }
+  .midi-toolbar-actions {
+    gap: 5px;
+  }
+  .midi-toolbar-actions > button {
+    height: 31px;
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+  .midi-toolbar-actions > button svg {
+    width: 12px;
+    height: 12px;
+  }
+  .midi-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .midi-tracks {
+    border-right: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 9px;
+  }
+  .midi-tracks > header {
+    width: 100%;
+    padding-bottom: 0;
+  }
+  .midi-track {
+    width: 150px;
+    margin: 0;
+  }
+  .midi-tracks .midi-empty {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .midi-empty button {
+    margin: 0;
+  }
+  .midi-score-tools {
+    height: 52px;
+    min-height: 52px;
+    padding: 8px;
+  }
+  .midi-score-tools small {
+    max-width: 230px;
+    font-size: 9px;
+  }
+  .midi-roll-scroll {
+    height: 360px;
+    flex: none;
+    min-height: 360px;
+  }
+  .midi-inspector {
+    grid-column: auto;
+    grid-template-columns: 1fr 1fr;
+    max-height: none;
+  }
+  .midi-transport {
+    padding: 9px;
+    gap: 8px;
+  }
+  .midi-transport output {
+    min-width: 120px;
+  }
+  .midi-transport > input[type='range'] {
+    min-width: 160px;
+  }
+  .midi-footer {
+    padding: 9px;
+    font-size: 9px;
+    line-height: 1.5;
+  }
+}
