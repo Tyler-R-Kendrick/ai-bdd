@@ -1,4 +1,4 @@
-// Explicit, bounded, model-free acceptance on the reviewed protected preview.
+// Explicit, bounded, model-free acceptance on the reviewed production or protected preview.
 // Credentials stay in memory and are sent only to this exact host; redirects are never followed.
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, lstat, rename } from 'node:fs/promises';
@@ -7,6 +7,7 @@ import { createHash, randomUUID } from 'node:crypto';
 const selected = new URL(
   process.env.STUDIO_HOSTED_AUDIO_ORIGIN ?? 'https://invalid.example',
 );
+const production = selected.origin === 'https://ai-bdd-studio.vercel.app';
 if (
   selected.protocol !== 'https:' ||
   selected.port ||
@@ -15,11 +16,11 @@ if (
   selected.pathname !== '/' ||
   selected.search ||
   selected.hash ||
-  !/^ai-bdd-studio-[a-z0-9]+-tyler-r-kendricks-projects\.vercel\.app$/.test(
+  (!production && !/^ai-bdd-studio-[a-z0-9]+-tyler-r-kendricks-projects\.vercel\.app$/.test(
     selected.hostname,
-  )
+  ))
 )
-  throw new Error('An explicit approved project preview origin is required');
+  throw new Error('An explicit approved canonical production or project preview origin is required');
 const origin = selected.origin,
   source = process.env.STUDIO_HOSTED_AUDIO_SOURCE,
   deploymentId = process.env.STUDIO_HOSTED_AUDIO_DEPLOYMENT_ID;
@@ -30,8 +31,10 @@ if (
   throw new Error('Reviewed source and deployment identity are required');
 if (process.env.STUDIO_HOSTED_AUDIO_ALLOW_USAGE !== '1')
   throw new Error('Hosted audio acceptance requires explicit usage opt-in');
+if (production && process.env.STUDIO_HOSTED_AUDIO_ALLOW_PRODUCTION_WRITE !== '1')
+  throw new Error('Canonical production acceptance requires its separate production write opt-in');
 if (
-  !process.env.VERCEL_OIDC_TOKEN ||
+  (!production && !process.env.VERCEL_OIDC_TOKEN) ||
   !process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE ||
   !process.env.STUDIO_HOSTED_AUDIO_EMAIL ||
   !process.env.STUDIO_HOSTED_AUDIO_REPORT
@@ -41,6 +44,8 @@ if (
   );
 const report = {
   schemaVersion: 1,
+  environment: production ? 'production' : 'preview',
+  previewIdentityHeaderSent: !production,
   origin,
   startedAt: new Date().toISOString(),
   deploymentSourceProvidedByOperator: source,
@@ -123,7 +128,7 @@ async function request(
     throw new GateError(stage, 0, 'foreign-target-refused');
   const started = Date.now(),
     headers = {
-      'x-vercel-trusted-oidc-idp-token': process.env.VERCEL_OIDC_TOKEN,
+      ...(!production ? { 'x-vercel-trusted-oidc-idp-token': process.env.VERCEL_OIDC_TOKEN } : {}),
       origin,
       ...(cookie ? { cookie } : {}),
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
