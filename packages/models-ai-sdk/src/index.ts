@@ -13,12 +13,15 @@ import {
 import { mapModelError } from './errors.ts';
 import { toAiMessages } from './messages.ts';
 import { createFreeGateway } from './free-gateway.ts';
+import type { FreeGatewayOptions } from './free-gateway.ts';
 export { createFreeGateway, authorizeFreeGatewayModel, freeGatewayModels, FreeGatewayPolicyError } from './free-gateway.ts';
 export type { FreeGatewayOptions, FreeGatewayModelKind, GatewayFetch } from './free-gateway.ts';
 
 export interface AiSdkModelsOptions {
   /** Passed straight through to the AI SDK's `maxRetries` (its default applies when omitted). */
   maxRetries?: number;
+  /** Trusted server configuration for the guarded Gateway, never model-supplied routing. */
+  gateway?: FreeGatewayOptions;
 }
 
 const PURPOSES: readonly ModelPurpose[] = ['extract', 'act', 'checkgen', 'judge'];
@@ -88,7 +91,7 @@ class AiSdkChatModel implements ChatModel {
     try {
       result = await generateText({
         model: typeof this.model === 'string' || /^gateway(?:[./]|$)/.test(this.model.provider)
-          ? createFreeGateway()(this.id) : this.model,
+          ? createFreeGateway(this.opts.gateway)(this.id) : this.model,
         messages: toAiMessages(req.messages),
         ...(req.system.length > 0 ? { instructions: req.system } : {}),
         ...(tools === undefined ? {} : { tools }),

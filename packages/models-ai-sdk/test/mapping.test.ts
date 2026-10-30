@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { aiSdkModels } from '../src/index.ts';
+import { freeSdkFixture } from './free-gateway-fixture.ts';
 import { ACT_TOOLS, mockModel, mockProvider, request, textResult, toolCallResult, usage } from './helpers.ts';
 
 function setOf(m: MockLanguageModelV4, opts?: { maxRetries?: number }) {
@@ -211,19 +212,21 @@ describe('string model ids', () => {
     globalThis.AI_SDK_DEFAULT_PROVIDER = previous;
   });
 
-  it('are passed to the AI SDK as-is and resolved by its global provider', async () => {
+  it('use the guarded Gateway instead of a global provider that could bypass free pricing', async () => {
     const m = mockModel(textResult('via provider'), 'claude-test');
     globalThis.AI_SDK_DEFAULT_PROVIDER = mockProvider({ 'vendor/claude-test': m });
+    const owned = freeSdkFixture('vendor/claude-test');
     const set = aiSdkModels({
       extract: 'vendor/claude-test',
       act: 'vendor/claude-test',
       checkgen: 'vendor/claude-test',
       judge: 'vendor/claude-test',
-    });
+    }, { maxRetries: 0, gateway: { apiKey: 'owned-sdk-fixture', fetch: owned.fetcher } });
     expect(set.act.id).toBe('vendor/claude-test');
     const res = await set.act.generate(request());
-    expect(res.text).toBe('via provider');
+    expect(res.text).toBe('via free provider');
     expect(res.modelId).toBe('vendor/claude-test');
-    expect(m.doGenerateCalls).toHaveLength(1);
+    expect(m.doGenerateCalls).toHaveLength(0);
+    expect(owned.count()).toBe(1);
   });
 });

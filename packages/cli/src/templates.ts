@@ -3,7 +3,6 @@
 export const CONFIG_TS_TEMPLATE = `import { defineConfig } from '@ai-bdd/sdk';
 import { playwright } from '@ai-bdd/driver-playwright';
 import { aiSdkModels } from '@ai-bdd/models-ai-sdk';
-import { anthropic } from '@ai-sdk/anthropic';
 
 export default defineConfig({
   docs: ['docs/**/*.md'],
@@ -11,10 +10,10 @@ export default defineConfig({
   drivers: { web: playwright({ browser: 'chromium', headless: true }) },
   defaultDriver: 'web',
   models: aiSdkModels({
-    extract: anthropic('claude-sonnet-5-5'),
-    act: anthropic('claude-sonnet-5-5'),
-    checkgen: anthropic('claude-sonnet-5-5'),
-    judge: anthropic('claude-opus-5-5'),
+    extract: 'nvidia/nemotron-3.5-lightning-free',
+    act: 'nvidia/nemotron-3.5-lightning-free',
+    checkgen: 'nvidia/nemotron-3.5-lightning-free',
+    judge: 'nvidia/nemotron-3.5-lightning-free',
   }),
   context: 'Describe your app vocabulary here.',
   secrets: { adminPassword: { env: 'ADMIN_PASSWORD' } },
@@ -32,10 +31,10 @@ export const CONFIG_JSON_TEMPLATE = `${JSON.stringify(
     models: {
       use: '@ai-bdd/models-ai-sdk',
       options: {
-        extract: 'anthropic/claude-sonnet-5.5',
-        act: 'anthropic/claude-sonnet-5.5',
-        checkgen: 'anthropic/claude-sonnet-5.5',
-        judge: 'anthropic/claude-opus-5.5',
+        extract: 'nvidia/nemotron-3.5-lightning-free',
+        act: 'nvidia/nemotron-3.5-lightning-free',
+        checkgen: 'nvidia/nemotron-3.5-lightning-free',
+        judge: 'nvidia/nemotron-3.5-lightning-free',
       },
     },
     context: 'Describe your app vocabulary here.',

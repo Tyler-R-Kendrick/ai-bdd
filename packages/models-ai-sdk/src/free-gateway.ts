@@ -26,11 +26,20 @@ const endpointFees = new Set([
   'cache_read', 'cache_write', 'audio', 'input_audio', 'output_audio',
   'audio_input', 'audio_output', 'discount',
 ]);
+const requiredEndpointFees = ['prompt', 'completion', 'request', 'image', 'image_output', 'web_search', 'internal_reasoning'];
 const zero = (value: unknown) =>
-  (typeof value === 'number' && Number.isFinite(value) && value === 0) ||
-  (typeof value === 'string' && /^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:e[+-]?[0-9]+)?$/i.test(value) && Number(value) === 0);
+  // Never coerce: a positive price such as 1e-9999 underflows Number to zero.
+  typeof value === 'string' && /^0+(?:\.0+)?(?:e[+-]?[0-9]+)?$/i.test(value);
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
+const freeEndpoint = (endpoint: Record<string, unknown>) => {
+  if (endpoint.status !== 0 || !record(endpoint.pricing)) return false;
+  const pricing = endpoint.pricing;
+  if (!requiredEndpointFees.every(key => zero(pricing[key]))) return false;
+  if ((endpoint.supports_implicit_caching === true || (Array.isArray(endpoint.tags) && endpoint.tags.includes('implicit-caching'))) && !zero(pricing.input_cache_read)) return false;
+  return Object.entries(pricing).every(([key, price]) =>
+    endpointFees.has(key) && (key === 'discount' ? price === 0 || zero(price) : zero(price)));
+};
 function abortable<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
   return new Promise<T>((resolve, reject) => {
@@ -64,7 +73,7 @@ async function metadata(path: string, signal: AbortSignal | undefined, options: 
     });
     void pending.then(value => { if (combined.aborted) void value.body?.cancel().catch(() => {}); }, () => {});
     response = await abortable(pending, combined);
-  } catch (error) {
+  } catch {
     if (signal?.aborted) throw signal.reason;
     throw new FreeGatewayPolicyError('metadata');
   }
@@ -117,10 +126,9 @@ export async function authorizeFreeGatewayModel(
   const routes: unknown[] = endpoints.data.endpoints;
   const providers: string[] = [];
   for (const endpoint of routes) {
-    if (!record(endpoint) || endpoint.status !== 0 ||
+    if (!record(endpoint) ||
         typeof endpoint.provider_name !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,99}$/.test(endpoint.provider_name) ||
-        !record(endpoint.pricing) || !zero(endpoint.pricing.prompt) || !zero(endpoint.pricing.completion) ||
-        !Object.entries(endpoint.pricing).every(([key, price]) => endpointFees.has(key) && zero(price))) continue;
+        !freeEndpoint(endpoint)) continue;
     providers.push(endpoint.provider_name);
   }
   const allowed = [...new Set(providers)].sort();
@@ -128,8 +136,7 @@ export async function authorizeFreeGatewayModel(
   // slug. Exclude the entire provider if any of its advertised endpoints differs.
   const safe = allowed.filter(provider => routes.every((endpoint: unknown) =>
     !record(endpoint) || endpoint.provider_name !== provider ||
-    (endpoint.status === 0 && record(endpoint.pricing) && zero(endpoint.pricing.prompt) && zero(endpoint.pricing.completion) &&
-      Object.entries(endpoint.pricing).every(([key, price]) => endpointFees.has(key) && zero(price)))));
+    freeEndpoint(endpoint)));
   if (!safe.length) throw new FreeGatewayPolicyError('pricing');
   return { modelId: id, kind, providers: safe, checkedAt: (options.now ?? Date.now)() };
 }
@@ -147,13 +154,15 @@ export async function freeGatewayModels(kind: FreeGatewayModelKind, options: Pic
 export function createFreeGateway(options: FreeGatewayOptions = {}): ReturnType<typeof createGateway> {
   const { metadataFetch, now, fetch: transport = globalThis.fetch, ...gatewayOptions } = options;
   const inferenceBase = new URL(gatewayOptions.baseURL ?? 'https://ai-gateway.vercel.sh/v4/ai');
+  const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(inferenceBase.hostname);
+  const basePath = inferenceBase.pathname.replace(/\/$/, '');
   if (inferenceBase.username || inferenceBase.password || inferenceBase.hash || inferenceBase.search ||
-      (inferenceBase.protocol !== 'https:' && !(inferenceBase.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(inferenceBase.hostname))))
+      !((inferenceBase.origin === catalogOrigin && basePath === '/v4/ai') ||
+        (loopback && !!metadataFetch && ['http:', 'https:'].includes(inferenceBase.protocol))))
     throw new FreeGatewayPolicyError('transport');
   const guardedFetch: GatewayFetch = async (input, init) => {
     const target = new URL(input instanceof Request ? input.url : String(input));
-    const route = target.pathname.slice(inferenceBase.pathname.replace(/\/$/, '').length);
-    const kind = route === '/language-model' ? 'language' : route === '/decision-model' ? 'evaluation' : null;
+    const kind = target.pathname === basePath + '/language-model' ? 'language' : target.pathname === basePath + '/decision-model' ? 'evaluation' : null;
     if (target.origin !== inferenceBase.origin || !kind || target.search || target.hash || (init?.method ?? (input instanceof Request ? input.method : 'GET')) !== 'POST')
       throw new FreeGatewayPolicyError('transport');
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
