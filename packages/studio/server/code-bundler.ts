@@ -236,7 +236,7 @@ function htmlInputs(project: CodeProject) {
         used.add(path);
         sources.push(path);
       } else if (source.trim()) {
-        const path = `__studio_inline_${sequence++}.${type === 'text/tsx' || type === 'text/babel' ? 'tsx' : 'js'}`;
+        const path = `${project.entry.split('/').slice(0, -1).join('/')}${project.entry.includes('/') ? '/' : ''}__studio_inline_${sequence++}.${type === 'text/tsx' || type === 'text/babel' ? 'tsx' : 'js'}`;
         virtual[path] = source;
         sources.push(path);
       }
@@ -575,7 +575,9 @@ export async function compileCodePreview(
         .map((name) => ({ name, version: versions.get(name) ?? 'installed' })),
       availableDependencies: codePreviewDependencies(),
       modules: [...loaded]
-        .filter((path) => !path.startsWith('__studio_inline_'))
+        .filter(
+          (path) => !path.split('/').pop()!.startsWith('__studio_inline_'),
+        )
         .sort(),
     };
   } finally {
