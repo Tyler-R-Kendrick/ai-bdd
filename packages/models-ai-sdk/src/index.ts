@@ -15,7 +15,7 @@ import { toAiMessages } from './messages.ts';
 import { createFreeGateway } from './free-gateway.ts';
 import type { FreeGatewayOptions } from './free-gateway.ts';
 export { createFreeGateway, authorizeFreeGatewayModel, freeGatewayModels, FreeGatewayPolicyError } from './free-gateway.ts';
-export type { FreeGatewayOptions, FreeGatewayModelKind, GatewayFetch } from './free-gateway.ts';
+export type { FreeGatewayOptions, FreeGatewayModelKind, FreeGatewayProvider, GatewayFetch } from './free-gateway.ts';
 
 export interface AiSdkModelsOptions {
   /** Passed straight through to the AI SDK's `maxRetries` (its default applies when omitted). */

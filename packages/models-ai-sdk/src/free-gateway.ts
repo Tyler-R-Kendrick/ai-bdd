@@ -7,6 +7,11 @@ export type FreeGatewayOptions = NonNullable<Parameters<typeof createGateway>[0]
   metadataFetch?: GatewayFetch | undefined;
   now?: (() => number) | undefined;
 };
+type GatewayProvider = ReturnType<typeof createGateway>;
+/** Only modalities whose every inference crosses the price/routing guard are exposed. */
+export type FreeGatewayProvider = Pick<GatewayProvider,
+  'specificationVersion' | 'chat' | 'languageModel' | 'decision' | 'decisionModel' | 'evaluation' | 'evaluationModel'
+> & ((modelId: Parameters<GatewayProvider>[0]) => ReturnType<GatewayProvider>);
 export class FreeGatewayPolicyError extends Error {
   readonly code = 'FREE_MODEL_REQUIRED';
   readonly reason: 'model' | 'pricing' | 'stale-pricing' | 'metadata' | 'routing' | 'transport';
@@ -235,7 +240,7 @@ function requestedProviders(routing: unknown, providers: string[]) {
   return [...new Set(routing.only as string[])];
 }
 
-export function createFreeGateway(options: FreeGatewayOptions = {}): ReturnType<typeof createGateway> {
+export function createFreeGateway(options: FreeGatewayOptions = {}): FreeGatewayProvider {
   const { metadataFetch, now, fetch: transport = globalThis.fetch, ...gatewayOptions } = options;
   const inferenceBase = new URL(gatewayOptions.baseURL ?? 'https://ai-gateway.vercel.sh/v4/ai');
   const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(inferenceBase.hostname);
@@ -252,5 +257,14 @@ export function createFreeGateway(options: FreeGatewayOptions = {}): ReturnType<
     signal?.throwIfAborted();
     return transport(target, { ...init, method: 'POST', ...(signal === undefined ? {} : { signal }), headers, body: JSON.stringify(body), redirect: 'error' });
   };
-  return createGateway({ ...gatewayOptions, fetch: guardedFetch });
+  const gateway = createGateway({ ...gatewayOptions, fetch: guardedFetch });
+  // In particular, SDK streaming transcription opens a WebSocket directly and
+  // never enters fetch. Do not return that factory, tools, batch or any future
+  // modality merely because the underlying SDK adds it.
+  return Object.freeze(Object.assign((id: Parameters<GatewayProvider>[0]) => gateway(id), {
+    specificationVersion: gateway.specificationVersion,
+    chat: gateway.chat, languageModel: gateway.languageModel,
+    decision: gateway.decision, decisionModel: gateway.decisionModel,
+    evaluation: gateway.evaluation, evaluationModel: gateway.evaluationModel,
+  }));
 }

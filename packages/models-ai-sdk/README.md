@@ -36,6 +36,8 @@ All four purposes are required non-empty strings. Unknown keys and invalid value
 
 The guard checks fresh public catalog and endpoint pricing before every actual SDK attempt, restricts providers to verified zero-priced routes, and refuses model fallbacks, BYOK, tiers and unknown fees. Metadata requests carry no credentials. Free model availability and account access are separate: a zero-priced model can still return HTTP 402 without account activation. No purchase or paid fallback is performed. See [Studio free-model policy](../../docs/studio-free-models.md) for the exact bounds and evidence.
 
+`createFreeGateway` returns a frozen provider exposing only language and native decision/evaluation factories. Unsupported modalities, SDK-hosted tools, batch APIs and direct WebSocket factories are absent, so an SDK addition cannot silently bypass the HTTP price guard. Standalone `Request` bodies are consumed once, bounded to 16 MiB while reading, and canceled on caller abort or a 10-second body deadline; explicit `init.signal: null` clears the Request signal as in Fetch.
+
 ## Mapping
 
 | ai-bdd | AI SDK |
