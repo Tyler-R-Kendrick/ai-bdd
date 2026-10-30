@@ -106,11 +106,18 @@ async function open(page: Page, title: string) {
   );
   expect(source.ok(), await source.text()).toBe(true);
   const artifact = await studio.store.artifact(initialArtifact.id, user.id);
-  await studio.agent.profiles.view(user, artifact.id, {
-    harness: 'remote-planner',
-    provider: 'operator-acp',
-    model: 'remote',
-  });
+  const selected = await page.request.put(
+    origin + `/api/artifacts/${artifact.id}/agent/profile`,
+    {
+      headers: { origin },
+      data: {
+        harness: 'remote-planner',
+        provider: 'operator-acp',
+        model: 'remote',
+      },
+    },
+  );
+  expect(selected.ok(), await selected.text()).toBe(true);
   const minted = await page.request.post(origin + '/api/tokens', {
     headers: { origin },
   });
@@ -638,4 +645,98 @@ test('viewer cannot answer, source changes withdraw questions, and durable stop 
     ),
   ).toHaveLength(0);
   await context.close();
+});
+
+test('older remote questions remain browseable after more than eight completed turns and a fresh page load', async ({
+  page,
+}) => {
+  test.setTimeout(90000);
+  const w = await open(page, 'Retained remote history');
+  let index = 0;
+  const first = await start(page, w, async (ctx) => {
+    const current = index++;
+    await ctx.sendPart({ type: 'stream-start' });
+    await ctx.sendPart({ type: 'text-start', id: 'turn' });
+    await ctx.sendPart({
+      type: 'text-delta',
+      id: 'turn',
+      delta: `Retained boundary review ${current + 1}.`,
+    });
+    await ctx.sendPart({ type: 'text-end', id: 'turn' });
+    if (current === 0)
+      await ctx.ask('oldest', {
+        method: 'confirm',
+        title: 'Keep the oldest recorded boundary?',
+        message:
+          'This answered question must stay reachable in this artifact history.',
+      });
+    return { text: `Recorded boundary review ${current + 1}.`, content: null };
+  });
+  await page
+    .getByRole('region', {
+      name: 'Keep the oldest recorded boundary?',
+      exact: true,
+    })
+    .getByRole('button', { name: 'Confirm', exact: true })
+    .click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await studio.store.one(
+            'SELECT status FROM studio_durable_jobs WHERE id=?',
+            first.job.id,
+          )
+        ).status,
+    )
+    .toBe('completed');
+  for (let turn = 1; turn < 9; turn++) {
+    const message = await page.request.post(
+      origin + `/api/artifacts/${w.artifact.id}/messages`,
+      {
+        headers: { origin },
+        data: {
+          threadId: w.threadId,
+          body: 'Review the next retained boundary ' + turn,
+        },
+      },
+    );
+    expect(message.ok(), await message.text()).toBe(true);
+    const result = await page.request.post(
+      origin + `/api/artifacts/${w.artifact.id}/agent`,
+      { headers: { origin }, data: { threadId: w.threadId, intent: 'chat' } },
+    );
+    expect(result.ok(), await result.text()).toBe(true);
+    const job = await result.json();
+    await expect
+      .poll(
+        async () =>
+          (
+            await studio.store.one(
+              'SELECT status FROM studio_durable_jobs WHERE id=?',
+              job.id,
+            )
+          ).status,
+      )
+      .toBe('completed');
+  }
+  expect(index).toBe(9);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Chat', exact: true }).click();
+  await expect(page.locator('.remote-turn')).toHaveCount(8);
+  await page
+    .getByRole('button', { name: 'Load earlier activity', exact: true })
+    .click();
+  await expect(page.locator('.remote-turn')).toHaveCount(9);
+  const oldest = page
+    .locator('.remote-turn')
+    .filter({ hasText: 'Keep the oldest recorded boundary?' });
+  await oldest.locator(':scope > summary').click();
+  await expect(
+    oldest.getByText('Saved response: Confirmed', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Load earlier activity', exact: true }),
+  ).toHaveCount(0);
+  expect(faults).toEqual([]);
 });
