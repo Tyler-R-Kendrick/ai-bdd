@@ -16,6 +16,8 @@ export const documentAnchorTypes = [
   'questionnaireBlock',
   'artifactReferenceBlock',
   'evidenceBlock',
+  'investigationCard',
+  'investigationView',
   'image',
   'horizontalRule',
   'blockMath',

@@ -1,3 +1,5 @@
+import { investigationBlockSchemas } from './investigations.ts';
+import { isInvestigationBlockKind } from './investigation-blocks.ts';
 import { checkCodeProject } from './code-project.ts';
 import { z } from 'zod';
 import {
@@ -112,13 +114,7 @@ export type Run = {
   id: string;
   artifactId: string;
   artifactVersion: number;
-  status:
-    | 'queued'
-    | 'running'
-    | 'passed'
-    | 'failed'
-    | 'error'
-    | 'interrupted';
+  status: 'queued' | 'running' | 'passed' | 'failed' | 'error' | 'interrupted';
   result: Record<string, any> | null;
   error: string | null;
   createdAt: string;
@@ -195,6 +191,8 @@ const nodeSchema: z.ZodType<RichNode> = z.lazy(
           'questionnaireBlock',
           'artifactReferenceBlock',
           'evidenceBlock',
+          'investigationCard',
+          'investigationView',
         ]),
         text: z.string().max(200000).optional(),
         attrs: z.record(z.string().max(80), z.json()).optional(),
@@ -220,6 +218,18 @@ const nodeSchema: z.ZodType<RichNode> = z.lazy(
       })
       .strict()
       .superRefine((node, context) => {
+        if (isInvestigationBlockKind(node.type)) {
+          const result = investigationBlockSchemas[node.type].safeParse(
+            node.attrs?.data,
+          );
+          if (!result.success)
+            for (const issue of result.error.issues)
+              context.addIssue({
+                code: 'custom',
+                path: ['attrs', 'data', ...issue.path],
+                message: issue.message,
+              });
+        }
         if (isDocumentBlockKind(node.type)) {
           const result = documentBlockSchemas[node.type].safeParse(
             node.attrs?.data,
@@ -293,11 +303,7 @@ export const solidSchema = z
     shape: z.enum(['box', 'sphere', 'cylinder']),
     position: vec,
     rotation: vec,
-    dimensions: z.tuple([
-      finite.min(0.01),
-      finite.min(0.01),
-      finite.min(0.01),
-    ]),
+    dimensions: z.tuple([finite.min(0.01), finite.min(0.01), finite.min(0.01)]),
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     operation: z.enum(['union', 'subtract', 'intersect']).optional(),
     name: z.string().max(120).optional(),
@@ -377,8 +383,7 @@ export function validateContent(
   let maxDepth = 0;
   // Bound nesting before recursive parsing. Quotes and escaped braces are excluded by JSON tokenization.
   for (const token of serialized.match(/"(?:\\.|[^"\\])*"|[[\]{}]/g) ?? []) {
-    if (token === '{' || token === '[')
-      maxDepth = Math.max(maxDepth, ++depth);
+    if (token === '{' || token === '[') maxDepth = Math.max(maxDepth, ++depth);
     if (token === '}' || token === ']') depth--;
   }
   if (maxDepth > 40) throw new Error('Artifact exceeds the nesting limit');

@@ -1,3 +1,8 @@
+import { investigationBlockSchemas } from './investigations.ts';
+import {
+  isInvestigationBlockKind,
+  investigationBlockText,
+} from './investigation-blocks.ts';
 import { Lexer } from 'marked';
 import { unzipSync, zipSync, strToU8, strFromU8 } from 'fflate';
 import type { RichNode } from './domain.ts';
@@ -59,6 +64,8 @@ const components: Record<string, string> = {
   Evidence: 'evidenceBlock',
   AcceptanceTest: 'testBlock',
   Research: 'researchBlock',
+  Investigation: 'investigationCard',
+  InvestigationView: 'investigationView',
 };
 const componentNames = Object.fromEntries(
   Object.entries(components).map(([name, type]) => [type, name]),
@@ -79,6 +86,11 @@ function text(value: string, marks: RichNode['marks'] = []): RichNode[] {
     : [];
 }
 function checkedBlock(type: string, data: unknown): RichNode {
+  if (isInvestigationBlockKind(type))
+    return {
+      type,
+      attrs: { data: investigationBlockSchemas[type].parse(data) },
+    };
   if (isDocumentBlockKind(type))
     return { type, attrs: { data: documentBlockSchemas[type].parse(data) } };
   if (Object.hasOwn(richVisualSchemas, type))
@@ -933,7 +945,9 @@ export function exportDocx(
       return `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${drawingId}" name="${xmlEscape(String(node.attrs?.alt ?? 'Image'))}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${drawingId}" name="Image"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
     }
     let prose = '';
-    if (isDocumentBlockKind(node.type))
+    if (isInvestigationBlockKind(node.type))
+      prose = investigationBlockText(node.type, node.attrs?.data);
+    else if (isDocumentBlockKind(node.type))
       prose = documentBlockText(node.type, node.attrs?.data);
     else if (Object.hasOwn(richVisualSchemas, node.type))
       prose = richVisualText(node.type as RichVisualKind, node.attrs?.data);
