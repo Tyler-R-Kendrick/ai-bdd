@@ -2,12 +2,7 @@ import { decisionProfileSchema } from '../shared/decision-profile.ts';
 import { createGateway } from 'ai';
 import { DecisionModels } from '../server/decisions/models.ts';
 import type { AgentProfile } from '../shared/agent-profile.ts';
-import type {
-  DecisionEvaluation,
-  DecisionProfile,
-  DecisionAnswer,
-} from '../shared/decision-profile.ts';
-import type { DecisionInvocation } from '../server/decisions/contracts.ts';
+import type { DecisionAnswer } from '../shared/decision-profile.ts';
 import '@fastify/cookie';
 import '@fastify/websocket';
 import { afterEach, describe, expect, it, vi } from 'vitest';
