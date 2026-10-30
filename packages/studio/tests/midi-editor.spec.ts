@@ -9,10 +9,9 @@ import { initialMidiContent } from '../shared/midi.ts';
 const execute = promisify(execFile),
   evidence = resolve(import.meta.dirname, '../../../work/review');
 async function open(page: Page) {
-  await page.request.get('/api/auth/status');
-  const origin = new URL(
-    page.url() === 'about:blank' ? 'http://127.0.0.1:8898' : page.url(),
-  ).origin;
+  const status = await page.request.get('/api/auth/status');
+  expect(status.ok(), await status.text()).toBe(true);
+  const origin = new URL(status.url()).origin;
   expect(
     (await page.request.post('/api/auth/demo', { headers: { origin } })).ok(),
   ).toBe(true);
