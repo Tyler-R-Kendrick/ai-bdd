@@ -6,6 +6,9 @@ not Microsoft's code, has not been independently audited, and is not shipped as
 a production trust guarantee. Its execution witnesses are not zero knowledge.
 Only public synthetic inputs may enter this experiment.
 
+Upstream offers MIT or Apache-2.0. The public evidence guest contains its small
+guest runtime under the [retained MIT notice](UPSTREAM-LICENSE-MIT.txt).
+
 The workflow verifies the public source archive checksum, builds the real Rust
 prover/verifier, generates a C guest from Studio's shared layout constants,
 compiles it to RV64I, and proves/verifies eight public boundary executions with
