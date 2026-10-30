@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "t3Version": "0.1.5",
+  "openCodeVersion": "2.2.4",
+  "cause": "The pinned T3 release archive contains the t3-0.1.5-linux-x64 directory prefix; extraction must strip one component, as the official npm launcher does.",
+  "actualPinnedArchives": 2,
+  "exactBinaryChecks": 3,
+  "allExistingBinaryPinsMatched": true,
+  "idempotentInstall": true,
+  "corruptArchiveRejectedBeforeExtraction": true,
+  "verification": "node packages/studio/verification/native-t3-installer.mjs /tmp/studio-t3-installer-repro"
+}

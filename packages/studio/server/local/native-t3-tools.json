@@ -10,7 +10,7 @@
       "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/t3-0.1.5-linux-x64.tar.gz",
       "sha256": "21d50dcc9c634221b11b58d6a94350d2c6ee36905737b054b11fa4eba295a98b",
       "maxBytes": 268435456,
-      "stripComponents": 0
+      "stripComponents": 1
     },
     {
       "name": "opencode",
