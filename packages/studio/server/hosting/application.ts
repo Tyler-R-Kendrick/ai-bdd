@@ -95,7 +95,10 @@ export async function createHostingApplication(
     const jobs =
       config.jobs.adapter === 'local'
         ? new LocalJobDispatcher()
-        : new VercelQueueDispatcher({ region: config.jobs.region });
+        : new VercelQueueDispatcher({
+            region: config.jobs.region,
+            onFailure: (diagnostic) => console.warn(JSON.stringify(diagnostic)),
+          });
     const hosting: HostingServices = {
       objects,
       jobs,
@@ -144,7 +147,10 @@ export async function createHostingApplication(
         );
       const scheduler = await new DurableScheduler(
         store,
-        new VercelSchedulerDispatcher({ region: config.jobs.region }),
+        new VercelSchedulerDispatcher({
+          region: config.jobs.region,
+          onFailure: (diagnostic) => console.warn(JSON.stringify(diagnostic)),
+        }),
       ).initialize();
       await registerInternalRoutes(result.app, {
         secret: env.STUDIO_JOB_SECRET,
