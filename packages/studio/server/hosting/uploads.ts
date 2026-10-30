@@ -38,7 +38,14 @@ export type UploadGrant = {
   expiresAt: number;
   maximumSizeInBytes: number;
 };
+export type AssetValidator = (input: {
+  bytes: Buffer;
+  mime: string;
+  name: string;
+}) => Promise<void>;
 export class UploadAdmission {
+  /** Application-owned format validation, including bounded compressed-media inspection. */
+  validateAsset?: AssetValidator;
   readonly #token: string;
   constructor(
     readonly store: Store,
@@ -170,13 +177,11 @@ export class UploadAdmission {
         400,
         'Uploaded file size differs from its admission.',
       );
-    const mime = uploadedMediaType(
-      Buffer.from(object.bytes),
-      ticket.name,
-      ticket.declared_type,
-    );
+    const bytes = Buffer.from(object.bytes);
+    const mime = uploadedMediaType(bytes, ticket.name, ticket.declared_type);
     if (object.byteSize > 10 * MB && !/^(audio|video)\//.test(mime))
       throw new HttpError(413, 'This media type is limited to 10 MB.');
+    await this.validateAsset?.({ bytes, mime, name: ticket.name });
     return this.store.tx(async () => {
       await this.store.db.lock('project:' + ticket.project_id);
       const current = await this.ticket(user, id);

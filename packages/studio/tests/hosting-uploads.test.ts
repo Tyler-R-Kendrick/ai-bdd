@@ -247,3 +247,41 @@ describe('durable private upload admission', () => {
     },
   );
 });
+
+it('runs the application compressed-media guard before registering a staged private upload', async () => {
+  const f = await fixture(),
+    bytes = Buffer.from('ID3compressed audio fixture');
+  const grant = await f.uploads.grant(f.user, f.project.mainArtifactId, {
+    name: 'clip.mp3',
+    byteSize: bytes.length,
+    contentType: 'audio/mpeg',
+  });
+  await f.objects.put(grant.pathname, bytes, {
+    contentType: 'application/octet-stream',
+  });
+  let calls = 0;
+  f.uploads.validateAsset = async (input) => {
+    calls++;
+    expect(input).toEqual({ bytes, mime: 'audio/mpeg', name: 'clip.mp3' });
+    throw new Error('Decoded audio exceeds the admission budget');
+  };
+  await expect(f.uploads.complete(f.user, grant.id)).rejects.toThrow(
+    'Decoded audio exceeds',
+  );
+  expect(
+    await f.store.one('SELECT id FROM files WHERE id=?', grant.id),
+  ).toBeUndefined();
+  expect(
+    (
+      await f.store.one(
+        'SELECT status FROM studio_uploads WHERE id=?',
+        grant.id,
+      )
+    ).status,
+  ).toBe('reserved');
+  f.uploads.validateAsset = async () => {
+    calls++;
+  };
+  expect((await f.uploads.complete(f.user, grant.id)).mime).toBe('audio/mpeg');
+  expect(calls).toBe(2);
+});
