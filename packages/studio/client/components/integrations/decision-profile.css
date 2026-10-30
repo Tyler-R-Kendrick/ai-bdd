@@ -1,0 +1,27 @@
+.decision-profile {
+  overflow-wrap: anywhere;
+}
+.decision-profile > p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.decision-profile .field {
+  margin-top: 10px;
+}
+.decision-profile select,
+.decision-profile input {
+  font-size: 12px;
+}
+.decision-profile-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.decision-profile .decision-profile-offline {
+  color: #825711;
+}
+.decision-profile [role='status'] {
+  font-size: 11px;
+  color: #626f56;
+}
