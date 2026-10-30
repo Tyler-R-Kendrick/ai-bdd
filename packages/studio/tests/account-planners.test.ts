@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import { Auth, type Settings } from '../server/auth.ts';
@@ -9,7 +12,10 @@ import { AccountMachines } from '../server/integrations/account-machines.ts';
 import { AgentProfiles } from '../server/integrations/agent-profiles.ts';
 import { MachineService } from '../server/integrations/machines.ts';
 import { InvestigationService } from '../server/integrations/investigations.ts';
-import { registerAccountPlannerRoutes } from '../server/integrations/account-planners.ts';
+import {
+  AccountPlanners,
+  registerAccountPlannerRoutes,
+} from '../server/integrations/account-planners.ts';
 import {
   plannerClaimSchema,
   plannerIdleMs,
@@ -27,9 +33,13 @@ for (const adapter of ['sqlite', 'postgres'] as const)
     () => {
       async function fixture(enabled = true) {
         const schema = 'planner_assignment_' + randomUUID().replaceAll('-', '');
+        const directory = await mkdtemp(
+          join(tmpdir(), 'studio-planner-assignment-'),
+        );
+        cleanups.push(() => rm(directory, { recursive: true, force: true }));
         const database =
           adapter === 'sqlite'
-            ? ':memory:'
+            ? join(directory, 'studio.sqlite')
             : await openDatabase({ adapter, url: postgresUrl!, schema });
         const store = await Store.open(database);
         cleanups.push(async () => {
@@ -227,6 +237,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           claim,
           activityScopes,
           schema,
+          database,
           advance: (ms: number) => {
             now += ms;
           },
@@ -486,9 +497,40 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         );
         const running = await c.machines.claim(machine);
         expect(running.work?.id).toBe(work.id);
-        await expect(c.assign()).rejects.toThrow(
-          'already running another approved workflow',
+        const queued = await c.assign();
+        expect(queued).toMatchObject({
+          status: 'queued',
+          expiresAt: null,
+          idleExpiresAt: null,
+        });
+        expect(
+          (await c.service.poll(c.principal, [c.checkout])).assignments,
+        ).toEqual([]);
+        await expect(
+          c.service.claim(c.principal, queued.id, queued.epoch),
+        ).rejects.toThrow('already running another approved workflow');
+        // Waiting behind approved work has no running Planner idle timer.
+        c.advance(plannerIdleMs + 10_000);
+        await c.seen();
+        expect(
+          (await c.service.view(c.user, c.artifact.id)).assignment,
+        ).toMatchObject({
+          id: queued.id,
+          status: 'queued',
+          idleExpiresAt: null,
+        });
+        await c.machines.fail(machine, work.id, running.leaseToken!);
+        expect(
+          (await c.service.poll(c.principal, [c.checkout])).assignments,
+        ).toEqual([queued]);
+        const started = await c.service.claim(
+          c.principal,
+          queued.id,
+          queued.epoch,
         );
+        expect(
+          Date.parse(started.idleExpiresAt) - Date.parse(started.expiresAt),
+        ).toBe(plannerIdleMs - plannerLeaseMs);
       });
       it('extends idle only for exact assignment-bound real activity, and connection-only renewals eventually return idle', async () => {
         const c = await fixture(),
@@ -698,6 +740,104 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           ).n,
         ).toBe(1);
       });
+      it('recovers scoped claims across service instances and serializes two projects sharing one physical device', async () => {
+        const c = await fixture();
+        // Local SQLite deliberately enforces one writer process. Hosted
+        // PostgreSQL uses a genuinely independent connection pool here.
+        const secondStore =
+          adapter === 'sqlite'
+            ? c.store
+            : await Store.open(
+                await openDatabase({
+                  adapter,
+                  url: postgresUrl!,
+                  schema: c.schema,
+                }),
+              );
+        if (adapter === 'postgres') cleanups.push(() => secondStore.close());
+        const secondAuth = new Auth(secondStore, c.settings);
+        await secondAuth.initialize();
+        const secondAccounts = new AccountMachines({
+          store: secondStore,
+          auth: secondAuth,
+        });
+        await secondAccounts.ready;
+        const secondProfiles = new AgentProfiles(
+          secondStore,
+          c.settings,
+          c.settings.integrations!,
+        );
+        await secondProfiles.initialize();
+        const secondService = new AccountPlanners({
+          store: secondStore,
+          auth: secondAuth,
+          accounts: secondAccounts,
+          profiles: secondProfiles,
+          enabled: true,
+          hasLiveActivity: async () => false,
+        });
+        await secondService.ready;
+        secondAccounts.dependencies.plannerWorkActive = (id) =>
+          secondService.activeOnDevice(id);
+        const otherProject = await c.store.createProject(
+          c.user,
+          'Same explicit checkout, separate project',
+          '',
+          c.project.repository,
+        );
+        const other = await c.store.artifact(
+          otherProject.mainArtifactId,
+          c.user.id,
+        );
+        await c.profiles.view(c.user, other.id, c.remoteProfile);
+        await c.accounts.assignments(c.principal, [c.checkout]);
+        const results = await Promise.allSettled([
+          c.assign(),
+          secondService.assign(c.user, other.id, {
+            deviceId: c.device.id,
+            artifactVersion: other.version,
+          }),
+        ]);
+        expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+        expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+        const winning = results.find((r) => r.status === 'fulfilled')!;
+        if (winning.status !== 'fulfilled')
+          throw new Error('No assignment was committed');
+        const assigned = winning.value;
+        const credentials = await Promise.all([
+          c.service.claim(c.principal, assigned.id, assigned.epoch),
+          secondService.claim(c.principal, assigned.id, assigned.epoch),
+        ]);
+        expect(credentials[0]).toEqual(credentials[1]);
+        const scope = await secondService.authenticatePlanner({
+          headers: { authorization: 'Bearer ' + credentials[0]!.token },
+        } as any);
+        expect(scope).toMatchObject({
+          assignmentId: assigned.id,
+          artifactId: assigned.artifactId,
+        });
+        const artifact = await secondStore.artifact(
+          assigned.artifactId,
+          c.user.id,
+        );
+        const content = structuredClone(artifact.content);
+        content.doc.content.push({
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Second instance source edit.' }],
+        });
+        await secondStore.updateArtifact(
+          c.user,
+          artifact.id,
+          artifact.version,
+          content,
+        );
+        await expect(c.service.assertPlanner(scope!)).rejects.toThrow(
+          'document, accepted decisions',
+        );
+        await expect(
+          secondService.renew(c.principal, assigned.id, assigned.epoch),
+        ).rejects.toThrow('document, accepted decisions');
+      });
       it('rechecks source guards and exports complete history without credential material', async () => {
         const c = await fixture();
         c.store.artifactWriteGuard = async () => {
@@ -724,7 +864,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(rows[0]!.sourceHash).toHaveLength(64);
         expect(rows[0]!.userId).toBe(c.user.id);
         expect(
-          Date.parse(rows[0]!.idleExpiresAt) - Date.parse(rows[0]!.createdAt),
+          Date.parse(rows[0]!.idleExpiresAt!) - Date.parse(rows[0]!.createdAt),
         ).toBe(plannerIdleMs);
       });
     },

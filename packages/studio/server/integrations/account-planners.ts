@@ -117,7 +117,8 @@ export class AccountPlanners {
       sourceHash: row.source_hash,
       profile: JSON.parse(row.profile_json),
       expiresAt: row.expires === null ? null : iso(Number(row.expires)),
-      idleExpiresAt: iso(Number(row.idle_expires)),
+      idleExpiresAt:
+        Number(row.idle_expires) === 0 ? null : iso(Number(row.idle_expires)),
     });
   }
   private async row(id: string): Promise<Row> {
@@ -176,7 +177,11 @@ export class AccountPlanners {
         410,
         'The Planner lease expired; explicitly assign a new Planner',
       );
-    if (includeIdle && Number(row.idle_expires) <= this.clock())
+    if (
+      includeIdle &&
+      row.status === 'claimed' &&
+      Number(row.idle_expires) <= this.clock()
+    )
       throw new HttpError(410, 'This Planner assignment became idle');
     const account = await this.store.one(
       "SELECT id FROM studio_account_machines WHERE id=? AND user_id=? AND status='active' AND expires>?",
@@ -242,7 +247,7 @@ export class AccountPlanners {
     } catch (error) {
       if (!(error instanceof HttpError)) throw error;
       const status =
-        Number(row.idle_expires) <= this.clock()
+        row.status === 'claimed' && Number(row.idle_expires) <= this.clock()
           ? 'idle'
           : [401, 403, 404].includes(error.statusCode)
             ? 'revoked'
@@ -268,7 +273,7 @@ export class AccountPlanners {
       JOIN studio_account_machine_bindings b ON b.account_machine_id=a.device_id AND b.project_id=a.project_id
       JOIN studio_investigation_checkouts c ON c.machine_id=b.child_machine_id
       JOIN studio_agent_profiles f ON f.artifact_id=a.artifact_id
-      WHERE a.device_id=? AND a.status IN ('queued','claimed') AND a.idle_expires>?
+      WHERE a.device_id=? AND a.status IN ('queued','claimed') AND (a.status='queued' OR a.idle_expires>?)
       AND (a.status='queued' OR a.expires>?) AND d.status='active' AND d.expires>?
       AND d.user_id=a.user_id AND t.version=a.artifact_version AND t.archived=0
       AND m.role IN ('owner','editor') AND b.status='active'
@@ -482,16 +487,6 @@ export class AccountPlanners {
         if (stale.project_id === current.projectId) await this.reconcile(stale);
       }
       if (
-        await this.dependencies.accounts.otherWorkActive(
-          binding.child_machine_id,
-          { excludePlanner: true },
-        )
-      )
-        throw new HttpError(
-          409,
-          'This device is already running another approved workflow',
-        );
-      if (
         (
           await this.store.one(
             'SELECT count(*) AS n FROM studio_account_planner_assignments WHERE project_id=?',
@@ -531,7 +526,7 @@ export class AccountPlanners {
         status: 'queued',
         token_hash: null,
         expires: null,
-        idle_expires: at + plannerIdleMs,
+        idle_expires: 0,
         created_at: iso(at),
         updated_at: iso(at),
         reason: null,
@@ -586,6 +581,19 @@ export class AccountPlanners {
           );
           return null;
         }
+        const binding = await this.binding(
+          row.device_id,
+          row.project_id,
+          row.user_id,
+        );
+        if (
+          row.status === 'queued' &&
+          (await this.dependencies.accounts.otherWorkActive(
+            binding.child_machine_id,
+            { excludePlanner: true },
+          ))
+        )
+          return null;
         return this.value(row);
       });
       if (value) assignments.push(value);
@@ -628,11 +636,13 @@ export class AccountPlanners {
       if (row.status === 'queued') {
         row.status = 'claimed';
         row.expires = this.clock() + plannerLeaseMs;
+        row.idle_expires = this.clock() + plannerIdleMs;
         row.token_hash = hash(token);
         await this.store.exec(
-          "UPDATE studio_account_planner_assignments SET status='claimed',token_hash=?,expires=?,updated_at=? WHERE id=? AND epoch=?",
+          "UPDATE studio_account_planner_assignments SET status='claimed',token_hash=?,expires=?,idle_expires=?,updated_at=? WHERE id=? AND epoch=?",
           row.token_hash,
           row.expires,
+          row.idle_expires,
           iso(this.clock()),
           id,
           epoch,

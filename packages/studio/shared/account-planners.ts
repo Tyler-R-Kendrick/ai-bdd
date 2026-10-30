@@ -35,7 +35,8 @@ export const plannerAssignmentSchema = z
     sourceHash: z.string().regex(/^[a-f0-9]{64}$/),
     profile: plannerProfileSchema,
     expiresAt: time.nullable(),
-    idleExpiresAt: time,
+    // A queued owner request has no running process or idle timer yet.
+    idleExpiresAt: time.nullable(),
   })
   .strict();
 export const plannerAssignmentRequestSchema = z
@@ -74,6 +75,7 @@ export const plannerClaimSchema = plannerAssignmentSchema
     assignmentId: z.string().uuid(),
     token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
     expiresAt: time,
+    idleExpiresAt: time,
   })
   .strict();
 export const plannerRenewRequestSchema = plannerClaimRequestSchema;
