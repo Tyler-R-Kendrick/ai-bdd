@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -59,7 +60,7 @@ async function fixture(integrations: any = {}) {
     dataDir: '/tmp/studio-durable-agent-fixture',
     demo: false,
     model: 'fixture/model',
-    integrations,
+    integrations: { ...integrations, gatewayMetadataFetch: ownedFreeGatewayMetadata() },
   };
   // No socket/auth route is used in this test; the actual collaboration persistence/cache path is exercised.
   const collab = new Collaboration(store, { settings } as any);

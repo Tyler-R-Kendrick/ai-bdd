@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -200,7 +201,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         const settings = {
           ...testSettings(dir),
           model: 'fixture/model',
-          integrations: { gatewayBaseUrl: endpoint, remotePlanner: true },
+          integrations: { gatewayBaseUrl: endpoint, gatewayMetadataFetch: ownedFreeGatewayMetadata(), remotePlanner: true },
         };
         const auth = new Auth(store, settings),
           collab = new Collaboration(store, auth);

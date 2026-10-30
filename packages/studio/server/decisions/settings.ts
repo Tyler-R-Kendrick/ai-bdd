@@ -13,6 +13,9 @@ export function decisionSettingsFromEnv(
 ): DecisionSettings {
   const openaiKey = env.STUDIO_OPENAI_DECISIONS_KEY ?? env.OPENAI_API_KEY,
     jevKey = env.JEV_API_KEY ?? env.TYPESAFE_API_KEY;
+  if (production && (openaiKey || jevKey))
+    throw new Error('The free-model policy cannot verify direct paid-provider decision APIs; use local CPU or verified free Gateway evaluation.');
+  const evaluationModels = modelList.parse(JSON.parse(env.STUDIO_DECISION_EVALUATION_MODELS_JSON ?? '[]'));
   const structuredModels = modelList.parse(
     JSON.parse(env.STUDIO_DECISION_SDK_MODELS_JSON ?? '[]'),
   );
@@ -22,6 +25,8 @@ export function decisionSettingsFromEnv(
       ? DEFAULT_LOCAL_MODEL_ID
       : provider === 'jev'
         ? 'jev-latest'
+        : provider === 'vercel-evaluation'
+          ? (evaluationModels[0] ?? 'unconfigured')
         : provider === 'vercel-structured'
           ? (structuredModels[0] ?? 'unconfigured')
           : 'gpt-6-luna';
@@ -67,6 +72,10 @@ export function decisionSettingsFromEnv(
     production,
     timeoutMs,
     defaultProfile,
+    ...(evaluationModels.length ? { evaluation: {
+      models: evaluationModels,
+      ...(env.AI_GATEWAY_API_KEY ? { apiKey: env.AI_GATEWAY_API_KEY } : {}),
+    } } : {}),
     ...(openaiKey
       ? {
           openai: {

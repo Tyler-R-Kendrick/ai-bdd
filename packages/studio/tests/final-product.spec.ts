@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import {
   test,
   expect,
@@ -182,6 +183,7 @@ async function fixture(cards: boolean, model = false) {
           model: 'fixture/model',
           integrations: {
             gatewayBaseUrl: `http://127.0.0.1:${(server.address() as any).port}`,
+            gatewayMetadataFetch: ownedFreeGatewayMetadata(),
             searchUrl: `http://127.0.0.1:${(server.address() as any).port}/sources`,
           },
         }

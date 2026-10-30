@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { decisionProfileSchema } from '../shared/decision-profile.ts';
 import { createGateway } from 'ai';
 import { DecisionModels } from '../server/decisions/models.ts';
@@ -228,6 +229,7 @@ async function fixture(
     model: 'fixture/model',
     integrations: {
       gatewayBaseUrl: `http://127.0.0.1:${(server.address() as any).port}`,
+      gatewayMetadataFetch: ownedFreeGatewayMetadata(),
     },
   };
   const collab = new Collaboration(store, new Auth(store, settings));

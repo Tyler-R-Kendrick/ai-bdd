@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -60,6 +61,7 @@ async function fixture() {
     model: 'fixture/title-goal',
     integrations: {
       gatewayBaseUrl: `http://127.0.0.1:${(server.address() as any).port}`,
+      gatewayMetadataFetch: ownedFreeGatewayMetadata(),
     },
   };
   const instance = await createApp(settings, {

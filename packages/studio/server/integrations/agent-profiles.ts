@@ -10,12 +10,14 @@ import { HttpError, type Store } from '../store.ts';
 import type { IntegrationSettings } from './settings.ts';
 import { LOCAL_MODEL_ID, LOCAL_MODELS, LOCAL_PROVIDER_ID, localModelPresent } from '../local/catalog.ts';
 import { managedT3ToolsPresent } from '../local/native-t3-runtime.ts';
+import { freeGatewayModels } from '@ai-bdd/models-ai-sdk';
 const fallback: AgentProfile = {
   harness: 't3-code',
   provider: 'project-default',
   model: 'project-default',
 };
 export class AgentProfiles {
+  private gatewayModels: string[] = [];
   constructor(
     readonly store: Store,
     readonly settings: Settings,
@@ -28,6 +30,17 @@ export class AgentProfiles {
         'CREATE TABLE IF NOT EXISTS studio_agent_profiles(artifact_id TEXT PRIMARY KEY REFERENCES artifacts(id) ON DELETE CASCADE,harness TEXT NOT NULL,provider TEXT NOT NULL,model TEXT NOT NULL,updated_by TEXT NOT NULL REFERENCES users(id),updated_at TEXT NOT NULL)',
       );
     });
+    await this.refreshGatewayModels();
+  }
+  private async refreshGatewayModels() {
+    if (!this.settings.model) { this.gatewayModels = []; return; }
+    try {
+      this.gatewayModels = await freeGatewayModels('language', {
+        ...(this.integrations.gatewayMetadataFetch ? { metadataFetch: this.integrations.gatewayMetadataFetch } : {}),
+      });
+      const registered = [this.settings.model, ...(this.integrations.fxModels ?? [])];
+      this.gatewayModels = this.gatewayModels.filter(id => registered.includes(id));
+    } catch { this.gatewayModels = []; }
   }
   async selected(id: string): Promise<AgentProfile> {
     const row = await this.store.one(
@@ -85,18 +98,15 @@ export class AgentProfiles {
       {
         id: 'vercel-fx',
         label: 'Vercel / fx',
-        configured: !!this.settings.model,
-        reason: this.settings.model
+        configured: !!this.settings.model && this.gatewayModels.includes(this.settings.model),
+        reason: this.settings.model && this.gatewayModels.includes(this.settings.model)
           ? null
-          : 'The workspace AI Gateway model is not configured.',
+          : 'Optional Gateway inference requires a currently verified free model and account access. No paid model or fallback is permitted.',
         providers: [
           {
             id: 'ai-gateway',
             label: 'Vercel AI Gateway',
-            models: [
-              this.settings.model ?? 'unconfigured',
-              ...(this.integrations.fxModels ?? []),
-            ],
+            models: [...this.gatewayModels],
           },
         ],
       },
@@ -157,6 +167,7 @@ export class AgentProfiles {
     id: string,
     update?: AgentProfile,
   ): Promise<AgentProfileView> {
+    await this.refreshGatewayModels();
     const artifact = await this.store.artifact(
       id,
       user.id,

@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -75,6 +76,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
             model: 'fixture/graph',
             integrations: {
               gatewayBaseUrl: `http://127.0.0.1:${(server.address() as any).port}`,
+              gatewayMetadataFetch: ownedFreeGatewayMetadata(),
             },
           },
           adapter === 'sqlite'

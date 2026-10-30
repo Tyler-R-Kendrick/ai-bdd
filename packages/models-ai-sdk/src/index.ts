@@ -154,7 +154,7 @@ function requireModel(value: unknown, purpose: string): LanguageModel {
 
 /**
  * Builds a {@link ModelSet} backed by the Vercel AI SDK. Values are either AI SDK language model
- * objects or model id strings, which the AI SDK resolves through its global provider.
+ * objects or model id strings. Strings use the guarded zero-cost Gateway provider.
  */
 export function aiSdkModels(models: Record<ModelPurpose, LanguageModel | string>, opts: AiSdkModelsOptions = {}): ModelSet {
   const build = (purpose: ModelPurpose): ChatModel =>
@@ -164,7 +164,7 @@ export function aiSdkModels(models: Record<ModelPurpose, LanguageModel | string>
 
 /**
  * JSON-config form: `{ extract, act, checkgen, judge, maxRetries? }`, where the four purposes are
- * model id strings passed to the AI SDK as-is. Unknown keys are rejected with `CONFIG_INVALID`.
+ * model id strings routed through the free-only Gateway guard. Unknown keys are rejected with `CONFIG_INVALID`.
  */
 export function createModelSet(options: Record<string, unknown>): ModelSet {
   const known = new Set<string>([...PURPOSES, 'maxRetries']);

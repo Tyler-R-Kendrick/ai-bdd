@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -94,7 +95,7 @@ test.beforeAll(async () => {
     demo: false,
     adminEmail: email,
     model: 'fixture/author',
-    integrations: { gatewayBaseUrl: endpoint },
+    integrations: { gatewayBaseUrl: endpoint, gatewayMetadataFetch: ownedFreeGatewayMetadata() },
   };
   studio = (await createApp(settings, {
     db: ':memory:',

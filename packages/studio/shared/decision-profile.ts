@@ -11,6 +11,7 @@ export const decisionProviderIds = [
   'openai-decisions',
   'jev',
   'vercel-structured',
+  'vercel-evaluation',
 ] as const;
 export const decisionProfileSchema = z
   .object({

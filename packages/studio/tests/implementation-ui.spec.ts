@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -71,6 +72,7 @@ test.beforeAll(async () => {
       model: 'fixture/model',
       integrations: {
         gatewayBaseUrl: `http://127.0.0.1:${(modelServer.address() as { port: number }).port}`,
+        gatewayMetadataFetch: ownedFreeGatewayMetadata(),
       },
     },
     {

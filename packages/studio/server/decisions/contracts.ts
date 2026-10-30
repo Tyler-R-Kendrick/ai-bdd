@@ -1,4 +1,5 @@
 import type { LocalModelSettings } from '../local/catalog.ts';
+import type { GatewayFetch } from '@ai-bdd/models-ai-sdk';
 import type { User } from '../../shared/domain.ts';
 import type {
   DecisionAnswer,
@@ -23,7 +24,8 @@ export type DecisionSettings = {
   openai?: { baseUrl: string; apiKey: string; models: string[] };
   jev?: { baseUrl: string; apiKey: string; models: string[] };
   local?: LocalModelSettings;
-  structured?: { baseUrl?: string; apiKey?: string; models: string[] };
+  structured?: { baseUrl?: string; apiKey?: string; models: string[]; metadataFetch?: GatewayFetch };
+  evaluation?: { apiKey?: string; models: string[]; metadataFetch?: GatewayFetch };
 };
 export type ProviderAnswer = {
   kind: DecisionQuestion['kind'];
