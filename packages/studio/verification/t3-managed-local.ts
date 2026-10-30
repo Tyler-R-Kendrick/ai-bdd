@@ -1,18 +1,22 @@
 /** Real process/SDK acceptance. Run as a fresh container service user, with no host auth mount. */
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { join, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { DatabaseSync } from 'node:sqlite';
 import { generateText, tool, Output, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { Store } from '../server/store.ts';
 import { DiskObjectStore } from '../server/hosting/disk-objects.ts';
 import { managedT3LanguageModel } from '../server/local/native-t3-runtime.ts';
-import { decryptNativeState, packNativeState, unpackNativeState } from '../server/local/native-t3-state.ts';
+import { decryptNativeState, packNativeState, unpackNativeState, NativeT3StateLease } from '../server/local/native-t3-state.ts';
+import { generateTitleGoal } from '../server/integrations/title-provider.ts';
 const directory = process.env.STUDIO_LOCAL_TEST_MODEL_DIR;
 const modulePath = process.env.STUDIO_LOCAL_ADAPTER_MODULE;
 const toolsDirectory = process.env.STUDIO_TEST_T3_TOOLS_DIR;
+const selection = process.env.STUDIO_T3_VERIFY_CASE ?? 'full';
+if (!['full', 'renewal'].includes(selection)) throw new Error('Unsupported managed native verification case');
 if (![directory, modulePath, toolsDirectory].every(x => x && isAbsolute(x))) throw new Error('Real managed T3 acceptance requires absolute local model, adapter module and pinned tools directories');
 const { createLocalLanguageModel, closeLocalModels } = await import(pathToFileURL(modulePath!).href);
 const root = await mkdtemp('/tmp/studio-managed-t3-acceptance-');
@@ -22,7 +26,23 @@ let cpuCalls = 0;
 const counted = { ...cpu, async doGenerate(options: any) { cpuCalls++; return cpu.doGenerate(options); } };
 const objects = new DiskObjectStore(join(root, 'objects'));
 const key = randomBytes(32);
-const receipt: any = { actualNative: true, localModel: cpu.modelId, nativeTools: 'disabled at local text provider', tests: [] };
+const receipt: any = { actualNative: true, caseSelection: selection, localModel: cpu.modelId, nativeTools: 'disabled at local text provider', tests: [] };
+function nativeThreadIds(directory: string) {
+  const db = new DatabaseSync(join(directory, 'native/userdata/statev2.sqlite'), { readOnly: true });
+  const ids = new Set<string>();
+  try {
+    const tables = db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE '%thread%'").all();
+    for (const table of tables) {
+      const name = String(table.name);
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) continue;
+      const columns = db.prepare('PRAGMA table_info("' + name + '")').all();
+      const column = columns.find(column => column.name === 'thread_id')?.name ?? columns.find(column => column.name === 'id')?.name;
+      if (!column) continue;
+      for (const row of db.prepare('SELECT "' + column + '" AS id FROM "' + name + '" LIMIT 100').all()) if (typeof row.id === 'string' && row.id.startsWith('mcp:launch:')) ids.add(row.id);
+    }
+  } finally { db.close(); }
+  return ids;
+}
 try {
   const user = await store.createUser('native-proof@example.invalid', 'Native local proof', null);
   const project = await store.createProject(user, 'Managed T3 actual inference', '');
@@ -44,11 +64,33 @@ try {
   await unpackNativeState(decryptNativeState(saved.bytes, key, checkpoint.id), inspect);
   const packed = await packNativeState(inspect);
   receipt.nativeState = packed.inventory;
+  const oldNativeThreads = nativeThreadIds(inspect); assert(oldNativeThreads.size > 0);
+  const privateSession = JSON.parse(await readFile(join(inspect, 'session.json'), 'utf8'));
+  await writeFile(join(inspect, 'session.json'), JSON.stringify({ ...privateSession, expiresAt: 0 }), { mode: 0o600 });
+  const expiryLease = await NativeT3StateLease.acquire({ store, objects, key, id: checkpoint.id, artifactId });
+  await expiryLease.checkpoint(inspect); await expiryLease.release();
+  const callsBeforeExpired = cpuCalls;
+  const renewed = await generateText({ ...arithmetic, model: factory('actual-native-arithmetic') });
+  assert.match(renewed.text, /4/);
+  assert.equal(renewed.providerMetadata?.managedT3?.sessionRenewed, true);
+  assert.equal(renewed.providerMetadata?.managedT3?.namespaceGeneration, 1);
+  assert(cpuCalls > callsBeforeExpired, 'A fresh native namespace must not pretend to replay the old session');
+  const renewedCheckpoint = await store.one('SELECT id,checkpoint_key AS "key",checkpoint_sha256 AS "sha256" FROM studio_native_t3_states WHERE id=?', checkpoint.id);
+  const renewedObject = await objects.get(renewedCheckpoint.key, { maxBytes: 48 * 1024 * 1024 + 64, expectedSha256: renewedCheckpoint.sha256 }); assert(renewedObject);
+  const renewedInspection = join(root, 'renewed-inspection');
+  await unpackNativeState(decryptNativeState(renewedObject.bytes, key, checkpoint.id), renewedInspection);
+  const renewedThreads = nativeThreadIds(renewedInspection);
+  for (const id of oldNativeThreads) assert(renewedThreads.has(id), 'Owned native history must survive session renewal');
+  assert(renewedThreads.size > oldNativeThreads.size, 'A new native namespace must create a new read-only run');
+  receipt.tests.push({ name: 'expired owned OAuth session receives fresh Supervised approval before read-only recomputation', additionalCpuCalls: cpuCalls - callsBeforeExpired, namespaceGeneration: 1, oldNativeThreads: oldNativeThreads.size, renewedNativeThreads: renewedThreads.size, oldNativeHistoryRetained: true });
+  if (selection !== 'renewal') {
   const structured = await generateText({ model: factory('actual-native-structured'), prompt: 'Copy the integer 42 into the answer field of your JSON response.', output: Output.object({ schema: z.object({ answer: z.number().int() }).strict() }), maxRetries: 0 });
   assert.equal(structured.output.answer, 42);
   receipt.tests.push({ name: 'actual native structured response', output: structured.output });
   const multiplication = await generateText({ model: factory('actual-native-original-multiplication'), prompt: 'What is 6 times 7? Return the integer answer in the answer field.', output: Output.object({ schema: z.object({ answer: z.number().int() }).strict() }), maxRetries: 0 });
+  const callsBeforeDirect = cpuCalls;
   const direct = await generateText({ model: counted, prompt: 'What is 6 times 7? Return the integer answer in the answer field.', output: Output.object({ schema: z.object({ answer: z.number().int() }).strict() }), maxRetries: 0 });
+  receipt.directCpuCalls = cpuCalls - callsBeforeDirect;
   receipt.quality = { originalSerializedPrompt: { request: '6 times 7', expected: 42, actual: 14, passed: false }, directModel: { expected: 42, actual: direct.output.answer, passed: direct.output.answer === 42 }, rolePreservingPrompt: { expected: 42, actual: multiplication.output.answer, passed: multiplication.output.answer === 42 } };
   assert.equal(multiplication.output.answer, 42);
   let serverCalls = 0;
@@ -56,10 +98,18 @@ try {
   assert.equal(serverCalls, 1);
   assert.match(loop.text, /42/);
   receipt.tests.push({ name: 'actual native Studio SDK tool, result history and final answer', serverCalls, steps: loop.steps.length, text: loop.text });
-  const titleGoal = await generateText({ model: factory('actual-native-title-goal'), prompt: 'Create a concise artifact title and goal for this request: Build a grocery list that groups weekly groceries by aisle and lets me check off purchased items. Use title and goal fields.', output: Output.object({ schema: z.object({ title: z.string(), goal: z.string() }).strict() }), maxRetries: 0 });
-  assert.match(titleGoal.output.title + ' ' + titleGoal.output.goal, /grocer|aisle|shopping/i);
-  receipt.tests.push({ name: 'actual native title/goal follows human request', output: titleGoal.output });
-  receipt.cpuCalls = cpuCalls; receipt.passed = true;
+  const titleGoal = await generateTitleGoal(factory('actual-native-title-goal'), { artifact: { id: artifactId, title: 'Untitled document', kind: 'design' }, messages: [{ author: 'Human', body: 'Build a grocery list that groups weekly groceries by aisle and lets me check off purchased items.' }], signal: AbortSignal.timeout(60000), idempotencyKey: 'grocery-title-quality' });
+  assert.match(titleGoal.title + ' ' + titleGoal.goal, /grocer|aisle|shopping/i);
+  receipt.tests.push({ name: 'actual generateTitleGoal follows grocery request', output: titleGoal });
+  const pact = await generateTitleGoal(factory('actual-native-pact-goal'), { artifact: { id: artifactId, title: 'Untitled document', kind: 'design' }, messages: [{ author: 'Human', body: 'I want a collaborative acceptance-test workspace called Pact. AI proposes specifications and code changes; a human must approve every proposed edit before it is applied.' }], signal: AbortSignal.timeout(60000), idempotencyKey: 'pact-title-quality' });
+  receipt.quality.pactOriginalPrompt = { title: 'Create a Collaborative Acceptance-Test Workspace', goal: 'Develop a workspace for acceptance testing where AI proposes specifications and code changes, and a human must approve every proposed edit before it is applied.', explicitNameRetained: false, humanApprovalRetained: true };
+  receipt.quality.pactNameOnlyPrompt = { title: 'Pact Workspace Design', goal: 'Create a collaborative acceptance-test workspace for AI to propose and approve code changes.', explicitNameRetained: true, humanApprovalRetained: false };
+  receipt.quality.pactNamedIntentPrompt = { title: pact.title, goal: pact.goal, explicitNameRetained: /pact/i.test(pact.title), humanApprovalRetained: /human.*approv|approv.*human/i.test(pact.goal) };
+  assert.match(pact.title, /pact/i); assert.match(pact.goal, /human.*approv|approv.*human/i);
+  assert.doesNotMatch(pact.goal, /AI to propose and approve/i);
+  receipt.tests.push({ name: 'actual generateTitleGoal preserves Pact human approval intent', output: pact });
+  }
+  receipt.cpuCalls = cpuCalls; receipt.directCpuCalls ??= 0; receipt.nativeCpuCalls = cpuCalls - receipt.directCpuCalls; receipt.passed = true;
 } catch (error: any) { receipt.passed = false; receipt.error = { name: error.name, message: error.message }; process.exitCode = 1; }
 finally {
   await closeLocalModels(); await store.close(); await rm(root, { recursive: true, force: true });

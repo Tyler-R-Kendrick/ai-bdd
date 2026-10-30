@@ -1,0 +1,44 @@
+{
+  "actualNative": true,
+  "caseSelection": "renewal",
+  "localModel": "qwen2.5-0.5b-instruct-q4-k-m",
+  "nativeTools": "disabled at local text provider",
+  "tests": [
+    {
+      "name": "same-session encrypted restore and native idempotent replay",
+      "text": "2 + 2 = 4",
+      "cpuCalls": 1,
+      "replayAdditionalCalls": 0
+    },
+    {
+      "name": "expired owned OAuth session receives fresh Supervised approval before read-only recomputation",
+      "additionalCpuCalls": 1,
+      "namespaceGeneration": 1,
+      "oldNativeThreads": 1,
+      "renewedNativeThreads": 2,
+      "oldNativeHistoryRetained": true
+    }
+  ],
+  "nativeState": {
+    "files": 14,
+    "bytes": 1293816,
+    "databases": [
+      {
+        "path": "data/opencode/opencode.db",
+        "bytes": 299008
+      },
+      {
+        "path": "native/userdata/server-owner.sqlite",
+        "bytes": 0
+      },
+      {
+        "path": "native/userdata/statev2.sqlite",
+        "bytes": 983040
+      }
+    ]
+  },
+  "cpuCalls": 2,
+  "passed": true,
+  "directCpuCalls": 0,
+  "nativeCpuCalls": 2
+}

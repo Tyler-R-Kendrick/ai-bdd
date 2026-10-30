@@ -10,6 +10,12 @@
       "replayAdditionalCalls": 0
     },
     {
+      "name": "expired owned OAuth session receives fresh Supervised approval before read-only recomputation",
+      "additionalCpuCalls": 1,
+      "namespaceGeneration": 1,
+      "oldNativeHistoryRetained": true
+    },
+    {
       "name": "actual native structured response",
       "output": {
         "answer": 42
@@ -22,16 +28,23 @@
       "text": "The stored answer is 42."
     },
     {
-      "name": "actual native title/goal follows human request",
+      "name": "actual generateTitleGoal follows grocery request",
       "output": {
-        "title": "Grocery List Builder",
-        "goal": "Create a tool that groups weekly groceries by aisle and lets me check off purchased items."
+        "title": "Build a grocery list that groups weekly groceries by aisle and lets me check off purchased items",
+        "goal": "Create a design document that includes a grocery list that organizes weekly groceries by aisle and allows for easy checking off of purchased items."
+      }
+    },
+    {
+      "name": "actual generateTitleGoal preserves Pact human approval intent",
+      "output": {
+        "title": "Pact Workspace Design",
+        "goal": "A collaborative acceptance-test workspace for Pact, AI proposes specifications and code changes, a human must approve every proposed edit before it is applied."
       }
     }
   ],
   "nativeState": {
-    "files": 15,
-    "bytes": 1337382,
+    "files": 14,
+    "bytes": 1293816,
     "databases": [
       {
         "path": "data/opencode/opencode.db",
@@ -54,18 +67,38 @@
       "actual": 14,
       "passed": false
     },
+    "directModel": {
+      "expected": 42,
+      "actual": 42,
+      "passed": true
+    },
     "rolePreservingPrompt": {
       "expected": 42,
       "actual": 42,
       "passed": true
     },
-    "directModel": {
-      "expected": 42,
-      "actual": 42,
-      "passed": true,
-      "observation": "Actual separate direct CPU comparison, both with and without a helpful system prompt"
+    "pactOriginalPrompt": {
+      "title": "Create a Collaborative Acceptance-Test Workspace",
+      "goal": "Develop a workspace for acceptance testing where AI proposes specifications and code changes, and a human must approve every proposed edit before it is applied.",
+      "explicitNameRetained": false,
+      "humanApprovalRetained": true
+    },
+    "pactNameOnlyPrompt": {
+      "title": "Pact Workspace Design",
+      "goal": "Create a collaborative acceptance-test workspace for AI to propose and approve code changes.",
+      "explicitNameRetained": true,
+      "humanApprovalRetained": false
+    },
+    "pactNamedIntentPrompt": {
+      "title": "Pact Workspace Design",
+      "goal": "A collaborative acceptance-test workspace for Pact, AI proposes specifications and code changes, a human must approve every proposed edit before it is applied.",
+      "explicitNameRetained": true,
+      "humanApprovalRetained": true
     }
   },
-  "cpuCalls": 6,
-  "passed": true
+  "cpuCalls": 9,
+  "passed": true,
+  "caseSelection": "full",
+  "directCpuCalls": 1,
+  "nativeCpuCalls": 8
 }
