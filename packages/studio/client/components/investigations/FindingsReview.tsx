@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, date } from '../../lib.ts';
+import { Button, Textarea } from '../ui.tsx';
 import type { FindingsReviewView } from '../../../shared/findings-review.ts';
 
 export function FindingsReview({
@@ -91,7 +92,9 @@ export function FindingsReview({
       )}
       {view?.owner && <small>Planner owner: {view.owner.name}</small>}
       {canWrite && (
-        <button
+        <Button
+          variant="outline"
+          className="justify-self-start"
           disabled={busy || !view?.owner || view.owner.userId !== currentUserId}
           onClick={() =>
             void action(`/investigations/${investigationId}/findings`, 'POST', {
@@ -100,7 +103,7 @@ export function FindingsReview({
           }
         >
           Ask Planner to apply findings
-        </button>
+        </Button>
       )}
       {view?.reviews.map((review) => (
         <article key={review.id} aria-label="Findings proposal">
@@ -171,7 +174,8 @@ export function FindingsReview({
                       I reviewed the evidence and this exact edit. Incorporate
                       these findings; leave proposed choices unanswered.
                     </label>
-                    <button
+                    <Button
+                      className="justify-self-start"
                       disabled={busy || confirmed !== review.id}
                       onClick={() =>
                         void action(
@@ -182,13 +186,14 @@ export function FindingsReview({
                       }
                     >
                       Apply reviewed findings
-                    </button>
+                    </Button>
                   </>
                 )}
             </>
           )}
           {canWrite && ['queued', 'running'].includes(review.status) && (
-            <button
+            <Button
+              className="justify-self-start"
               disabled={busy}
               onClick={() =>
                 void action(
@@ -198,7 +203,7 @@ export function FindingsReview({
               }
             >
               Stop findings review
-            </button>
+            </Button>
           )}
         </article>
       ))}
@@ -222,7 +227,7 @@ export function FindingsReview({
           </p>
           <label>
             How were these findings incorporated?
-            <textarea
+            <Textarea
               value={rationale}
               onChange={(e) => setRationale(e.target.value)}
               minLength={20}
@@ -238,7 +243,8 @@ export function FindingsReview({
             I reviewed the current evidence and plan and take responsibility for
             this acknowledgement.
           </label>
-          <button
+          <Button
+            className="justify-self-start"
             disabled={busy || !acknowledged || rationale.trim().length < 20}
             onClick={() =>
               void action(
@@ -254,7 +260,7 @@ export function FindingsReview({
             }
           >
             Record human incorporation
-          </button>
+          </Button>
         </details>
       )}
     </section>
