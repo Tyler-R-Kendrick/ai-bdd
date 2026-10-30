@@ -93,7 +93,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: packages/studio/Dockerfile
+          file: Dockerfile.studio
           push: false
           load: true
           tags: ai-bdd-studio:ci

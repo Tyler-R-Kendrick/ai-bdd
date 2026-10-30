@@ -127,7 +127,7 @@
     "backend": {
       "root": ".",
       "runtime": "container",
-      "entrypoint": "packages/studio/Dockerfile",
+      "entrypoint": "Dockerfile.studio",
       "command": ["node", "dist/server/vercel-main.js"]
     }
   },

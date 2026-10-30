@@ -51,13 +51,13 @@ The default hosted composition is **Vercel Services + external PostgreSQL (Neon)
 For the local SQLite/disk adapter, build from the repository root:
 
 ```sh
-docker build -f packages/studio/Dockerfile -t ai-bdd-studio:local .
+docker build -f Dockerfile.studio -t ai-bdd-studio:local .
 ```
 
 In a managed build environment using a TLS proxy, supply its public CA through a BuildKit secret rather than copying it into an image:
 
 ```sh
-docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f packages/studio/Dockerfile -t ai-bdd-studio:local .
+docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f Dockerfile.studio -t ai-bdd-studio:local .
 ```
 
 Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN`, the bootstrap owner email, and a unique bootstrap password. OIDC, model keys, and the acceptance runner are optional capabilities, configured separately. No populated secret file belongs in a commit or image.

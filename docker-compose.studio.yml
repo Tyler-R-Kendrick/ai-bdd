@@ -2,7 +2,7 @@ services:
   studio:
     build:
       context: .
-      dockerfile: packages/studio/Dockerfile
+      dockerfile: Dockerfile.studio
     image: ai-bdd-studio:local
     init: true
     restart: unless-stopped
