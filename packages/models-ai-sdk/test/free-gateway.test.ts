@@ -103,7 +103,7 @@ describe('free Gateway price authority', () => {
     endpoint({ pricing: { ...fees(), discount: '0.1' } }),
     endpoint({ pricing: { ...fees(), request: 0 } }),
     endpoint({ supports_implicit_caching: true }), endpoint({ tags: ['implicit-caching'] }),
-  ])('refuses invalid, nonzero, unknown and unquoted cached endpoints', async value => {
+  ].map(value => ({ value })))('refuses invalid, nonzero, unknown and unquoted cached endpoints', async ({ value }) => {
     const f = fixture({ endpoints: { data: { id, endpoints: [value] } } });
     await expect(authorizeFreeGatewayModel(id, 'language', undefined, f.options)).rejects.toMatchObject({ reason: 'pricing' });
     expect(f.inference).toHaveLength(0);
