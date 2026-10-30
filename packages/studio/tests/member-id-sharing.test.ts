@@ -16,9 +16,6 @@ describe('project sharing by an existing GitHub member ID', () => {
   });
   afterEach(async () => { await instance.app.close(); await rm(directory, { recursive: true, force: true }); });
   async function registered(email: string) {
-    // The legacy policy on this test's base needs a seed; automatic provisioning
-    // ignores the seed and returns its own principal-bound record instead.
-    await instance.store.createUser(email, 'Teammate', null);
     return githubSignIn(instance.app, email);
   }
   const endpoint = () => `/api/projects/${workspace.id}/members`;
