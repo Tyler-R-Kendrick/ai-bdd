@@ -58,11 +58,18 @@ export async function selectAgent(
     : undefined;
   const command =
     input.custom?.[0] ?? preset?.command ?? env.STUDIO_MACHINE_AGENT_COMMAND;
-  const args: unknown =
-    input.custom?.slice(1) ??
-    (preset
-      ? [...preset.args]
-      : JSON.parse(env.STUDIO_MACHINE_AGENT_ARGS ?? '[]'));
+  let args: unknown;
+  try {
+    args =
+      input.custom?.slice(1) ??
+      (preset
+        ? [...preset.args]
+        : JSON.parse(env.STUDIO_MACHINE_AGENT_ARGS ?? '[]'));
+  } catch {
+    throw new Error(
+      'Agent arguments must be a valid JSON array; argument contents are not printed',
+    );
+  }
   if (
     !Array.isArray(args) ||
     args.length > 30 ||

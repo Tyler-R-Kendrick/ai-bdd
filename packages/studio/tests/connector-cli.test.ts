@@ -119,6 +119,15 @@ readline.createInterface({input:process.stdin}).on('line',line=>{const m=JSON.pa
     await expect(
       selectAgent({ preset: 'copilot', custom: ['other'] }, {}),
     ).rejects.toThrow('Choose');
+    await expect(
+      selectAgent(
+        {},
+        {
+          STUDIO_MACHINE_AGENT_COMMAND: process.execPath,
+          STUDIO_MACHINE_AGENT_ARGS: 'synthetic-secret-argument',
+        },
+      ),
+    ).rejects.not.toThrow('synthetic-');
   });
   it('parses explicit clone/agent choices, keeps legacy credential locations and never installs implicitly', async () => {
     const dir = await directory();
