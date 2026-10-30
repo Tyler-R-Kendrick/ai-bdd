@@ -833,6 +833,22 @@ export function ImplementationPanel({
   };
   const completed =
     run?.tasks.filter((task) => task.status === 'complete').length ?? 0;
+  const currentRun =
+    run?.graphVersion === graph?.graphVersion ? run : undefined;
+  const buildLabel =
+    snapshot?.editingLock && !snapshot.activeRun
+      ? 'Build queued'
+      : snapshot?.activeRun
+        ? `Building ${completed} of ${run?.tasks.length}`
+        : graph && graph.planRevision !== snapshot?.planRevision
+          ? 'Changes to build'
+          : graph?.status === 'draft'
+            ? 'Review task graph'
+            : currentRun?.status === 'delivered'
+              ? 'Built'
+              : currentRun?.status === 'implemented'
+                ? 'Verified implementation'
+                : 'Build plan';
   return (
     <>
       <Button
@@ -840,21 +856,10 @@ export function ImplementationPanel({
         variant="outline"
         onClick={() => setOpen(true)}
         aria-label="Build plan"
+        aria-description={buildLabel}
       >
         <ListChecks />
-        {run &&
-        run.planRevision !== (snapshot?.planRevision ?? artifact.version) &&
-        ['implemented', 'delivered'].includes(run.status)
-          ? 'Changes to build'
-          : snapshot?.editingLock && !snapshot.activeRun
-            ? 'Build queued'
-            : snapshot?.activeRun
-              ? `Building ${completed} of ${run?.tasks.length}`
-              : run?.status === 'delivered'
-                ? 'Built'
-                : run?.status === 'implemented'
-                  ? 'Verified implementation'
-                  : 'Build plan'}
+        {buildLabel}
       </Button>
       <Modal
         open={open}
