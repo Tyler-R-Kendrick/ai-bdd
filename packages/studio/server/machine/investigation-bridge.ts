@@ -12,7 +12,7 @@ import {
   reconnect,
   MachineTransportError,
 } from './runtime.ts';
-import { boundedJson } from '../integrations/http.ts';
+import { readMachineJson } from './http.ts';
 export const bridgeStateSchema = z
   .object({
     version: z.literal(1),
@@ -98,7 +98,7 @@ export async function createInvestigationBridge(file: string) {
             await response.body?.cancel();
             throw new MachineTransportError(response.status);
           }
-          return boundedJson(response, undefined, 10000);
+          return readMachineJson(response, undefined, 10000);
         },
         { maxDelayMs: 10000 },
       );

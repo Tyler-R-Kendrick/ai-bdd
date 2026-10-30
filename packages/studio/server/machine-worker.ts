@@ -19,10 +19,15 @@ import { dirname, isAbsolute, resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { boundedJson } from './integrations/http.ts';
+import { readMachineJson } from './machine/http.ts';
 import { investigationResultSchema } from '../shared/investigations.ts';
 import { runInvestigationBridge } from './machine/investigation-bridge.ts';
 import { runImplementationBridge } from './machine/implementation-bridge.ts';
+import {
+  connectAccountMachine,
+  readAccountMachineCredentials,
+  runAccountMachineWorker,
+} from './machine/account-worker.ts';
 import {
   runImplementationOnce,
   resumeImplementationRuns,
@@ -341,7 +346,7 @@ export async function machineApi(
     await response.body?.cancel().catch(() => {});
     throw new MachineTransportError(response.status);
   }
-  return boundedJson(response, signal, 2 * 1024 * 1024);
+  return readMachineJson(response, signal, 2 * 1024 * 1024);
 }
 export async function connectMachine(
   base: string,
@@ -751,6 +756,34 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
   const credentialsFile = resolve(
     env.STUDIO_MACHINE_CREDENTIALS ?? '.studio-machine.json',
   );
+  let account = env.STUDIO_MACHINE_SCOPE === 'account';
+  if (!env.STUDIO_MACHINE_PAIR_CODE && !account) {
+    const saved = await readPrivateJson(credentialsFile);
+    account = saved.scope === 'account';
+  }
+  if (account) {
+    const credentials = env.STUDIO_MACHINE_PAIR_CODE
+      ? await connectAccountMachine(
+          base,
+          env.STUDIO_MACHINE_PAIR_CODE,
+          credentialsFile,
+        )
+      : await readAccountMachineCredentials(credentialsFile);
+    if (credentials.origin !== base)
+      throw new Error(
+        'The saved account machine belongs to another Studio origin',
+      );
+    return runAccountMachineWorker(
+      credentials,
+      {
+        ...env,
+        STUDIO_MACHINE_STATE_DIR:
+          env.STUDIO_MACHINE_STATE_DIR ??
+          join(dirname(credentialsFile), 'studio-machine-state'),
+      },
+      once,
+    );
+  }
   const credentials = env.STUDIO_MACHINE_PAIR_CODE
     ? await connectMachine(base, env.STUDIO_MACHINE_PAIR_CODE, credentialsFile)
     : await readMachineCredentials(credentialsFile);

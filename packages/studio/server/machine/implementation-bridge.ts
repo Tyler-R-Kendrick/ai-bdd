@@ -5,7 +5,7 @@ import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { implementationReportSchema } from '../../shared/implementation.ts';
-import { boundedJson } from '../integrations/http.ts';
+import { readMachineJson } from './http.ts';
 import {
   readPrivateJson,
   privateJson,
@@ -88,7 +88,7 @@ async function post(
     await response.body?.cancel();
     throw new MachineTransportError(response.status);
   }
-  return boundedJson(response, signal, 2 * 1024 * 1024);
+  return readMachineJson(response, signal, 2 * 1024 * 1024);
 }
 export async function sendImplementationReport(
   state: ImplementationBridgeState,
