@@ -31,6 +31,167 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('preserves member-written choices and partial cancellation without changing the runtime answer contract', async () => {
+    const w = await remoteFixture(),
+      client = await w.connect(),
+      run = await turn(w, client);
+    const input = {
+      method: 'questionnaire',
+      params: {
+        questions: [
+          {
+            header: 'Preview',
+            question: 'Choose a boundary',
+            options: [
+              {
+                label: 'Contract',
+                description: 'Use a consumer contract',
+                preview: 'Given the integration is unavailable',
+              },
+            ],
+          },
+          {
+            header: 'Follow-up',
+            question: 'Choose the next check',
+            options: [{ label: 'Browser', description: '' }],
+            multiSelect: true,
+          },
+        ],
+      },
+    };
+    for (const questionId of [
+      'human-cancel',
+      'remote-cancel',
+      'written',
+      'preview',
+    ])
+      event(client.ws, run.requestId, {
+        type: 'input-request',
+        questionId,
+        input,
+      });
+    event(client.ws, run.requestId, {
+      type: 'input-request',
+      questionId: 'select',
+      input: {
+        method: 'select',
+        title: 'Choose deployment target',
+        choices: ['Preview', 'Production'],
+      },
+    });
+    await until(
+      () =>
+        client.frames.filter((f: any) => f.type === 'event-accepted').length ===
+        5,
+    );
+    for (const questionId of ['human-cancel', 'remote-cancel', 'preview'])
+      expect(
+        (
+          await w.request(path(w, run.requestId) + '/questions/' + questionId, {
+            idempotencyKey: crypto.randomUUID(),
+            expectedRevision: 1,
+            action: 'answer',
+            answers: [{ questionIndex: 0, kind: 'option', answer: 'Contract' }],
+          })
+        ).status,
+      ).toBe(200);
+    expect(
+      (
+        await w.request(path(w, run.requestId) + '/questions/human-cancel', {
+          idempotencyKey: crypto.randomUUID(),
+          expectedRevision: 2,
+          action: 'cancel',
+        })
+      ).status,
+    ).toBe(200);
+    event(client.ws, run.requestId, {
+      type: 'input-cancel',
+      questionId: 'remote-cancel',
+    });
+    expect(
+      (
+        await w.request(path(w, run.requestId) + '/questions/preview', {
+          idempotencyKey: crypto.randomUUID(),
+          expectedRevision: 2,
+          action: 'answer',
+          answers: [
+            {
+              questionIndex: 1,
+              kind: 'custom',
+              answer: 'Inspect the saved evidence first',
+            },
+          ],
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await w.request(path(w, run.requestId) + '/questions/written', {
+          idempotencyKey: crypto.randomUUID(),
+          expectedRevision: 1,
+          action: 'answer',
+          answers: [
+            {
+              questionIndex: 0,
+              kind: 'custom',
+              answer: 'Keep the existing boundary',
+            },
+            { questionIndex: 1, kind: 'chat', answer: 'Verify both paths' },
+          ],
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await w.request(path(w, run.requestId) + '/questions/select', {
+          idempotencyKey: crypto.randomUUID(),
+          expectedRevision: 1,
+          action: 'answer',
+          value: null,
+          customValue: 'An isolated staging environment',
+        })
+      ).status,
+    ).toBe(200);
+    await until(
+      () =>
+        client.frames.filter((f: any) => f.type === 'input-result').length ===
+        5,
+    );
+    const result = (id: string) =>
+      client.frames.find(
+        (f: any) => f.type === 'input-result' && f.questionId === id,
+      );
+    expect(result('human-cancel').value).toMatchObject({
+      cancelled: true,
+      answers: [
+        {
+          kind: 'option',
+          question: 'Choose a boundary',
+          preview: 'Given the integration is unavailable',
+        },
+      ],
+    });
+    expect(result('remote-cancel').value).toEqual({
+      answers: [],
+      cancelled: true,
+    });
+    expect(result('written').value.answers.map((a: any) => a.kind)).toEqual([
+      'chat',
+      'chat',
+    ]);
+    expect(result('preview').value.answers[1].kind).toBe('chat');
+    expect(result('select')).toMatchObject({ status: 'answered', value: null });
+    const snapshot = await w.request(path(w, run.requestId));
+    expect(
+      snapshot.value.questions.find((q: any) => q.id === 'select'),
+    ).toMatchObject({
+      value: null,
+      customAnswer: 'An isolated staging environment',
+      answeredBy: w.user.id,
+    });
+    complete(client.ws, run.requestId);
+    await run.done;
+  });
   it('keeps real human input waiting beyond the active model time budget without granting tool authority', async () => {
     const w = await remoteFixture(),
       controller = new AbortController();
@@ -220,7 +381,9 @@ describe('durable remote stream/question/run actions over actual WS and HTTP', (
     epoch = 2;
     await run.done;
     expect((await w.runtime.get(run.job.id))?.status).not.toBe('completed');
-    expect(await w.remote.hasLiveActivityForArtifact(w.artifact.id)).toBe(false);
+    expect(await w.remote.hasLiveActivityForArtifact(w.artifact.id)).toBe(
+      false,
+    );
     expect(
       await w.remote.hasLiveActivity(w.artifact.id, w.user.id, {
         assignmentId,

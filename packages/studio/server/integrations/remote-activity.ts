@@ -8,6 +8,7 @@ import {
   emptyRemoteStream,
   mergeRemoteRuns,
   remoteAnswerActionSchema,
+  remoteQuestionValue,
   type RemoteActivity,
   type RemoteQuestion,
   type RemoteControl,
@@ -312,13 +313,23 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
     return { value: result.value, sequence };
   }
   private question(row: any): RemoteQuestion {
+    const input = JSON.parse(row.payload_json),
+      stored = row.value_json ? JSON.parse(row.value_json) : null;
     return {
       id: row.id,
-      input: JSON.parse(row.payload_json),
+      input,
       status: row.status,
       revision: Number(row.revision),
       answers: JSON.parse(row.answers_json),
-      value: row.value_json ? JSON.parse(row.value_json) : null,
+      value:
+        stored?.cancelledByHuman ||
+        (input.method === 'select' && stored?.customAnswer)
+          ? null
+          : stored,
+      ...(input.method === 'select' && stored?.customAnswer
+        ? { customAnswer: stored.customAnswer }
+        : {}),
+      ...(stored?.cancelledByHuman ? { cancelledByHuman: true } : {}),
       ...(row.answered_by ? { answeredBy: row.answered_by } : {}),
       ...(row.run_id ? { runId: row.run_id } : {}),
       ...(row.root_run_id ? { rootRunId: row.root_run_id } : {}),
@@ -644,24 +655,7 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
           questionId: question.id,
           revision: question.revision,
           status: question.status === 'answered' ? 'answered' : 'cancelled',
-          value:
-            question.input.method === 'questionnaire'
-              ? {
-                  answers: question.answers.map((answer) => ({
-                    ...answer,
-                    question:
-                      question.input.method === 'questionnaire'
-                        ? question.input.params.questions[answer.questionIndex]
-                            .question
-                        : '',
-                  })),
-                  cancelled: question.status !== 'answered',
-                }
-              : question.status === 'answered'
-                ? question.value
-                : question.input.method === 'confirm'
-                  ? false
-                  : null,
+          value: remoteQuestionValue(question),
         })),
     };
   }
@@ -748,9 +742,15 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
           let status = 'open',
             answers = question.answers,
             value: unknown = question.value;
-          if (input.action === 'cancel') status = 'cancelled';
-          else if (question.input.method === 'questionnaire') {
-            if (input.value !== undefined || !input.answers?.length)
+          if (input.action === 'cancel') {
+            status = 'cancelled';
+            value = { cancelledByHuman: true };
+          } else if (question.input.method === 'questionnaire') {
+            if (
+              input.value !== undefined ||
+              input.customValue !== undefined ||
+              !input.answers?.length
+            )
               throw new HttpError(
                 400,
                 'Provide one or more questionnaire answers',
@@ -789,7 +789,21 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
                   throw new HttpError(400, 'Choose a valid offered option');
               } else if (!answer.answer?.trim() || answer.selected)
                 throw new HttpError(400, 'Provide a written answer');
-              merged.set(answer.questionIndex, answer);
+              merged.set(
+                answer.questionIndex,
+                answer.kind === 'custom' || answer.kind === 'chat'
+                  ? {
+                      ...answer,
+                      kind:
+                        prompt.multiSelect ||
+                        prompt.options.some(
+                          (option) => option.preview !== undefined,
+                        )
+                          ? 'chat'
+                          : 'custom',
+                    }
+                  : answer,
+              );
             }
             answers = [...merged.values()].sort(
               (a, b) => a.questionIndex - b.questionIndex,
@@ -799,14 +813,25 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
                 ? 'answered'
                 : 'open';
           } else {
-            if (input.answers)
+            if (
+              input.answers ||
+              (input.customValue !== undefined &&
+                question.input.method !== 'select')
+            )
               throw new HttpError(400, 'This question expects one value');
             if (question.input.method === 'confirm')
               value = z.boolean().parse(input.value);
             else if (question.input.method === 'select') {
-              value = z.string().max(4000).parse(input.value);
-              if (!question.input.choices.includes(value as string))
-                throw new HttpError(400, 'Choose one of the offered values');
+              if (input.value === null && input.customValue?.trim())
+                value = { customAnswer: input.customValue };
+              else {
+                value = z.string().max(4000).parse(input.value);
+                if (
+                  input.customValue !== undefined ||
+                  !question.input.choices.includes(value as string)
+                )
+                  throw new HttpError(400, 'Choose one of the offered values');
+              }
             } else
               value = z
                 .string()

@@ -5,6 +5,7 @@ import { readMachineJson } from './http.ts';
 import {
   remoteFeatures,
   remoteQuestionInputSchema,
+  remoteQuestionValue,
   remoteStreamPartSchema,
   type RemoteActivity,
   type RemoteQuestionInput,
@@ -403,13 +404,7 @@ export async function connectRemotePlanner(options: PlannerClientOptions) {
                     return {
                       status:
                         old.status === 'answered' ? 'answered' : 'cancelled',
-                      value:
-                        parsed.method === 'questionnaire'
-                          ? {
-                              answers: old.answers,
-                              cancelled: old.status !== 'answered',
-                            }
-                          : old.value,
+                      value: remoteQuestionValue(old),
                     };
                   const key = requestId + ':' + questionId;
                   if (questions.has(key))

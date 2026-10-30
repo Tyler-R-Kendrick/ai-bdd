@@ -191,7 +191,7 @@ export type RemoteQuestionInput = z.infer<typeof remoteQuestionInputSchema>;
 export const remoteQuestionAnswerSchema = z
   .object({
     questionIndex: z.number().int().min(0).max(15),
-    kind: z.enum(['option', 'multi', 'custom']),
+    kind: z.enum(['option', 'multi', 'custom', 'chat']),
     answer: z.string().max(20000).nullable(),
     selected: z.array(z.string().max(4000)).max(32).optional(),
   })
@@ -203,6 +203,7 @@ export const remoteAnswerActionSchema = z
     expectedRevision: z.number().int().positive(),
     action: z.enum(['answer', 'cancel']),
     value: z.json().optional(),
+    customValue: z.string().min(1).max(20000).optional(),
     answers: z.array(remoteQuestionAnswerSchema).max(16).optional(),
   })
   .strict();
@@ -393,6 +394,8 @@ export type RemoteQuestion = {
   revision: number;
   answers: RemoteQuestionAnswer[];
   value: unknown;
+  customAnswer?: string;
+  cancelledByHuman?: boolean;
   answeredBy?: string;
   runId?: string;
   stageId?: string;
@@ -408,6 +411,35 @@ export type RemoteControl = {
   message?: string;
   createdAt: string;
 };
+/** One wire value for fresh delivery and reconnect replay. Written select answers remain member-visible while its runtime result is null. */
+export function remoteQuestionValue(question: RemoteQuestion): unknown {
+  const input = question.input;
+  if (input.method !== 'questionnaire')
+    return question.status === 'answered'
+      ? question.value
+      : input.method === 'confirm'
+        ? false
+        : null;
+  const answers =
+    question.status === 'answered' || question.cancelledByHuman
+      ? question.answers
+      : [];
+  return {
+    answers: answers.map((answer) => {
+      const prompt = input.params.questions[answer.questionIndex];
+      const option =
+        answer.kind === 'option'
+          ? prompt.options.find((option) => option.label === answer.answer)
+          : undefined;
+      return {
+        ...answer,
+        question: prompt.question,
+        ...(option?.preview !== undefined ? { preview: option.preview } : {}),
+      };
+    }),
+    cancelled: question.status !== 'answered',
+  };
+}
 export type RemoteActivity = {
   id: string;
   jobId: string;
