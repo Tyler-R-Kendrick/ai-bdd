@@ -10,6 +10,7 @@ import {
   type Dataset,
 } from '../../../shared/investigations.ts';
 import './investigations.css';
+import { FindingsReview } from './FindingsReview.tsx';
 
 type ViewProps = {
   investigation: Investigation;
@@ -691,6 +692,13 @@ export function InvestigationPanel({
                   onRefresh={refresh}
                 />
               ))}
+              <FindingsReview
+                investigationId={record.id}
+                artifactVersion={artifactVersion}
+                canWrite={canWrite}
+                currentUserId={currentUserId}
+                onApplied={refresh}
+              />
             </>
           )}
         </article>
