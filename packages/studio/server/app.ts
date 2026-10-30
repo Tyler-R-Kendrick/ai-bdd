@@ -1,3 +1,5 @@
+import { registerAccountMachineRoutes } from './integrations/account-machines.ts';
+import { registerConnectorDownload } from './connector-download.ts';
 import { probeAudio } from './audio-renderer.ts';
 import { investigationExportRows } from './integrations/investigation-export.ts';
 import { registerAgentProfileRoutes } from './integrations/agent-profiles.ts';
@@ -89,6 +91,7 @@ export async function createApp(
     hosting?: HostingServices;
     logger?: boolean;
     clientDir?: string;
+    connectorFile?: string;
   } = {},
 ) {
   const app = Fastify({
@@ -435,6 +438,43 @@ export async function createApp(
     integrations.machines.hooks.otherWorkActive = async (id) =>
       (await investigations!.activeOnMachine(id)) ||
       (await implementationMachines.activeOnMachine(id));
+    const accounts = await registerAccountMachineRoutes(app, {
+      store,
+      auth,
+      graphs,
+      notify: (projectId, id) => {
+        const notify = async () => {
+          await collab.notify(projectId, id);
+        };
+        if (store.db.inTransaction()) store.db.afterCommit(notify);
+        else void notify().catch(() => {});
+      },
+    });
+    const authorizeMachine = (machine: any) =>
+      accounts.assertCurrentMachine(machine);
+    integrations.machines.hooks.authorizeMachine = authorizeMachine;
+    investigations.dependencies.authorizeMachine = authorizeMachine;
+    implementationMachines.dependencies.authorizeMachine = authorizeMachine;
+    integrations.machines.hooks.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id)) ||
+      (await implementationMachines.activeOnMachine(id));
+    investigations.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await implementationMachines.activeOnMachine(id));
+    implementationMachines.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id));
+    const connectorCandidates = [
+      resolve(import.meta.dirname, '../connector.mjs'),
+      resolve(import.meta.dirname, '../dist/connector.mjs'),
+    ];
+    registerConnectorDownload(app, {
+      file:
+        options.connectorFile ??
+        connectorCandidates.find((file) => existsSync(file)) ??
+        connectorCandidates[0]!,
+    });
     const spikes = new SpeculativeSpikes({
       store,
       runtime,
@@ -1815,7 +1855,9 @@ export async function createApp(
       remotePlanner,
       investigations,
       implementationMachines,
+      accounts,
       maintenance: async () => {
+        await accounts.cleanupRevoked(5);
         await investigations!.expire();
         await implementationMachines.expire();
       },
