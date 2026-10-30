@@ -92,6 +92,11 @@ jobs:
         run: pnpm --filter @ai-bdd/studio verify
       - name: Browser acceptance
         run: pnpm --filter @ai-bdd/studio test:e2e
+      - name: Real local CPU picker, persisted chat and decision receipt browser acceptance
+        env:
+          STUDIO_LOCAL_TEST_MODEL_DIR: ${{ runner.temp }}/studio-local-model
+          STUDIO_REQUIRE_LOCAL_MODEL_TEST: '1'
+        run: pnpm --filter @ai-bdd/studio exec playwright test --config playwright.local-cpu.config.ts
       - name: Preserve failed traces and screenshots
         if: failure()
         uses: actions/upload-artifact@v4

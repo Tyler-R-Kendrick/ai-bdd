@@ -1,0 +1,38 @@
+{
+  "scope": "Actual local CPU browser acceptance; no external model provider fixture",
+  "source": "43d68455c3f32611cf006cf2c83798b199170252",
+  "model": "qwen2.5-0.5b-instruct-q4-k-m",
+  "weightsSha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+  "nativeDecisionHelperSha256": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
+  "clientEntry": "assets/index-_fHAtON7.js",
+  "clientEntrySha256": "bdf271fd220b67ff38450ae40b57cbf98dc13ea764b1d32d9d4580e8fd8ea67b",
+  "browser": "Chromium154.0.8037.57",
+  "viewports": [
+    "1440x1000",
+    "390x844"
+  ],
+  "checks": [
+    "actual picker saved LocalCPU/Qwen",
+    "native finite decision evaluated and receipt read via authenticated API",
+    "real generated blue/Start design answer",
+    "one completed durable Agent job",
+    "exact generated body retained through reload/mobile/freshlogin",
+    "dedicated artifact ADR and thread IDs retained",
+    "canonical document content unchanged",
+    "no page errors, HTTP500s, external browser requests or horizontal page overflow"
+  ],
+  "screenshots": [
+    {
+      "file": "local-runtime-picker.png",
+      "sha256": "a2478a5d4092cc0765fe9bf505885ab3308c70a5cb3c79bd789104e3aabc6e9c"
+    },
+    {
+      "file": "local-design-chat.png",
+      "sha256": "0876f4c78252c54f788f88f640e4cbb199dd309cfe6e95a3405e2b2582a81f25"
+    },
+    {
+      "file": "local-design-chat-mobile.png",
+      "sha256": "1c5bb185d16dd4cc1c162b27205c094d15d50ddd63020dc28dd308722b04d550"
+    }
+  ]
+}
