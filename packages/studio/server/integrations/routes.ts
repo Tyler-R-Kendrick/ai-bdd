@@ -113,8 +113,7 @@ export async function registerIntegrationRoutes(
       artifact.id,
     );
     if (!job) throw new HttpError(404, 'Agent request not found');
-    if (agent.activeJobIds.get(artifact.id) === job.id)
-      agent.active.get(artifact.id)?.abort();
+    await agent.cancel(user, artifact.id, job.id);
     return { ok: true };
   });
   app.get<{

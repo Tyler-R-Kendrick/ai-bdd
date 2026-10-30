@@ -1,3 +1,4 @@
+import { createDurableJobRuntime } from '../server/runtime/jobs.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -22,9 +23,16 @@ async function workspace() {
     dataDir: '/tmp/studio-integration-lifecycle',
     demo: false,
   };
+  const runtime = await createDurableJobRuntime({
+    store,
+    dispatcher: {
+      provider: 'test',
+      publish: async () => ({ provider: 'test' }),
+    },
+  });
   const auth = new Auth(store, settings),
     collab = new Collaboration(store, auth),
-    agent = new Agent(store, settings, collab);
+    agent = new Agent(store, settings, collab, { runtime });
   const user = await store.createUser(
       'owner@lifecycle.test',
       'Project owner',
@@ -42,6 +50,7 @@ async function workspace() {
   const machines = new MachineService(store, collab);
   await machines.initialize();
   cleanup.push(async () => {
+    await runtime.close();
     await agent.close();
     await collab.close();
     await store.close();

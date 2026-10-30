@@ -459,6 +459,7 @@ export class MachineService {
             artifact.kind,
             result.content,
             artifact.projectId,
+            artifact.id,
           )
         : undefined;
       await this.store.exec(

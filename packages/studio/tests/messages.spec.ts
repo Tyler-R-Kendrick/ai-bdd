@@ -5,7 +5,6 @@ import { resolve } from 'node:path';
 import { createApp } from '../server/app.ts';
 import { hash } from '../server/store.ts';
 import { testSettings } from './helpers.ts';
-
 test('pages artifact-thread history without losing loaded messages or the reading position', async ({
   page,
 }) => {
@@ -17,21 +16,21 @@ test('pages artifact-thread history without losing loaded messages or the readin
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   try {
-    const user = instance.store.createUser(
+    const user = await instance.store.createUser(
       'history@example.test',
       'History teammate',
       null,
     );
-    const project = instance.store.createProject(
+    const project = await instance.store.createProject(
         user,
         'Conversation history',
         'A thread with more messages than the initial page.',
       ),
       artifactId = project.mainArtifactId;
-    const main = instance.store.threads(artifactId)[0];
-    instance.store.tx(() => {
+    const main = (await instance.store.threads(artifactId))[0];
+    await instance.store.tx(async () => {
       for (let index = 0; index < 305; index++)
-        instance.store.message(
+        await instance.store.message(
           user,
           artifactId,
           main.id,
@@ -39,7 +38,7 @@ test('pages artifact-thread history without losing loaded messages or the readin
         );
     });
     const commentId = randomUUID();
-    instance.store.exec(
+    await instance.store.exec(
       'INSERT INTO threads(id,artifact_id,anchor,quote,created_at) VALUES(?,?,?,?,?)',
       commentId,
       artifactId,
@@ -47,14 +46,14 @@ test('pages artifact-thread history without losing loaded messages or the readin
       'A separate paragraph discussion',
       new Date().toISOString(),
     );
-    instance.store.message(
+    await instance.store.message(
       user,
       artifactId,
       commentId,
       'This belongs only to the paragraph thread.',
     );
     const token = randomBytes(32).toString('base64url');
-    instance.store.exec(
+    await instance.store.exec(
       'INSERT INTO sessions VALUES(?,?,?,?)',
       hash(token),
       user.id,
@@ -107,8 +106,13 @@ test('pages artifact-thread history without losing loaded messages or the readin
     const readingTop = await conversation.evaluate(
       (element) => element.scrollTop,
     );
-    instance.store.message(user, artifactId, main.id, 'Thread message 305');
-    instance.collab.notify(project.id, artifactId);
+    await instance.store.message(
+      user,
+      artifactId,
+      main.id,
+      'Thread message 305',
+    );
+    await instance.collab.notify(project.id, artifactId);
     await expect(
       page.getByText('Thread message 305', { exact: true }),
     ).toHaveCount(1);

@@ -70,6 +70,12 @@ const readMessage = (row: any): OrderedMessage => ({
 });
 export const STUDIO_SCHEMA_VERSION = 2;
 export class Store {
+  contentReferenceValidator?: (input: {
+    kind: ArtifactKind;
+    projectId: string;
+    artifactId: string;
+    content: Record<string, any>;
+  }) => Promise<void>;
   fileQuotaReservations?: (
     projectId: string,
     exemptFileId: string,
@@ -294,6 +300,7 @@ export class Store {
     kind: ArtifactKind,
     content: unknown,
     projectId: string,
+    artifactId = '',
   ): Promise<Record<string, any>> {
     let parsed: Record<string, any>;
     try {
@@ -424,6 +431,12 @@ export class Store {
       if (rows.length !== runReferences.size)
         throw new HttpError(400, 'Evidence must belong to this project');
     }
+    await this.contentReferenceValidator?.({
+      kind,
+      projectId,
+      artifactId,
+      content: parsed,
+    });
     return parsed;
   }
   async createProject(
@@ -490,7 +503,7 @@ export class Store {
           409,
           'This project has reached its 500-artifact limit',
         );
-      let validated = await this.checkedContent(kind, content, projectId),
+      let validated = await this.checkedContent(kind, content, projectId, id),
         ystate: Uint8Array | null = null;
       if (kind === 'design' || kind === 'document') {
         const doc = prosemirrorJSONToYDoc(
@@ -583,7 +596,12 @@ export class Store {
       await this.db.lock('project:' + initial.projectId);
       const a = await this.artifact(id, user.id, 'write');
       await this.artifactWriteGuard?.(a, user.id);
-      let validated = await this.checkedContent(a.kind, content, a.projectId),
+      let validated = await this.checkedContent(
+          a.kind,
+          content,
+          a.projectId,
+          a.id,
+        ),
         ystate = await this.state(id);
       if (a.kind === 'design' || a.kind === 'document') {
         const doc = ystate
@@ -726,6 +744,7 @@ export class Store {
           artifact.kind,
           { doc: yXmlFragmentToProsemirrorJSON(doc.getXmlFragment('default')) },
           artifact.projectId,
+          id,
         );
         editorSchema().nodeFromJSON(content.doc).check();
         await this.exec('UPDATE artifacts SET ystate=? WHERE id=?', merged, id);
@@ -744,7 +763,7 @@ export class Store {
     content: Record<string, any>,
   ) {
     const c = JSON.stringify(
-        await this.checkedContent(a.kind, content, a.projectId),
+        await this.checkedContent(a.kind, content, a.projectId, a.id),
       ),
       t = now();
     await this.exec(

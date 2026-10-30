@@ -95,9 +95,9 @@ export class Runner {
     ));
   }
   private async begin(user: User, id: string) {
-    this.configured();
     const initial = await this.store.artifact(id, user.id, 'write'),
       token = randomUUID();
+    this.configured();
     if (!['design', 'document'].includes(initial.kind))
       throw new HttpError(400, 'Run acceptance tests from a document artifact');
     return this.store.tx(async () => {
@@ -215,8 +215,8 @@ export class Runner {
     });
   }
   async run(user: User, id: string) {
-    this.configured();
     const initial = await this.store.artifact(id, user.id, 'write');
+    this.configured();
     if (!['design', 'document'].includes(initial.kind))
       throw new HttpError(400, 'Run acceptance tests from a document artifact');
     const runId = randomUUID();
@@ -431,6 +431,12 @@ export class Runner {
                 ? 'text/plain; charset=utf-8'
                 : 'application/octet-stream',
       };
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(
+        409,
+        'Evidence is missing or failed its integrity check',
+      );
     } finally {
       if (directory) await rm(directory, { recursive: true, force: true });
     }
