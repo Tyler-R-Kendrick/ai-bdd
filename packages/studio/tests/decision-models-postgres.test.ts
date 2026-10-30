@@ -174,6 +174,23 @@ describe.skipIf(!pg)(
         ),
       ).toBe(2);
     });
+    it('releases a gracefully stopped worker intent for another executor instead of caching cancellation', async () => {
+      const w = await fixture(async (body, res, count) => {
+        if (count > 1) res.end(JSON.stringify(response(body)));
+      });
+      const stopped = w.models.decide(w.request).catch((error) => error);
+      await eventually(async () => w.calls() === 1);
+      await w.models.close();
+      expect(await stopped).toMatchObject({ statusCode: 503 });
+      expect(
+        await w.first.one(
+          'SELECT status,result_json FROM studio_decision_calls',
+        ),
+      ).toMatchObject({ status: 'queued', result_json: null });
+      const resumed = await w.other.decide(w.request);
+      expect(resumed.answers[0]?.value).toBe(true);
+      expect(w.calls()).toBe(2);
+    });
     it('enforces one principal budget across competing independent service instances before vendor dispatch', async () => {
       const w = await fixture();
       w.settings['budget' as keyof typeof w.settings] = {

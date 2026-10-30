@@ -805,6 +805,17 @@ export class DecisionModels {
           );
           return { denied };
         }
+        if (this.closing && controller.signal.aborted) {
+          // Instance shutdown is not an explicit request cancellation. Another
+          // executor may resume this immutable intent after our lease releases.
+          await this.store.exec(
+            "UPDATE studio_decision_calls SET status='queued',lease_owner=NULL,lease_expires=NULL,error_code='worker-shutdown',updated_at=? WHERE id=? AND fence=?",
+            stamp(),
+            row.id,
+            claimed.fence!,
+          );
+          return { shutdown: true };
+        }
         if (retry && Number(current.attempts) < 3) {
           await this.store.exec(
             "UPDATE studio_decision_calls SET status='queued',lease_owner=NULL,lease_expires=NULL,error_code='provider-error',updated_at=? WHERE id=? AND fence=?",
@@ -830,7 +841,13 @@ export class DecisionModels {
         );
         return true;
       });
-      if (published && typeof published === 'object') throw published.denied;
+      if (published && typeof published === 'object') {
+        if ('denied' in published) throw published.denied;
+        throw new HttpError(
+          503,
+          'The decision worker shut down before publication; the immutable request can be resumed',
+        );
+      }
       if (published) {
         await this.options
           .notify?.(artifact.projectId, input.artifactId)
