@@ -242,9 +242,10 @@ class NativeSession {
     await this.diagnostics.run('opencode-readiness', () => this.wait(this.openOrigin + '/api/info', { Authorization: 'Basic ' + Buffer.from('opencode:' + this.openPassword).toString('base64') }, 'opencode-readiness'));
     let prior: any;
     try { prior = JSON.parse(await readFile(join(this.base, 'userdata/settings.json'), 'utf8')); } catch {}
+    // Official manual registration keeps our declared, verified local model available while discovery is cold.
     await writeFile(join(this.base, 'userdata/settings.json'), JSON.stringify({ ...(prior ?? {}), providerInstances: {
       codex: { driver: 'codex', enabled: false }, claudeAgent: { driver: 'claudeAgent', enabled: false },
-      studioLocal: { driver: 'opencode', enabled: true, displayName: 'Local CPU through native T3', config: { enabled: true, binaryPath: join(this.options.toolsDirectory, 'opencode/bin/opencode'), serverUrl: this.openOrigin, serverPassword: this.openPassword }, environment: Object.entries({ ...this.environment(), OPENCODE_CONFIG_CONTENT: openConfig }).filter(([name]) => name.startsWith('XDG_') || name.startsWith('OPENCODE_')).map(([name, value]) => ({ name, value, sensitive: name === 'OPENCODE_CONFIG_CONTENT' })) },
+      studioLocal: { driver: 'opencode', enabled: true, displayName: 'Local CPU through native T3', config: { enabled: true, binaryPath: join(this.options.toolsDirectory, 'opencode/bin/opencode'), serverUrl: this.openOrigin, serverPassword: this.openPassword, customModels: [this.profile.model] }, environment: Object.entries({ ...this.environment(), OPENCODE_CONFIG_CONTENT: openConfig }).filter(([name]) => name.startsWith('XDG_') || name.startsWith('OPENCODE_')).map(([name, value]) => ({ name, value, sensitive: name === 'OPENCODE_CONFIG_CONTENT' })) },
     } }), { mode: 0o600 });
     const fresh = !await lstat(join(this.root, 'session.json')).catch(() => null);
     if (fresh) await this.diagnostics.run('t3-project-registration', () => this.cli(['project', 'add', this.workspace, '--title', 'Studio managed local generation'], 't3-project-registration'));
