@@ -1,3 +1,4 @@
+import { AccountPlannerPanel } from './remote/AccountPlannerPanel.tsx';
 import { RemoteActivity } from './remote/RemoteActivity.tsx';
 import { IntegrationPanel } from './integrations/IntegrationPanel.tsx';
 import {
@@ -406,6 +407,8 @@ function ChatPanel({
             : 'Your team, decisions, and agent share this artifact’s context.'}
         </p>
       </div>
+      {bundle.agentProfile?.profile.harness === 'remote-planner' && <AccountPlannerPanel artifactId={bundle.artifact.id}
+        artifactVersion={bundle.artifact.version} readOnly={readOnly} onError={onError} onChanged={() => void onRefresh()} />}
       {threadId && (
         <RemoteActivity
           artifactId={bundle.artifact.id}
