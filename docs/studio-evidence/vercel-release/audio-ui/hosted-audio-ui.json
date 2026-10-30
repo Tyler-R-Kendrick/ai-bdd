@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "read-only hosted synthetic audio UI capture",
+  "origin": "https://ai-bdd-studio-enjdwsu1u-tyler-r-kendricks-projects.vercel.app",
+  "source": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentId": "dpl_o8cEai5irUYhxfMnSFEnw9nrLoPu",
+  "resources": {
+    "projectId": "3821d32e-587a-4621-bd9a-75bb62f2be9b",
+    "artifactId": "16f74f4b-40c1-4707-ab61-d65149cb3301",
+    "artifactVersion": 1,
+    "jobId": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+    "fileId": "3cb03628-bdbb-4c93-81cc-f313255b85b6"
+  },
+  "startedAt": "2026-10-30T16:21:49.135Z",
+  "passed": true,
+  "newRenders": 0,
+  "modelRequests": 0,
+  "uploads": 0,
+  "redirectsFollowedForAuthentication": 0,
+  "tlsCertificateVerification": true,
+  "credentialsRecorded": false,
+  "blockedExternalRequests": 0,
+  "blockedMutations": 0,
+  "webSocket": {
+    "transport": "Playwright exact-origin routed relay",
+    "observed": 1,
+    "framesReceived": 1,
+    "errors": 0,
+    "httpFailureStatuses": []
+  },
+  "captures": [
+    {
+      "file": "hosted-audio-completed-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "completedJobInViewport": true,
+      "scrolledToExistingExport": false
+    },
+    {
+      "file": "hosted-audio-completed-mobile.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "completedJobInViewport": true,
+      "scrolledToExistingExport": true
+    }
+  ],
+  "browserVersion": "154.0.8037.57",
+  "browserDownload": {
+    "byteSize": 48078,
+    "sha256": "be0eabf151ad7d3d1dba503bbe9981f9958d6dc672fc7e2d035bd87e8bf3da3f"
+  },
+  "pageErrors": 0,
+  "serverFailures": 0,
+  "visibleErrorBanners": 0,
+  "ownedSessionClosed": true,
+  "completedAt": "2026-10-30T16:22:04.176Z"
+}
