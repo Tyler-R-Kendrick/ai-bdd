@@ -89,6 +89,15 @@ describe('native T3 permission admission before work', () => {
       expect(await x.cliStarted()).toBe(false);
     },
   );
+  it('permits unrelated native drivers to omit modes while requiring an explicit mode on the selected provider', async () => {
+    const x = await fixture();
+    x.state.unrelatedProviderWithoutModes = true;
+    expect((await invoke(x)).text).toBe('T3 native MCP model result.');
+    const missing = await fixture();
+    missing.state.omitProviderModes = true;
+    await expect(invoke(missing)).rejects.toMatchObject({ statusCode: 503 });
+    expect(missing.state.nativeWork).toEqual([]);
+  });
   it('rejects missing explicit-mode schema, unsupported native provider mode and wrong project roots before launch', async () => {
     for (const mutate of [
       (x: Awaited<ReturnType<typeof fixture>>) => {

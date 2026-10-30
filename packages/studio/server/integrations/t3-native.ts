@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { isAbsolute, normalize } from 'node:path';
 import { z } from 'zod';
 import type { AgentProfile } from '../../shared/agent-profile.ts';
-import { HttpError } from '../store.ts';
+import { HttpError } from '../http-error.ts';
 import type { IntegrationSettings } from './settings.ts';
 
 type Config = NonNullable<IntegrationSettings['t3']>;
@@ -240,7 +240,9 @@ export class NativeT3 {
               providerInstanceId: id,
               driverKind: id,
               models: z.array(z.object({ id })).max(1000),
-              runtimeModes: z.array(z.string()).max(10),
+              // Native T3 omits this optional field for some unrelated or disabled drivers.
+              // The selected provider must still explicitly advertise the required mode below.
+              runtimeModes: z.array(z.string()).max(10).optional(),
             }),
           )
           .max(100),
@@ -251,7 +253,7 @@ export class NativeT3 {
         (p) =>
           p.providerInstanceId === this.profile.provider &&
           p.models.some((m) => m.id === this.profile.model) &&
-          p.runtimeModes.includes(mode),
+          p.runtimeModes?.includes(mode),
       )
     )
       throw incompatible();

@@ -20,6 +20,8 @@ export async function nativeT3Fixture() {
     callerMode: 'approval-required',
     defaultMode: 'full-access',
     providerModes: ['approval-required', 'full-access'],
+    omitProviderModes: false,
+    unrelatedProviderWithoutModes: false,
     workspaceRoot: dir,
     omitModeSchema: false,
     hold: false,
@@ -107,8 +109,9 @@ export async function nativeT3Fixture() {
               providerInstanceId: 'codex-fixture',
               driverKind: 'codex',
               models: [{ id: 'fixture-model' }],
-              runtimeModes: state.providerModes,
+              ...(state.omitProviderModes ? {} : { runtimeModes: state.providerModes }),
             },
+            ...(state.unrelatedProviderWithoutModes ? [{ providerInstanceId: 'disabled-native-driver', driverKind: 'codex', models: [] }] : []),
           ],
         };
       else if (name === 't3_project_list')
