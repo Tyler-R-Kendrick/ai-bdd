@@ -74,6 +74,22 @@ async function ready() {
 
 try {
   await docker(['volume', 'create', identifier]);
+  // Seed this disposable owned volume before the shipping command acquires its
+  // exclusive SQLite writer lock. The fixture uses the real OAuth callback;
+  // only this short-lived, offline verification container selects its provider.
+  const seeded = await docker([
+    'run', '--rm', '--name', identifier + '-identity',
+    '--network', 'none', '--read-only', '--tmpfs', '/tmp',
+    '--memory=2g', '--cpus=1', '--cap-drop', 'ALL',
+    '--security-opt', 'no-new-privileges:true',
+    '-v', `${identifier}:/data`, image,
+    'node', '--input-type=module', '-e',
+    "import{prepareGitHubSession}from'./dist/server/studio-github-session-fixture.mjs';const fixture=await prepareGitHubSession({dataDirectory:'/data',email:'owner@example.test'});process.stdout.write(JSON.stringify({cookie:fixture.cookie,controlledOAuthProvider:fixture.controlledOAuthProvider}))",
+  ]);
+  const controlled = JSON.parse(seeded.stdout);
+  assert.equal(controlled.controlledOAuthProvider, true);
+  assert.match(controlled.cookie, /^studio_session=[A-Za-z0-9_-]{43}$/);
+  pass('controlled GitHub OAuth seeds the owned volume before the shipping SQLite writer starts');
   await docker([
     'run',
     '-d',
@@ -183,11 +199,6 @@ try {
   assert.equal(challenge.status, 302);
   assert.match(challenge.headers.get('location'), /^https:\/\/github\.com\/login\/oauth\/authorize\?/);
   pass('shipping command refuses password/setup and offers GitHub OAuth only');
-  const seeded = await docker(['exec', identifier, 'node', '--input-type=module', '-e',
-    "import{prepareGitHubSession}from'./dist/server/studio-github-session-fixture.mjs';const fixture=await prepareGitHubSession({dataDirectory:'/data',email:'owner@example.test'});process.stdout.write(JSON.stringify({cookie:fixture.cookie,controlledOAuthProvider:fixture.controlledOAuthProvider}))"]);
-  const controlled = JSON.parse(seeded.stdout);
-  assert.equal(controlled.controlledOAuthProvider, true);
-  assert.match(controlled.cookie, /^studio_session=[A-Za-z0-9_-]{43}$/);
   cookie = controlled.cookie;
   assert.equal((await api('/me')).email, 'owner@example.test');
   pass('controlled GitHub OAuth callback issues a persisted Secure HttpOnly session used by the unmodified shipping command');
@@ -332,6 +343,7 @@ try {
     );
   throw error;
 } finally {
+  await docker(['rm', '-f', identifier + '-identity']).catch(() => {});
   await docker(['rm', '-f', identifier + '-cpu-affinity']).catch(() => {});
   await docker(['rm', '-f', identifier]).catch(() => {});
   await docker(['volume', 'rm', identifier]).catch(() => {});
