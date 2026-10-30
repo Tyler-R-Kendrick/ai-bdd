@@ -5,11 +5,11 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createHostingApplication } from '../server/hosting/application.ts';
 import { openDatabase } from '../server/persistence/index.ts';
+import { injectedGitHub, githubSignIn } from './identity/github-signin-inject-fixture.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
-const password = 'composition-fixture-owner-password';
 describe('hosting composition root', () => {
   it('starts the real application with one local SQL/runtime graph and restores persisted project state', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'hosting-app-'));
@@ -18,27 +18,16 @@ describe('hosting composition root', () => {
       STUDIO_DATA_DIR: directory,
       STUDIO_ORIGIN: 'http://127.0.0.1:8787',
       STUDIO_ADMIN_EMAIL: 'owner@example.test',
-      STUDIO_ADMIN_PASSWORD: password,
+      STUDIO_GITHUB_SIGNIN_CLIENT_ID: 'composition-fixture-client',
+      STUDIO_GITHUB_SIGNIN_CLIENT_SECRET: 'composition-fixture-secret-never-live',
     };
-    const first = await createHostingApplication(env);
+    const first = await createHostingApplication(env, { githubSignInProvider: injectedGitHub });
     cleanup.push(() => first.close());
     expect(first.runtime.options.store).toBe(first.store);
     expect(first.agent.options.runtime).toBe(first.runtime);
     expect(first.runner.options.runtime).toBe(first.runtime);
-    const login = await first.app.inject({
-      method: 'POST',
-      url: '/api/auth/login',
-      headers: { origin: env.STUDIO_ORIGIN },
-      payload: { email: env.STUDIO_ADMIN_EMAIL, password },
-    });
-    expect(login.statusCode).toBe(200);
-    const cookie = login.cookies.find(
-        (c) => c.name === 'studio_session',
-      )!.value,
-      headers = {
-        cookie: 'studio_session=' + cookie,
-        origin: env.STUDIO_ORIGIN,
-      };
+    const { cookie } = await githubSignIn(first.app);
+    const headers = { cookie: 'studio_session=' + cookie, origin: env.STUDIO_ORIGIN };
     const created = await first.app.inject({
       method: 'POST',
       url: '/api/projects',
@@ -68,7 +57,7 @@ describe('hosting composition root', () => {
     );
     await first.close();
     cleanup.pop();
-    const second = await createHostingApplication(env);
+    const second = await createHostingApplication(env, { githubSignInProvider: injectedGitHub });
     cleanup.push(() => second.close());
     const projects = await second.app.inject({
       url: '/api/projects',
@@ -111,7 +100,8 @@ describe('hosting composition root', () => {
           STUDIO_JOB_SECRET:
             'fixture-stable-job-secret-at-least-32-characters',
           STUDIO_ADMIN_EMAIL: 'owner@example.test',
-          STUDIO_ADMIN_PASSWORD: password,
+          STUDIO_GITHUB_SIGNIN_CLIENT_ID: 'composition-fixture-client',
+      STUDIO_GITHUB_SIGNIN_CLIENT_SECRET: 'composition-fixture-secret-never-live',
         },
         { database },
       );

@@ -96,7 +96,9 @@ try {
     '-e',
     'STUDIO_ADMIN_EMAIL=owner@example.test',
     '-e',
-    'STUDIO_ADMIN_PASSWORD=ci-only-strong-bootstrap-password',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_ID=release-fixture-client',
+    '-e',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_SECRET=release-fixture-secret-never-live',
     image,
   ]);
   await ready();
@@ -160,13 +162,24 @@ try {
     'shipping App defaults to genuine local native T3, completes HTTP chat and a fresh-process turn with persisted checkpoints offline',
   );
 
-  await api('/auth/demo', 'POST', undefined, 404);
+  await api('/auth/demo', 'POST', undefined, 403);
   pass('demo access is unavailable in production');
   await api('/auth/login', 'POST', {
-    email: 'owner@example.test',
-    password: 'ci-only-strong-bootstrap-password',
-  });
-  pass('password login issues Secure HttpOnly session cookies');
+    email: 'owner@example.test', password: 'legacy-password-must-fail',
+  }, 403);
+  await api('/auth/setup', 'POST', { email: 'owner@example.test', password: 'legacy-password-must-fail' }, 403);
+  const challenge = await fetch(`http://127.0.0.1:${port}/api/auth/github`, { redirect: 'manual' });
+  assert.equal(challenge.status, 302);
+  assert.match(challenge.headers.get('location'), /^https:\/\/github\.com\/login\/oauth\/authorize\?/);
+  pass('shipping command refuses password/setup and offers GitHub OAuth only');
+  const seeded = await docker(['exec', identifier, 'node', '--input-type=module', '-e',
+    "import{prepareGitHubSession}from'./dist/server/studio-github-session-fixture.mjs';const fixture=await prepareGitHubSession({dataDirectory:'/data',email:'owner@example.test'});process.stdout.write(JSON.stringify({cookie:fixture.cookie,controlledOAuthProvider:fixture.controlledOAuthProvider}))"]);
+  const controlled = JSON.parse(seeded.stdout);
+  assert.equal(controlled.controlledOAuthProvider, true);
+  assert.match(controlled.cookie, /^studio_session=[A-Za-z0-9_-]{43}$/);
+  cookie = controlled.cookie;
+  assert.equal((await api('/me')).email, 'owner@example.test');
+  pass('controlled GitHub OAuth callback issues a persisted Secure HttpOnly session used by the unmodified shipping command');
   const project = await api(
     '/projects',
     'POST',
@@ -269,7 +282,9 @@ try {
     '-e',
     `STUDIO_ORIGIN=${origin}`,
     '-e',
-    'STUDIO_ADMIN_PASSWORD=ci-only-strong-bootstrap-password',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_ID=release-fixture-client',
+    '-e',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_SECRET=release-fixture-secret-never-live',
     image,
   ]).then(
     () => false,
@@ -283,7 +298,7 @@ try {
     checks: results,
     passed: true,
     scope:
-      'Actual local release-image models and native T3 with synthetic accounts and durable data; hosted identity has separate acceptance.',
+      'Actual local release-image models and native T3 with controlled GitHub OAuth provider sessions and durable data; live GitHub identity has separate acceptance.',
   };
   if (process.env.STUDIO_SMOKE_REPORT) {
     await writeFile(

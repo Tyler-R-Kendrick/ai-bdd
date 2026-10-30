@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "scope": "controlled GitHub OAuth provider with the actual application and default main entrypoint",
+  "liveGitHubProviderVerified": false,
+  "hostedDeploymentVerified": false,
+  "sourceFiles": {
+    "packages/studio/server/auth.ts": "5b5a9427adee6284ef5b08a09a0599d346e1efb2e8691a3e94ba72617fcc53d4",
+    "packages/studio/server/github-signin.ts": "89a183e5767d8dd60dc5ed719ce592c4e3b646a35f8b6e8dcffda9f8f862c9a8",
+    "packages/studio/server/hosting/application.ts": "60a3692de09312ba59cbb9d8740697d7f28fc80e725f88ca73d495037d8e49f6",
+    "packages/studio/verification/github-session-fixture.ts": "9b60b001fa966c68496c855c7d74fccd5c384f37718e32749cd1c05005d2fe59",
+    "packages/studio/verification/native-app-smoke.mjs": "cc0d32ec14ad46a4a1dbc2ddb8ea922acaa0998873d0b6ae713cbeed4ab28a1d",
+    "packages/studio/verification/hosting-smoke.mjs": "4965dcc5580d034cf2157b771af8df706f4de88b4741ee5b1ecb3c0071bb7ead",
+    "packages/studio/tests/server-entrypoint.test.ts": "d02678225c6f346f19b5a70af29e8f2ecd7db81f0263a12b4f238499df1ed0c6",
+    "packages/studio/tests/hosting-application.test.ts": "f6e32120c9edd121484b2c43f0bb962001bcc1a99ba3774fab4e09400a67bd60",
+    "packages/studio/tests/outbox-startup-availability.test.ts": "7459312048c7ffd10243bc89e00cf40f8d7a04afdb504c83b7a7062b08ab8a04"
+  },
+  "focusedTests": {
+    "files": 3,
+    "passed": 50,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 22.28,
+    "postgres": "actual isolated local PostgreSQL 17",
+    "cases": [
+      "default bundled main startup, password denial, authenticated durable writes and real restart",
+      "actual hosting composition graph, SQL and private object restoration",
+      "outbox startup availability, recovery and SQL publication fences"
+    ]
+  },
+  "builtHostingEntrypoint": {
+    "entry": "dist/server/vercel-main.js",
+    "passed": true,
+    "controlledOAuthProvider": true,
+    "authenticatedProjectPersistence": true,
+    "passwordLoginRefused": true,
+    "cleanSigterm": true
+  },
+  "nativeModelGate": {
+    "passed": true,
+    "runtime": "node:24-bookworm-slim with only controlled production dependencies, compiled server and public pinned model/tools mounted read-only",
+    "rootUser": false,
+    "network": "none",
+    "readOnlyRoot": true,
+    "capabilities": "all dropped",
+    "noNewPrivileges": true,
+    "cpus": 2,
+    "memoryBytes": 2147483648,
+    "identity": "real Auth OAuth state/PKCE/browser-binding callback using an injected owned provider, followed by the unmodified shipping main command",
+    "cases": [
+      "password login refused and shipping GitHub authorization redirect",
+      "genuine default T3 Code/OpenCode with pinned local Qwen CPU model",
+      "completed arithmetic HTTP chat and released encrypted native checkpoint lease",
+      "fresh-process session, reply, dedicated ADR and artifact thread restoration",
+      "second native turn recalls prior answer",
+      "third native turn reads saved source facts blue and Start",
+      "canonical source, dedicated ADR and artifact thread preserved",
+      "graceful SIGTERM"
+    ]
+  },
+  "limitations": [
+    "Controlled provider fixtures do not establish live GitHub app credentials or an actual GitHub account login.",
+    "The dependency-closure gate is not a complete freshly built release-image proof; CI separately owns that mandatory image gate.",
+    "Small actual inference cases do not establish general model accuracy or probability calibration.",
+    "No new Neon/Vercel resources, live model providers or hosted user accounts were used."
+  ]
+}

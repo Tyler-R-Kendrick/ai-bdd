@@ -1,4 +1,5 @@
 import { copyFile, mkdir } from 'node:fs/promises';
+import { build } from 'esbuild';
 await mkdir(new URL('../dist/server/', import.meta.url), { recursive: true });
 await copyFile(
   new URL('../server/local/studio-local-worker.mjs', import.meta.url),
@@ -14,3 +15,10 @@ await copyFile(
   new URL('../verification/native-app-smoke.mjs', import.meta.url),
   new URL('../dist/server/studio-native-app-smoke.mjs', import.meta.url),
 );
+
+// Explicit disposable verification artifact; shipping main never imports this fixture.
+await build({
+  entryPoints: [new URL('../verification/github-session-fixture.ts', import.meta.url).pathname],
+  outfile: new URL('../dist/server/studio-github-session-fixture.mjs', import.meta.url).pathname,
+  bundle: true, platform: 'node', format: 'esm', packages: 'external',
+});

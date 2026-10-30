@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createApp } from '../app.ts';
 import { settingsFromEnv } from '../auth.ts';
+import type { GitHubSignInProvider } from '../github-signin.ts';
 import { Store } from '../store.ts';
 import { openDatabase, type SqlDatabase } from '../persistence/index.ts';
 import { createDurableJobRuntime } from '../runtime/jobs.ts';
@@ -34,6 +35,7 @@ export async function createHostingApplication(
     logger?: boolean;
     clientDir?: string;
     database?: SqlDatabase;
+    githubSignInProvider?: GitHubSignInProvider;
   } = {},
 ) {
   const config = hostingConfigFromEnv(env);
@@ -141,6 +143,7 @@ export async function createHostingApplication(
       STUDIO_ORIGIN: config.origin,
       STUDIO_DATA_DIR: config.stagingDirectory,
     });
+    if (options.githubSignInProvider) settings.githubSignInProvider = options.githubSignInProvider;
     const result = await createApp(settings, {
       ...options,
       store,

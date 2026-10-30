@@ -2,7 +2,7 @@
 import { createInterface } from 'node:readline';
 import { fork, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { randomBytes, createHash } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,6 +11,7 @@ import { createApp } from '../server/app.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { readPlanSource } from '../server/plan-source.ts';
 import { paragraph } from '../shared/domain.ts';
+import { injectedGitHub, githubSignIn } from '../tests/identity/github-signin-inject-fixture.ts';
 const digest = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const safeError = (error: unknown) => ({
@@ -28,7 +29,6 @@ type Config = {
   expectedHost: string;
   port: number;
   dataDir: string;
-  password: string;
 };
 function validate(config: Config) {
   const uri = new URL(config.url);
@@ -60,7 +60,7 @@ if (process.argv.includes('--server')) {
             demo: false,
             dataDir: config.dataDir,
             adminEmail: 'neon-release-smoke@example.test',
-            adminPassword: config.password,
+            githubSignInProvider: injectedGitHub,
             integrations: {},
           },
           { database, logger: false },
@@ -72,6 +72,9 @@ if (process.argv.includes('--server')) {
         )
           throw new Error('Live inference is forbidden in this preflight');
         await studio.app.listen({ host: '127.0.0.1', port: config.port });
+        // Explicit controlled identity in this disposable isolated-schema preflight;
+        // never a live GitHub provider proof or a shipping environment switch.
+        const identity = await githubSignIn(studio.app, 'neon-release-smoke@example.test');
         const metadata = await studio.store.one(
           "SELECT current_schema() AS schema,current_setting('server_version_num') AS version",
         );
@@ -80,6 +83,8 @@ if (process.argv.includes('--server')) {
           pid: process.pid,
           metadata,
           providersConfigured: 0,
+          fixtureSession: identity.cookie,
+          identityEvidence: 'controlled-GitHub-OAuth-provider',
         });
       } catch (error) {
         process.send?.({ kind: 'error', ...safeError(error) });
@@ -242,7 +247,6 @@ if (process.argv.includes('--server')) {
       schema: input.schema,
       port: 8901,
       dataDir: temporary,
-      password: randomBytes(24).toString('base64url'),
     };
     validate(config);
     const origin = `http://127.0.0.1:${config.port}`;
@@ -262,17 +266,13 @@ if (process.argv.includes('--server')) {
         throw Object.assign(new Error('Application HTTP operation rejected'), {
           code: 'HTTP_' + response.status,
         });
-      if (path === '/api/auth/login')
-        cookie = response.headers.get('set-cookie')!.split(';')[0]!;
       return response.json() as Promise<any>;
     };
     phase = 'migrate-and-http-create';
     emit({ stage: 'starting', phase });
     const first = await start(config);
-    await http('/api/auth/login', 'POST', {
-      email: 'neon-release-smoke@example.test',
-      password: config.password,
-    });
+    if (!/^[A-Za-z0-9_-]{43}$/.test(first.fixtureSession)) throw new Error('Controlled OAuth session missing');
+    cookie = 'studio_session=' + first.fixtureSession;
     const project = await http('/api/projects', 'POST', {
         title: 'Neon isolated release restore smoke',
         description: 'Synthetic preflight data only',
@@ -376,7 +376,7 @@ if (process.argv.includes('--server')) {
       postgresPoolMax: 2,
       checks: [
         'actual-App-migrations',
-        'authenticated-HTTP-writes',
+        'controlled-GitHub-OAuth-session-authenticated-HTTP-writes',
         'accepted-ADR-source',
         'artifact-chat',
         'real-process-restart',
