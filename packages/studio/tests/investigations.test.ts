@@ -275,7 +275,56 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
     expect(claimed.work?.sealed.content.acceptedDecisions).toEqual(
       source.acceptedDecisions,
     );
+    expect(claimed.work?.briefHash).toBe(
+      hash(JSON.stringify(claimed.work!.sealed.sealed)),
+    );
+    expect(claimed.work?.sealed.sealed.sourceHash).toBe(
+      hash(JSON.stringify(claimed.work!.sealed.content)),
+    );
   });
+  it.each([false, true])(
+    'runs legacy content-only snapshots only without current accepted choices (accepted=%s)',
+    async (accepted) => {
+      const c = await fixture();
+      if (accepted)
+        await acceptSemanticChoice(
+          c,
+          'This accepted choice was absent from the old snapshot.',
+        );
+      const current = await c.store.artifact(c.artifact.id, c.user.id);
+      const record = await c.service.propose(c.user, current.id, {
+        version: current.version,
+        brief: 'A previously persisted content-only investigation',
+      });
+      const row = await c.store.one(
+        'SELECT snapshot_json FROM studio_investigations WHERE id=?',
+        record.id,
+      );
+      const legacy = JSON.parse(row.snapshot_json);
+      delete legacy.sealed.sourcePolicy;
+      delete legacy.content.acceptedDecisions;
+      legacy.sealed.sourceHash = hash(JSON.stringify(legacy.content));
+      const meaningful = structuredClone(legacy.content);
+      meaningful.doc.content = meaningful.doc.content.filter(
+        (node: any) => node.type !== 'investigationCard',
+      );
+      legacy.sealed.meaningfulSourceHash = hash(JSON.stringify(meaningful));
+      await c.store.exec(
+        'UPDATE studio_investigations SET snapshot_json=?,brief_hash=? WHERE id=?',
+        JSON.stringify(legacy),
+        hash(JSON.stringify(legacy.sealed)),
+        record.id,
+      );
+      if (accepted) {
+        await expect(c.service.run(c.user, record.id)).rejects.toMatchObject({
+          statusCode: 409,
+        });
+      } else {
+        await c.service.run(c.user, record.id);
+        expect((await c.service.claim(c.machine)).work?.id).toBe(record.id);
+      }
+    },
+  );
   it.each(['run', 'claim', 'complete'] as const)(
     'fences accepted-ADR-only source edits at investigation %s',
     async (stage) => {
