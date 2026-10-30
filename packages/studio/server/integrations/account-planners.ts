@@ -94,6 +94,20 @@ export class AccountPlanners {
         idle_expires BIGINT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,reason TEXT);
         CREATE UNIQUE INDEX IF NOT EXISTS studio_account_planner_artifact_active ON studio_account_planner_assignments(artifact_id) WHERE status IN ('queued','claimed');
         CREATE UNIQUE INDEX IF NOT EXISTS studio_account_planner_device_active ON studio_account_planner_assignments(device_id) WHERE status IN ('queued','claimed');`);
+      if (this.store.db.dialect === 'postgres')
+        await this.store.exec(
+          'ALTER TABLE studio_account_planner_assignments ADD COLUMN IF NOT EXISTS checked_at BIGINT NOT NULL DEFAULT 0',
+        );
+      else if (
+        !(
+          await this.store.all(
+            'PRAGMA table_info(studio_account_planner_assignments)',
+          )
+        ).some((column) => column.name === 'checked_at')
+      )
+        await this.store.exec(
+          'ALTER TABLE studio_account_planner_assignments ADD COLUMN checked_at BIGINT NOT NULL DEFAULT 0',
+        );
     });
   }
   private enabled() {
@@ -239,6 +253,25 @@ export class AccountPlanners {
     row.expires = null;
     row.reason = reason;
   }
+  /** Refresh outside SQL; a temporary identity outage does not prove revocation. */
+  private async entitlement(row: Row) {
+    try {
+      await this.store.artifact(row.artifact_id, row.user_id, 'write');
+      return true;
+    } catch (error) {
+      if (!(error instanceof HttpError)) throw error;
+      return [401, 403, 404, 409].includes(error.statusCode);
+    }
+  }
+  private async expiredLease(row: Row) {
+    if (
+      row.status === 'claimed' &&
+      (Number(row.expires) <= this.clock() ||
+        Number(row.idle_expires) <= this.clock())
+    )
+      await this.terminal(row, 'stale', 'The scoped Planner lease expired');
+    return row;
+  }
   /** Project/device locks are held. Fence failures are retained as terminal state. */
   private async reconcile(row: Row) {
     if (!active(row)) return row;
@@ -297,6 +330,11 @@ export class AccountPlanners {
   async view(user: User, id: string): Promise<PlannerView> {
     await this.ready;
     const artifact = await this.store.artifact(id, user.id);
+    const initial: Row | undefined = await this.store.one(
+      "SELECT * FROM studio_account_planner_assignments WHERE artifact_id=? AND status IN ('queued','claimed')",
+      id,
+    );
+    const entitlement = initial ? await this.entitlement(initial) : false;
     return this.store.tx(async () => {
       await this.store.db.lock('project:' + artifact.projectId);
       await this.store.artifact(id, user.id);
@@ -304,7 +342,13 @@ export class AccountPlanners {
         "SELECT * FROM studio_account_planner_assignments WHERE artifact_id=? AND status IN ('queued','claimed')",
         id,
       );
-      if (row) row = await this.reconcile(await this.lock(row));
+      if (row) {
+        row = await this.lock(row);
+        row =
+          initial?.id === row.id && entitlement
+            ? await this.reconcile(row)
+            : await this.expiredLease(row);
+      }
       if (row && !active(row)) row = null;
       let writable = true;
       try {
@@ -403,8 +447,19 @@ export class AccountPlanners {
     for (const initial of await this.store.all(
       "SELECT * FROM studio_account_planner_assignments WHERE device_id=? AND status IN ('queued','claimed')",
       input.deviceId,
-    ))
-      await this.store.tx(async () => this.reconcile(await this.lock(initial)));
+    )) {
+      const entitled = await this.entitlement(initial);
+      await this.store.tx(async () =>
+        entitled
+          ? this.reconcile(await this.lock(initial))
+          : this.expiredLease(await this.lock(initial)),
+      );
+    }
+    const prior: Row | undefined = await this.store.one(
+      "SELECT * FROM studio_account_planner_assignments WHERE artifact_id=? AND status IN ('queued','claimed')",
+      id,
+    );
+    const priorEntitlement = prior ? await this.entitlement(prior) : false;
     const result = await this.store.tx(async () => {
       await this.store.db.lock('project:' + artifact.projectId);
       await this.store.db.lock('account-machine:' + input.deviceId);
@@ -460,7 +515,11 @@ export class AccountPlanners {
       );
       if (previous) {
         // The project lock serializes this artifact's assignment replacements.
-        previous = await this.reconcile(previous);
+        previous =
+          previous.user_id === user.id ||
+          (prior?.id === previous.id && priorEntitlement)
+            ? await this.reconcile(previous)
+            : await this.expiredLease(previous);
         if (active(previous) && previous.user_id !== user.id)
           throw new HttpError(
             409,
@@ -609,6 +668,15 @@ export class AccountPlanners {
     await this.ready;
     this.enabled();
     const initial = await this.row(id);
+    if (
+      initial.device_id !== principal.id ||
+      initial.user_id !== principal.user_id
+    )
+      throw new HttpError(404, 'Your Planner assignment was not found');
+    await this.fresh(principal);
+    // Repository identity can refresh outside SQL; the transaction below then
+    // rechecks its current entitlement lease and all frozen source fences.
+    await this.store.artifact(initial.artifact_id, principal.user_id, 'write');
     const result = await this.store.tx(async () => {
       const row = await this.lock(initial),
         user = await this.fresh(principal);
@@ -663,6 +731,13 @@ export class AccountPlanners {
     await this.ready;
     this.enabled();
     const initial = await this.row(id);
+    if (
+      initial.device_id !== principal.id ||
+      initial.user_id !== principal.user_id
+    )
+      throw new HttpError(404, 'Your Planner assignment was not found');
+    await this.fresh(principal);
+    await this.store.artifact(initial.artifact_id, principal.user_id, 'write');
     const result = await this.store.tx(async () => {
       const row = await this.lock(initial),
         user = await this.fresh(principal);
@@ -735,6 +810,9 @@ export class AccountPlanners {
   async stop(user: User, artifactId: string, id: string, epoch: number) {
     await this.ready;
     const initial = await this.row(id);
+    if (initial.artifact_id !== artifactId || initial.user_id !== user.id)
+      throw new HttpError(404, 'Your Planner assignment was not found');
+    await this.store.artifact(artifactId, user.id, 'write');
     await this.store.tx(async () => {
       const row = await this.lock(initial);
       await this.store.artifact(artifactId, user.id, 'write');
@@ -775,6 +853,17 @@ export class AccountPlanners {
   async assertPlanner(scope: PlannerScope) {
     await this.ready;
     const initial = await this.row(scope.assignmentId);
+    if (
+      initial.artifact_id !== scope.artifactId ||
+      initial.user_id !== scope.user.id ||
+      Number(initial.epoch) !== scope.epoch ||
+      initial.status !== 'claimed'
+    )
+      throw new HttpError(
+        401,
+        'This scoped Planner assignment is no longer current',
+      );
+    await this.store.artifact(initial.artifact_id, scope.user.id, 'write');
     await this.store.tx(async () => {
       const row = await this.lock(initial);
       if (
@@ -805,6 +894,41 @@ export class AccountPlanners {
       updatedAt: row.updated_at,
       reason: row.reason,
     }));
+  }
+  /** Bounded fair maintenance; pending owner requests retain their queue intent. */
+  async expire(limit = 5) {
+    await this.ready;
+    const rows = await this.store.all(
+      "SELECT * FROM studio_account_planner_assignments WHERE status IN ('queued','claimed') ORDER BY checked_at,created_at LIMIT ?",
+      Math.max(1, Math.min(20, Math.trunc(limit) || 5)),
+    );
+    let expired = 0;
+    for (const initial of rows) {
+      const entitled = await this.entitlement(initial);
+      const changed = await this.store
+        .tx(async () => {
+          const row = await this.lock(initial),
+            before = row.status;
+          if (entitled) await this.reconcile(row);
+          else await this.expiredLease(row);
+          await this.store.exec(
+            'UPDATE studio_account_planner_assignments SET checked_at=? WHERE id=?',
+            this.clock(),
+            row.id,
+          );
+          return before !== row.status;
+        })
+        .catch((error) => {
+          if (error instanceof HttpError && error.statusCode === 404)
+            return false;
+          throw error;
+        });
+      if (changed) {
+        expired++;
+        this.notify(initial);
+      }
+    }
+    return { examined: rows.length, expired };
   }
 }
 

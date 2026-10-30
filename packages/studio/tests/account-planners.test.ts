@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import { Auth, type Settings } from '../server/auth.ts';
-import { Store, hash } from '../server/store.ts';
+import { Store, HttpError, hash } from '../server/store.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { AccountMachines } from '../server/integrations/account-machines.ts';
 import { AgentProfiles } from '../server/integrations/agent-profiles.ts';
@@ -602,6 +604,35 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(view.assignment?.status).toBe('stale');
         expect(await c.service.activeOnDevice(c.device.id)).toBe(false);
       });
+      it('bounds maintenance and expires retained leases without expiring a pending owner queue', async () => {
+        const c = await fixture(),
+          first = await c.claim();
+        c.advance(plannerLeaseMs + 1);
+        expect(await c.service.expire(1)).toEqual({ examined: 1, expired: 1 });
+        expect(
+          (await c.service.view(c.user, c.artifact.id)).assignment,
+        ).toMatchObject({ id: first.assignment.id, status: 'stale' });
+        await c.seen();
+        const queued = await c.assign();
+        c.advance(plannerIdleMs + 1);
+        expect(await c.service.expire(1)).toEqual({ examined: 1, expired: 0 });
+        expect(
+          (await c.service.view(c.user, c.artifact.id)).assignment,
+        ).toMatchObject({
+          id: queued.id,
+          status: 'queued',
+          idleExpiresAt: null,
+        });
+        await c.store.exec(
+          "UPDATE memberships SET role='viewer' WHERE project_id=? AND user_id=?",
+          c.project.id,
+          c.user.id,
+        );
+        expect(await c.service.expire(1)).toEqual({ examined: 1, expired: 1 });
+        expect(
+          (await c.service.view(c.user, c.artifact.id)).assignment,
+        ).toMatchObject({ id: queued.id, status: 'revoked' });
+      });
       it('fences document revisions, accepted ADR content, profile changes and checkout changes', async () => {
         const c = await fixture(),
           first = await c.claim();
@@ -837,6 +868,144 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         await expect(
           secondService.renew(c.principal, assigned.id, assigned.epoch),
         ).rejects.toThrow('document, accepted decisions');
+      });
+      it('refreshes expired repository entitlements outside SQL for scoped actions and preserves requests during transient identity outages', async () => {
+        const c = await fixture(),
+          leases = new Set<string>(),
+          requests: any[] = [];
+        let status = 200,
+          allowed = true;
+        const server = createServer(async (req, res) => {
+          let body = '';
+          for await (const chunk of req) body += chunk;
+          requests.push(JSON.parse(body));
+          res.statusCode = status;
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ allowed }));
+        });
+        server.listen(0, '127.0.0.1');
+        await once(server, 'listening');
+        cleanups.push(
+          () =>
+            new Promise<void>((resolve) => {
+              server.closeAllConnections();
+              server.close(() => resolve());
+            }),
+        );
+        c.store.repositoryAuthorizer = async (
+          projectId,
+          userId,
+          action,
+          inTransaction,
+        ) => {
+          const key = projectId + ':' + userId;
+          if (inTransaction) {
+            if (!leases.has(key))
+              throw new HttpError(
+                403,
+                'The repository entitlement lease expired',
+              );
+            return;
+          }
+          if (leases.has(key)) return;
+          expect(c.store.db.inTransaction()).toBe(false);
+          const response = await fetch(
+            `http://127.0.0.1:${(server.address() as any).port}`,
+            {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ projectId, userId, action }),
+            },
+          );
+          if (!response.ok)
+            throw new HttpError(
+              503,
+              'Repository permission service is temporarily unavailable',
+            );
+          if (!(await response.json()).allowed)
+            throw new HttpError(403, 'Repository permission was revoked');
+          leases.add(key);
+        };
+        const assignment = await c.assign();
+        leases.clear();
+        const credential = await c.service.claim(
+          c.principal,
+          assignment.id,
+          assignment.epoch,
+        );
+        leases.clear();
+        const scope = {
+          user: c.user,
+          artifactId: c.artifact.id,
+          assignmentId: assignment.id,
+          epoch: assignment.epoch,
+        };
+        await c.service.assertPlanner(scope);
+        leases.clear();
+        expect(
+          (await c.service.view(c.peer, c.artifact.id)).blockedByOtherWriter,
+        ).toBe(true);
+        leases.clear();
+        expect(
+          (await c.service.renew(c.principal, assignment.id, assignment.epoch))
+            .idle,
+        ).toBe(false);
+        leases.clear();
+        expect(await c.service.expire(1)).toEqual({ examined: 1, expired: 0 });
+        leases.clear();
+        await c.service.stop(
+          c.user,
+          c.artifact.id,
+          assignment.id,
+          assignment.epoch,
+        );
+        leases.clear();
+        const second = await c.claim();
+        leases.clear();
+        status = 503;
+        await expect(
+          c.service.assertPlanner({
+            ...scope,
+            assignmentId: second.assignment.id,
+            epoch: second.assignment.epoch,
+          }),
+        ).rejects.toThrow('temporarily unavailable');
+        expect(await c.service.expire(1)).toEqual({ examined: 1, expired: 0 });
+        expect(
+          (
+            await c.store.one(
+              'SELECT status FROM studio_account_planner_assignments WHERE id=?',
+              second.assignment.id,
+            )
+          ).status,
+        ).toBe('claimed');
+        status = 200;
+        allowed = false;
+        leases.clear();
+        await expect(
+          c.service.assertPlanner({
+            ...scope,
+            assignmentId: second.assignment.id,
+            epoch: second.assignment.epoch,
+          }),
+        ).rejects.toThrow('permission was revoked');
+        expect(await c.service.expire(1)).toEqual({ examined: 1, expired: 1 });
+        expect(
+          (
+            await c.store.one(
+              'SELECT status FROM studio_account_planner_assignments WHERE id=?',
+              second.assignment.id,
+            )
+          ).status,
+        ).toBe('revoked');
+        expect(requests.length).toBeGreaterThanOrEqual(10);
+        expect(requests).toContainEqual({
+          projectId: c.project.id,
+          userId: c.peer.id,
+          action: 'read',
+        });
+        expect(JSON.stringify(requests)).not.toContain(credential.token);
+        expect(JSON.stringify(requests)).not.toContain(c.device.token);
       });
       it('rechecks source guards and exports complete history without credential material', async () => {
         const c = await fixture();
