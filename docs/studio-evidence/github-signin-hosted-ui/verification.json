@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "redacted actual deployed GitHub-only sign-in UI and authorization-start verification",
+  "source": "0837738a2c1611517a0abb7f7231513571e843dc",
+  "passed": true,
+  "scope": "Anonymous preview UI plus separate actual managed authorization start. No real user callback, authenticated session, or final production acceptance claimed.",
+  "ui": {
+    "githubContinueActions": 1,
+    "credentialForms": 0,
+    "githubConfigured": true,
+    "passwordEnabled": false,
+    "anonymousIdentityDenied": true,
+    "oauthAuthorizationStartsByCapture": 0,
+    "pageMutations": 0,
+    "modelCalls": 0,
+    "foreignRequests": 0,
+    "pageErrors": 0,
+    "serverFailures": 0,
+    "tlsCertificateVerification": true,
+    "anonymousBrowserClosed": true
+  },
+  "separateHttpChecks": {
+    "passedChecks": 8,
+    "legacySignInMethodsRefused": true,
+    "anonymousIdentityDenied": true,
+    "actualManagedAuthorizationStartVerified": true,
+    "exactCallbackAndPkceNonceBrowserBindingVerified": true
+  },
+  "realUserCallbackCompleted": false,
+  "realUserConsentPerformed": false,
+  "authenticatedSessionClaimed": false,
+  "screenshots": [
+    {
+      "file": "github-signin-desktop.png",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "primaryActionFullyInViewport": true,
+      "claim": "Actual anonymous deployed GitHub-only sign-in page: one Continue with GitHub action and no credential forms. OAuth was not started.",
+      "sha256": "de645d422845d2b6a439977a0bae47fe7ba50edbc862b57a47ac355a1fdf23f1"
+    },
+    {
+      "file": "github-signin-mobile.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "primaryActionFullyInViewport": true,
+      "claim": "Actual anonymous deployed GitHub-only sign-in page: one Continue with GitHub action and no credential forms. OAuth was not started.",
+      "sha256": "f6641175f76b7870f9780791ce8bcf43d13e7d0d64b5f5035400893890f857a5"
+    }
+  ],
+  "screenshotsVisuallyReviewed": true,
+  "privateOperationalIdentifiersIncluded": false
+}
