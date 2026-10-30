@@ -256,6 +256,42 @@ try {
     );
   assert.equal(answers.length, 2);
   assert.match(answers[1].body, /\b4\b/);
+  await api(`/api/artifacts/${artifact.id}`, 'PATCH', {
+    version: resumed.artifact.version,
+    content: {
+      ...resumed.artifact.content,
+      doc: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'The homepage must show a blue button labelled Start.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+  const savedDesign = await api(`/api/artifacts/${artifact.id}`);
+  await turn(
+    artifact,
+    threadId,
+    'What color and label does this document specify for the button?',
+  );
+  const sourceAware = await api(`/api/artifacts/${artifact.id}`),
+    sourceAnswers = sourceAware.messages.filter(
+      (message) => message.role === 'assistant',
+    );
+  assert.equal(sourceAnswers.length, 3);
+  assert.match(sourceAnswers[2].body, /\bblue\b/i);
+  assert.match(sourceAnswers[2].body, /\bStart\b/);
+  assert.equal(sourceAnswers[2].threadId, threadId);
+  assert.equal(sourceAware.decisions[0].id, adrId);
+  assert.deepEqual(sourceAware.artifact.content, savedDesign.artifact.content);
   await stop();
   assert.ok(Number(nativeLedger(artifact.id).n) > 0);
   console.log(
@@ -268,6 +304,8 @@ try {
         'SQLite and disk object persistence',
         'fresh-process authenticated reply/ADR/thread read',
         'second genuine native turn after restart',
+        'third native turn uses saved design source: blue and Start',
+        'canonical source, dedicated ADR and thread preserved',
         'graceful SIGTERM',
       ],
       passed: true,
