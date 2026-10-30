@@ -574,7 +574,18 @@ export function App() {
             </span>
             <span>
               {user.name}
-              <small>{user.email}</small>
+              <small>
+                <button
+                  type="button"
+                  title={'Member ID: ' + user.id}
+                  onClick={async () => {
+                    try { await navigator.clipboard.writeText(user.id); }
+                    catch { report('Your member ID: ' + user.id); }
+                  }}
+                >
+                  Copy member ID
+                </button>
+              </small>
             </span>
             <IconButton
               label="Sign out"

@@ -1017,21 +1017,31 @@ export async function createApp(
       const owner = await auth.user(req);
       await store.role(req.params.id, owner.id, 'admin');
       const b = parse(
-        z
-          .object({
+        z.union([
+          z.object({ userId: z.uuid(), role: roleSchema }).strict(),
+          z.object({
             email: z.email().max(254),
             name: z.string().trim().min(1).max(100),
             role: roleSchema,
-          })
-          .strict(),
+          }).strict(),
+        ]),
         req.body,
       );
-      let user = await store.userByEmail(b.email);
       await projectWrite(req, req.params.id, 'admin', async () => {
-        await store.lock('identity:email:' + b.email.toLowerCase());
-        user = await store.userByEmail(b.email);
+        let user;
+        if ('userId' in b) {
+          const registered = await store.one(
+            'SELECT id FROM users WHERE id=? AND (EXISTS(SELECT 1 FROM github_signin_identities g WHERE g.user_id=users.id) OR EXISTS(SELECT 1 FROM github_connect_signin_identities g WHERE g.user_id=users.id))',
+            b.userId,
+          );
+          if (!registered) throw new HttpError(404, 'Ask your teammate to sign in with GitHub and share their member ID');
+          user = await store.publicUser(b.userId);
+        } else {
+          await store.lock('identity:email:' + b.email.toLowerCase());
+          user = await store.userByEmail(b.email);
+          if (!user) user = await store.createUser(b.email, b.name, null);
+        }
         await store.role(req.params.id, owner.id, 'admin');
-        if (!user) user = await store.createUser(b.email, b.name, null);
         const owners = (
           await store.one(
             "SELECT count(*) AS n FROM memberships WHERE project_id=? AND role='owner'",
@@ -1056,7 +1066,7 @@ export async function createApp(
           null,
           owner.name,
           'member.updated',
-          `${b.email}: ${b.role}`,
+          `${'userId' in b ? b.userId : b.email}: ${b.role}`,
         );
       });
       await collab.notify(req.params.id);

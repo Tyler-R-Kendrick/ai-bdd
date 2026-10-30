@@ -47,7 +47,7 @@ export function ShareDialog({
             </span>
             <span>
               {m.name}
-              <small>{m.email}</small>
+              <small className="break-all">Member ID: {m.id}</small>
             </span>
             <Badge>{m.role}</Badge>
             {project.role === 'owner' && (
@@ -85,13 +85,10 @@ export function ShareDialog({
             }
           }}
         >
-          <Field label="Teammate's verified GitHub email">
-            <Input type="email" name="email" required />
+          <Field label="Teammate's member ID">
+            <Input name="userId" required maxLength={36} autoComplete="off" />
           </Field>
           <div className="form-row">
-            <Field label="Name">
-              <Input name="name" required maxLength={100} />
-            </Field>
             <Field label="Access">
               <Select name="role" defaultValue="editor">
                 <option value="editor">Editor</option>
@@ -102,8 +99,8 @@ export function ShareDialog({
           </div>
           <Button disabled={busy}>Add or update member</Button>
           <p className="small muted">
-            Members sign in with GitHub using this verified email. No
-            invitation email is sent.
+            Ask your teammate to sign in with GitHub and copy their member ID
+            from the account area. No email address is required.
           </p>
         </form>
       )}
