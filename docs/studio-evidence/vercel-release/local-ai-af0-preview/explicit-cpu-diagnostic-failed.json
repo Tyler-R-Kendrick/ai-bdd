@@ -1,0 +1,778 @@
+{
+  "schemaVersion": 1,
+  "kind": "separate explicit hosted local CPU and native decision diagnostic",
+  "origin": "https://ai-bdd-studio-4pxdjtzly-tyler-r-kendricks-projects.vercel.app",
+  "source": "af0a50d495c0f11fd7b41b2acf977d9dd2c5c88f",
+  "deploymentId": "dpl_GNaAqe3D4yTw65oBHD6dfGjgwiuD",
+  "parentFailedReceiptSha256": "3256f8fde9ce1c99a4b71aae8a3f3a78fd1bea4428fd6afee8c00198b51df5cc",
+  "failedNativeArtifactId": "62c36c51-c9ad-49ac-aa39-f5e1856f71b0",
+  "startedAt": "2026-10-30T18:18:02.400Z",
+  "passed": false,
+  "fixture": {
+    "source": "The page has a blue button labelled Start. A human must approve agent proposals.",
+    "question": "What color and label does the saved page require for its button? Reply in one short sentence."
+  },
+  "selectedChatProfile": {
+    "harness": "local-cpu",
+    "provider": "llama-cpp-cpu",
+    "model": "qwen2.5-0.5b-instruct-q4-k-m"
+  },
+  "resources": {
+    "projectId": "dcf1fa68-a4ff-4241-9028-ebf778de28c7",
+    "artifactId": "2503089a-db64-4510-9701-58e914e32360",
+    "threadId": "6037ab26-b132-4f3a-a6f7-32c0acc63785",
+    "adrId": "f9976932-f331-40a5-8818-589e2a2bc457",
+    "userMessageId": "55cd0e16-c1ee-4d7f-9304-57158f4deb16",
+    "chatRequestId": "3d46a145-c80b-4f96-8fad-6c567b60d926",
+    "chatJobId": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+    "reviewRequestId": "dd37c69b-a0c4-4a0d-a3a6-380023b1f0f1",
+    "reviewJobId": "42bff074-2715-44cf-ab00-600260c1f5e0"
+  },
+  "steps": [
+    {
+      "stage": "owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "at": "2026-10-30T18:18:08.380Z"
+    },
+    {
+      "stage": "verify-failed-native-profile-untouched",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:09.502Z"
+    },
+    {
+      "stage": "create-separate-document",
+      "method": "POST",
+      "path": "/api/projects/dcf1fa68-a4ff-4241-9028-ebf778de28c7/artifacts",
+      "status": 201,
+      "at": "2026-10-30T18:18:09.944Z"
+    },
+    {
+      "stage": "read-separate-document",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360",
+      "status": 200,
+      "at": "2026-10-30T18:18:10.868Z"
+    },
+    {
+      "stage": "read-current-chat-selection",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:11.292Z"
+    },
+    {
+      "stage": "guard-chat-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:11.642Z"
+    },
+    {
+      "stage": "guard-decision-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:11.990Z"
+    },
+    {
+      "stage": "keep-title-human",
+      "method": "PATCH",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/title-policy",
+      "status": 200,
+      "at": "2026-10-30T18:18:13.036Z"
+    },
+    {
+      "stage": "keep-chat-manual",
+      "method": "PUT",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/policy",
+      "status": 200,
+      "at": "2026-10-30T18:18:13.436Z"
+    },
+    {
+      "stage": "explicitly-select-local-cpu",
+      "method": "PUT",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:13.959Z"
+    },
+    {
+      "stage": "guard-chat-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:14.784Z"
+    },
+    {
+      "stage": "guard-decision-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:15.188Z"
+    },
+    {
+      "stage": "retain-cpu-source-question",
+      "method": "POST",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/messages",
+      "status": 201,
+      "at": "2026-10-30T18:18:15.809Z"
+    },
+    {
+      "stage": "guard-chat-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:16.193Z"
+    },
+    {
+      "stage": "guard-decision-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision/profile",
+      "status": 200,
+      "at": "2026-10-30T18:18:16.626Z"
+    },
+    {
+      "stage": "request-explicit-cpu-chat",
+      "method": "POST",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent",
+      "status": 200,
+      "at": "2026-10-30T18:18:17.508Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:17.837Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:21.176Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:24.505Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:27.835Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:31.560Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:34.943Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:38.283Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:41.630Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:45.025Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:48.348Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:51.694Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:55.021Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:18:58.362Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:01.712Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:05.047Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:08.381Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:11.705Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:15.038Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:18.390Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:22.077Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:25.613Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:28.976Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:33.138Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:36.483Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:39.821Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:43.213Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:46.540Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:49.886Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:53.242Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:56.557Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:19:59.879Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:03.209Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:06.549Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:09.942Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:13.265Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:16.591Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:19.922Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:23.514Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:26.852Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:30.215Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:33.551Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:36.891Z"
+    },
+    {
+      "stage": "poll-cpu-chat",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/integrations/jobs",
+      "status": 200,
+      "at": "2026-10-30T18:20:40.274Z"
+    },
+    {
+      "stage": "guard-chat-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:20:40.627Z"
+    },
+    {
+      "stage": "guard-decision-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision/profile",
+      "status": 200,
+      "at": "2026-10-30T18:20:40.975Z"
+    },
+    {
+      "stage": "read-review-source",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:41.326Z"
+    },
+    {
+      "stage": "request-independent-local-decisions",
+      "method": "POST",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:42.048Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:42.458Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:45.800Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:49.153Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:52.486Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:55.835Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:20:59.171Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:21:02.526Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:21:05.857Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:21:09.270Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:21:12.587Z"
+    },
+    {
+      "stage": "poll-local-decisions",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision-review",
+      "status": 200,
+      "at": "2026-10-30T18:21:15.943Z"
+    },
+    {
+      "stage": "fresh-owner-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "at": "2026-10-30T18:21:16.326Z"
+    },
+    {
+      "stage": "fresh-document",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360",
+      "status": 200,
+      "at": "2026-10-30T18:21:16.790Z"
+    },
+    {
+      "stage": "guard-chat-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:21:17.139Z"
+    },
+    {
+      "stage": "guard-decision-catalog",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360/decision/profile",
+      "status": 200,
+      "at": "2026-10-30T18:21:17.501Z"
+    },
+    {
+      "stage": "fresh-original-native-profile",
+      "method": "GET",
+      "path": "/api/artifacts/62c36c51-c9ad-49ac-aa39-f5e1856f71b0/agent/profile",
+      "status": 200,
+      "at": "2026-10-30T18:21:17.832Z"
+    },
+    {
+      "stage": "anonymous-new-document",
+      "method": "GET",
+      "path": "/api/artifacts/2503089a-db64-4510-9701-58e914e32360",
+      "status": 401,
+      "at": "2026-10-30T18:21:18.157Z"
+    },
+    {
+      "stage": "close-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200,
+      "at": "2026-10-30T18:21:18.469Z"
+    },
+    {
+      "stage": "close-owned-session",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200,
+      "at": "2026-10-30T18:21:18.830Z"
+    }
+  ],
+  "jobHistory": [
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "queued",
+      "at": "2026-10-30T18:18:17.838Z"
+    },
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "running",
+      "at": "2026-10-30T18:18:21.177Z"
+    },
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "queued",
+      "at": "2026-10-30T18:19:05.048Z"
+    },
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "running",
+      "at": "2026-10-30T18:19:08.382Z"
+    },
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "queued",
+      "at": "2026-10-30T18:19:53.243Z"
+    },
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "running",
+      "at": "2026-10-30T18:19:56.562Z"
+    },
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "failed",
+      "at": "2026-10-30T18:20:40.276Z"
+    },
+    {
+      "stage": "independent-native-decisions",
+      "id": "42bff074-2715-44cf-ab00-600260c1f5e0",
+      "status": "running",
+      "at": "2026-10-30T18:20:42.460Z"
+    },
+    {
+      "stage": "independent-native-decisions",
+      "id": "42bff074-2715-44cf-ab00-600260c1f5e0",
+      "status": "completed",
+      "at": "2026-10-30T18:21:15.944Z"
+    }
+  ],
+  "admissions": {
+    "chat": 1,
+    "decisionReview": 1
+  },
+  "externalModelProvidersAllowed": false,
+  "credentialsRecorded": false,
+  "implicitFallback": false,
+  "documentTitle": "Explicit CPU acceptance 295c5f31",
+  "sourceVersion": 1,
+  "sourceHash": "dcc775e0594857a4186f88bf310965450b8a631908a65585f5e0e9f277417265",
+  "dedicatedArtifactRelations": {
+    "threadCount": 1,
+    "adrCount": 1
+  },
+  "localCatalogs": {
+    "agent": {
+      "profile": {
+        "harness": "local-cpu",
+        "provider": "llama-cpp-cpu",
+        "model": "qwen2.5-0.5b-instruct-q4-k-m"
+      },
+      "harnesses": [
+        {
+          "id": "t3-code",
+          "configured": true,
+          "providers": [
+            {
+              "id": "studioLocal",
+              "models": [
+                "studio-local/qwen2.5-0.5b-instruct-q4-k-m"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local-cpu",
+          "configured": true,
+          "providers": [
+            {
+              "id": "llama-cpp-cpu",
+              "models": [
+                "qwen2.5-0.5b-instruct-q4-k-m"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "vercel-fx",
+          "configured": false,
+          "providers": []
+        }
+      ]
+    },
+    "decision": {
+      "profile": {
+        "provider": "llama-cpp-cpu",
+        "model": "qwen2.5-0.5b-instruct-q4-k-m",
+        "minimumConfidence": 0.7,
+        "policyVersion": "decision-policy-v1",
+        "configRevision": "6b0061724b6d4e243a0d01671cc8795082371b399b21f74f0e81e4ab0eae7fb5"
+      },
+      "providers": [
+        {
+          "id": "llama-cpp-cpu",
+          "configured": true,
+          "models": [
+            "qwen2.5-0.5b-instruct-q4-k-m",
+            "smollm2-135m-instruct-q4-k-m"
+          ]
+        },
+        {
+          "id": "openai-decisions",
+          "configured": false,
+          "models": []
+        },
+        {
+          "id": "jev",
+          "configured": false,
+          "models": []
+        },
+        {
+          "id": "vercel-structured",
+          "configured": false,
+          "models": []
+        }
+      ]
+    }
+  },
+  "jobFailures": [
+    {
+      "stage": "explicit-local-cpu-chat",
+      "id": "b66a5f3a-60fe-489a-9ccf-3fc6220ea96e",
+      "status": "failed",
+      "errorSha256": "cfa18e14d7903a4fa7e7861c757edb5d33494ddb1d1578ae1133223dddf9afa5"
+    }
+  ],
+  "chatFailure": {
+    "phase": "poll-cpu-chat",
+    "code": "terminal-job-failure",
+    "status": null
+  },
+  "decisionFailure": {
+    "phase": "poll-local-decisions",
+    "code": "assertion-failed",
+    "status": null
+  },
+  "failedNativeProfileUntouched": true,
+  "freshSessionPersistence": true,
+  "unauthorizedDenied": true,
+  "ownedSessionCleanup": {
+    "created": 2,
+    "closed": 2
+  },
+  "completedAt": "2026-10-30T18:21:18.831Z",
+  "operatorScriptSha256": "38ba97eef3a0c8f6e72d15d97339d31fd42eab3a74b66e9a83d78bb34c4b7bd0"
+}
