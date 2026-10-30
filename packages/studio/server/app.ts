@@ -401,6 +401,26 @@ export async function createApp(
       investigations!.activeOnMachine(id);
     store.contentReferenceValidator = (input) =>
       validateInvestigationReferences(store, input);
+    const implementationMachines = await registerImplementationMachineRoutes(
+      app,
+      {
+        store,
+        auth,
+        machines: integrations.machines,
+        graphs,
+        otherWorkActive: (id) => investigations!.activeOnMachine(id),
+        notify: (projectId, id) => {
+          void collab.notify(projectId, id).catch(() => {});
+        },
+      },
+    );
+    graphs.options.externalEditingLock = (id) =>
+      implementationMachines.editingLock(id);
+    investigations.dependencies.otherWorkActive = (id) =>
+      implementationMachines.activeOnMachine(id);
+    integrations.machines.hooks.otherWorkActive = async (id) =>
+      (await investigations!.activeOnMachine(id)) ||
+      (await implementationMachines.activeOnMachine(id));
     const spikes = new SpeculativeSpikes({
       store,
       runtime,
@@ -1768,6 +1788,11 @@ export async function createApp(
       graphs,
       remotePlanner,
       investigations,
+      implementationMachines,
+      maintenance: async () => {
+        await investigations!.expire();
+        await implementationMachines.expire();
+      },
       spikes,
       drafting,
       runtime,

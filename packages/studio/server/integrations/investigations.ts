@@ -39,6 +39,8 @@ export type InvestigationDependencies = {
     ): Promise<MachinePrincipal>;
   };
   objects: ObjectStore;
+  otherWorkActive?: (machineId: string) => Promise<boolean>;
+  authorizeMachine?: (machine: MachinePrincipal) => Promise<void>;
   implementationLocked?: (artifactId: string) => Promise<boolean>;
   notify?: (projectId: string, artifactId: string) => void | Promise<void>;
   nativeDocumentBlocks?: boolean;
@@ -148,6 +150,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         'This machine credential was revoked or expired',
       );
     await this.store.role(current.project_id, current.user_id, 'write');
+    await this.dependencies.authorizeMachine?.(current);
     return current;
   }
   private async unlocked(artifactId: string, userId: string) {
@@ -544,6 +547,8 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
     return this.atomic(machine.project_id, async () => {
       const current = await this.fresh(machine);
       await this.store.db.lock('machine:' + machine.id);
+      if (await this.dependencies.otherWorkActive?.(machine.id))
+        return { work: null };
       if (
         await this.store.one(
           "SELECT id FROM studio_investigations WHERE machine_id=? AND status='running'",

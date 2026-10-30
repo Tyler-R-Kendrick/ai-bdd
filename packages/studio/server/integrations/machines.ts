@@ -23,6 +23,7 @@ export class MachineService {
     readonly store: Store,
     readonly collab: Collaboration,
     readonly hooks: {
+      authorizeMachine?: (machine: any) => Promise<void>;
       otherWorkActive?: (machineId: string) => Promise<boolean>;
       onClaim?: (machine: any, work: any) => Promise<void>;
       onHeartbeat?: (
@@ -84,6 +85,7 @@ export class MachineService {
           'This machine credential is invalid or expired',
         );
       await this.store.role(machine.project_id, machine.user_id, 'write');
+      await this.hooks.authorizeMachine?.(machine);
       await this.expire(machine.project_id);
       return operation();
     });
@@ -206,6 +208,7 @@ export class MachineService {
     if (!machine)
       throw new HttpError(401, 'This machine credential is invalid or expired');
     await this.store.role(machine.project_id, machine.user_id, 'write');
+    await this.hooks.authorizeMachine?.(machine);
     return machine;
   }
   async machines(user: User, projectId: string) {
