@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { mkdtemp, readFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,6 +8,41 @@ import { join, resolve } from 'node:path';
 import { unzipSync, strFromU8 } from 'fflate';
 import { newClip } from '../shared/video-timeline.ts';
 const execute = promisify(execFile);
+// This file proves the real H.264 roundtrip. All other acceptance files retain
+// Playwright's pinned Chromium; the final case explicitly uses that decoder too.
+const mp4Browser =
+  process.env.STUDIO_MP4_CHROMIUM_PATH ??
+  process.env.STUDIO_CHROMIUM_PATH ??
+  (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+if (process.env.CI && !process.env.STUDIO_MP4_CHROMIUM_PATH)
+  throw new Error(
+    'Prepare the pinned official Chrome MP4 acceptance browser before this suite.',
+  );
+test.use({
+  launchOptions: {
+    ...(mp4Browser ? { executablePath: mp4Browser } : {}),
+    args: ['--no-sandbox'],
+  },
+});
+
+async function h264Fixture(folder: string) {
+  const video = join(folder, 'scene.mp4');
+  await execute('ffmpeg', [
+    '-v',
+    'error',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=0x6b73d1:s=160x90:d=2:r=24',
+    '-c:v',
+    'libx264',
+    '-pix_fmt',
+    'yuv420p',
+    video,
+  ]);
+  return video;
+}
 async function open(page: Page) {
   const status = await page.request.get('/api/auth/status'),
     origin = new URL(status.url()).origin;
@@ -71,7 +107,7 @@ test('multi-track media, nonlinear keyframes, source trims, MP4 audio, and porta
   try {
     const { artifact, project } = await open(page);
     const audio = join(folder, 'narration.wav'),
-      video = join(folder, 'scene.mp4');
+      video = await h264Fixture(folder);
     await execute('ffmpeg', [
       '-v',
       'error',
@@ -81,20 +117,6 @@ test('multi-track media, nonlinear keyframes, source trims, MP4 audio, and porta
       '-i',
       'sine=frequency=440:duration=2',
       audio,
-    ]);
-    await execute('ffmpeg', [
-      '-v',
-      'error',
-      '-y',
-      '-f',
-      'lavfi',
-      '-i',
-      'color=c=0x6b73d1:s=160x90:d=2:r=24',
-      '-c:v',
-      'libx264',
-      '-pix_fmt',
-      'yuv420p',
-      video,
     ]);
     await page
       .getByLabel('Import video, audio, or image file')
@@ -273,6 +295,111 @@ test('multi-track media, nonlinear keyframes, source trims, MP4 audio, and porta
     );
     expect(imported.artifact.projectId).toBe(project.id);
   } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('bundled Chromium rejects an unsupported codec in a valid MP4 without adding or saving a clip', async ({
+  playwright,
+}) => {
+  // Launch the installed Playwright browser directly: no system or Chrome path,
+  // no codec mocking, and no use of the positive MP4 test's launch override.
+  const browser = await playwright.chromium.launch({ args: ['--no-sandbox'] });
+  const context = await browser.newContext({
+    baseURL: 'http://127.0.0.1:8877',
+  });
+  const page = await context.newPage();
+  const folder = await mkdtemp(join(tmpdir(), 'studio-unsupported-codec-'));
+  try {
+    // MP4 is a container. A valid MPEG-4 Part 2 stream is unsupported even on
+    // hosts where this Chromium build can decode the positive H.264 fixture.
+    expect(
+      await page.evaluate(() =>
+        document
+          .createElement('video')
+          .canPlayType('video/mp4; codecs="mp4v.20.9"'),
+      ),
+    ).toBe('');
+    expect(
+      await page.evaluate(() =>
+        document
+          .createElement('video')
+          .canPlayType('video/webm; codecs="vp8, vorbis"'),
+      ),
+    ).not.toBe('');
+    const { artifact } = await open(page);
+    const before = await (
+      await page.request.get(`/api/artifacts/${artifact.id}`)
+    ).json();
+    const unsupportedVideo = join(folder, 'scene.mp4');
+    await execute('ffmpeg', [
+      '-v',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=0x6b73d1:s=160x90:d=2:r=24',
+      '-c:v',
+      'mpeg4',
+      '-pix_fmt',
+      'yuv420p',
+      unsupportedVideo,
+    ]);
+    const probe = JSON.parse(
+      (
+        await execute('ffprobe', [
+          '-v',
+          'error',
+          '-show_entries',
+          'stream=codec_name,codec_type,nb_frames',
+          '-of',
+          'json',
+          unsupportedVideo,
+        ])
+      ).stdout,
+    );
+    expect(probe.streams).toEqual([
+      expect.objectContaining({
+        codec_name: 'mpeg4',
+        codec_type: 'video',
+        nb_frames: '48',
+      }),
+    ]);
+    await page
+      .getByLabel('Import video, audio, or image file')
+      .setInputFiles(unsupportedVideo);
+    const error = page.getByRole('alert').filter({
+      hasText: 'This browser cannot decode the selected MP4 file or its codec.',
+    });
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(
+      'Try WebM (VP8 or VP9), which this browser reports as supported.',
+    );
+    await expect(error).not.toContainText('Try MP4');
+    await expect(
+      page.getByRole('button', { name: /^scene.mp4, track/ }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Save', exact: true }),
+    ).toBeDisabled();
+    const after = await (
+      await page.request.get(`/api/artifacts/${artifact.id}`)
+    ).json();
+    expect(after.artifact.version).toBe(before.artifact.version);
+    expect(after.artifact.content).toEqual(before.artifact.content);
+    await mkdir(resolve(import.meta.dirname, '../../../work/review'), {
+      recursive: true,
+    });
+    await page.screenshot({
+      path: resolve(
+        import.meta.dirname,
+        '../../../work/review/studio-video-unsupported-codec.png',
+      ),
+      fullPage: true,
+    });
+  } finally {
+    await browser.close();
     await rm(folder, { recursive: true, force: true });
   }
 });
