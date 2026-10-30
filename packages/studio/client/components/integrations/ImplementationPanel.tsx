@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check,
+  Clock,
   GitBranch,
   GitPullRequest,
   ListChecks,
@@ -34,6 +35,7 @@ import {
 } from '../ui.tsx';
 import './implementation.css';
 import { AgentProfile } from './AgentProfile.tsx';
+import { RebuildPanel, type RebuildSnapshot } from './RebuildPanel.tsx';
 
 const label = (value: string) =>
   value.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
@@ -258,7 +260,9 @@ function DefinitionEditor({
               }
             />
           </Field>
-          <Field label={`Task ${index + 1} acceptance criteria (one per line)`}>
+          <Field
+            label={`Task ${index + 1} acceptance criteria (one per line)`}
+          >
             <Textarea
               value={task.acceptanceCriteria.join('\n')}
               aria-label={`Task ${index + 1} acceptance criteria (one per line)`}
@@ -528,7 +532,9 @@ function TaskReporter({
               (action === 'complete' &&
                 (!summary.trim() ||
                   (!task.pullRequest &&
-                    (!noChange || !noChangeReason.trim() || !evidence.trim()))))
+                    (!noChange ||
+                      !noChangeReason.trim() ||
+                      !evidence.trim()))))
             }
             onClick={() => {
               const command: ImplementationReport['command'] =
@@ -698,6 +704,7 @@ export function ImplementationPanel({
     [revisionReason, setRevisionReason] = useState(''),
     [draftJobs, setDraftJobs] = useState<DraftJob[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [rebuild, setRebuild] = useState<RebuildSnapshot | null>(null);
   const [machineBuilds, setMachineBuilds] = useState<MachineBuild[]>([]),
     [ownMachines, setOwnMachines] = useState<OwnMachine[]>([]),
     [machineId, setMachineId] = useState('');
@@ -720,9 +727,13 @@ export function ImplementationPanel({
   );
   const load = useCallback(async () => {
     const id = artifact.id;
-    const state = await api<ImplementationSnapshot>(base);
+    const [state, delivered] = await Promise.all([
+      api<ImplementationSnapshot>(base),
+      api<RebuildSnapshot>(base + '/rebuild'),
+    ]);
     if (currentId.current !== id) return;
     setSnapshot(state);
+    setRebuild(delivered);
     if (open) {
       const events = await api<ImplementationEvent[]>(base + '/history');
       if (currentId.current === id) setHistory(events);
@@ -745,6 +756,7 @@ export function ImplementationPanel({
   }, [base, artifact.id, open]);
   useEffect(() => {
     setSnapshot(null);
+    setRebuild(null);
     setEditing(false);
     setError('');
     setDraftJobs([]);
@@ -759,6 +771,18 @@ export function ImplementationPanel({
   useEffect(() => {
     if (open) void load().catch(fail);
   }, [open, load, fail, artifact.version]);
+  useEffect(() => {
+    if (open) return;
+    const refresh = () => {
+      if (document.visibilityState === 'visible') void load().catch(fail);
+    };
+    window.addEventListener('implementation-changed', refresh);
+    const timer = setInterval(refresh, 5000);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('implementation-changed', refresh);
+    };
+  }, [open, load, fail]);
   useEffect(() => {
     if (!open) return;
     const refresh = () => void load().catch(fail);
@@ -835,20 +859,28 @@ export function ImplementationPanel({
     run?.tasks.filter((task) => task.status === 'complete').length ?? 0;
   const currentRun =
     run?.graphVersion === graph?.graphVersion ? run : undefined;
-  const buildLabel =
-    snapshot?.editingLock && !snapshot.activeRun
+  const rebuilding = rebuild?.runs.some((item) =>
+    ['queued', 'running'].includes(item.status),
+  );
+  const buildLabel = rebuilding
+    ? 'Rebuilding changes'
+    : snapshot?.editingLock && !snapshot.activeRun
       ? 'Build queued'
       : snapshot?.activeRun
         ? `Building ${completed} of ${run?.tasks.length}`
-        : graph && graph.planRevision !== snapshot?.planRevision
-          ? 'Changes to build'
-          : graph?.status === 'draft'
-            ? 'Review task graph'
-            : currentRun?.status === 'delivered'
-              ? 'Built'
-              : currentRun?.status === 'implemented'
-                ? 'Verified implementation'
-                : 'Build plan';
+        : graph?.status === 'draft'
+          ? 'Review task graph'
+          : rebuild?.baseline
+            ? rebuild.changes
+              ? `${rebuild.changes} changes to build`
+              : 'Built'
+            : graph && graph.planRevision !== snapshot?.planRevision
+              ? 'Changes to build'
+              : currentRun?.status === 'delivered'
+                ? 'Built'
+                : currentRun?.status === 'implemented'
+                  ? 'Verified implementation'
+                  : 'Build plan';
   return (
     <>
       <Button
@@ -858,7 +890,13 @@ export function ImplementationPanel({
         aria-label="Build plan"
         aria-description={buildLabel}
       >
-        <ListChecks />
+        {rebuild?.automaticEnabled &&
+        rebuild.pending &&
+        rebuild.changes > 0 ? (
+          <Clock />
+        ) : (
+          <ListChecks />
+        )}
         {buildLabel}
       </Button>
       <Modal
@@ -888,13 +926,19 @@ export function ImplementationPanel({
               Refresh build
             </Button>
           </div>
+          <RebuildPanel
+            artifact={artifact}
+            readOnly={readOnly}
+            onError={onError}
+            onChanged={load}
+          />
           {error && (
             <div className="implementation-error" role="alert">
               {error}
               {editing && (
                 <p>
-                  Your task edits are retained. Refresh and compare the current
-                  graph before retrying a conflict.
+                  Your task edits are retained. Refresh and compare the
+                  current graph before retrying a conflict.
                 </p>
               )}
             </div>
@@ -984,7 +1028,9 @@ export function ImplementationPanel({
               {graph && (
                 <div className="implementation-version">
                   <h3>Graph version {graph.graphVersion}</h3>
-                  <Badge tone={tone(graph.status)}>{label(graph.status)}</Badge>
+                  <Badge tone={tone(graph.status)}>
+                    {label(graph.status)}
+                  </Badge>
                   <span className="small muted">
                     Draft {graph.draftRevision} · plan {graph.planRevision}
                   </span>
@@ -1006,9 +1052,9 @@ export function ImplementationPanel({
                   <ListChecks size={30} />
                   <h3>Plan the work before it starts</h3>
                   <p>
-                    Define small tasks, acceptance criteria and prerequisites. A
-                    person approves the exact graph and source version before
-                    execution.
+                    Define small tasks, acceptance criteria and prerequisites.
+                    A person approves the exact graph and source version
+                    before execution.
                   </p>
                 </div>
               )}
@@ -1105,7 +1151,9 @@ export function ImplementationPanel({
                 <>
                   <GraphDiagram
                     definition={graph.definition}
-                    run={run?.graphVersion === graph.graphVersion ? run : null}
+                    run={
+                      run?.graphVersion === graph.graphVersion ? run : null
+                    }
                   />
                   <div className="implementation-tasks">
                     {graph.definition.tasks.map((task, index) => {
@@ -1227,8 +1275,8 @@ export function ImplementationPanel({
                         <h4>Implement the approved graph</h4>
                         <p className="small muted">
                           The connected machine uses your registered checkout.
-                          Repository push access and the exact graph are checked
-                          again when work starts.
+                          Repository push access and the exact graph are
+                          checked again when work starts.
                         </p>
                         <Field label="Your connected machine">
                           <Select
@@ -1254,7 +1302,9 @@ export function ImplementationPanel({
                             ))}
                           </Select>
                         </Field>
-                        {!ownMachines.some((machine) => machine.connected) && (
+                        {!ownMachines.some(
+                          (machine) => machine.connected,
+                        ) && (
                           <p className="small muted">
                             Pair your own machine in Connections and register
                             its repository checkout before building.

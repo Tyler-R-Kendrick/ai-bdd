@@ -3,7 +3,7 @@ import type { Artifact } from '../../../shared/domain.ts';
 import { api, date } from '../../lib.ts';
 import { Badge, Button, Spinner } from '../ui.tsx';
 import './rebuild.css';
-type Snapshot = {
+export type RebuildSnapshot = {
   pending?: { dueAt: number; error: string | null } | null;
   currentSourceSha256: string;
   automaticEnabled: boolean;
@@ -36,13 +36,15 @@ export function RebuildPanel({
   onError?: (message: string) => void;
   onChanged?: () => void | Promise<void>;
 }) {
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
+  const [snapshot, setSnapshot] = useState<RebuildSnapshot | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const refresh = useCallback(
     async () =>
       setSnapshot(
-        await api<Snapshot>(`/artifacts/${artifact.id}/implementation/rebuild`),
+        await api<RebuildSnapshot>(
+          `/artifacts/${artifact.id}/implementation/rebuild`,
+        ),
       ),
     [artifact.id],
   );
@@ -106,8 +108,8 @@ export function RebuildPanel({
       </header>
       <p>
         Delivered source v{snapshot.baseline.sourceVersion} ·{' '}
-        {date(snapshot.baseline.updatedAt)}. Rebuild keeps the existing PRs and
-        the reviewed base graph.
+        {date(snapshot.baseline.updatedAt)}. Rebuild keeps the existing PRs
+        and the reviewed base graph.
       </p>
       {!readOnly && (
         <div className="rebuild-actions">
@@ -169,8 +171,8 @@ export function RebuildPanel({
           />
           <span>
             Let this machine rebuild this repository automatically after
-            document edits settle. Agent work runs on your machine; existing PR
-            branches may change.
+            document edits settle. Agent work runs on your machine; existing
+            PR branches may change.
           </span>
         </label>
       )}
@@ -183,8 +185,8 @@ export function RebuildPanel({
         </p>
       )}
       <p>
-        History retains up to 100 rebuilds. Older ended entries are pruned when
-        new work is admitted.
+        History retains up to 100 rebuilds. Older ended entries are pruned
+        when new work is admitted.
       </p>
       <ol>
         {snapshot.runs.slice(0, 5).map((run) => (
