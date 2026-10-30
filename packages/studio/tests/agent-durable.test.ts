@@ -719,3 +719,161 @@ describe('durable artifact agent using actual HTTP model/source transports', () 
     expect(modelCalls).toBe(2);
   });
 });
+
+async function participationFixture(
+  action: 'respond' | 'wait' | 'stay_silent',
+  pending?: () => Promise<void>,
+) {
+  const gateway = await http((_path, _body, res) =>
+    res.end(JSON.stringify(generated('A concrete relevant answer.'))),
+  );
+  const native = await http((_path, body, res) => {
+    void (async () => {
+      await pending?.();
+      res.end(
+        JSON.stringify({
+          model: body.model,
+          answers: body.questions.map((q: any) => ({
+            name: q.name,
+            type: 'choice',
+            choice: action,
+            confidence: 0.95,
+            probabilities: q.choices.map((c: any) => ({
+              value: c.value,
+              probability: c.value === action ? 0.96 : 0.02,
+            })),
+          })),
+          usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 },
+        }),
+      );
+    })();
+  });
+  const w = await fixture({ gatewayBaseUrl: gateway.url });
+  const models = new DecisionModels({
+    store: w.store,
+    settings: {
+      production: false,
+      timeoutMs: 3000,
+      defaultProfile: decisionProfileSchema.parse({
+        provider: 'openai-decisions',
+        model: 'gpt-6-luna',
+      }),
+      openai: {
+        baseUrl: native.url + '/v1',
+        apiKey: 'explicit-participation-native-fixture',
+        models: ['gpt-6-luna'],
+      },
+    },
+  });
+  await models.ready;
+  cleanup.push(() => models.close());
+  w.agent.options.decisions = models;
+  await w.agent.policy(w.user, w.artifact.id, {
+    mode: 'automatic',
+    paused: false,
+  });
+  const start = async (body = 'Is there a concrete next step here?') => {
+    await w.store.message(w.user, w.artifact.id, w.threadId, body);
+    await w.agent.observeMessage(w.user, w.artifact.id, w.threadId, body);
+    const job = (await w.agent.jobs(w.user, w.artifact.id))[0]!;
+    // Deliver the durable delayed intent at its due time without waiting on a process timer.
+    await w.store.exec(
+      'UPDATE studio_durable_jobs SET available_at=0 WHERE id=?',
+      job.id,
+    );
+    return job;
+  };
+  return { ...w, start, native, gateway, models };
+}
+describe('Agent integrates participation advice after deterministic eligibility', () => {
+  it.each(['wait', 'stay_silent'] as const)(
+    'retains %s advice and skips model authoring without inventing a reply',
+    async (action) => {
+      const w = await participationFixture(action),
+        job = await w.start();
+      await w.run(job.id);
+      await w.run(job.id);
+      expect(w.native.requests).toHaveLength(1);
+      expect(w.gateway.requests).toHaveLength(0);
+      expect(
+        (await w.store.messages(w.artifact.id)).filter(
+          (m) => m.role === 'assistant',
+        ),
+      ).toHaveLength(0);
+      expect((await w.runtime.get(job.id))?.result).toMatchObject({
+        participation: { action, status: 'answered' },
+      });
+    },
+  );
+  it('uses a frozen decision profile for eligible respond advice while keeping primary authoring separate', async () => {
+    const w = await participationFixture('respond'),
+      job = await w.start();
+    await w.models.profile(
+      w.user,
+      w.artifact.id,
+      decisionProfileSchema.parse({ provider: 'jev', model: 'jev-latest' }),
+    );
+    await w.run(job.id);
+    expect(w.native.requests).toHaveLength(1);
+    expect(w.native.requests[0].body.model).toBe('gpt-6-luna');
+    expect(w.gateway.requests).toHaveLength(1);
+    expect(
+      (await w.store.messages(w.artifact.id)).filter(
+        (m) => m.role === 'assistant',
+      ),
+    ).toHaveLength(1);
+  });
+  it('explicit mentions and manually requested turns bypass semantic suppression', async () => {
+    const w = await participationFixture('stay_silent'),
+      job = await w.start('@studio Please answer this explicit question.');
+    await w.run(job.id);
+    const manual = await w.agent.respond(
+      w.user,
+      w.artifact.id,
+      w.threadId,
+      'chat',
+    );
+    await w.run(manual.id);
+    expect(w.native.requests).toHaveLength(0);
+    expect(w.gateway.requests).toHaveLength(2);
+  });
+  it.each(['pause', 'lock', 'newer-message'] as const)(
+    'rechecks %s after a decision is in flight before primary authoring',
+    async (change) => {
+      let arrived!: () => void, release!: () => void;
+      const incoming = new Promise<void>((resolve) => (arrived = resolve)),
+        gate = new Promise<void>((resolve) => (release = resolve));
+      const w = await participationFixture('respond', async () => {
+          arrived();
+          await gate;
+        }),
+        job = await w.start();
+      const running = w.run(job.id);
+      await incoming;
+      if (change === 'pause')
+        await w.agent.policy(w.user, w.artifact.id, {
+          mode: 'automatic',
+          paused: true,
+        });
+      if (change === 'lock') w.setLocked(true);
+      if (change === 'newer-message')
+        await w.store.message(
+          w.user,
+          w.artifact.id,
+          w.threadId,
+          'A newer human message supersedes the assessment.',
+        );
+      release();
+      await running;
+      expect(w.gateway.requests).toHaveLength(0);
+      expect(
+        (await w.store.messages(w.artifact.id)).filter(
+          (m) => m.role === 'assistant',
+        ),
+      ).toHaveLength(0);
+      expect((await w.runtime.get(job.id))?.status).toBe(
+        change === 'pause' ? 'cancelled' : 'failed',
+      );
+    },
+  );
+});

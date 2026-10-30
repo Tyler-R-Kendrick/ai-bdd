@@ -33,6 +33,7 @@ import { t3LanguageModel } from './integrations/t3-model.ts';
 import type { AgentProfile } from '../shared/agent-profile.ts';
 import type { DecisionProfile } from '../shared/decision-profile.ts';
 import type { DecisionModels } from './decisions/models.ts';
+import { adviseParticipation } from './integrations/participation-adviser.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
 import {
   VisualRouting,
@@ -837,6 +838,46 @@ export class Agent {
       { artifact, user, threadId, intent } = snapshot,
       id = artifact.id;
     await this.guard(ctx, snapshot);
+    if (snapshot.automatic && !snapshot.addressed) {
+      if (
+        !this.options.decisions ||
+        !snapshot.decisionProfile ||
+        !snapshot.latestId
+      )
+        throw new HttpError(
+          503,
+          'The independent decision model is not configured for automatic participation',
+        );
+      const advice = await adviseParticipation({
+        models: this.options.decisions,
+        context: ctx,
+        user,
+        artifactId: id,
+        artifactVersion: artifact.version,
+        profile: snapshot.decisionProfile,
+        input: snapshot.participationInput,
+        latestId: snapshot.latestId,
+      });
+      // Advice cannot replace the fresh deterministic eligibility checks.
+      await this.guard(ctx, snapshot);
+      if (advice.action !== 'respond')
+        return ctx.commit(
+          'publish-participation',
+          async () => {
+            await this.guard(ctx, snapshot);
+            return {
+              messageId: null,
+              childArtifactId: null,
+              participation: {
+                action: advice.action,
+                evaluationId: advice.evaluation.id,
+                status: advice.evaluation.status,
+              },
+            };
+          },
+          { requireCurrentVersion: true },
+        );
+    }
     const signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(120000)]);
     const reader = snapshot.repository
       ? new RepositoryReader(
