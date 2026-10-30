@@ -27,7 +27,9 @@ export class RepositoryReader {
     await this.authorize();
     const authenticated =
       this.settings.githubToken &&
-      this.settings.githubRepositories?.includes(this.repository.toLowerCase());
+      this.settings.githubRepositories?.includes(
+        this.repository.toLowerCase(),
+      );
     const response = await this.request(
       `https://api.github.com/repos/${this.repository}${path}`,
       {
@@ -50,10 +52,18 @@ export class RepositoryReader {
     if (!this.ref) {
       const data = await this.get('/commits?per_page=1');
       if (!Array.isArray(data) || !/^[0-9a-f]{40,64}$/.test(data[0]?.sha))
-        throw new HttpError(502, 'GitHub did not return a repository revision');
+        throw new HttpError(
+          502,
+          'GitHub did not return a repository revision',
+        );
       this.ref = data[0].sha;
     }
     return this.ref!;
+  }
+  pin(revision: string) {
+    if (!/^[0-9a-f]{40,64}$/.test(revision))
+      throw new HttpError(400, 'Invalid pinned repository revision');
+    this.ref = revision;
   }
   async tree() {
     const sha = await this.revision();

@@ -177,6 +177,26 @@ export class Collaboration {
     });
     await this.notifyLocal(projectId, artifactId);
   }
+  /** SQL metadata only; safe to append inside an outer publication transaction. */
+  async publishDocumentMetadata(projectId: string, artifactId: string) {
+    await this.realtime.publish('artifact:' + artifactId, {
+      type: 'document',
+      projectId,
+      artifactId,
+    });
+    await this.realtime.publish('project:' + projectId, {
+      type: 'changed',
+      projectId,
+      artifactId,
+    });
+  }
+  /** Call after the outer source transaction commits, never from an onPersist hook. */
+  async refreshArtifact(id: string, userId: string) {
+    const room = this.rooms.get(id);
+    if (room) await this.serial(room, () => this.refresh(room, userId));
+    const artifact = await this.store.artifact(id, userId);
+    await this.notifyLocal(artifact.projectId, id);
+  }
   private async documentPublished(room: Room) {
     await this.realtime.publish('artifact:' + room.id, {
       type: 'document',
