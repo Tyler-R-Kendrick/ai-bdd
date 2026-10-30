@@ -44,6 +44,7 @@ export class ArtifactTitles {
       provider?: TitleProvider;
       allowed?: (user: User, artifactId: string) => Promise<boolean>;
       onAdmit?: (user: User, artifactId: string) => Promise<void>;
+      available?: (user: User, artifactId: string) => Promise<boolean>;
       captureProfile?: (
         user: User,
         artifactId: string,
@@ -112,7 +113,9 @@ export class ArtifactTitles {
     );
     return {
       mode: (row?.mode ?? 'human') as 'human' | 'automatic',
-      available: !!this.options.provider,
+      available:
+        !!this.options.provider &&
+        (!this.options.available || (await this.options.available(user, id))),
     };
   }
   async observeMessage(user: User, id: string, threadId: string) {

@@ -1,5 +1,6 @@
 import RepositoryIdentity from './components/RepositoryIdentity.tsx';
 import { ArtifactTitle } from './components/ArtifactTitle.tsx';
+import type { AgentProfileView } from '../shared/agent-profile.ts';
 import { ImplementationPanel } from './components/integrations/ImplementationPanel.tsx';
 import { InvestigationPanel } from './components/investigations/InvestigationPanel.tsx';
 import {
@@ -92,6 +93,8 @@ export type Bundle = {
   runs: any[];
   links: any[];
   agentActive: boolean;
+  agentAvailable?: boolean;
+  agentProfile?: AgentProfileView;
   runnerActive: boolean;
 };
 export type MediaProps = {
@@ -845,7 +848,10 @@ export function App() {
               bundle={bundle}
               project={project}
               user={user}
-              capabilities={capabilities}
+              capabilities={{
+                ...capabilities,
+                agent: bundle.agentAvailable ?? capabilities.agent,
+              }}
               panel={panel}
               onPanel={setPanel}
               onRefresh={refresh}
