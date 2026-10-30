@@ -1,0 +1,111 @@
+.account-planner-panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #dededb;
+  border-radius: 12px;
+  background: #fff;
+  color: #242424;
+  font:
+    13px/1.5 Inter,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+.account-planner-panel header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.account-planner-panel h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.account-planner-panel p {
+  margin: 6px 0;
+  color: #66645f;
+}
+.account-planner-model {
+  flex-shrink: 0;
+  font-size: 11px;
+  border-radius: 6px;
+  background: #f2f2ef;
+  padding: 3px 6px;
+  color: #68665f;
+}
+.account-planner-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 12px;
+}
+.account-planner-panel select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid #d8d8d4;
+  border-radius: 7px;
+  color: inherit;
+  background: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-planner-panel .account-planner-state {
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #f7f5ed;
+  color: #615836;
+}
+.account-planner-panel .account-planner-error {
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #fff0ed;
+  color: #973b2c;
+  overflow-wrap: anywhere;
+}
+.account-planner-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.account-planner-panel button {
+  padding: 8px 12px;
+  border: 1px solid #d3d3ce;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 500;
+  background: #272823;
+  color: white;
+  cursor: pointer;
+}
+.account-planner-panel button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.account-planner-panel select:focus-visible,
+.account-planner-panel button:focus-visible {
+  outline: 2px solid #507766;
+  outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .account-planner-panel header {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .account-planner-model {
+    font-size: 10px;
+  }
+  .account-planner-panel {
+    padding: 14px;
+  }
+  .account-planner-actions button {
+    width: 100%;
+  }
+}
