@@ -129,16 +129,22 @@ export function registerDocumentReview(
       const source = store.artifact(row.artifactId, user.id);
       if (source.projectId !== parent.projectId)
         throw new HttpError(404, 'Evidence run not found in this project');
-      const run = store
-        .runs(source.id)
-        .find((value) => value.id === req.params.runId);
+      const stored = store.one(
+        'SELECT id,artifact_id AS artifactId,artifact_version AS artifactVersion,status,result,error,created_at AS createdAt,finished_at AS finishedAt FROM runs WHERE artifact_id=? AND id=?',
+        source.id,
+        req.params.runId,
+      );
+      if (!stored) throw new HttpError(404, 'Evidence run not found');
       return {
         artifact: {
           id: source.id,
           title: source.title,
           version: source.version,
         },
-        run,
+        run: {
+          ...stored,
+          result: stored.result ? JSON.parse(stored.result) : null,
+        },
       };
     },
   );
@@ -353,13 +359,27 @@ export function registerDocumentReview(
           'This question does not accept a written answer',
         );
       const previous = store.one(
-          'SELECT id FROM document_answers WHERE artifact_id=? AND anchor=? AND question_id=? AND author_id=? ORDER BY rowid DESC LIMIT 1',
+          'SELECT * FROM document_answers WHERE artifact_id=? AND anchor=? AND question_id=? AND author_id=? ORDER BY rowid DESC LIMIT 1',
           a.id,
           req.params.anchor,
           question.id,
           user.id,
         ),
         id = randomUUID();
+      if (
+        previous &&
+        previous.option_id === option.id &&
+        previous.answer === body.answer &&
+        previous.question_snapshot === JSON.stringify(question)
+      )
+        return reply
+          .code(200)
+          .send(
+            store.one(
+              `SELECT ${answerColumns} FROM document_answers WHERE id=?`,
+              previous.id,
+            ),
+          );
       store.tx(() => {
         store.exec(
           'INSERT INTO document_answers(id,project_id,artifact_id,anchor,question_id,option_id,answer,question,option,question_snapshot,author_id,author,created_at,supersedes_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
