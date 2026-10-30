@@ -1,0 +1,76 @@
+{
+  "sourceCommit": "08136a787234879829fe950ed002d25093909a0e",
+  "integratedRoot": "a3b86e68493a03d6981e35e773be03fffe2ef6c0",
+  "browser": "Playwright1.64.0 Chromium headless-shell1248",
+  "browserStats": {
+    "startTime": "2026-10-30T04:03:55.747Z",
+    "duration": 4394.595,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "browserErrors": [],
+  "browserRetries": 0,
+  "browserAssertions": [
+    "owner archive via actual UI and authenticated HTTP",
+    "restore source with retained chat and ADR",
+    "title and acknowledgement gate actual permanent deletion",
+    "SQL deletion receipt persists outside artifact cascade",
+    "retained synthetic acceptance-run row blocks deletion",
+    "390px viewer reads archived source and retained dependencies",
+    "viewer restore and delete receive actual HTTP403",
+    "same-target archive reopen preserves readonly editor",
+    "no horizontal document overflow, page errors or HTTP500"
+  ],
+  "databaseChecks": {
+    "tests": 38,
+    "archive": 22,
+    "rebuild": 16,
+    "files": [
+      "artifact-lifecycle.test.ts",
+      "rebuild-machines.test.ts"
+    ],
+    "providers": [
+      "SQLite",
+      "actual local PostgreSQL17"
+    ],
+    "durationSeconds": 17.01
+  },
+  "build": "wholeStudio TypeScript + productionVite/server/portableconnector passed",
+  "lint": "owned oxlint passed",
+  "imagesReviewed": true,
+  "images": [
+    {
+      "file": "archive-browse-desktop.png",
+      "sha256": "9171f6ba3d907f1b8d11070c4bd1eaef92e87c08fffa32e376867826ef23f6c0",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "archive-delete-confirmation-desktop.png",
+      "sha256": "7acfe50b8aef0fb9836e560527902346e89c5260a6058bce3330a2edbeb87039",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "archive-retained-evidence-desktop.png",
+      "sha256": "2cd9d739fe264b00e45c86fa2bed3ee4a5538a4c2c46e1075ee49f15e67d7261",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "archive-viewer-mobile.png",
+      "sha256": "2ab23963b7427e76b9c84f6fa2d20f394746024f7ac4dd1bf29b06cf4f45cf53",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "boundaries": [
+    "All accounts/projects/source/evidence are synthetic local fixtures.",
+    "The retained acceptance-run row is an explicit SQL fixture, not a claim that a target test executed.",
+    "Private object cleanup is tested with the actual DiskObjectStore; live Vercel Blob acceptance is not established.",
+    "These screenshots do not establish production deployment, paid provider execution, or external GitHub builds.",
+    "Archived running graph/rebuild completion is established by independent SQL/protocol tests, not by the screenshots."
+  ]
+}
