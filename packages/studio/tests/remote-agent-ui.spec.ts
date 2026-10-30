@@ -738,5 +738,6 @@ test('older remote questions remain browseable after more than eight completed t
   await expect(
     page.getByRole('button', { name: 'Load earlier activity', exact: true }),
   ).toHaveCount(0);
+  await capture(page, 'remote-earlier-history');
   expect(faults).toEqual([]);
 });

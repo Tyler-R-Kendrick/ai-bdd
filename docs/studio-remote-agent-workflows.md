@@ -36,8 +36,9 @@ All three browser cases use the built application with real password/session/tok
 | [Stream and paused run](studio-evidence/remote-agents/remote-stream-and-run.png) | Incremental response, source version, reported stage dependencies, paused root, open confirm and questionnaire beside the relevant design. |
 | [Completed history](studio-evidence/remote-agents/remote-completed-history.png) | Completed turn, ended workflow, finished stages and retained member responses after reload. |
 | [Written answers](studio-evidence/remote-agents/remote-written-answers.png) | Saved custom select/input/editor responses, actual control acknowledgements and one published assistant reply. |
+| [Earlier history](studio-evidence/remote-agents/remote-earlier-history.png) | Nine completed turns after reload, with the oldest answered question expanded through the normal history control. |
 | [Mobile read-only view](studio-evidence/remote-agents/remote-mobile-read-only.png) | Normal mobile artifact drawer, visible question and absence of writer/control actions for a viewer. |
 
-All four PNGs were opened and inspected after the final three-case browser run. Normal panel scrolling focuses the demonstrated controls; the screenshots do not alter application state or styles. The earlier captures containing an unwired device-panel error were replaced and are not release evidence.
+All five PNGs were opened and inspected after the final three-case browser run. Normal panel scrolling focuses the demonstrated controls; the screenshots do not alter application state or styles. The earlier captures containing an unwired device-panel error were replaced and are not release evidence.
 
 The browser runtime is an explicit local protocol fixture, and the ACP integration is a spawned protocol fixture. These checks establish product/protocol behavior, not a live external model, GitHub tenant or production deployment acceptance. Runtime-specific control support remains explicit.
