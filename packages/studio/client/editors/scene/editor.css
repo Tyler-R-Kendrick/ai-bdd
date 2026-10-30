@@ -279,3 +279,93 @@
     display: none;
   }
 }
+
+.cad-feature-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.cad-feature-row .scene-solid-item {
+  flex: 1;
+  min-width: 0;
+}
+.cad-feature-row .icon-button {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+.cad-feature-list,
+.scene-import-list {
+  padding-top: 12px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.cad-feature-inspector,
+.scene-import-inspector {
+  display: grid;
+  gap: 10px;
+}
+.cad-feature-inspector input:not([type='checkbox']),
+.scene-import-inspector input:not([type='checkbox']),
+.scene-inspector .field > input:not([type='range']):not([type='checkbox']) {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #dddfd9;
+  background: white;
+  padding: 7px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #24292e;
+}
+.cad-sketch-preview {
+  width: 100%;
+  height: 150px;
+  background: #f5f6f2;
+  border: 1px solid #e5e7e1;
+  border-radius: 6px;
+}
+.cad-sketch-preview rect,
+.cad-sketch-preview circle {
+  fill: #e8eaf5;
+  stroke: #555ca8;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.cad-sketch-preview .cad-sketch-axis {
+  stroke: #c6ccc1;
+  stroke-width: 1px;
+  stroke-dasharray: 3px 3px;
+  vector-effect: non-scaling-stroke;
+}
+.cad-constraint-note {
+  color: #626f56;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.scene-lighting {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7e1;
+}
+.scene-lighting input[type='range'] {
+  width: 100%;
+  accent-color: #555ca8;
+}
+.scene-import-inspector .scene-axis-inputs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.scene-editor .cad-feature-inspector .field,
+.scene-editor .scene-import-inspector .field {
+  margin: 3px 0;
+}
+.cad-feature-inspector > .scene-axis-inputs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+.scene-editor .scene-inspector .scene-lighting .field > input[type='color'] {
+  width: 40px;
+  height: 28px;
+  padding: 2px;
+}

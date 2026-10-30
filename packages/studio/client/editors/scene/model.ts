@@ -11,11 +11,30 @@ import {
   MeshStandardMaterial,
   Quaternion,
   SphereGeometry,
+  Texture,
   Vector3,
 } from 'three';
-import type { Solid } from '../../../shared/domain.ts';
+import type { Solid as BaseSolid } from '../../../shared/domain.ts';
+import type {
+  CadFeature,
+  SceneImport,
+  SceneEnvironment,
+} from '../../../shared/cad-domain.ts';
+export type Solid = BaseSolid & {
+  name?: string;
+  visible?: boolean;
+  roughness?: number;
+  metalness?: number;
+};
 
-export type SceneContent = { solids: Solid[]; unit: 'm' | 'mm'; grid: boolean };
+export type SceneContent = {
+  solids: Solid[];
+  unit: 'm' | 'mm';
+  grid: boolean;
+  features?: CadFeature[];
+  imports?: SceneImport[];
+  environment?: SceneEnvironment;
+};
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 const LIMIT = 100000;
 export const round = (value: number) => Math.round(value * 1e6) / 1e6;
@@ -56,7 +75,57 @@ export function convertUnits(
     throw new Error(
       'Changing units would exceed the supported dimension range (0.01–100,000).',
     );
-  return { ...content, unit: next, solids };
+  const features = content.features?.map((feature) => ({
+    ...feature,
+    center: feature.center.map((v) => round(v * factor)) as [number, number],
+    offset: round(feature.offset * factor),
+    width: round(feature.width * factor),
+    height: round(feature.height * factor),
+    radius: round(feature.radius * factor),
+    depth: round(feature.depth * factor),
+    fillet: round(feature.fillet * factor),
+  }));
+  if (
+    features?.some(
+      (feature) =>
+        [feature.width, feature.height, feature.radius, feature.depth].some(
+          (v) => v < 0.01 || v > LIMIT,
+        ) ||
+        Math.abs(feature.offset) > LIMIT ||
+        feature.fillet > 10000 ||
+        feature.center.some((v) => Math.abs(v) > LIMIT),
+    )
+  )
+    throw new Error(
+      'Changing units would exceed the supported feature dimension range (0.01–100,000).',
+    );
+  const imports = content.imports?.map((asset) => ({
+    ...asset,
+    position: asset.position.map((v) => round(v * factor)) as [
+      number,
+      number,
+      number,
+    ],
+    scale: asset.scale * factor,
+  }));
+  if (
+    imports?.some(
+      (asset) =>
+        asset.scale < 0.00001 ||
+        asset.scale > LIMIT ||
+        asset.position.some((v) => Math.abs(v) > LIMIT),
+    )
+  )
+    throw new Error(
+      'Changing units would exceed the supported imported geometry range.',
+    );
+  return {
+    ...content,
+    unit: next,
+    solids,
+    ...(features ? { features } : {}),
+    ...(imports ? { imports } : {}),
+  };
 }
 export function newSolid(
   shape: Solid['shape'],
@@ -87,7 +156,7 @@ export function solidMatrix(solid: Solid): Matrix4 {
 }
 export function sceneBounds(solids: Solid[]): Box3 {
   const result = new Box3();
-  for (const solid of solids) {
+  for (const solid of solids.filter((s) => s.visible !== false)) {
     const bounds = new Box3(
       new Vector3(-0.5, -0.5, -0.5),
       new Vector3(0.5, 0.5, 0.5),
@@ -123,12 +192,16 @@ export function exportGroup(
     mesh.name = 'CAD result';
     group.add(mesh);
   } else
-    for (const solid of content.solids) {
+    for (const solid of content.solids.filter((s) => s.visible !== false)) {
       const mesh = new Mesh(
         primitiveGeometry(solid.shape),
-        new MeshStandardMaterial({ color: solid.color, roughness: 0.6 }),
+        new MeshStandardMaterial({
+          color: solid.color,
+          roughness: solid.roughness ?? 0.6,
+          metalness: solid.metalness ?? 0.04,
+        }),
       );
-      mesh.name = solid.shape;
+      mesh.name = solid.name ?? solid.shape;
       mesh.position.set(...solid.position);
       mesh.rotation.set(...solid.rotation);
       mesh.scale.set(...solid.dimensions);
@@ -145,7 +218,15 @@ export function disposeGroup(group: Group) {
       const materials = Array.isArray(object.material)
         ? object.material
         : [object.material];
-      materials.forEach((material) => material.dispose());
+      materials.forEach((material) => {
+        for (const value of Object.values(material))
+          if (value instanceof Texture) {
+            value.dispose();
+            if (typeof value.source?.data?.close === 'function')
+              value.source.data.close();
+          }
+        material.dispose();
+      });
     }
   });
 }
