@@ -35,6 +35,7 @@ export function hostedLocalAITarget(env: Record<string, string | undefined>) {
 }
 export function assertLocalAgentCatalog(raw: unknown) {
   const view = object(raw), profile = object(view.profile);
+  requireCondition(view.defaultHarness === 't3-code' && view.requiresExplicitFallback === true, 'explicit-native-default-required');
   requireCondition(Array.isArray(view.harnesses) && view.harnesses.length > 0, 'invalid-harness-catalog');
   for (const item of view.harnesses) {
     const h = object(item);
@@ -48,17 +49,18 @@ export function assertLocalAgentCatalog(raw: unknown) {
     }
   }
   requireCondition(Object.entries(EXPECTED_CHAT_PROFILE).every(([key, value]) => profile[key] === value), 'default-native-local-profile-required');
-  requireCondition(view.harnesses.some((h: any) => h.id === 't3-code' && h.configured), 'native-t3-offline');
+  requireCondition(view.harnesses.some((h: any) => h.id === 't3-code' && h.configured && h.providers.some((p:any)=>p.id===profile.provider&&p.models.includes(profile.model))), 'native-t3-offline-or-unregistered');
   requireCondition(view.harnesses.some((h: any) => h.id === 'local-cpu' && h.configured), 'explicit-local-cpu-offline');
   return { profile: { harness: profile.harness, provider: profile.provider, model: profile.model }, harnesses: view.harnesses.map((h: any) => ({ id: h.id, configured: h.configured, providers: h.configured ? h.providers.map((p: any) => ({id:p.id,models:[...p.models]})) : [] })) };
 }
 export function assertLocalDecisionCatalog(raw: unknown) {
   const view = object(raw), profile = object(view.profile);
-  requireCondition(view.independentOfChat === true && Array.isArray(view.providers), 'independent-decision-profile-required');
+  requireCondition(view.independentOfChat === true && view.requiresExplicitFallback === true && Array.isArray(view.providers), 'independent-decision-profile-required');
   for (const p of view.providers) {
     requireCondition(typeof p.configured === 'boolean', 'invalid-decision-availability');
     if (!p.configured) continue;
     requireCondition(p.id === 'llama-cpp-cpu', 'configured-nonlocal-decision-provider');
+    requireCondition(p.mode === 'native-decision' && p.calibrated === false && p.probabilityKind === 'conditional-option-likelihood', 'native-local-decision-catalog-required');
     requireCondition(Array.isArray(p.models) && p.models.length > 0 && p.models.every((id: unknown) => typeof id === 'string' && Object.hasOwn(LOCAL_WEIGHTS, id)), 'configured-nonlocal-decision-model');
   }
   requireCondition(profile.provider === 'llama-cpp-cpu' && profile.model === 'qwen2.5-0.5b-instruct-q4-k-m', 'default-local-decision-profile-required');
