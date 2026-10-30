@@ -1023,43 +1023,59 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
       );
       return scope.user;
     };
-    app.get<{ Params: { id: string }; Querystring: { threadId?: string } }>(
-      '/api/artifacts/:id/planner/activity',
-      async (request) => {
-        const user = await actor(request, request.params.id),
-          thread = request.query.threadId
-            ? z.string().uuid().parse(request.query.threadId)
-            : undefined;
-        const rows = await this.store.all(
-          'SELECT a.request_id FROM studio_remote_activity a JOIN studio_remote_requests r ON r.id=a.request_id WHERE r.artifact_id=?' +
-            (thread ? ' AND a.thread_id=?' : '') +
-            ' ORDER BY a.ordinal DESC LIMIT 8',
-          request.params.id,
-          ...(thread ? [thread] : []),
-        );
-        const result = [];
-        for (const row of rows) {
-          const value = await this.snapshot(user, row.request_id);
-          value.stream.blocks = value.stream.blocks.map((block) => ({
-            ...block,
-            text: block.text.slice(0, 20000),
-          }));
-          value.runs.cards = value.runs.cards.map((card) => ({
-            ...card,
-            earlierStages:
-              (card.earlierStages ?? 0) + Math.max(0, card.stages.length - 64),
-            stages: card.stages.slice(-64),
-          }));
-          if (
-            result.length &&
-            Buffer.byteLength(JSON.stringify([...result, value])) > 2500000
-          )
-            break;
-          result.push(value);
-        }
-        return { requests: result };
-      },
-    );
+    app.get<{
+      Params: { id: string };
+      Querystring: { threadId?: string; before?: string };
+    }>('/api/artifacts/:id/planner/activity', async (request) => {
+      const user = await actor(request, request.params.id),
+        thread = request.query.threadId
+          ? z.string().uuid().parse(request.query.threadId)
+          : undefined,
+        before =
+          request.query.before === undefined
+            ? undefined
+            : z.coerce
+                .number()
+                .int()
+                .positive()
+                .max(Number.MAX_SAFE_INTEGER)
+                .parse(request.query.before);
+      const rows = await this.store.all(
+        'SELECT a.request_id,a.ordinal FROM studio_remote_activity a JOIN studio_remote_requests r ON r.id=a.request_id WHERE r.artifact_id=?' +
+          (thread ? ' AND a.thread_id=?' : '') +
+          (before !== undefined ? ' AND a.ordinal<?' : '') +
+          ' ORDER BY a.ordinal DESC LIMIT 9',
+        request.params.id,
+        ...(thread ? [thread] : []),
+        ...(before !== undefined ? [before] : []),
+      );
+      const result = [];
+      let cursor: number | null = null;
+      for (const row of rows.slice(0, 8)) {
+        const value = await this.snapshot(user, row.request_id);
+        value.stream.blocks = value.stream.blocks.map((block) => ({
+          ...block,
+          text: block.text.slice(0, 20000),
+        }));
+        value.runs.cards = value.runs.cards.map((card) => ({
+          ...card,
+          earlierStages:
+            (card.earlierStages ?? 0) + Math.max(0, card.stages.length - 64),
+          stages: card.stages.slice(-64),
+        }));
+        if (
+          result.length &&
+          Buffer.byteLength(JSON.stringify([...result, value])) > 2500000
+        )
+          break;
+        result.push(value);
+        cursor = Number(row.ordinal);
+      }
+      return {
+        requests: result,
+        nextCursor: rows.length > result.length ? cursor : null,
+      };
+    });
     app.get<{ Params: { id: string; requestId: string } }>(
       '/api/artifacts/:id/planner/requests/:requestId',
       async (request) => {

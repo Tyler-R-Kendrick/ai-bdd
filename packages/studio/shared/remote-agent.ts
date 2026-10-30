@@ -457,6 +457,10 @@ export type RemoteActivity = {
   canControl: boolean;
   createdAt: string;
 };
+export type RemoteActivityPage = {
+  requests: RemoteActivity[];
+  nextCursor: number | null;
+};
 export function emptyRemoteStream(): RemoteStreamState {
   return { started: false, names: [], blocks: [], calls: [] };
 }

@@ -37,6 +37,65 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('paginates retained question history beyond the latest eight turns without losing thread scope or duplicating records', async () => {
+    const w = await remoteFixture(),
+      client = await w.connect(),
+      ids: string[] = [];
+    for (let index = 0; index < 9; index++) {
+      client.frames.length = 0;
+      await w.store.message(
+        w.user,
+        w.artifact.id,
+        w.threadId,
+        'Review retained boundary turn ' + index,
+      );
+      const run = await turn(w, client);
+      ids.push(run.requestId);
+      if (index === 0) {
+        event(client.ws, run.requestId, {
+          type: 'input-request',
+          questionId: 'oldest',
+          input: {
+            method: 'confirm',
+            title: 'Retained oldest question',
+            message: 'Keep its answer browseable.',
+          },
+        });
+        await until(() =>
+          client.frames.some((frame: any) => frame.type === 'event-accepted'),
+        );
+        expect(
+          (
+            await w.request(path(w, run.requestId) + '/questions/oldest', {
+              idempotencyKey: crypto.randomUUID(),
+              expectedRevision: 1,
+              action: 'answer',
+              value: true,
+            })
+          ).status,
+        ).toBe(200);
+      }
+      complete(client.ws, run.requestId);
+      await run.done;
+    }
+    const route = `/api/artifacts/${w.artifact.id}/planner/activity?threadId=${w.threadId}`;
+    const recent = await w.request(route);
+    expect(recent.value.requests.map((r: any) => r.id)).toEqual(
+      ids.slice(1).reverse(),
+    );
+    expect(recent.value.nextCursor).toBeTypeOf('number');
+    const oldest = await w.request(
+      route + '&before=' + recent.value.nextCursor,
+    );
+    expect(oldest.value.requests).toHaveLength(1);
+    expect(oldest.value.nextCursor).toBeNull();
+    expect(oldest.value.requests[0]).toMatchObject({
+      id: ids[0],
+      threadId: w.threadId,
+      questions: [{ id: 'oldest', status: 'answered', value: true }],
+    });
+    expect((await w.request(route + '&before=0')).status).toBe(400);
+  });
   it('bridges a spawned ACP streamed turn and explicit workflow report through a real browser question without inventing pause support', async () => {
     const w = await remoteFixture(),
       dir = await mkdtemp(join(tmpdir(), 'studio-remote-input-acp-')),
