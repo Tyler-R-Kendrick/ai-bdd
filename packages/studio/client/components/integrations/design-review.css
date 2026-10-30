@@ -1,0 +1,78 @@
+.design-review {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.design-review > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.design-review-passages {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  min-width: 0;
+}
+.design-review-passages label {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.design-review-passages input {
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+.design-review-passages span {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.design-review-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.design-review-result {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 0;
+}
+.design-review-finding {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.design-review-finding > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: start;
+  font-size: 13px;
+}
+.design-review-finding blockquote {
+  margin: 10px 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+  font-size: 12px;
+  max-height: 130px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.design-review-result details {
+  font-size: 12px;
+}
+.design-review-result dd {
+  margin: 3px 0 10px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 599px) {
+  .design-review-header-label {
+    display: none;
+  }
+}

@@ -1,6 +1,7 @@
 import RepositoryIdentity from './components/RepositoryIdentity.tsx';
 import { ArtifactTitle } from './components/ArtifactTitle.tsx';
 import { AccountMachinesPanel } from './components/AccountMachinesPanel.tsx';
+import { DesignReview } from './components/integrations/DesignReview.tsx';
 import type { AgentProfileView } from '../shared/agent-profile.ts';
 import { ImplementationPanel } from './components/integrations/ImplementationPanel.tsx';
 import { InvestigationPanel } from './components/investigations/InvestigationPanel.tsx';
@@ -697,6 +698,16 @@ export function App() {
                 <div className="artifact-actions">
                   {['design', 'document'].includes(artifact.kind) && (
                     <>
+                      <DesignReview
+                        key={artifact.id}
+                        artifact={artifact}
+                        readOnly={readOnly}
+                        onDiscuss={(passage) => {
+                          setAnchor(passage);
+                          setPanel('chat');
+                          setRightOpen(true);
+                        }}
+                      />
                       <ImplementationPanel
                         artifact={artifact}
                         project={project}
