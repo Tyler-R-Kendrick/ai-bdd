@@ -43,14 +43,26 @@ export type MessagePage = {
   nextCursor: string | null;
   hasMore: boolean;
 };
-type ExportTable = 'decisions' | 'threads' | 'messages' | 'links';
+export type ExportTable =
+  | 'decisions'
+  | 'threads'
+  | 'messages'
+  | 'links'
+  | 'runs'
+  | 'revisions'
+  | 'audit'
+  | 'files';
 const exportColumns: Record<ExportTable, string> = {
   decisions:
     'id,artifact_id AS artifactId,title,context,decision,consequences,status,version,author,updated_at AS updatedAt',
   threads:
     'id,artifact_id AS artifactId,anchor,quote,resolved,created_at AS createdAt',
   messages: messageCols,
-  links: 'label,url,kind,state',
+  links: 'id,label,url,kind,state,updated_at AS updatedAt',
+  runs: 'id,artifact_version AS artifactVersion,status,result,error,created_at AS createdAt,finished_at AS finishedAt',
+  revisions: 'version,content,actor,created_at AS createdAt',
+  audit: 'id,actor,action,detail,created_at AS createdAt',
+  files: 'id,name,mime,sha256,byte_size AS byteSize,created_at AS createdAt',
 };
 const readMessage = (row: any): OrderedMessage => ({
   ...row,
@@ -58,6 +70,7 @@ const readMessage = (row: any): OrderedMessage => ({
 });
 export const STUDIO_SCHEMA_VERSION = 2;
 export class Store {
+  artifactWriteGuard?: (artifact: Artifact, userId: string) => Promise<void>;
   repositoryAuthorizer?: (
     projectId: string,
     userId: string,
@@ -109,6 +122,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS revisions(id INTEGER PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,version INTEGER NOT NULL,content TEXT NOT NULL,actor TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(artifact_id,version));
       CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,artifact_id TEXT REFERENCES artifacts(id) ON DELETE CASCADE,actor TEXT NOT NULL,action TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,artifact_version INTEGER NOT NULL,status TEXT NOT NULL,result TEXT,error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
+      CREATE TABLE IF NOT EXISTS studio_runner_jobs(run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,job_id TEXT UNIQUE NOT NULL);
       CREATE TABLE IF NOT EXISTS files(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,name TEXT NOT NULL,mime TEXT NOT NULL,sha256 TEXT NOT NULL,bytes BLOB NOT NULL,created_at TEXT NOT NULL,storage_key TEXT,byte_size BIGINT NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS links(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,label TEXT NOT NULL,url TEXT NOT NULL,kind TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'unknown',updated_at TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS artifacts_project ON artifacts(project_id,archived);
@@ -564,6 +578,7 @@ export class Store {
     return this.tx(async () => {
       await this.db.lock('project:' + initial.projectId);
       const a = await this.artifact(id, user.id, 'write');
+      await this.artifactWriteGuard?.(a, user.id);
       let validated = await this.checkedContent(a.kind, content, a.projectId),
         ystate = await this.state(id);
       if (a.kind === 'design' || a.kind === 'document') {
@@ -671,6 +686,7 @@ export class Store {
     return this.tx(async () => {
       await this.db.lock('project:' + initial.projectId);
       const artifact = await this.artifact(id, user.id, 'write');
+      await this.artifactWriteGuard?.(artifact, user.id);
       if (expectedVersion !== undefined && artifact.version !== expectedVersion)
         throw new HttpError(
           409,
@@ -869,6 +885,9 @@ export class Store {
             ...value,
             proposal: value.proposal ? JSON.parse(value.proposal) : null,
           };
+        else if (table === 'runs') yield await this.run(value.id, artifactId);
+        else if (table === 'revisions')
+          yield { ...value, content: JSON.parse(value.content) };
         else if (table === 'threads')
           yield { ...value, resolved: !!value.resolved };
         else yield value;
@@ -929,9 +948,34 @@ export class Store {
       id,
       artifactId,
     );
-    return row
-      ? { ...row, result: row.result ? JSON.parse(row.result) : null }
-      : null;
+    return row ? this.readRun(row) : null;
+  }
+  private async readRun(row: any) {
+    const result = {
+      ...row,
+      result: row.result ? JSON.parse(row.result) : null,
+    };
+    const reference = await this.one(
+      'SELECT job_id FROM studio_runner_jobs WHERE run_id=?',
+      row.id,
+    );
+    if (!reference) return result;
+    const job = await this.one(
+      'SELECT status,error,updated_at FROM studio_durable_jobs WHERE id=?',
+      reference.job_id,
+    );
+    if (!job)
+      throw new HttpError(409, 'The durable test execution record is missing');
+    if (job.status !== 'completed')
+      return {
+        ...result,
+        status: job.status === 'failed' ? 'error' : job.status,
+        error: job.error,
+        finishedAt: ['failed', 'cancelled'].includes(job.status)
+          ? job.updated_at
+          : null,
+      };
+    return result;
   }
   async file(id: string, userId: string) {
     const row = await this.one(
@@ -1036,11 +1080,13 @@ export class Store {
     });
   }
   async runs(id: string) {
-    return (
-      await this.all(
-        'SELECT id,artifact_id AS artifactId,artifact_version AS artifactVersion,status,result,error,created_at AS createdAt,finished_at AS finishedAt FROM runs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 100',
-        id,
-      )
-    ).map((r) => ({ ...r, result: r.result ? JSON.parse(r.result) : null }));
+    return Promise.all(
+      (
+        await this.all(
+          'SELECT id,artifact_id AS artifactId,artifact_version AS artifactVersion,status,result,error,created_at AS createdAt,finished_at AS finishedAt FROM runs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 100',
+          id,
+        )
+      ).map((row) => this.readRun(row)),
+    );
   }
 }

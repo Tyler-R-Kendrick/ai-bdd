@@ -177,6 +177,7 @@ export class PostgresDatabase implements SqlDatabase {
     );
   }
   async close() {
+    if (this.closing) return;
     this.closing = true;
     if (this.ownsPool) await this.pool.end();
   }
