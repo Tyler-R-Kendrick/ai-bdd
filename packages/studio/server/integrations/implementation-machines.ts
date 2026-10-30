@@ -39,6 +39,7 @@ export type ImplementationMachineDependencies = {
   };
   graphs: ImplementationGraphs;
   otherWorkActive?: (machineId: string) => Promise<boolean>;
+  authorizeMachine?: (machine: MachinePrincipal) => Promise<void>;
   notify?: (projectId: string, artifactId: string) => void;
 };
 /** The queue reserves an exact human-approved graph. Machine transport supplies actor identities, never request JSON. */
@@ -83,6 +84,7 @@ export class ImplementationMachines {
         'This machine credential was revoked or expired',
       );
     await this.store.role(machine.project_id, machine.user_id, 'write');
+    await this.dependencies.authorizeMachine?.(machine);
     return machine;
   }
   private async actor(
@@ -150,7 +152,7 @@ export class ImplementationMachines {
     await this.ready;
     const artifact = await this.store.artifact(artifactId, user.id);
     const rows = await this.store.all(
-      'SELECT m.id,m.label,m.last_seen AS lastSeen,m.expires,c.branch,c.source_commit AS commit FROM studio_machines m JOIN studio_investigation_checkouts c ON c.machine_id=m.id WHERE m.project_id=? AND m.user_id=? ORDER BY m.last_seen DESC',
+      'SELECT m.id,m.label,m.last_seen AS lastSeen,m.expires,c.branch,c.source_commit AS sourceCommit FROM studio_machines m JOIN studio_investigation_checkouts c ON c.machine_id=m.id WHERE m.project_id=? AND m.user_id=? ORDER BY m.last_seen DESC',
       artifact.projectId,
       user.id,
     );
@@ -160,7 +162,7 @@ export class ImplementationMachines {
       label: row.label,
       connected: row.expires > Date.now() && row.lastSeen > Date.now() - 90000,
       branch: row.branch,
-      commit: row.commit,
+      commit: row.sourceCommit,
     }));
   }
   async list(user: User, artifactId: string) {

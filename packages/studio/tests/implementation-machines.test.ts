@@ -133,7 +133,7 @@ async function fixture() {
   });
   const service = await registerImplementationMachineRoutes(app, {
     store,
-    auth: {} as any,
+    auth: { user: async () => user, assertOrigin: () => {} } as any,
     machines,
     graphs,
     otherWorkActive: (id) => investigations.activeOnMachine(id),
@@ -220,6 +220,14 @@ describe(`machine-bound approved graph lifecycle (${url ? 'PostgreSQL' : 'SQLite
   it('atomically approves the exact graph, reserves its plan, and admits only its own machine', async () => {
     const c = await fixture(),
       queued = await c.queue();
+    const picker = await c.app.inject({
+      method: 'GET',
+      url: `/api/artifacts/${c.artifact.id}/implementation/machines`,
+    });
+    expect(picker.statusCode, picker.body).toBe(200);
+    expect(picker.json()).toMatchObject([
+      { id: c.principal.id, commit: c.checkout.sourceCommit, connected: true },
+    ]);
     expect((await c.graphs.read(c.user, c.artifact.id)).graph!.status).toBe(
       'approved',
     );
