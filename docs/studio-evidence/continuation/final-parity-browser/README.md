@@ -1,4 +1,4 @@
-# Final frozen-source Studio browser acceptance
+# Studio browser acceptance and refreshed passage captures
 
 Source: **`ddee70150b81adb37e344709c026d3c1c9e9646e`**. The production client/server/connector build passed, then the ordinary Studio `**/*.spec.ts` glob collected and passed **64 cases across 22 files in 4.1 minutes**. One concurrent worker, zero retries, zero failures, zero skips and zero exclusions. No product or test changes were needed. `receipt.json`, `test-list.txt` and `browser.log` preserve the exact command, authoritative collection and observed results.
 
@@ -6,7 +6,23 @@ This was an isolated fresh worktree and database. The built standard App server 
 
 Coverage includes all standard files, including archive lifecycle (G8), full remote stream/questions/runs and pagination (G3), evidence-backed findings and human incorporation (G4), explicit title/goal consent and manual source protection (G6), and the full-App passage `/research`/investigation placement with recent agent-change attribution (G7). Existing collaboration, restricted Word/MDX interchange, inline questionnaire/ADR acceptance, implementation graphs/rebuilds, identity, Pact, both UI engines, and every media editor also passed. These counts are one suite and are not additive with earlier focused checks.
 
-The five final passage captures were generated in this same run and visually reviewed at full size:
+The **current five passage PNGs were refreshed at product source `cdac9aa4fa52b4c51a3d5039be0c11dea4aa09bb`**, after the passage modal adopted the existing document field/footer spacing. They are not the original `ddee701` full-suite captures. The original 64-case `receipt.json`, `browser.log` and `test-list.txt` remain byte-for-byte unchanged; their screenshot fingerprints refer to the [original capture revision](https://github.com/Tyler-R-Kendrick/ai-bdd/tree/a757acfb22858f3d120b538f68496511a32691af/docs/studio-evidence/continuation/final-parity-browser). `passage-focused-receipt.json` contains the current PNG fingerprints and the focused command.
+
+The new production build passed. One focused passage case was then executed in **three fresh sequential runs on pinned Chromium 156.0.8078.4: 3 passed in 33.0 seconds, zero retries/skips**. This is a focused supplement, not a rerun or an enlargement of the earlier 64-case suite. The exact command is:
+
+```sh
+CI=1 PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright \
+STUDIO_CHROMIUM_PATH=<pinned-156.0.8078.4-headless-shell> \
+STUDIO_MP4_CHROMIUM_PATH=<official-156.0.8078.80-chrome> \
+STUDIO_CAPTURE_DIR=<isolated-worktree>/work/review/passage-spacing-cdac9aa \
+pnpm --filter @ai-bdd/studio exec playwright test tests/final-product.spec.ts \
+  --grep 'passage slash commands place exact research and investigation cards inline and keep run controls owner scoped' \
+  --workers=1 --retries=0 --repeat-each=3
+```
+
+An earlier focused attempt exposed an invalid fixture caret precondition. The strengthened existing fixture (`3dd9d49`) waits for initialized/synced state and native/ProseMirror paragraph agreement before the real Home key, then offset agreement at zero before `/`. It does not inject selection, call hidden editor commands, sleep or widen budgets. The nine retained diagnostics observed four immediate post-Home states where the native caret was at zero while ProseMirror still reported the paragraph end; all nine settled at zero before slash input. The provider was already synced in those observations; this does not establish a production initialization defect. The intermediate local failure log and pre-fix hosted failure log at head `34d1737dbd453fff309046aedc404aae77e53cd2` are preserved separately.
+
+All five refreshed captures were visually reviewed at full size. The modal now separates the label, textarea, muted source context and right-aligned actions. The other four visible-state claims remain unchanged:
 
 | Capture | Observed state |
 | --- | --- |

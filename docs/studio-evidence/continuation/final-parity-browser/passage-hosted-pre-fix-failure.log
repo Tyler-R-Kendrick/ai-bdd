@@ -1,0 +1,174 @@
+artifact-workspace	Real browser workflows and review captures	﻿2026-10-30T04:46:23.3961670Z ##[group]Run pnpm --filter @ai-bdd/studio test:e2e
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3962010Z [36;1mpnpm --filter @ai-bdd/studio test:e2e[0m
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3979567Z shell: /usr/bin/bash -e {0}
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3979782Z env:
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3979950Z   DO_NOT_TRACK: 1
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3980150Z   SCARF_NO_ANALYTICS: true
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3980393Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3980806Z   STUDIO_MP4_CHROMIUM_PATH: /home/runner/.cache/studio-mp4-chrome/156.0.8078.80/chrome-linux64/chrome
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.3981177Z ##[endgroup]
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.6444267Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.6445036Z > @ai-bdd/studio@0.1.0 test:e2e /home/runner/work/ai-bdd/ai-bdd/packages/studio
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.6445444Z > playwright test
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:23.6445569Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:28.5007886Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:28.5008597Z Running 64 tests using 1 worker
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:28.5008912Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:34.4467365Z   ✓   1 tests/artifact-lifecycle-ui.spec.ts:174:1 › owner archives restores and explicitly deletes an eligible draft while retaining acceptance evidence (4.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:36.1295958Z   ✓   2 tests/artifact-lifecycle-ui.spec.ts:286:1 › mobile viewer browses retained archives in read mode and cannot restore or delete (1.7s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:49.1099928Z   ✓   3 tests/audio-editor.spec.ts:126:1 › real audio editing, measured WebAudio playback, durable WAV/FLAC mixdown, portable source roundtrip and artifact context survive reload (12.9s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:46:52.5941705Z   ✓   4 tests/audio-editor.spec.ts:464:1 › remote revision conflicts preserve a downloadable local audio draft and view-only members cannot mutate audio (3.4s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:18.4086436Z   ✓   5 tests/cad-editor.spec.ts:69:1 › rebuilds dimensional sketch history, exports analytic STEP, and roundtrips the solid through an authenticated import (25.8s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:26.3176413Z   ✓   6 tests/cad-editor.spec.ts:195:1 › preserves scene materials, lighting, and embedded GLB hierarchy across uploads, save/reload, and export (7.9s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:28.8622482Z   ✓   7 tests/cad-editor.spec.ts:276:1 › keeps exact CAD and import tools read-only for a project viewer (2.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:36.1665777Z   ✓   8 tests/code-editor.spec.ts:54:1 › authors, renames, imports and exports a persistent real React/TypeScript project (7.3s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:37.6629763Z   ✓   9 tests/code-editor.spec.ts:181:1 › switches persisted Pact provider-state examples without modifying the saved artifact (1.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:39.9875855Z   ✓  10 tests/code-editor.spec.ts:242:1 › surfaces a compiler location and recovers through the actual source editor (2.3s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:43.0337464Z   ✓  11 tests/documents.spec.ts:76:1 › collaborators answer inline questions, accept an attributed ADR, and review a text suggestion before it changes the document (3.0s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:45.2622230Z   ✓  12 tests/documents.spec.ts:194:1 › Word and restricted MDX interchange are actual downloads and confirmed imports, with script markup kept inert (2.2s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:46.2635972Z   ✓  13 tests/documents.spec.ts:303:1 › long documents produce multiple printable PDF pages instead of clipping the application viewport (984ms)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:47.8297486Z   ✓  14 tests/documents.spec.ts:329:1 › find and replace edits real document text, the outline navigates headings, and table controls change its grid (1.6s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:49.8842218Z   ✓  15 tests/documents.spec.ts:373:1 › a fresh viewer can read document review and search without editing questionnaires, suggestions, imports, or text (2.0s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:51.7819800Z   ✓  16 tests/documents.spec.ts:426:1 › an imported restricted-MDX questionnaire has a durable anchor and accepts an answer and ADR without another edit (1.9s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:56.3172943Z   ✓  17 tests/evidence.spec.ts:6:1 › captures the requested artifact workspace with honest illustrative review content (4.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:47:57.5339124Z   ✓  18 tests/final-product.spec.ts:315:1 › operator-disabled conversation suggestions stay absent in the full application (1.2s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:48:12.5806284Z   ✓  19 tests/final-product.spec.ts:351:1 › actual model offers publish a reviewable questionnaire and start only the exact explicitly edited research brief (15.0s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:48:22.1021778Z   ✓  20 tests/final-product.spec.ts:524:1 › a real owner-approved investigation publishes inline native evidence, shared selections and an attributed decision across reload and viewer access (9.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:48:26.4150348Z   ✓  21 tests/final-product.spec.ts:812:1 › independent decision selection and semantic review preserve uncertainty, anchored discussion and stale provenance in the full app (4.3s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:48:38.7451228Z   ✘  22 tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped (12.1s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:48:52.5818030Z   ✘  23 tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped (retry #1) (12.3s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:02.0054889Z   ✓  24 tests/findings-ui.spec.ts:246:1 › actual App reviews findings through native decision and frozen harness, then a person applies an exact edit while questionnaire readiness remains blocked (8.1s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:03.2645594Z   ✓  25 tests/findings-ui.spec.ts:350:1 › a person can incorporate text-only evidence with an explicit rationale and no model call or source rewrite (1.2s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:03.4048365Z oidc-provider WARNING: a quick start development-only in-memory adapter is used, you MUST change it in order to not lose all stateful provider data upon restart and to be able to share these between processes
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:04.0611185Z oidc-provider NOTICE: default ttl.Interaction function called, you SHOULD change it in order to define the expiration for Interaction artifacts.
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:04.2048688Z oidc-provider NOTICE: default ttl.Session function called, you SHOULD change it in order to define the expiration for Session artifacts.
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:04.2079370Z oidc-provider NOTICE: default ttl.Grant function called, you SHOULD change it in order to define the expiration for Grant artifacts.
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:04.2210267Z oidc-provider NOTICE: default ttl.AccessToken function called, you SHOULD change it in order to define the expiration for AccessToken artifacts.
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:04.2218909Z oidc-provider NOTICE: default ttl.IdToken function called, you SHOULD change it in order to define the expiration for IdToken artifacts.
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:04.9239537Z   ✓  26 tests/identity.spec.ts:109:1 › real issuer verifies an admitted user through PKCE, signed ID token and UserInfo; callback replay cannot mint another session (1.4s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:07.0967398Z   ✓  27 tests/identity.spec.ts:163:1 › GitHub web connection uses the signed-in user and repository membership never substitutes for GitHub entitlement (2.1s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:07.9292196Z   ✓  28 tests/identity.spec.ts:249:1 › verified but unadmitted issuer accounts cannot create a Studio account or session (818ms)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:08.7468500Z   ✓  29 tests/identity.spec.ts:261:1 › an admitted account still cannot sign in with an unverified issuer email (801ms)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:09.5494378Z   ✓  30 tests/identity.spec.ts:270:1 › expired durable state is denied before the real issuer authorization code can be exchanged (787ms)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:10.4072130Z   ✓  31 tests/identity.spec.ts:286:1 › issuer token endpoint failure leaves the browser unsigned in and consumes the attempted state (835ms)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:15.5748232Z   ✓  32 tests/implementation-ui.spec.ts:161:1 › Build plan authors a real DAG through forms, approves an exact version, reports blockers/no-change work and requires independent criterion review (5.1s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:17.3349431Z   ✓  33 tests/implementation-ui.spec.ts:369:1 › Planner drafting invokes the actual HTTP model transport and publishes an unapproved source-fenced graph (1.7s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:19.7807703Z   ✓  34 tests/integrations.spec.ts:7:1 › keeps machine work approved, reviewable, scoped, and separate from test evidence (2.4s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:21.2459965Z   ✓  35 tests/integrations.spec.ts:156:1 › shows shared connections to a fresh viewer without exposing write or pairing controls (1.4s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:23.2778857Z   ✓  36 tests/messages.spec.ts:8:1 › pages artifact-thread history without losing loaded messages or the reading position (2.0s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:27.7179161Z   ✓  37 tests/midi-editor.spec.ts:181:1 › piano-roll edits persist, untouched sources retain exact bytes, and actual synth audio follows MIDI timing and pitch (4.4s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:30.8161019Z   ✓  38 tests/midi-editor.spec.ts:430:1 › draft conflicts retain local notes and viewers can audition/export while editing remains protected on mobile (3.1s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:42.4666449Z   ✓  39 tests/rebuild-ui.spec.ts:237:1 › living document rebuild preserves baseline, uses own machine, persists explicit automatic consent, and stays read-only for a fresh mobile viewer (11.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:52.2887645Z   ✓  40 tests/remote-agent-ui.spec.ts:196:1 › actual remote stream and all typed questions persist through refresh, acknowledged pause and artifact export (9.8s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:49:56.6658334Z   ✓  41 tests/remote-agent-ui.spec.ts:535:1 › viewer cannot answer, source changes withdraw questions, and durable stop fences late remote output on mobile (4.4s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:04.5864237Z   ✓  42 tests/remote-agent-ui.spec.ts:659:1 › older remote questions remain browseable after more than eight completed turns and a fresh page load (7.9s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:07.3725814Z   ✓  43 tests/studio.spec.ts:52:1 › creates a project from the UI and persists edited document, chat, and attributed ADR (2.8s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:09.0367522Z   ✓  44 tests/studio.spec.ts:118:1 › keeps artifact chats isolated and exposes honest test configuration state (1.6s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:10.2125262Z   ✓  45 tests/studio.spec.ts:166:1 › runs code preview and Pact boundary replay without integration access or parent privileges (1.2s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:12.7276796Z   ✓  46 tests/studio.spec.ts:213:1 › edits code locally and retains unsaved work when a teammate saves a conflicting revision (2.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:15.5606118Z   ✓  47 tests/studio.spec.ts:282:1 › renders and persists both bounded UI engines with working local interactions (2.8s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:17.9126654Z   ✓  48 tests/studio.spec.ts:352:1 › preserves anchored discussions and restores a document through attributed history (2.3s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:19.1058015Z   ✓  49 tests/studio.spec.ts:418:1 › shows view-only documents to invited viewers without editable controls (1.2s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:20.3651184Z   ✓  50 tests/studio.spec.ts:457:1 › keeps mobile keyboard navigation within the visible panel and restores focus on Escape (1.2s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:22.0715979Z   ✓  51 tests/studio.spec.ts:522:1 › captures the collaborative document, project canvas, and narrow viewport without page overflow (1.7s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:32.1074295Z   ✓  52 tests/title-goal.spec.ts:274:1 › explicit title and goal consent seeds the empty main design document once with canonical Yjs and attributed live markers (10.0s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:42.8046085Z   ✓  53 tests/title-goal.spec.ts:402:1 › automatic titles preserve source without goal consent and preserve an already authored body despite goal opt-in (10.7s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:49.3024010Z   ✓  54 tests/title-goal.spec.ts:435:1 › manual document edits and a claimed human title win over an in-flight structured goal request (6.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:50:56.7854275Z   ✓  55 tests/video-workspace.spec.ts:9:1 › authors and reloads a keyframed timeline, exports a portable project and decodes the rendered MP4 (7.5s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:01.0559094Z   ✓  56 tests/visual-design.spec.ts:60:1 › authored glyphs export a browser-valid typeface and portable vector brand project (4.3s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:03.8743134Z   ✓  57 tests/visual-design.spec.ts:201:1 › raster masks, adjustments and edge matte persist and re-import their own uploaded assets (2.8s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:07.1221713Z   ✓  58 tests/visual.spec.ts:44:1 › image layers and uploaded typography persist and export as self-contained vector and raster assets (3.2s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:11.2576325Z   ✓  59 tests/visual.spec.ts:167:1 › video canvas exports an actual encoded WebM from the timeline (4.1s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:17.0650124Z   ✓  60 tests/scene.spec.ts:76:1 › edits a 3D scene parametrically, saves it, and reloads the same dimensions (4.9s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:25.0604238Z   ✓  61 tests/scene.spec.ts:157:1 › executes CAD subtraction in the production worker and exports the actual cut solid as STL and GLB (8.0s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:29.0636214Z   ✓  62 tests/scene.spec.ts:245:1 › persists interactive charts, diagrams, and tabs in the collaborative main design document (4.0s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:39.6776203Z   ✓  63 tests/video-editor.spec.ts:103:1 › multi-track media, nonlinear keyframes, source trims, MP4 audio, and portable projects work end to end (9.9s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:40.9603619Z   ✓  64 tests/video-editor.spec.ts:304:1 › bundled Chromium rejects an unsupported codec in a valid MP4 without adding or saving a clip (1.3s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.3704067Z   ✓  65 tests/video-editor.spec.ts:409:1 › new revisions retain local video drafts and viewer controls prevent edits (2.4s)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5109371Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5114197Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5124621Z   1) tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5125166Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5125346Z     Error: expect(locator).toContainText(expected) failed
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5125673Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5125879Z     Locator: locator('[aria-label="Document editor"]')
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5126394Z     Expected substring: "/usr/localClosing requirement"
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5127022Z     Received string:    "/usr/localSelected requirementFollowing requirementClosing requirement"
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5127442Z     Timeout: 10000ms
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5127608Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5127723Z     Call log:
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5128100Z       - Expect "toContainText" locator('[aria-label="Document editor"]') with timeout 10000ms
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5128523Z       - waiting for locator('[aria-label="Document editor"]')
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5129494Z         24 × locator resolved to <div tabindex="0" role="textbox" translate="no" spellcheck="true" contenteditable="true" aria-label="Document editor" class="tiptap ProseMirror document-page ProseMirror-focused">…</div>
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5130752Z            - unexpected value "/usr/localSelected requirementFollowing requirementClosing requirement"
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5131057Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5131062Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5131341Z       1105 |     await page.getByRole('textbox', { name: 'Document command', exact: true }).fill('usr/local');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5131764Z       1106 |     await page.keyboard.press('Escape');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5132132Z     > 1107 |     await expect(editor).toContainText('/usr/localClosing requirement');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5132479Z            |                          ^
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5133054Z       1108 |     await expect.poll(async () => JSON.stringify((await f.instance.store.artifact(id, f.user.id)).content)).toContain('/usr/localClosing requirement');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5133598Z       1109 |     await page.reload();
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5134283Z       1110 |     await editor.getByText('Selected requirement', { exact: true }).click();
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5135027Z         at /home/runner/work/ai-bdd/ai-bdd/packages/studio/tests/final-product.spec.ts:1107:26
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5135453Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5135906Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5136553Z     test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/test-failed-1.png
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5137170Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5137393Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5137730Z     Error Context: test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/error-context.md
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5138317Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5138627Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5139159Z     test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/trace.zip
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5139600Z     Usage:
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5139734Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5140311Z         pnpm exec playwright show-trace test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped/trace.zip
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5140890Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5141178Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5141404Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5141675Z     Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5141901Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5142051Z     Error: expect(locator).toContainText(expected) failed
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5142252Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5142398Z     Locator: locator('[aria-label="Document editor"]')
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5142709Z     Expected substring: "/usr/localClosing requirement"
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5143149Z     Received string:    "/usr/localSelected requirementFollowing requirementClosing requirement"
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5143864Z     Timeout: 10000ms
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5144027Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5144122Z     Call log:
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5144458Z       - Expect "toContainText" locator('[aria-label="Document editor"]') with timeout 10000ms
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5144880Z       - waiting for locator('[aria-label="Document editor"]')
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5145824Z         24 × locator resolved to <div tabindex="0" role="textbox" translate="no" spellcheck="true" contenteditable="true" aria-label="Document editor" class="tiptap ProseMirror document-page ProseMirror-focused">…</div>
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5146663Z            - unexpected value "/usr/localSelected requirementFollowing requirementClosing requirement"
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5146972Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5146977Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5147251Z       1105 |     await page.getByRole('textbox', { name: 'Document command', exact: true }).fill('usr/local');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5147668Z       1106 |     await page.keyboard.press('Escape');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5148038Z     > 1107 |     await expect(editor).toContainText('/usr/localClosing requirement');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5148379Z            |                          ^
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5148947Z       1108 |     await expect.poll(async () => JSON.stringify((await f.instance.store.artifact(id, f.user.id)).content)).toContain('/usr/localClosing requirement');
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5149461Z       1109 |     await page.reload();
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5149811Z       1110 |     await editor.getByText('Selected requirement', { exact: true }).click();
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5150298Z         at /home/runner/work/ai-bdd/ai-bdd/packages/studio/tests/final-product.spec.ts:1107:26
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5150570Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5151012Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5151606Z     test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped-retry1/test-failed-1.png
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5152228Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5152457Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5152816Z     Error Context: test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped-retry1/error-context.md
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5153194Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5153511Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5154300Z     test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped-retry1/trace.zip
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5154705Z     Usage:
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5154798Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5155194Z         pnpm exec playwright show-trace test-results/final-product-passage-slas-d052c-p-run-controls-owner-scoped-retry1/trace.zip
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5155618Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5155907Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5156127Z 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5156202Z   1 failed
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5156924Z     tests/final-product.spec.ts:1069:1 › passage slash commands place exact research and investigation cards inline and keep run controls owner scoped 
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.5157431Z   63 passed (5.3m)
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.7099547Z /home/runner/work/ai-bdd/ai-bdd/packages/studio:
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.7100407Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @ai-bdd/studio@0.1.0 test:e2e: `playwright test`
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.7100791Z Exit status 1
+artifact-workspace	Real browser workflows and review captures	2026-10-30T04:51:43.7340434Z ##[error]Process completed with exit code 1.
