@@ -742,6 +742,10 @@ export class Agent {
         )
       : profile.model;
   }
+  /** Server-only generative bridge. Durable callers supply their captured profile and enforce their source/publication guards. */
+  modelForProfile(profile: AgentProfile, idempotencyKey: string) {
+    return this.model(profile, idempotencyKey);
+  }
   async generateTitle(input: {
     artifact: Pick<Artifact, 'id' | 'title' | 'kind'>;
     messages: { author: string; body: string }[];

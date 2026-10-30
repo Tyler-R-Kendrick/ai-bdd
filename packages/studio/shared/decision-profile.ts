@@ -16,6 +16,10 @@ export const decisionProfileSchema = z
     provider: z.enum(decisionProviderIds),
     model: identifier,
     minimumConfidence: z.number().finite().min(0.5).max(1).default(0.7),
+    configRevision: z.string().min(1).max(100).optional(),
+    policyVersion: z
+      .literal('decision-policy-v1')
+      .default('decision-policy-v1'),
   })
   .strict();
 export type DecisionProfile = z.infer<typeof decisionProfileSchema>;
@@ -29,6 +33,7 @@ export const decisionPurposes = [
   'semantic-design-gap',
   'harness-suggestion',
   'implementation-readiness',
+  'conversation-participation',
 ] as const;
 export type DecisionPurpose = (typeof decisionPurposes)[number];
 const choice = z
@@ -140,6 +145,9 @@ export type DecisionEvaluation = {
     requestHash: string;
     artifactVersion: number;
     minimumConfidence: number;
+    configRevision: string;
+    purpose: DecisionPurpose;
+    modelResolution: 'provider-resolved-at-execution';
     startedAt: string;
     finishedAt: string;
     latencyMs: number;
