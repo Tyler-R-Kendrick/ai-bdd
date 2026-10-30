@@ -1,0 +1,71 @@
+{
+  "actualNative": true,
+  "localModel": "qwen2.5-0.5b-instruct-q4-k-m",
+  "nativeTools": "disabled at local text provider",
+  "tests": [
+    {
+      "name": "same-session encrypted restore and native idempotent replay",
+      "text": "2 + 2 = 4",
+      "cpuCalls": 1,
+      "replayAdditionalCalls": 0
+    },
+    {
+      "name": "actual native structured response",
+      "output": {
+        "answer": 42
+      }
+    },
+    {
+      "name": "actual native Studio SDK tool, result history and final answer",
+      "serverCalls": 1,
+      "steps": 2,
+      "text": "The stored answer is 42."
+    },
+    {
+      "name": "actual native title/goal follows human request",
+      "output": {
+        "title": "Grocery List Builder",
+        "goal": "Create a tool that groups weekly groceries by aisle and lets me check off purchased items."
+      }
+    }
+  ],
+  "nativeState": {
+    "files": 15,
+    "bytes": 1337382,
+    "databases": [
+      {
+        "path": "data/opencode/opencode.db",
+        "bytes": 299008
+      },
+      {
+        "path": "native/userdata/server-owner.sqlite",
+        "bytes": 0
+      },
+      {
+        "path": "native/userdata/statev2.sqlite",
+        "bytes": 983040
+      }
+    ]
+  },
+  "quality": {
+    "originalSerializedPrompt": {
+      "request": "6 times 7",
+      "expected": 42,
+      "actual": 14,
+      "passed": false
+    },
+    "rolePreservingPrompt": {
+      "expected": 42,
+      "actual": 42,
+      "passed": true
+    },
+    "directModel": {
+      "expected": 42,
+      "actual": 42,
+      "passed": true,
+      "observation": "Actual separate direct CPU comparison, both with and without a helpful system prompt"
+    }
+  },
+  "cpuCalls": 6,
+  "passed": true
+}
