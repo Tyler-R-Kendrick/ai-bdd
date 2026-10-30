@@ -1,3 +1,5 @@
+import { signInBrowser } from './browser-fixture.ts';
+import { signInAcceptanceActor } from './browser-auth.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { writeMidi, parseMidi, type MidiData } from 'midi-file';
 import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
@@ -12,9 +14,7 @@ async function open(page: Page) {
   const status = await page.request.get('/api/auth/status');
   expect(status.ok(), await status.text()).toBe(true);
   const origin = new URL(status.url()).origin;
-  expect(
-    (await page.request.post('/api/auth/demo', { headers: { origin } })).ok(),
-  ).toBe(true);
+  await signInAcceptanceActor(page);
   const project = await (
     await page.request.post('/api/projects', {
       headers: { origin },
@@ -483,14 +483,8 @@ test('draft conflicts retain local notes and viewers can audition/export while e
         data: { email, name: 'Music reviewer', role: 'viewer' },
       })
     ).json();
-  expect(
-    (
-      await page.request.post('/api/auth/login', {
-        headers: { origin },
-        data: { email, password: invitation.temporaryPassword },
-      })
-    ).ok(),
-  ).toBe(true);
+  expect(invitation).not.toHaveProperty('temporaryPassword');
+  await signInBrowser(page, origin, email);
   await page.goto(`/?project=${project.id}&artifact=${artifact.id}`);
   await expect(page.getByLabel('MIDI composition editor')).toBeVisible();
   await page

@@ -9,11 +9,10 @@ import { once } from 'node:events';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createApp } from '../server/app.ts';
-import { passwordHash, type Settings } from '../server/auth.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
+import type { Settings } from '../server/auth.ts';
 import type { InvestigationResult } from '../shared/investigations.ts';
 import { decisionProfileSchema } from '../shared/decision-profile.ts';
-const password = 'fixture-only-browser-password-123';
 const generated = (text: string) => ({
   content: [{ type: 'text', text }],
   finishReason: { unified: 'stop', raw: 'stop' },
@@ -215,21 +214,12 @@ async function fixture(cards: boolean, model = false) {
   const user = await instance.store.createUser(
     'owner@product-browser.test',
     'Evidence owner',
-    await passwordHash(password),
+    null,
   );
   const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
   settings.origin = address;
-  async function login(
-    page: Page,
-    email = user.email,
-    credential = password,
-  ) {
-    await page.goto(address);
-    await page
-      .getByRole('textbox', { name: 'Email', exact: true })
-      .fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(credential);
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  async function login(page: Page, email = user.email) {
+    await signInBrowser(page, address, email);
     await expect(
       page.getByRole('button', { name: 'New project', exact: true }).first(),
     ).toBeVisible();
@@ -753,12 +743,12 @@ test('a real owner-approved investigation publishes inline native evidence, shar
         role: 'viewer',
       },
     );
+    expect(invitation).not.toHaveProperty('temporaryPassword');
     viewerContext = await browser.newContext();
     const viewer = await viewerContext.newPage();
     await f.login(
       viewer,
       'reader@product-browser.test',
-      invitation.temporaryPassword,
     );
     await viewer.goto(
       `${f.address}/?project=${project.id}&artifact=${completed.childArtifactId}`,
@@ -1310,7 +1300,7 @@ test('passage slash commands place exact research and investigation cards inline
     const viewer = await f.instance.store.createUser(
       'passage-viewer@test.invalid',
       'Passage viewer',
-      await passwordHash(password),
+      null,
     );
     await f.instance.store.exec(
       'INSERT INTO memberships VALUES(?,?,?)',
@@ -1322,17 +1312,7 @@ test('passage slash commands place exact research and investigation cards inline
       viewport: { width: 390, height: 844 },
     });
     const mobile = await viewerContext.newPage();
-    await mobile.goto(f.address);
-    await mobile
-      .getByRole('textbox', { name: 'Email', exact: true })
-      .fill(viewer.email);
-    await mobile.getByLabel('Password', { exact: true }).fill(password);
-    await mobile
-      .getByRole('button', { name: 'Sign in', exact: true })
-      .click();
-    await expect(
-      mobile.getByRole('textbox', { name: 'Email', exact: true }),
-    ).toHaveCount(0);
+    await signInBrowser(mobile, f.address, viewer.email);
     await mobile.goto(`${f.address}/?project=${project.id}&artifact=${id}`);
     const mobileCard = mobile.locator('.document-investigation');
     await mobileCard.scrollIntoViewIfNeeded();

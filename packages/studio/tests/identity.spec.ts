@@ -3,21 +3,22 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createApp } from '../server/app.ts';
+import { signInBrowser } from './browser-fixture.ts';
 import { passwordHash, type Settings } from '../server/auth.ts';
-import { oidcFixture } from './identity/oidc-fixture.ts';
+import { githubSignInFixture } from './identity/github-signin-fixture.ts';
 import { githubFixture } from './identity/github-fixture.ts';
 
 const origin = 'http://127.0.0.1:8896';
-let issuer: Awaited<ReturnType<typeof oidcFixture>>,
+let issuer: Awaited<ReturnType<typeof githubSignInFixture>>,
   github: Awaited<ReturnType<typeof githubFixture>>,
   studio: Awaited<ReturnType<typeof createApp>>,
   directory: string;
 test.beforeAll(async () => {
-  issuer = await oidcFixture(origin + '/api/auth/callback');
+  issuer = await githubSignInFixture();
+  issuer.account('unverified@example.test').verifiedEmails = [];
   github = await githubFixture();
   directory = await mkdtemp('/tmp/studio-identity-browser-');
   const settings: Settings & {
-    oidcAllowHttpLoopback: boolean;
     repositoryIdentity: import('../server/identity/ports.ts').RepositoryIdentitySettings;
   } = {
     origin,
@@ -25,11 +26,7 @@ test.beforeAll(async () => {
     dataDir: directory,
     demo: false,
     adminEmail: 'owner@example.test',
-    adminPassword: 'fixture-only-owner-password-123',
-    oidcIssuer: issuer.origin,
-    oidcClientId: issuer.clientId,
-    oidcClientSecret: issuer.clientSecret,
-    oidcAllowHttpLoopback: true,
+    githubSignInProvider: issuer.provider,
     repositoryIdentity: {
       clientId: github.clientId,
       clientSecret: github.clientSecret,
@@ -63,7 +60,7 @@ test.beforeAll(async () => {
   );
   await studio.store.createProject(
     alice,
-    'OIDC verified workspace',
+    'GitHub verified workspace',
     'Synthetic issuer acceptance content.',
     '',
   );
@@ -76,25 +73,19 @@ test.afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true });
 });
 async function begin(page: Page) {
-  await page.goto(origin);
-  await page
-    .getByRole('link', { name: 'Continue with your organization', exact: true })
-    .click();
-  await expect(
-    page.getByRole('heading', {
-      name: 'Local OIDC acceptance issuer',
-      exact: true,
-    }),
-  ).toBeVisible();
+  await page.goto(origin + '/api/auth/github');
+  await expect(page.getByRole('heading', {
+    name: 'Owned GitHub OAuth test provider', exact: true,
+  })).toBeVisible();
 }
 async function login(page: Page, account: string) {
-  await begin(page);
-  await page
-    .getByRole('combobox', { name: 'Fixture account', exact: true })
-    .selectOption(account);
-  await page
-    .getByRole('button', { name: 'Continue sign-in', exact: true })
-    .click();
+  await signInBrowser(page, origin, account + '@example.test');
+}
+async function finish(page: Page, email = 'alice@example.test') {
+  await page.getByLabel('Fixture GitHub email', { exact: true }).fill(email);
+  await page.getByRole('button', {
+    name: 'Continue fixture GitHub sign-in', exact: true,
+  }).click();
 }
 async function capture(page: Page, name: string) {
   await mkdir(resolve(import.meta.dirname, '../../../work/review'), {
@@ -106,31 +97,26 @@ async function capture(page: Page, name: string) {
   });
 }
 
-test('real issuer verifies an admitted user through PKCE, signed ID token and UserInfo; callback replay cannot mint another session', async ({
+test('verified GitHub OAuth binds an admitted user through PKCE and durable state; callback replay cannot mint another session', async ({
   page,
 }) => {
   let callback = '';
   page.on('request', (req) => {
-    if (req.url().startsWith(origin + '/api/auth/callback?'))
+    if (req.url().startsWith(origin + '/api/auth/github/callback?'))
       callback = req.url();
   });
   await begin(page);
   const binding = (
-    await page.context().cookies(origin + '/api/auth/callback')
-  ).find((cookie) => cookie.name === 'studio_oidc')!.value;
-  await page
-    .getByRole('combobox', { name: 'Fixture account', exact: true })
-    .selectOption('alice');
-  await page
-    .getByRole('button', { name: 'Continue sign-in', exact: true })
-    .click();
+    await page.context().cookies(origin + '/api/auth/github/callback')
+  ).find((cookie) => cookie.name === 'studio_github_signin')!.value;
+  await finish(page);
   await expect(
     page.getByRole('button', { name: 'Workspace settings', exact: true }),
   ).toBeVisible();
   await expect(
     page
       .getByRole('heading', {
-        name: 'OIDC verified workspace — design',
+        name: 'GitHub verified workspace — design',
         exact: true,
       })
       .first(),
@@ -145,10 +131,11 @@ test('real issuer verifies an admitted user through PKCE, signed ID token and Us
       me.id,
     ),
     replay = await page.request.get(callback, {
-      headers: { cookie: 'studio_oidc=' + binding },
+      headers: { cookie: 'studio_github_signin=' + binding },
       maxRedirects: 0,
     });
-  expect(replay.status()).toBe(401);
+  expect(replay.status()).toBe(302);
+  expect(replay.headers().location).toBe('/?signin=failed');
   expect(
     (
       await studio.store.all(
@@ -157,12 +144,12 @@ test('real issuer verifies an admitted user through PKCE, signed ID token and Us
       )
     ).length,
   ).toBe(sessions.length);
-  await capture(page, 'studio-oidc-verified-session');
+  await capture(page, 'studio-github-verified-session');
 });
 
 test('GitHub web connection uses the signed-in user and repository membership never substitutes for GitHub entitlement', async ({
   page,
-  playwright,
+  browser,
 }) => {
   await login(page, 'alice');
   await page
@@ -221,19 +208,21 @@ test('GitHub web connection uses the signed-in user and repository membership ne
     },
   );
   expect(admission.status()).toBe(200);
-  expect((await admission.json()).temporaryPassword).toBeNull();
-  const teammate = await playwright.request.newContext({ baseURL: origin });
-  const passwordLogin = await teammate.post('/api/auth/login', {
+  expect(await admission.json()).not.toHaveProperty('temporaryPassword');
+  const teammate = await browser.newContext({ baseURL: origin });
+  const passwordLogin = await teammate.request.post('/api/auth/login', {
     headers: { origin },
     data: {
       email: 'teammate@example.test',
       password: 'fixture-only-teammate-password-123',
     },
   });
-  expect(passwordLogin.status()).toBe(200);
-  const denied = await teammate.get(`/api/artifacts/${project.mainArtifactId}`);
+  expect(passwordLogin.status()).toBe(403);
+  const teammatePage = await teammate.newPage();
+  await signInBrowser(teammatePage, origin, 'teammate@example.test');
+  const denied = await teammate.request.get(`/api/artifacts/${project.mainArtifactId}`);
   expect(denied.status()).toBe(403);
-  await teammate.dispose();
+  await teammate.close();
   await page
     .getByRole('region', { name: 'GitHub repository identity', exact: true })
     .getByRole('button', { name: 'Disconnect', exact: true })
@@ -249,10 +238,9 @@ test('GitHub web connection uses the signed-in user and repository membership ne
 test('verified but unadmitted issuer accounts cannot create a Studio account or session', async ({
   page,
 }) => {
-  await login(page, 'outsider');
-  await expect(page.locator('body')).toContainText(
-    /Ask a workspace owner to add your account/,
-  );
+  await begin(page);
+  await finish(page, 'outsider@example.test');
+  await expect(page).toHaveURL(origin + '/?signin=failed');
   expect((await page.request.get(origin + '/api/me')).status()).toBe(401);
   expect(
     await studio.store.userByEmail('outsider@example.test'),
@@ -261,10 +249,9 @@ test('verified but unadmitted issuer accounts cannot create a Studio account or 
 test('an admitted account still cannot sign in with an unverified issuer email', async ({
   page,
 }) => {
-  await login(page, 'unverified');
-  await expect(page.locator('body')).toContainText(
-    /verified email is required/,
-  );
+  await begin(page);
+  await finish(page, 'unverified@example.test');
+  await expect(page).toHaveURL(origin + '/?signin=failed');
   expect((await page.request.get(origin + '/api/me')).status()).toBe(401);
 });
 test('expired durable state is denied before the real issuer authorization code can be exchanged', async ({
@@ -273,13 +260,11 @@ test('expired durable state is denied before the real issuer authorization code 
   await begin(page);
   const before = issuer.tokenRequests;
   await studio.store.exec(
-    "UPDATE identity_challenges SET expires_at=? WHERE namespace='oidc'",
+    "UPDATE identity_challenges SET expires_at=? WHERE namespace='github-signin'",
     Date.now() - 1,
   );
-  await page
-    .getByRole('button', { name: 'Continue sign-in', exact: true })
-    .click();
-  await expect(page.locator('body')).toContainText(/Sign-in expired/);
+  await finish(page);
+  await expect(page).toHaveURL(origin + '/?signin=failed');
   expect(issuer.tokenRequests).toBe(before);
   expect((await page.request.get(origin + '/api/me')).status()).toBe(401);
 });
@@ -289,14 +274,21 @@ test('issuer token endpoint failure leaves the browser unsigned in and consumes 
   await begin(page);
   issuer.failTokens(true);
   try {
-    await page
-      .getByRole('button', { name: 'Continue sign-in', exact: true })
-      .click();
-    await expect(page.locator('body')).toContainText(
-      /could not complete this request|could not complete this sign-in|Sign-in could not be completed/,
-    );
+    await finish(page);
+    await expect(page).toHaveURL(origin + '/?signin=failed');
     expect((await page.request.get(origin + '/api/me')).status()).toBe(401);
   } finally {
     issuer.failTokens(false);
   }
+});
+
+test('legacy organization, setup, demo and password routes cannot establish a session', async ({ page }) => {
+  expect((await page.request.get(origin + '/api/auth/oidc')).status()).toBe(404);
+  for (const route of ['login', 'setup', 'demo']) {
+    const response = await page.request.post(origin + '/api/auth/' + route, {
+      headers: { origin }, data: { email: 'teammate@example.test', password: 'fixture-only-teammate-password-123' },
+    });
+    expect(response.status()).toBe(403);
+  }
+  expect((await page.request.get(origin + '/api/me')).status()).toBe(401);
 });

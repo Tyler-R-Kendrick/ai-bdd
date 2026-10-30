@@ -3,11 +3,9 @@ import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createApp } from '../server/app.ts';
-import { passwordHash } from '../server/auth.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { paragraph } from '../shared/domain.ts';
 const origin = 'http://127.0.0.1:8902',
-  password = 'synthetic-archive-browser-password',
   email = 'archive-browser-owner@example.test',
   viewerEmail = 'archive-browser-viewer@example.test';
 let studio: Awaited<ReturnType<typeof createApp>>,
@@ -23,11 +21,7 @@ async function signIn(page: Page, user = email) {
       faults.push(response.url() + ':' + response.status());
   });
   await page.goto(origin);
-  const result = await page.request.post(origin + '/api/auth/login', {
-    headers: { origin },
-    data: { email: user, password },
-  });
-  expect(result.status(), await result.text()).toBe(200);
+  await signInBrowser(page, origin, user);
   await page.goto(origin + `/?project=${projectId}&artifact=${draftId}`);
   await expect(page.locator('.artifact-title')).toHaveText(
     'Archive lifecycle note',
@@ -88,7 +82,6 @@ test.beforeAll(async () => {
       demo: false,
       dataDir: directory,
       adminEmail: email,
-      adminPassword: password,
     },
     {
       db: join(directory, 'store.sqlite'),
@@ -157,7 +150,7 @@ test.beforeAll(async () => {
   const viewer = await studio.store.createUser(
     viewerEmail,
     'Archive viewer',
-    await passwordHash(password),
+    null,
   );
   await studio.store.exec(
     'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
@@ -292,11 +285,7 @@ test('mobile viewer browses retained archives in read mode and cannot restore or
     page = await context.newPage();
   try {
     await page.goto(origin);
-    const login = await page.request.post(origin + '/api/auth/login', {
-      headers: { origin },
-      data: { email: viewerEmail, password },
-    });
-    expect(login.status()).toBe(200);
+    await signInBrowser(page, origin, viewerEmail);
     await page.goto(origin + `/?project=${projectId}&artifact=${proofId}`);
     page.on('pageerror', (error) => faults.push(error.message));
     page.on('response', (response) => {

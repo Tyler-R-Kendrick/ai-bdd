@@ -5,13 +5,11 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createApp } from '../server/app.ts';
-import { passwordHash } from '../server/auth.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { decisionProfileSchema } from '../shared/decision-profile.ts';
 import type { FindingsProposal } from '../shared/findings-review.ts';
 import type { FindingsReviews } from '../server/integrations/findings-review.ts';
-const password = 'findings-browser-fixture-password-123',
-  email = 'findings-owner@example.test',
+const email = 'findings-owner@example.test',
   viewerEmail = 'findings-viewer@example.test';
 const original =
   'Compare the two queue implementations before choosing the production boundary.';
@@ -95,7 +93,6 @@ test.beforeAll(async () => {
     production: false,
     demo: false,
     adminEmail: email,
-    adminPassword: password,
     model: 'fixture/author',
     integrations: { gatewayBaseUrl: endpoint },
   };
@@ -127,7 +124,7 @@ test.beforeAll(async () => {
   const viewer = await studio.store.createUser(
     viewerEmail,
     'Independent viewer',
-    await passwordHash(password),
+    null,
   );
   await studio.store.exec(
     'INSERT INTO memberships VALUES(?,?,?)',
@@ -220,11 +217,7 @@ async function login(page: Page, selected = email) {
     if (response.status() >= 500)
       faults.push(response.status() + ' ' + response.url());
   });
-  const response = await page.request.post(origin + '/api/auth/login', {
-    headers: { origin },
-    data: { email: selected, password },
-  });
-  expect(response.status(), await response.text()).toBe(200);
+  await signInBrowser(page, origin, selected);
   await page.goto(origin);
   await page
     .getByRole('button', { name: 'Investigations', exact: true })

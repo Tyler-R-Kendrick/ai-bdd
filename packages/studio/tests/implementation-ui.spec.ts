@@ -1,10 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createApp } from '../server/app.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { passwordHash } from '../server/auth.ts';
 import type { ImplementationSnapshot } from '../shared/implementation.ts';
 
 const origin = 'http://127.0.0.1:8896';
@@ -35,8 +34,7 @@ const modelDefinition = {
 const serverFaults: string[] = [];
 const watchedPages = new WeakSet<Page>();
 const ownerEmail = 'build-owner@example.test',
-  reviewerEmail = 'build-reviewer@example.test',
-  password = 'fixture-only-build-password-123';
+  reviewerEmail = 'build-reviewer@example.test';
 test.beforeAll(async () => {
   modelServer = createServer(async (request, response) => {
     let source = '';
@@ -70,7 +68,6 @@ test.beforeAll(async () => {
       demo: false,
       dataDir: directory,
       adminEmail: ownerEmail,
-      adminPassword: password,
       model: 'fixture/model',
       integrations: {
         gatewayBaseUrl: `http://127.0.0.1:${(modelServer.address() as { port: number }).port}`,
@@ -92,7 +89,7 @@ test.beforeAll(async () => {
   const reviewer = await studio.store.createUser(
     reviewerEmail,
     'Independent reviewer',
-    await passwordHash(password),
+    null,
   );
   await studio.store.exec(
     'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
@@ -124,11 +121,7 @@ async function login(page: Page, email = ownerEmail) {
     );
   }
   await page.goto(origin);
-  const response = await page.request.post(origin + '/api/auth/login', {
-    headers: { origin },
-    data: { email, password },
-  });
-  expect(response.status(), await response.text()).toBe(200);
+  await signInBrowser(page, origin, email);
   await page.goto(origin);
   await expect(
     page.getByRole('button', { name: 'Build plan', exact: true }),

@@ -1,3 +1,5 @@
+import { signInBrowser } from './browser-fixture.ts';
+import { signInAcceptanceActor } from './browser-auth.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -46,10 +48,7 @@ async function h264Fixture(folder: string) {
 async function open(page: Page) {
   const status = await page.request.get('/api/auth/status'),
     origin = new URL(status.url()).origin;
-  const auth = await page.request.post('/api/auth/demo', {
-    headers: { origin },
-  });
-  expect(auth.ok()).toBe(true);
+  await signInAcceptanceActor(page);
   const project = await (
     await page.request.post('/api/projects', {
       headers: { origin },
@@ -437,11 +436,8 @@ test('new revisions retain local video drafts and viewer controls prevent edits'
       data: { email, name: 'Motion reviewer', role: 'viewer' },
     })
   ).json();
-  const login = await page.request.post('/api/auth/login', {
-    headers: { origin },
-    data: { email, password: invitation.temporaryPassword },
-  });
-  expect(login.ok()).toBe(true);
+  expect(invitation).not.toHaveProperty('temporaryPassword');
+  await signInBrowser(page, origin, email);
   await page.goto(`/?project=${project.id}&artifact=${artifact.id}`);
   await expect(
     page.getByRole('button', { name: 'Add text', exact: true }),

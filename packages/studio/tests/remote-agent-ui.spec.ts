@@ -1,17 +1,15 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createApp } from '../server/app.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import {
   connectRemotePlanner,
   type RemotePlannerClientContext,
 } from '../server/machine/planner-client.ts';
-import { passwordHash } from '../server/auth.ts';
 import { paragraph } from '../shared/domain.ts';
 const origin = 'http://127.0.0.1:8896',
   email = 'remote-owner@example.test',
-  viewerEmail = 'remote-viewer@example.test',
-  password = 'remote-browser-fixture-only-123';
+  viewerEmail = 'remote-viewer@example.test';
 let studio: Awaited<ReturnType<typeof createApp>>, directory: string;
 const clients: { controller: AbortController; promise: Promise<void> }[] = [];
 const faults: string[] = [];
@@ -25,7 +23,6 @@ test.beforeEach(async () => {
       demo: false,
       dataDir: directory,
       adminEmail: email,
-      adminPassword: password,
       integrations: { remotePlanner: true },
     },
     {
@@ -51,11 +48,7 @@ function observe(page: Page) {
 }
 async function login(page: Page, who = email) {
   observe(page);
-  const r = await page.request.post(origin + '/api/auth/login', {
-    headers: { origin },
-    data: { email: who, password },
-  });
-  expect(r.status(), await r.text()).toBe(200);
+  await signInBrowser(page, origin, who);
 }
 async function open(page: Page, title: string) {
   await login(page);
@@ -569,7 +562,7 @@ test('viewer cannot answer, source changes withdraw questions, and durable stop 
     (await studio.store.createUser(
       viewerEmail,
       'Read-only reviewer',
-      await passwordHash(password),
+      null,
     ));
   await studio.store.exec(
     "INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,'viewer') ON CONFLICT(project_id,user_id) DO NOTHING",

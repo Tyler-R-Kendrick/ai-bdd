@@ -1,3 +1,4 @@
+import { signInBrowser } from './browser-fixture.ts';
 import {
   test,
   expect,
@@ -428,12 +429,9 @@ test('shows view-only documents to invited viewers without editable controls', a
     }),
     context = await browser.newContext({ baseURL: origin });
   try {
-    const login = await context.request.post('/api/auth/login', {
-      headers: { origin },
-      data: { email, password: member.temporaryPassword },
-    });
-    expect(login.ok()).toBe(true);
+    expect(member).not.toHaveProperty('temporaryPassword');
     const viewer = await context.newPage();
+    await signInBrowser(viewer, origin, email);
     await open(viewer, project);
     const editor = viewer.getByLabel('Document editor', { exact: true });
     await expect(editor).toBeVisible();

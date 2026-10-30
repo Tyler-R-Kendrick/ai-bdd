@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createApp } from '../server/app.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { decisionSettingsFromEnv } from '../server/decisions/settings.ts';
 import { paragraph } from '../shared/domain.ts';
 import {
@@ -19,8 +19,7 @@ test.skip(
   'Requires the real SHA-pinned local model; no provider fixture is substituted.',
 );
 const origin = 'http://127.0.0.1:8891',
-  email = 'local-cpu-owner@example.test',
-  password = 'local-cpu-browser-synthetic-only-123';
+  email = 'local-cpu-owner@example.test';
 let studio: Awaited<ReturnType<typeof createApp>>, data: string;
 test.beforeAll(async () => {
   data = await mkdtemp('/tmp/studio-local-cpu-ui-');
@@ -31,7 +30,6 @@ test.beforeAll(async () => {
       origin,
       dataDir: data,
       adminEmail: email,
-      adminPassword: password,
       integrations: { localModel: { directory: directory! } },
     },
     {
@@ -73,7 +71,7 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await api('/auth/login', 'POST', { email, password });
+  await signInBrowser(page, origin, email);
   const project = await api('/projects', 'POST', {
     title: 'Offline design review',
     description: 'Actual local CPU inference; no external model provider.',
@@ -243,7 +241,7 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
   ).toBe(true);
   await capture('local-design-chat-mobile');
   await page.request.post(origin + '/api/auth/logout', { headers: { origin } });
-  await api('/auth/login', 'POST', { email, password });
+  await signInBrowser(page, origin, email);
   expect(
     (await api(`/artifacts/${artifact.id}`)).messages.filter(
       (message: any) => message.role === 'assistant',

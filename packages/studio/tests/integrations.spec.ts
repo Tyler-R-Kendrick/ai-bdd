@@ -1,3 +1,4 @@
+import { signInBrowser } from './browser-fixture.ts';
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -187,12 +188,9 @@ test('shows shared connections to a fresh viewer without exposing write or pairi
     viewport: { width: 390, height: 844 },
   });
   try {
-    const response = await context.request.post(origin + '/api/auth/login', {
-      headers: { origin },
-      data: { email, password: invitation.temporaryPassword },
-    });
-    expect(response.ok()).toBe(true);
+    expect(invitation).not.toHaveProperty('temporaryPassword');
     const viewer = await context.newPage();
+    await signInBrowser(viewer, origin, email);
     await viewer.goto(
       `${origin}/?project=${project.id}&artifact=${project.mainArtifactId}`,
     );

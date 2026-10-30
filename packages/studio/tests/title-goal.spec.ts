@@ -6,9 +6,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import * as Y from 'yjs';
 import { yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
-import { createApp } from '../server/app.ts';
-import { passwordHash, type Settings } from '../server/auth.ts';
-const password = 'fixture-only-goal-browser-password';
+import { createApp, signInBrowser } from './browser-fixture.ts';
+import type { Settings } from '../server/auth.ts';
 const title = 'Contract preview intent';
 const goal =
   'Keep the preview usable with a consumer contract fixture while the integration is unavailable.';
@@ -70,7 +69,7 @@ async function fixture() {
   const user = await instance.store.createUser(
     'owner@goal-browser.invalid',
     'Goal owner',
-    await passwordHash(password),
+    null,
   );
   const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
   settings.origin = address;
@@ -87,13 +86,7 @@ async function fixture() {
   }
   async function login(page: Page, email = user.email) {
     observe(page);
-    await page.goto(address);
-    await page.getByRole('textbox', { name: 'Email', exact: true }).fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(password);
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(
-      page.getByRole('textbox', { name: 'Email', exact: true }),
-    ).toHaveCount(0);
+    await signInBrowser(page, address, email);
     expect((await page.request.get(address + '/api/projects')).status()).toBe(
       200,
     );
@@ -365,7 +358,7 @@ test('explicit title and goal consent seeds the empty main design document once 
     const viewer = await f.instance.store.createUser(
       'viewer@goal-browser.invalid',
       'Goal viewer',
-      await passwordHash(password),
+      null,
     );
     await f.instance.store.exec(
       "INSERT INTO memberships VALUES(?,?,'viewer')",

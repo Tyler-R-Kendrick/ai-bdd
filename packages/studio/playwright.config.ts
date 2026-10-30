@@ -26,9 +26,9 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: 'node dist/server/main.js',
+    command: 'node --import tsx tests/browser-server.ts',
     url: 'http://127.0.0.1:8877/api/health',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 60000,
     env: {
       NODE_ENV: 'test',
@@ -37,10 +37,10 @@ export default defineConfig({
       ...(process.env.STUDIO_MP4_CHROMIUM_PATH
         ? { STUDIO_CHROMIUM_PATH: process.env.STUDIO_MP4_CHROMIUM_PATH }
         : {}),
-      STUDIO_DEMO: '1',
+      STUDIO_DEMO: '0',
       STUDIO_PORT: '8877',
       STUDIO_ORIGIN: 'http://127.0.0.1:8877',
-      STUDIO_DATA_DIR: resolve('../../work/e2e/studio-data'),
+      STUDIO_DATA_DIR: resolve('../../work/e2e/studio-github-data'),
     },
   },
 });

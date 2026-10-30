@@ -1,3 +1,5 @@
+import { signInBrowser } from './browser-fixture.ts';
+import { signInAcceptanceActor } from './browser-auth.ts';
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -58,11 +60,11 @@ async function save(page: Page) {
     page.getByRole('button', { name: 'Save', exact: true }),
   ).toBeDisabled();
 }
-test.beforeEach(async ({ page }, info) => {
+test.beforeEach(async ({ page }) => {
   const list: string[] = [];
   errors.set(page, list);
   page.on('pageerror', (error) => list.push(error.message));
-  await post(page, originFor(info), '/auth/demo');
+  await signInAcceptanceActor(page);
 });
 test.afterEach(async ({ page }) => expect(errors.get(page) ?? []).toEqual([]));
 
@@ -292,12 +294,9 @@ test('keeps exact CAD and import tools read-only for a project viewer', async ({
     { email, name: 'CAD reviewer', role: 'viewer' },
   );
   const context = await browser.newContext({ baseURL: origin });
-  const response = await context.request.post('/api/auth/login', {
-    headers: { origin },
-    data: { email, password: invitation.temporaryPassword },
-  });
-  expect(response.ok()).toBe(true);
+  expect(invitation).not.toHaveProperty('temporaryPassword');
   const viewer = await context.newPage();
+  await signInBrowser(viewer, origin, email);
   await open(viewer, project, artifact);
   await expect(
     viewer.getByRole('button', {

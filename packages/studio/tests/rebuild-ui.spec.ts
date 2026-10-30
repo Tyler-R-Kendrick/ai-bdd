@@ -2,12 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createApp } from '../server/app.ts';
-import { passwordHash } from '../server/auth.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { implementationPointer } from '../shared/implementation.ts';
 import { paragraph } from '../shared/domain.ts';
 const origin = 'http://127.0.0.1:8895',
-  password = 'synthetic-rebuild-browser-password-123',
   email = 'rebuild-owner@example.test',
   viewerEmail = 'rebuild-viewer@example.test';
 const runtime = {
@@ -35,11 +33,7 @@ async function login(page: Page, user = email) {
       faults.push(response.url() + ':' + response.status());
   });
   await page.goto(origin);
-  const login = await page.request.post(origin + '/api/auth/login', {
-    headers: { origin },
-    data: { email: user, password },
-  });
-  expect(login.status(), await login.text()).toBe(200);
+  await signInBrowser(page, origin, user);
   await page.goto(origin);
   await expect(
     page.getByRole('button', { name: 'Build plan', exact: true }),
@@ -73,7 +67,6 @@ test.beforeAll(async () => {
       production: false,
       demo: false,
       adminEmail: email,
-      adminPassword: password,
     },
     {
       db: ':memory:',
@@ -220,7 +213,7 @@ test.beforeAll(async () => {
   const viewer = await studio.store.createUser(
     viewerEmail,
     'Read-only reviewer',
-    await passwordHash(password),
+    null,
   );
   await studio.store.exec(
     'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
