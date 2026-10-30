@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { createApp } from '../server/app.ts';
 import { passwordHash, type Settings } from '../server/auth.ts';
 import type { InvestigationResult } from '../shared/investigations.ts';
+import { decisionProfileSchema } from '../shared/decision-profile.ts';
 const password = 'fixture-only-browser-password-123';
 const generated = (text: string) => ({
   content: [{ type: 'text', text }],
@@ -30,12 +31,60 @@ async function capture(page: Page, name: string) {
 async function fixture(cards: boolean, model = false) {
   const directory = await mkdtemp(join(tmpdir(), 'studio-product-browser-'));
   const modelRequests: any[] = [],
+    decisionRequests: any[] = [],
     searchRequests: any[] = [];
   const server = createServer(async (req, res) => {
     let body = '';
     for await (const part of req) body += part;
     const input = body ? JSON.parse(body) : null;
     res.setHeader('content-type', 'application/json');
+    if (req.url === '/native/decisions') {
+      decisionRequests.push(input);
+      res.end(
+        JSON.stringify({
+          model: input.model,
+          usage: { input_tokens: 14, output_tokens: 7, total_tokens: 21 },
+          answers: input.questions.map((question: any) =>
+            question.type === 'score'
+              ? {
+                  name: question.name,
+                  type: 'score',
+                  score: 1.8,
+                  confidence: 0.9,
+                  probabilities: question.levels.map(
+                    (level: any, i: number) => ({
+                      value: i,
+                      label: level.label,
+                      probability: [0.05, 0.1, 0.85][i],
+                    }),
+                  ),
+                }
+              : question.type === 'choice'
+                ? {
+                    name: question.name,
+                    type: 'choice',
+                    choice: question.choices[0].value,
+                    confidence: 0.9,
+                    probabilities: question.choices.map(
+                      (choice: any, i: number) => ({
+                        value: choice.value,
+                        probability:
+                          i === 0 ? 0.9 : 0.1 / (question.choices.length - 1),
+                      }),
+                    ),
+                  }
+                : {
+                    name: question.name,
+                    type: 'predicate',
+                    probability: question.name.endsWith('.evidence')
+                      ? 0.5
+                      : 0.95,
+                  },
+          ),
+        }),
+      );
+      return;
+    }
     if (req.url === '/sources') {
       searchRequests.push(input);
       res.end(
@@ -139,6 +188,20 @@ async function fixture(cards: boolean, model = false) {
     instance = await createApp(settings, {
       db: ':memory:',
       clientDir: resolve(import.meta.dirname, '../dist/client'),
+      decisionSettings: {
+        production: false,
+        timeoutMs: 10000,
+        defaultProfile: decisionProfileSchema.parse({
+          provider: 'openai-decisions',
+          model: 'gpt-6-luna',
+          minimumConfidence: 0.7,
+        }),
+        openai: {
+          baseUrl: `http://127.0.0.1:${(server.address() as any).port}/native`,
+          apiKey: 'synthetic-native-browser-fixture-key',
+          models: ['gpt-6-luna', 'fixture-review-model'],
+        },
+      },
     });
   } finally {
     if (priorFlag === undefined) delete process.env.STUDIO_CONVERSATION_CARDS;
@@ -234,6 +297,7 @@ async function fixture(cards: boolean, model = false) {
     call,
     close,
     modelRequests,
+    decisionRequests,
     searchRequests,
   };
 }
@@ -706,6 +770,252 @@ test('a real owner-approved investigation publishes inline native evidence, shar
     expect(errors).toEqual([]);
   } finally {
     await viewerContext?.close();
+    await f.close();
+  }
+});
+
+test('independent decision selection and semantic review preserve uncertainty, anchored discussion and stale provenance in the full app', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  const f = await fixture(false, true),
+    errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('response', (response) => {
+    if (
+      response.url().startsWith(f.address + '/api/') &&
+      response.status() >= 500
+    )
+      errors.push(`${response.status()} ${response.url()}`);
+  });
+  try {
+    await f.login(page);
+    const project = await f.call(page, '/projects', 'POST', {
+        title: 'Source-linked design advice',
+        description: 'Actual native HTTP protocol fixture.',
+        repository: '',
+      }),
+      id = project.mainArtifactId,
+      initial = await f.instance.store.artifact(id, f.user.id),
+      passage =
+        'Persist the shopping cart after explicit save and show the item count after reload.',
+      unselected =
+        'Private unselected implementation notes must stay out of this assessment.';
+    await f.instance.store.updateArtifact(f.user, id, initial.version, {
+      doc: {
+        type: 'doc',
+        content: [passage, unselected].map((text) => ({
+          type: 'paragraph',
+          content: [{ type: 'text', text }],
+        })),
+      },
+    });
+    await page.goto(`${f.address}/?project=${project.id}&artifact=${id}`);
+    await page.getByRole('tab', { name: 'Connections', exact: true }).click();
+    const decisions = page.getByRole('region', {
+        name: 'Decision models',
+        exact: true,
+      }),
+      agent = page.getByRole('region', { name: 'Agent runtime', exact: true });
+    await expect(
+      agent.getByRole('combobox', { name: 'Agent harness' }),
+    ).toHaveValue('t3-code');
+    await decisions
+      .getByRole('combobox', { name: 'Decision provider' })
+      .selectOption('jev');
+    await expect(
+      decisions.getByRole('combobox', { name: 'Decision model' }),
+    ).toHaveValue('jev-latest');
+    await decisions
+      .getByRole('button', { name: 'Save decision model', exact: true })
+      .click();
+    await expect(
+      decisions.getByText('Decision model saved.', { exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await page.getByRole('tab', { name: 'Connections', exact: true }).click();
+    await expect(
+      decisions.getByRole('combobox', { name: 'Decision provider' }),
+    ).toHaveValue('jev');
+    await expect(decisions.getByText('Offline', { exact: true })).toBeVisible();
+    await expect(
+      agent.getByRole('combobox', { name: 'Agent harness' }),
+    ).toHaveValue('t3-code');
+    await decisions
+      .getByRole('combobox', { name: 'Decision provider' })
+      .selectOption('openai-decisions');
+    await decisions
+      .getByRole('combobox', { name: 'Decision model' })
+      .selectOption('fixture-review-model');
+    await decisions
+      .getByRole('spinbutton', { name: 'Minimum decision confidence' })
+      .fill('0.8');
+    await decisions
+      .getByRole('button', { name: 'Save decision model', exact: true })
+      .click();
+    await expect(
+      decisions.getByText('Decision model saved.', { exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await page.getByRole('tab', { name: 'Connections', exact: true }).click();
+    await expect(
+      decisions.getByRole('combobox', { name: 'Decision model' }),
+    ).toHaveValue('fixture-review-model');
+    await expect(
+      decisions.getByRole('spinbutton', {
+        name: 'Minimum decision confidence',
+      }),
+    ).toHaveValue('0.8');
+    const chatProfile = await f.call(
+        page,
+        `/artifacts/${id}/agent/profile`,
+        'GET',
+      ),
+      decisionProfile = await f.call(
+        page,
+        `/artifacts/${id}/decision/profile`,
+        'GET',
+      );
+    expect(chatProfile.profile).toMatchObject({
+      harness: 't3-code',
+      provider: 'project-default',
+      model: 'project-default',
+    });
+    expect(decisionProfile.profile).toMatchObject({
+      provider: 'openai-decisions',
+      model: 'fixture-review-model',
+      minimumConfidence: 0.8,
+    });
+    await decisions.scrollIntoViewIfNeeded();
+    await capture(page, 'decision-profile-independent-desktop.png');
+    await page
+      .getByRole('button', { name: 'Review design', exact: true })
+      .click();
+    const modal = page.getByRole('dialog', {
+      name: 'Design review',
+      exact: true,
+    });
+    await expect(
+      modal.getByRole('checkbox', { name: passage, exact: true }),
+    ).toBeChecked();
+    await modal
+      .getByRole('checkbox', { name: unselected, exact: true })
+      .uncheck();
+    await modal
+      .getByRole('button', { name: 'Assess selected passages', exact: true })
+      .click();
+    const assessment = modal.getByRole('region', { name: 'Design assessment' });
+    await expect(
+      assessment.getByText('Assessment complete', { exact: true }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(
+      assessment.getByText('Uncertain — abstained', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      assessment.getByText('1.80 / 2', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      assessment.getByText('Native probability of “yes”: 50.0%.', {
+        exact: false,
+      }),
+    ).toBeVisible();
+    await assessment
+      .getByText('Assessment provenance', { exact: true })
+      .click();
+    await expect(
+      assessment.getByText('openai-decisions / fixture-review-model', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(f.modelRequests).toHaveLength(0);
+    expect(f.decisionRequests).toHaveLength(1);
+    expect(JSON.stringify(f.decisionRequests[0])).toContain(passage);
+    expect(JSON.stringify(f.decisionRequests[0])).not.toContain(unselected);
+    const history = await f.call(
+      page,
+      `/artifacts/${id}/decision-review`,
+      'GET',
+    );
+    expect(history.jobs[0].result.coverage).toMatchObject({
+      selected: 1,
+      available: 2,
+    });
+    expect(history.jobs[0].result.evaluation.provenance).toMatchObject({
+      provider: 'openai-decisions',
+      model: 'fixture-review-model',
+      minimumConfidence: 0.8,
+    });
+    await assessment.scrollIntoViewIfNeeded();
+    await capture(page, 'design-review-native-desktop.png');
+    await assessment
+      .getByRole('button', { name: 'Discuss this passage', exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole('textbox', { name: 'Comment text', exact: true })
+      .fill(
+        'Confirm the saved cart count with a reload test before implementation.',
+      );
+    await page
+      .getByRole('button', { name: 'Post comment', exact: true })
+      .click();
+    await expect(
+      page.getByText(
+        'Confirm the saved cart count with a reload test before implementation.',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await page.reload();
+    const bundle = await f.call(page, `/artifacts/${id}`, 'GET'),
+      anchored = bundle.threads.find((thread: any) => thread.quote === passage);
+    expect(anchored?.anchor).toBeTruthy();
+    const thread = await f.call(
+      page,
+      `/artifacts/${id}/messages?threadId=${anchored.id}`,
+      'GET',
+    );
+    expect(
+      thread.messages.some(
+        (message: any) =>
+          message.body ===
+          'Confirm the saved cart count with a reload test before implementation.',
+      ),
+    ).toBe(true);
+    await page
+      .getByRole('button', { name: 'Review design', exact: true })
+      .click();
+    await expect(
+      assessment.getByText('Assessment complete', { exact: true }),
+    ).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await assessment.scrollIntoViewIfNeeded();
+    await capture(page, 'design-review-native-mobile.png');
+    await page.keyboard.press('Escape');
+    const editor = page.getByLabel('Document editor', { exact: true });
+    await editor.click();
+    await editor.press('Control+End');
+    await editor.press('Enter');
+    await editor.pressSequentially('Add a required manual reload check.');
+    await expect
+      .poll(async () =>
+        JSON.stringify(
+          (await f.call(page, `/artifacts/${id}`, 'GET')).artifact.content,
+        ),
+      )
+      .toContain('Add a required manual reload check.');
+    await page
+      .getByRole('button', { name: 'Review design', exact: true })
+      .click();
+    await expect(
+      assessment.getByText('Source changed', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      assessment.getByRole('button', { name: 'Discuss this passage' }).first(),
+    ).toBeDisabled();
+    await assessment.scrollIntoViewIfNeeded();
+    await capture(page, 'design-review-stale-mobile.png');
+    expect(errors).toEqual([]);
+  } finally {
     await f.close();
   }
 });
