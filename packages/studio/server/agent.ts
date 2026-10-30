@@ -3,7 +3,7 @@ import { passagePlacementSchema } from '../shared/investigations.ts';
 import { createGateway, generateText, Output, stepCountIs, tool } from 'ai';
 import type { IdentityExecutionContext } from './hosting/identity-context.ts';
 import { identityLanguageModel } from './hosting/identity-language-model.ts';
-import { createLocalLanguageModel } from './local/model.ts';
+import { createLocalLanguageModel, retainLocalModel } from './local/model.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
@@ -93,6 +93,7 @@ export type AgentOptions = {
 export class Agent {
   readonly integrations: IntegrationSettings;
   readonly profiles: AgentProfiles;
+  private readonly releaseLocalModel: () => Promise<void>;
   constructor(
     readonly store: Store,
     readonly settings: Settings,
@@ -110,6 +111,9 @@ export class Agent {
       (settings as Settings & { integrations?: IntegrationSettings })
         .integrations ?? {};
     this.profiles = new AgentProfiles(store, settings, this.integrations);
+    this.releaseLocalModel = this.integrations.localModel
+      ? retainLocalModel(this.integrations.localModel.directory)
+      : async () => {};
   }
   async initialize() {
     await this.profiles.initialize();
@@ -805,7 +809,7 @@ export class Agent {
   private model(profile: AgentProfile, key: string) {
     this.profiles.assertAvailable(profile);
     if (profile.harness === 'local-cpu')
-      return createLocalLanguageModel(this.integrations.localModel!);
+      return createLocalLanguageModel({ ...this.integrations.localModel!, modelId: profile.model });
     if (profile.harness === 't3-code')
       return t3LanguageModel(this.integrations.t3!, profile, key);
     if (profile.harness === 'remote-planner')
@@ -1239,6 +1243,7 @@ export class Agent {
     await this.collab.notify(projectId, id).catch(() => {});
   }
   async close() {
-    /* The application owns and closes the shared runtime after all services stop admitting work. */
+    // App shutdown drains the durable runtime before releasing this model owner.
+    await this.releaseLocalModel();
   }
 }

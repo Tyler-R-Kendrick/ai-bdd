@@ -234,6 +234,7 @@ export async function createApp(
         identityExecutionContext: options.identityExecutionContext,
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       });
+    startupCleanup.unshift(() => agent.close());
     await agent.initialize();
     const remotePlanner = new RemotePlanner({
       store,
