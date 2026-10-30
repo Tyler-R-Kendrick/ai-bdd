@@ -1,0 +1,662 @@
+{
+  "schemaVersion": 1,
+  "result": "durable enqueue observed; upstream queue publication remains unconfirmed",
+  "completedExportVerified": false,
+  "protocolSource": "3bc6379",
+  "traceSha256": "9860e9fd68dd8870b34f443a230b50ea031029a2a6b3a6b7f8995dbc7da79b62",
+  "trace": {
+    "schemaVersion": 1,
+    "origin": "https://ai-bdd-studio-6ohooihxc-tyler-r-kendricks-projects.vercel.app",
+    "startedAt": "2026-10-30T15:04:29.674Z",
+    "deploymentSourceProvidedByOperator": "ff297243772cb39ad46169b86be4d3289955433c",
+    "deploymentIdProvidedByOperator": "dpl_BiuAyCudYtsvsK9GeEmZoQ2pZ6AD",
+    "kind": "model-free hosted audio durable publication",
+    "passed": false,
+    "state": "paused-for-dispatch-investigation",
+    "steps": [
+      {
+        "stage": "health",
+        "method": "GET",
+        "path": "/api/health",
+        "httpStatus": 200,
+        "durationMs": 5436,
+        "at": "2026-10-30T15:04:35.112Z"
+      },
+      {
+        "stage": "readiness",
+        "method": "GET",
+        "path": "/api/hosting/readiness",
+        "httpStatus": 200,
+        "durationMs": 1034,
+        "at": "2026-10-30T15:04:36.149Z"
+      },
+      {
+        "stage": "owner-login",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "httpStatus": 200,
+        "durationMs": 1139,
+        "at": "2026-10-30T15:04:37.289Z"
+      },
+      {
+        "stage": "create-synthetic-project",
+        "method": "POST",
+        "path": "/api/projects",
+        "httpStatus": 201,
+        "durationMs": 1052,
+        "at": "2026-10-30T15:04:38.342Z"
+      },
+      {
+        "stage": "create-synthetic-audio",
+        "method": "POST",
+        "path": "/api/projects/3821d32e-587a-4621-bd9a-75bb62f2be9b/artifacts",
+        "httpStatus": 201,
+        "durationMs": 988,
+        "at": "2026-10-30T15:04:39.331Z"
+      },
+      {
+        "stage": "enqueue-audio",
+        "method": "POST",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/render",
+        "httpStatus": 202,
+        "durationMs": 1153,
+        "at": "2026-10-30T15:04:40.485Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 387,
+        "at": "2026-10-30T15:04:43.875Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 798,
+        "at": "2026-10-30T15:04:47.676Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 500,
+        "at": "2026-10-30T15:04:51.179Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 381,
+        "at": "2026-10-30T15:04:54.561Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 853,
+        "at": "2026-10-30T15:04:58.417Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 709,
+        "at": "2026-10-30T15:05:02.130Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 649,
+        "at": "2026-10-30T15:05:05.783Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 397,
+        "at": "2026-10-30T15:05:09.185Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 378,
+        "at": "2026-10-30T15:05:12.566Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 474,
+        "at": "2026-10-30T15:05:16.044Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 549,
+        "at": "2026-10-30T15:05:19.595Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 363,
+        "at": "2026-10-30T15:05:22.962Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 377,
+        "at": "2026-10-30T15:05:26.343Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 391,
+        "at": "2026-10-30T15:05:29.737Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 365,
+        "at": "2026-10-30T15:05:33.106Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 668,
+        "at": "2026-10-30T15:05:36.777Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 359,
+        "at": "2026-10-30T15:05:40.138Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 365,
+        "at": "2026-10-30T15:05:43.506Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 389,
+        "at": "2026-10-30T15:05:46.899Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 357,
+        "at": "2026-10-30T15:05:50.260Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 358,
+        "at": "2026-10-30T15:05:53.621Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 354,
+        "at": "2026-10-30T15:05:56.981Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 404,
+        "at": "2026-10-30T15:06:00.388Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 350,
+        "at": "2026-10-30T15:06:03.742Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 350,
+        "at": "2026-10-30T15:06:07.095Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 351,
+        "at": "2026-10-30T15:06:10.449Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 955,
+        "at": "2026-10-30T15:06:14.405Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 342,
+        "at": "2026-10-30T15:06:17.750Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 339,
+        "at": "2026-10-30T15:06:21.092Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 363,
+        "at": "2026-10-30T15:06:24.457Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 367,
+        "at": "2026-10-30T15:06:27.826Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 364,
+        "at": "2026-10-30T15:06:31.193Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 353,
+        "at": "2026-10-30T15:06:34.549Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 1113,
+        "at": "2026-10-30T15:06:38.665Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 484,
+        "at": "2026-10-30T15:06:42.152Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 351,
+        "at": "2026-10-30T15:06:45.506Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 391,
+        "at": "2026-10-30T15:06:48.899Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 381,
+        "at": "2026-10-30T15:06:52.283Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 416,
+        "at": "2026-10-30T15:06:55.703Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 362,
+        "at": "2026-10-30T15:06:59.069Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 795,
+        "at": "2026-10-30T15:07:02.867Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 387,
+        "at": "2026-10-30T15:07:06.257Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 427,
+        "at": "2026-10-30T15:07:09.688Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 366,
+        "at": "2026-10-30T15:07:13.056Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 368,
+        "at": "2026-10-30T15:07:16.427Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 377,
+        "at": "2026-10-30T15:07:19.807Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 376,
+        "at": "2026-10-30T15:07:23.187Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 341,
+        "at": "2026-10-30T15:07:26.532Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 358,
+        "at": "2026-10-30T15:07:29.894Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 460,
+        "at": "2026-10-30T15:07:33.359Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 380,
+        "at": "2026-10-30T15:07:36.741Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 369,
+        "at": "2026-10-30T15:07:40.113Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 406,
+        "at": "2026-10-30T15:07:43.522Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 421,
+        "at": "2026-10-30T15:07:46.946Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 476,
+        "at": "2026-10-30T15:07:50.425Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 350,
+        "at": "2026-10-30T15:07:53.776Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 369,
+        "at": "2026-10-30T15:07:57.146Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 377,
+        "at": "2026-10-30T15:08:00.526Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 845,
+        "at": "2026-10-30T15:08:04.374Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 370,
+        "at": "2026-10-30T15:08:07.747Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 355,
+        "at": "2026-10-30T15:08:11.105Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 354,
+        "at": "2026-10-30T15:08:14.461Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 394,
+        "at": "2026-10-30T15:08:17.857Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 357,
+        "at": "2026-10-30T15:08:21.217Z"
+      },
+      {
+        "stage": "poll-audio",
+        "method": "GET",
+        "path": "/api/artifacts/16f74f4b-40c1-4707-ab61-d65149cb3301/audio/renders/3cb03628-bdbb-4c93-81cc-f313255b85b6",
+        "httpStatus": 200,
+        "durationMs": 379,
+        "at": "2026-10-30T15:08:24.599Z"
+      }
+    ],
+    "resources": {
+      "projectId": "3821d32e-587a-4621-bd9a-75bb62f2be9b",
+      "artifactId": "16f74f4b-40c1-4707-ab61-d65149cb3301",
+      "artifactVersion": 1,
+      "jobId": "3cb03628-bdbb-4c93-81cc-f313255b85b6"
+    },
+    "jobHistory": [
+      {
+        "at": "2026-10-30T15:04:40.486Z",
+        "status": "queued",
+        "progress": 0,
+        "finishedAt": null
+      }
+    ],
+    "modelsInvokedByThisScript": 0,
+    "externalAssetSources": 0,
+    "redirectsFollowed": 0,
+    "credentialValuesRecorded": false,
+    "readiness": {
+      "ready": true,
+      "services": {
+        "database": {
+          "state": "verified",
+          "verifiedAt": "2026-10-30T15:04:34.917Z"
+        },
+        "objects": {
+          "state": "configured"
+        },
+        "media": {
+          "adapter": "vercel-sandbox",
+          "state": "configured",
+          "image": "studio-media@sha256:d7d38332686b625e0d8f04b74f16a483d75676023fadac148333d39a9c15c689",
+          "network": "deny-all",
+          "persistent": false,
+          "verified": false
+        },
+        "jobs": {
+          "state": "configured",
+          "semantics": "at-least-once; fenced SQL publication"
+        }
+      }
+    },
+    "pause": {
+      "at": "2026-10-30T15:08:27.353704+00:00",
+      "reason": "Release operator requested bounded polling and investigation of queue publisher failure; job remains uncancelled."
+    }
+  },
+  "targetedSqlObservation": {
+    "observedAt": "2026-10-30T15:08:28Z",
+    "source": "Release integration agent actual preview SQL observation; only the named task-owned job/outbox metadata was inspected.",
+    "jobId": "3cb03628-bdbb-4c93-81cc-f313255b85b6",
+    "kind": "audio.render",
+    "status": "queued",
+    "workerAttempts": 0,
+    "progressPresent": false,
+    "dispatchIntentIdPrefix": "5017f6dc",
+    "dispatchStatus": "pending",
+    "dispatchAttempts": 1,
+    "dispatchReceiptPresent": false
+  },
+  "operatorAction": {
+    "httpPoller": "paused",
+    "applicationJob": "preserved queued for actual outbox-recovery verification",
+    "newJobsCreatedAfterPause": 0,
+    "manualInternalExecutionRequests": 0,
+    "jobCancelled": false
+  },
+  "causeStatus": "Generic outbox metadata does not establish the provider root cause; finite runtime diagnostics and SDK credential-file compatibility are being verified independently.",
+  "notVerified": [
+    "queue delivery",
+    "Sandbox execution",
+    "Blob output publication",
+    "WAV download/integrity",
+    "completed-output persistence",
+    "output authorization denial"
+  ]
+}
