@@ -34,6 +34,10 @@ const tone = (status: string) =>
         ? ('amber' as const)
         : ('neutral' as const);
 const json = (value: unknown) => JSON.stringify(value, null, 2) ?? '';
+const displayRunStatus = (card: { status: string; ended?: number }) =>
+  card.status === 'finished' && card.ended === undefined
+    ? 'running'
+    : card.status;
 
 export function RemoteActivity({
   artifactId,
@@ -265,7 +269,9 @@ function ActivityCard({
             >
               <header>
                 <strong>{card.name || 'Agent run'}</strong>
-                <Badge tone={tone(card.status)}>{card.status}</Badge>
+                <Badge tone={tone(displayRunStatus(card))}>
+                  {displayRunStatus(card)}
+                </Badge>
               </header>
               <ol>
                 {displayRemoteStages(card).map((stage) => (
@@ -294,7 +300,9 @@ function ActivityCard({
                 </Button>
               )}
               {controls &&
-                ['running', 'waiting', 'paused'].includes(card.status) && (
+                ['running', 'waiting', 'paused'].includes(
+                  displayRunStatus(card),
+                ) && (
                   <div className="remote-actions">
                     <Button
                       size="sm"
@@ -410,6 +418,7 @@ function QuestionCard({
     action: 'answer' | 'cancel';
     expectedRevision: number;
     value?: unknown;
+    customValue?: string;
     answers?: RemoteQuestionAnswer[];
   }) => {
     if (busy || !enabled || awaitingRefresh || question.status !== 'open')
@@ -509,6 +518,7 @@ type Sender = (body: {
   action: 'answer' | 'cancel';
   expectedRevision: number;
   value?: unknown;
+  customValue?: string;
   answers?: RemoteQuestionAnswer[];
 }) => Promise<{ revision: number; status: string } | undefined>;
 function QuestionItem({
@@ -554,7 +564,7 @@ function QuestionItemForm({
   const prompt = question.input.params.questions[index],
     saved = question.answers.find((answer) => answer.questionIndex === index);
   const initial = () => ({
-    kind: saved?.kind ?? 'option',
+    kind: saved?.kind === 'chat' ? 'custom' : (saved?.kind ?? 'option'),
     answer: saved?.answer ?? '',
     selected: saved?.selected ?? [],
   });
@@ -713,26 +723,41 @@ function SingleInput({
         : '';
   const [value, setValue] = useState(initial),
     [dirty, setDirty] = useState(false),
-    [revision, setRevision] = useState(question.revision);
+    [revision, setRevision] = useState(question.revision),
+    [custom, setCustom] = useState(
+      question.input.method === 'select' &&
+        question.customAnswer !== undefined,
+    ),
+    [customValue, setCustomValue] = useState(question.customAnswer ?? '');
   useEffect(() => {
     if (!dirty) {
       setValue(initial());
+      setCustom(
+        question.input.method === 'select' &&
+          question.customAnswer !== undefined,
+      );
+      setCustomValue(question.customAnswer ?? '');
       setRevision(question.revision);
     }
   }, [question.revision]);
   const conflict = dirty && revision !== question.revision;
   if (question.input.method === 'questionnaire') return null;
-  const submit = async (answer: unknown) => {
+  const submit = async (answer: unknown, written?: string) => {
     const result = await send({
       action: 'answer',
       expectedRevision: revision,
       value: answer,
+      ...(written !== undefined ? { customValue: written } : {}),
     });
     if (result) {
       setDirty(false);
       setRevision(result.revision);
     }
   };
+  const valid =
+    question.input.method === 'select' && custom
+      ? !!customValue.trim()
+      : !!value.trim();
   return (
     <div className="remote-single-input">
       {question.input.method === 'confirm' ? (
@@ -768,29 +793,64 @@ function SingleInput({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (value.trim() && !conflict) void submit(value);
+            if (valid && !conflict)
+              void submit(
+                question.input.method === 'select' && custom ? null : value,
+                question.input.method === 'select' && custom
+                  ? customValue
+                  : undefined,
+              );
           }}
         >
           {question.input.method === 'select' ? (
-            <label>
-              Response
-              <select
-                aria-label={question.input.title}
-                disabled={!writable || busy}
-                value={value}
-                onChange={(event) => {
-                  setValue(event.target.value);
-                  setDirty(true);
-                }}
-              >
-                <option value="">Choose a response</option>
-                {question.input.choices.map((choice) => (
-                  <option key={choice} value={choice}>
-                    {choice}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <>
+              <label>
+                Response
+                <select
+                  aria-label={question.input.title}
+                  disabled={!writable || busy || custom}
+                  value={value}
+                  onChange={(event) => {
+                    setValue(event.target.value);
+                    setDirty(true);
+                  }}
+                >
+                  <option value="">Choose a response</option>
+                  {question.input.choices.map((choice) => (
+                    <option key={choice} value={choice}>
+                      {choice}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="remote-option">
+                <input
+                  type="checkbox"
+                  checked={custom}
+                  disabled={!writable || busy}
+                  onChange={(event) => {
+                    setCustom(event.target.checked);
+                    setDirty(true);
+                  }}
+                />
+                Write a different response
+              </label>
+              {custom && (
+                <label>
+                  Written response
+                  <Textarea
+                    aria-label={`Written response for ${question.input.title}`}
+                    readOnly={!writable || busy}
+                    maxLength={20000}
+                    value={customValue}
+                    onChange={(event) => {
+                      setCustomValue(event.target.value);
+                      setDirty(true);
+                    }}
+                  />
+                </label>
+              )}
+            </>
           ) : question.input.method === 'editor' ? (
             <label>
               Response
@@ -837,7 +897,7 @@ function SingleInput({
             </p>
           )}
           {writable && (
-            <Button size="sm" disabled={busy || !value.trim() || conflict}>
+            <Button size="sm" disabled={busy || !valid || conflict}>
               Send response
             </Button>
           )}
