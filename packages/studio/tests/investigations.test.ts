@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store, hash } from '../server/store.ts';
+import { readPlanSource } from '../server/plan-source.ts';
 import { paragraph } from '../shared/domain.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { MachineService } from '../server/integrations/machines.ts';
@@ -197,7 +198,89 @@ async function running(c: Awaited<ReturnType<typeof fixture>>) {
     },
   };
 }
+async function acceptSemanticChoice(
+  c: Awaited<ReturnType<typeof fixture>>,
+  decision: string,
+) {
+  return c.store.tx(async () => {
+    await c.store.db.lock('project:' + c.project.id);
+    const artifact = await c.store.artifact(
+      c.artifact.id,
+      c.user.id,
+      'write',
+    );
+    const before = await readPlanSource(c.store, artifact);
+    const adr = (await c.store.decisions(artifact.id))[0]!;
+    await c.store.exec(
+      "UPDATE decisions SET status='accepted',decision=?,author=?,version=version+1,updated_at=? WHERE id=?",
+      decision,
+      c.user.name,
+      new Date().toISOString(),
+      adr.id,
+    );
+    // Same durable semantic-source transition used by accepted ADR and questionnaire APIs.
+    const current = await c.store.touchArtifactSource(c.user, artifact.id);
+    const source = await readPlanSource(c.store, current);
+    expect(current.content).toEqual(artifact.content);
+    expect(current.version).toBe(artifact.version + 1);
+    expect(source).not.toEqual(before);
+    return { current, source };
+  });
+}
 describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => {
+  it('seals accepted human ADR source into the actual claimed investigation context', async () => {
+    const c = await fixture();
+    const { current, source } = await acceptSemanticChoice(
+      c,
+      'Benchmark the accepted blue implementation, not the superseded red approach.',
+    );
+    const record = await c.service.propose(c.user, current.id, {
+      version: current.version,
+      brief: 'Measure feasibility of the accepted implementation',
+    });
+    await c.service.run(c.user, record.id);
+    const claimed = await c.service.claim(c.machine);
+    expect(claimed.work?.id).toBe(record.id);
+    expect(claimed.work?.sealed.content.acceptedDecisions).toEqual(
+      source.acceptedDecisions,
+    );
+  });
+  it.each(['run', 'claim', 'complete'] as const)(
+    'fences accepted-ADR-only source edits at investigation %s',
+    async (stage) => {
+      const c = await fixture();
+      const record = await c.proposal();
+      if (stage !== 'run') await c.service.run(c.user, record.id);
+      const claimed =
+        stage === 'complete' ? await c.service.claim(c.machine) : undefined;
+      if (claimed) expect(claimed.work?.id).toBe(record.id);
+      await acceptSemanticChoice(
+        c,
+        'The human now selected another integration boundary; previous assumptions are stale.',
+      );
+      if (stage === 'run') {
+        await expect(c.service.run(c.user, record.id)).rejects.toMatchObject({
+          statusCode: 409,
+        });
+      } else if (stage === 'claim') {
+        expect((await c.service.claim(c.machine)).work).toBeNull();
+        expect((await c.service.get(c.user, record.id)).status).toBe(
+          'interrupted',
+        );
+      } else {
+        await expect(
+          c.service.complete(c.machine, record.id, {
+            leaseToken: claimed!.leaseToken!,
+            generation: claimed!.work!.generation,
+            result,
+          }),
+        ).rejects.toMatchObject({ statusCode: 409 });
+        expect(
+          (await c.service.get(c.user, record.id)).childArtifactId,
+        ).toBeNull();
+      }
+    },
+  );
   it('inserts an investigation immediately after its exact selected passage and seals that placement', async () => {
     const c = await fixture();
     const current = await c.store.updateArtifact(
