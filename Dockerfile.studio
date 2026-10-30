@@ -61,11 +61,11 @@ RUN apt-get update \
  && mkdir /data && chown node:node /data
 ENV XDG_CONFIG_HOME=/tmp/studio-config XDG_CACHE_HOME=/tmp/studio-cache
 WORKDIR /app
-COPY --from=build --chown=node:node /release/ ./
 COPY --from=local-assets /local-model/ /opt/studio-model/
 COPY --from=local-assets /native-tools/ /opt/studio-native-tools/
 RUN chmod 0555 /opt/studio-model && chmod 0444 /opt/studio-model/* \
  && chmod -R a+rX /opt/studio-native-tools
+COPY --from=build --chown=node:node /release/ ./
 USER node
 VOLUME ["/data"]
 EXPOSE 8787
