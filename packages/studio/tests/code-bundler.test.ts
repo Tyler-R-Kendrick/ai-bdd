@@ -1,4 +1,6 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { createServer, type Server } from "node:http";
+import { once } from "node:events";
 import { chromium, type Browser } from "@playwright/test";
 import {
   compileCodePreview,
@@ -6,28 +8,45 @@ import {
 } from "../server/code-bundler.ts";
 import { reactStarter, renameCodeFile } from "../shared/code-project.ts";
 import { samplePreviewContract } from "../shared/preview.ts";
-import { existsSync } from "node:fs";
 
 let browser: Browser;
+let host: Server;
+let origin: string;
 beforeAll(async () => {
+  host = createServer((_req, reply) => {
+    reply.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+    reply.end("<!doctype html><title>Code preview host</title><body></body>");
+  });
+  host.listen(0, "127.0.0.1");
+  await once(host, "listening");
+  origin = `http://127.0.0.1:${(host.address() as { port: number }).port}`;
   browser = await chromium.launch({
     headless: true,
-    ...(existsSync("/usr/bin/chromium")
-      ? { executablePath: "/usr/bin/chromium" }
+    ...(process.env.STUDIO_CHROMIUM_PATH
+      ? { executablePath: process.env.STUDIO_CHROMIUM_PATH }
       : {}),
     args: ["--no-sandbox"],
   });
 });
 afterAll(async () => {
   await browser?.close();
+  await new Promise<void>((resolve, reject) =>
+    host?.close((error) => (error ? reject(error) : resolve())),
+  );
 });
 async function frame(html: string) {
   const page = await browser.newPage();
-  await page.setContent(
-    '<iframe title="preview" sandbox="allow-scripts"></iframe>',
-  );
-  await page.locator("iframe").evaluate((element, source) => {
-    (element as HTMLIFrameElement).srcdoc = source;
+  await page.goto(origin);
+  await page.evaluate((source) => {
+    const preview = document.createElement("iframe");
+    preview.title = "preview";
+    preview.sandbox.add("allow-scripts");
+    // Configure the opaque sandboxed document before its first DOM attachment.
+    preview.srcdoc = source;
+    document.body.append(preview);
   }, html);
   return { page, preview: page.frameLocator("iframe") };
 }
@@ -246,21 +265,21 @@ describe("bounded source compiler", () => {
   });
 });
 
-it('resolves inline module imports relative to a nested HTML entry', async () => {
+it("resolves inline module imports relative to a nested HTML entry", async () => {
   const result = await compileCodePreview({
-    channel: 'nested-html',
-    entry: 'pages/index.html',
+    channel: "nested-html",
+    entry: "pages/index.html",
     files: {
-      'pages/index.html':
+      "pages/index.html":
         '<h1></h1><script type="module">import {title} from "./title.ts";document.querySelector("h1").textContent=title;</script>',
-      'pages/title.ts': 'export const title:string="Nested module"',
+      "pages/title.ts": 'export const title:string="Nested module"',
     },
   });
   const { page, preview } = await frame(result.html);
   try {
     await expect
-      .poll(() => preview.getByRole('heading').textContent())
-      .toBe('Nested module');
+      .poll(() => preview.getByRole("heading").textContent())
+      .toBe("Nested module");
   } finally {
     await page.close();
   }

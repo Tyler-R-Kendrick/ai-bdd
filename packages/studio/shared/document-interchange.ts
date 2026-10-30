@@ -13,7 +13,7 @@ const decodeMarkdownText = (value: string) => value.replace(/&(?:amp|lt|gt|quot|
   const code = entity[2]?.toLowerCase() === 'x' ? parseInt(entity.slice(3, -1), 16) : Number(entity.slice(2, -1));
   return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : '\uFFFD';
 });
-const safeHref = (href: string) => /^(https?:\/\/|mailto:|#|\/api\/files\/[0-9a-f-]{36}$)/i.test(href) && !/[\u0000-\u0020]/.test(href);
+const safeHref = (href: string) => /^(https?:\/\/|mailto:|#|\/api\/files\/[0-9a-f-]{36}$)/i.test(href) && !Array.from(href).some(character => character.charCodeAt(0) <= 32);
 const components: Record<string, string> = { Chart: 'chartBlock', Diagram: 'diagramBlock', Tabs: 'tabsBlock', Callout: 'calloutBlock', Columns: 'columnsBlock', Questionnaire: 'questionnaireBlock', ArtifactReference: 'artifactReferenceBlock', Evidence: 'evidenceBlock', AcceptanceTest: 'testBlock', Research: 'researchBlock' };
 const componentNames = Object.fromEntries(Object.entries(components).map(([name, type]) => [type, name]));
 export type DocumentImport = { doc: RichNode; warnings: string[]; attachments: { key: string; name: string; mime: string; bytes: Uint8Array }[] };

@@ -271,7 +271,7 @@ function htmlInputs(project: CodeProject) {
   legacyHtml = legacyHtml
     .replace(
       /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi,
-      (whole, attrs: string, source: string) => {
+      (whole, attrs: string, _source: string) => {
         const src = attribute(attrs, "src");
         if (!src) return whole;
         return (
