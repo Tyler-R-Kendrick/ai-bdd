@@ -85,6 +85,8 @@ export interface DurableJobRuntime {
   executeJob(id: string, delivery: JobDelivery): Promise<void>;
   cancel(id: string, user: User): Promise<void>;
   flushOutbox(limit?: number): Promise<void>;
+  /** Async-scope only: keep SQL admissions but leave publication to maintenance. */
+  deferDispatch?<T>(operation: () => Promise<T>): Promise<T>;
   /** Observes persisted failed dispatch intents; does not certify delivery or execution. */
   dispatchReadiness?(): Promise<DispatchReadiness>;
   /** Zero reconciles SQL intents/leases without calling the external publisher. */

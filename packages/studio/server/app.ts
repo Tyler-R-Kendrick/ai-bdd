@@ -1466,8 +1466,25 @@ export async function createApp(
         await conversation.observe(u, a.id, b.threadId);
         return saved;
       });
-      await runtime.flushOutbox();
-      await agent.observeMessage(u, a.id, b.threadId, b.body);
+      const followups = async () => {
+        for (const operation of [
+          ...(startupLimit === 0 ? [] : [() => runtime.flushOutbox()]),
+          () => agent.observeMessage(u, a.id, b.threadId, b.body),
+        ]) {
+          try {
+            await operation();
+          } catch (error) {
+            // The human text already committed. A safely persisted queue retry
+            // must not turn its acknowledgment into an apparent failed save.
+            if (!(error instanceof OutboxDispatchPendingError)) throw error;
+          }
+        }
+      };
+      // Title/agent observers may admit durable work and call flush internally.
+      // Cloud authoring leaves those publications to native maintenance too.
+      if (startupLimit === 0 && runtime.deferDispatch)
+        await runtime.deferDispatch(followups);
+      else await followups();
       await collab.notify(a.projectId, a.id);
       return reply.code(201).send(m);
     });

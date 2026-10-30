@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Store } from '../store.ts';
 import { HttpError } from '../store.ts';
 import type { User } from '../../shared/domain.ts';
@@ -72,6 +73,7 @@ export class DurableJobCoordinator implements DurableJobRuntime {
   private readonly executions = new Map<string, Promise<void>>();
   private readonly controllers = new Map<string, AbortController>();
   private readonly clock: () => number;
+  private readonly dispatchDeferred = new AsyncLocalStorage<boolean>();
   private closing = false;
   constructor(readonly options: DurableJobOptions) {
     this.instanceId = options.instanceId ?? randomUUID();
@@ -778,10 +780,16 @@ export class DurableJobCoordinator implements DurableJobRuntime {
     });
     this.controllers.get(id)?.abort(new Error('Cancelled by a project member'));
   }
+  /** Admit durable follow-up work without depending on a provider in this async request scope. */
+  async deferDispatch<T>(operation: () => Promise<T>): Promise<T> {
+    await this.ready;
+    return this.dispatchDeferred.run(true, operation);
+  }
   async flushOutbox(limit = 20, jobId?: string) {
     await this.ready;
     if (!Number.isInteger(limit) || limit < 1 || limit > 100)
       throw new Error('Outbox batch must be between1 and100');
+    if (this.dispatchDeferred.getStore()) return;
     const rows = await this.store.all(
       "SELECT id FROM studio_job_outbox WHERE ((status='pending' AND retry_at<=?) OR (status='dispatching' AND dispatch_expires<=?))" +
         (jobId ? ' AND job_id=?' : '') +
