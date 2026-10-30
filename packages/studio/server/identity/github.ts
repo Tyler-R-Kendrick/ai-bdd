@@ -261,7 +261,10 @@ export class RepositoryIdentity {
       response = await fetch(url, {
         ...options,
         redirect: 'error',
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.any([
+          AbortSignal.timeout(12000),
+          ...(options.signal ? [options.signal] : []),
+        ]),
         headers: {
           Accept: 'application/vnd.github+json',
           'User-Agent': 'ai-bdd-studio',
@@ -270,6 +273,7 @@ export class RepositoryIdentity {
         },
       });
     } catch {
+      options.signal?.throwIfAborted();
       throw new HttpError(
         503,
         'GitHub could not be reached. Try again shortly.',
@@ -672,7 +676,9 @@ export class RepositoryIdentity {
     user: User,
     repository: string,
     input: RepositoryRead,
+    signal?: AbortSignal,
   ): Promise<unknown> {
+    signal?.throwIfAborted();
     const read = repositoryReadSchema.parse(input),
       key = repositoryKey(repository);
     const admitted = await this.store.one(
@@ -688,17 +694,21 @@ export class RepositoryIdentity {
     await this.assertRepository(user, repository, 'read');
     const row = await this.active(user.id),
       { vault } = this.requireConfigured();
+    signal?.throwIfAborted();
     const path =
-      read.kind === 'pull_request'
-        ? `/pulls/${read.number}`
-        : read.kind === 'issue'
-          ? `/issues/${read.number}`
-          : read.kind === 'commits'
-            ? `/commits?per_page=${read.limit}`
-            : `/contents/${read.path.split('/').map(encodeURIComponent).join('/')}?${new URLSearchParams(read.ref ? { ref: read.ref } : {})}`;
+      read.kind === 'tree'
+        ? `/git/trees/${read.ref}?recursive=1`
+        : read.kind === 'pull_request'
+          ? `/pulls/${read.number}`
+          : read.kind === 'issue'
+            ? `/issues/${read.number}`
+            : read.kind === 'commits'
+              ? `/commits?per_page=${read.limit}`
+              : `/contents/${read.path.split('/').map(encodeURIComponent).join('/')}?${new URLSearchParams(read.ref ? { ref: read.ref } : {})}`;
     let result: any;
     try {
       result = await this.provider(this.apiBaseUrl + '/repos/' + key + path, {
+        signal,
         headers: {
           Authorization:
             'Bearer ' + vault.open(row.access_cipher, user.id, 'access'),
@@ -709,6 +719,7 @@ export class RepositoryIdentity {
         await this.revoke(user.id, false, row.generation);
       throw error;
     }
+    signal?.throwIfAborted();
     if (
       !(await this.checkLease(user.id, repository, 'read')) ||
       !(await this.store.one(
@@ -727,6 +738,50 @@ export class RepositoryIdentity {
       result.size > 512000
     )
       throw new HttpError(413, 'Repository file reads are limited to 500 KB');
+    if (read.kind === 'tree') {
+      const schema = z
+        .object({
+          sha: z.string().regex(/^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/),
+          truncated: z.boolean().optional(),
+          tree: z.array(
+            z.object({
+              path: z
+                .string()
+                .min(1)
+                .max(500)
+                .refine(
+                  (path) =>
+                    !path.startsWith('/') &&
+                    !path
+                      .split('/')
+                      .some((part) => !part || part === '.' || part === '..') &&
+                    !/[\u0000-\u001f\u007f\\]/.test(path),
+                ),
+              type: z.enum(['blob', 'tree', 'commit']),
+              sha: z.string().regex(/^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/),
+              mode: z
+                .string()
+                .regex(/^[0-7]{6}$/)
+                .optional(),
+              size: z.number().int().nonnegative().safe().optional(),
+            }),
+          ),
+        })
+        .safeParse(result);
+      if (!schema.success)
+        throw new HttpError(502, 'GitHub returned an invalid repository tree');
+      return {
+        sha: schema.data.sha,
+        truncated:
+          schema.data.truncated === true || schema.data.tree.length > 1000,
+        tree: schema.data.tree.slice(0, 1000),
+      };
+    }
+    if (read.kind === 'commits') {
+      if (!Array.isArray(result))
+        throw new HttpError(502, 'GitHub returned invalid repository commits');
+      return result.slice(0, read.limit);
+    }
     return result;
   }
   private async revokeProvider(access: string) {

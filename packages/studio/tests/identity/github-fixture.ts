@@ -19,6 +19,21 @@ export async function githubFixture() {
     permissions = new Map<string, { pull: boolean; push: boolean }>();
   const requests: { path: string; authorization: string }[] = [],
     selected: { user: Account } = { user: { id: 101, login: 'alice-fixture' } };
+  let treeEntries: {
+    path: string;
+    type: string;
+    sha: string;
+    size?: number;
+    mode?: string;
+  }[] = [
+    {
+      path: 'README.md',
+      type: 'blob',
+      sha: 'b'.repeat(40),
+      size: 24,
+      mode: '100644',
+    },
+  ];
   let origin = '',
     lastAccess = '',
     refreshCount = 0,
@@ -159,6 +174,12 @@ export async function githubFixture() {
           });
         }
         if (!permission.pull) return json(res, 404, { error: 'not_found' });
+        if (/^\/git\/trees\/(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(match[2]!))
+          return json(res, 200, {
+            sha: 'c'.repeat(40),
+            truncated: false,
+            tree: treeEntries,
+          });
         if (/^\/pulls\/\d+$/.test(match[2]!))
           return json(res, 200, {
             number: Number(match[2]!.split('/').pop()),
@@ -201,6 +222,9 @@ export async function githubFixture() {
     clientSecret,
     requests,
     selected,
+    setTree(entries: typeof treeEntries) {
+      treeEntries = entries;
+    },
     get lastAccess() {
       return lastAccess;
     },

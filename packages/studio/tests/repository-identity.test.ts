@@ -82,6 +82,58 @@ describe('durable connection challenges and credential vault', () => {
   });
 });
 describe('actual HTTP GitHub OAuth and per-user repository permissions', () => {
+  it('reads a pinned bounded tree with the selected user token and respects caller cancellation without an operator fallback', async () => {
+    h.fixture.permissions.set('101:acme/private', { pull: true, push: false });
+    await h.connect();
+    await h.project(h.users[0]!);
+    h.fixture.setTree(
+      Array.from({ length: 1201 }, (_, index) => ({
+        path: `source/file-${index}.ts`,
+        type: 'blob',
+        sha: 'b'.repeat(40),
+        mode: '100644',
+        size: 40,
+      })),
+    );
+    const tree = (await h.identity.readRepository(h.users[0]!, repository, {
+      kind: 'tree',
+      ref: 'a'.repeat(40),
+    })) as { tree: unknown[]; truncated: boolean };
+    expect(tree.tree).toHaveLength(1000);
+    expect(tree.truncated).toBe(true);
+    const request = h.fixture.requests.find(
+      (entry) =>
+        entry.path === `/repos/acme/private/git/trees/${'a'.repeat(40)}`,
+    );
+    expect(request?.authorization).toBe('Bearer ' + h.fixture.lastAccess);
+    const aborted = new AbortController();
+    aborted.abort(new Error('Fixture caller cancelled'));
+    const before = h.fixture.requests.length;
+    await expect(
+      h.identity.readRepository(
+        h.users[0]!,
+        repository,
+        { kind: 'tree', ref: 'a'.repeat(40) },
+        aborted.signal,
+      ),
+    ).rejects.toThrow('Fixture caller cancelled');
+    expect(h.fixture.requests).toHaveLength(before);
+    await expect(
+      h.identity.readRepository(h.users[0]!, repository, {
+        kind: 'tree',
+        ref: 'main',
+      }),
+    ).rejects.toThrow();
+    h.fixture.setTree([
+      { path: '../outside', type: 'blob', sha: 'b'.repeat(40) },
+    ]);
+    await expect(
+      h.identity.readRepository(h.users[0]!, repository, {
+        kind: 'tree',
+        ref: 'a'.repeat(40),
+      }),
+    ).rejects.toThrow('invalid repository tree');
+  });
   it('completes PKCE, stores encrypted expiring credentials, rejects replay, and never grants another user operator-token access', async () => {
     h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
     const connected = await h.connect();

@@ -4,6 +4,15 @@ export type RepositoryAction = (typeof repositoryActions)[number];
 export const repositoryReadSchema = z.discriminatedUnion('kind', [
   z
     .object({
+      kind: z.literal('tree'),
+      ref: z
+        .string()
+        .regex(/^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/)
+        .transform((value) => value.toLowerCase()),
+    })
+    .strict(),
+  z
+    .object({
       kind: z.literal('pull_request'),
       number: z.number().int().min(1).max(2147483647),
     })
