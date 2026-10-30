@@ -62,6 +62,23 @@ type Readiness = {
   ready: boolean;
   blockers: { id: string; message: string; question?: string }[];
 };
+type MachineBuild = {
+  id: string;
+  status: string;
+  runId?: string | null;
+  error?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  machineId?: string;
+  sourceCommit?: string;
+};
+type OwnMachine = {
+  id: string;
+  label: string;
+  connected: boolean;
+  branch?: string;
+  commit?: string;
+};
 
 function GraphDiagram({
   definition,
@@ -680,6 +697,9 @@ export function ImplementationPanel({
     [revisionReason, setRevisionReason] = useState(''),
     [draftJobs, setDraftJobs] = useState<DraftJob[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [machineBuilds, setMachineBuilds] = useState<MachineBuild[]>([]),
+    [ownMachines, setOwnMachines] = useState<OwnMachine[]>([]),
+    [machineId, setMachineId] = useState('');
   const currentId = useRef(artifact.id);
   const draftRequestId = useRef<string | null>(null);
   const pendingReport = useRef<{
@@ -707,9 +727,13 @@ export function ImplementationPanel({
       if (currentId.current === id) setHistory(events);
       const drafts = await api<{ jobs: DraftJob[] }>(base + '/draft');
       const ready = await api<Readiness>(base + '/readiness');
+      const queue = await api<MachineBuild[]>(base + '/machine-queue');
+      const machines = await api<OwnMachine[]>(base + '/machines');
       if (currentId.current === id) {
         setDraftJobs(drafts.jobs);
         setReadiness(ready);
+        setMachineBuilds(queue);
+        setOwnMachines(machines);
         if (
           drafts.jobs[0] &&
           !['queued', 'running', 'retrying'].includes(drafts.jobs[0].status)
@@ -724,6 +748,9 @@ export function ImplementationPanel({
     setError('');
     setDraftJobs([]);
     setReadiness(null);
+    setMachineBuilds([]);
+    setOwnMachines([]);
+    setMachineId('');
     draftRequestId.current = null;
     pendingReport.current = null;
     void load().catch(fail);
@@ -818,13 +845,15 @@ export function ImplementationPanel({
         run.planRevision !== (snapshot?.planRevision ?? artifact.version) &&
         ['implemented', 'delivered'].includes(run.status)
           ? 'Changes to build'
-          : snapshot?.activeRun
-            ? `Building ${completed} of ${run?.tasks.length}`
-            : run?.status === 'delivered'
-              ? 'Built'
-              : run?.status === 'implemented'
-                ? 'Verified implementation'
-                : 'Build plan'}
+          : snapshot?.editingLock && !snapshot.activeRun
+            ? 'Build queued'
+            : snapshot?.activeRun
+              ? `Building ${completed} of ${run?.tasks.length}`
+              : run?.status === 'delivered'
+                ? 'Built'
+                : run?.status === 'implemented'
+                  ? 'Verified implementation'
+                  : 'Build plan'}
       </Button>
       <Modal
         open={open}
@@ -894,6 +923,57 @@ export function ImplementationPanel({
                   {snapshot.editingLock!.claimedBy.name} while run{' '}
                   {snapshot.editingLock!.runId.slice(0, 8)} is active.
                 </p>
+              )}
+              {machineBuilds.length > 0 && (
+                <section
+                  className="implementation-queue"
+                  aria-label="Machine build requests"
+                >
+                  <h4>Connected machine builds</h4>
+                  {machineBuilds.slice(0, 5).map((build) => (
+                    <div key={build.id} className="implementation-evidence">
+                      <div className="implementation-task-heading">
+                        <Badge tone={tone(build.status)}>
+                          {label(build.status)}
+                        </Badge>
+                        <span className="small muted">
+                          {date(build.createdAt)}
+                        </span>
+                      </div>
+                      {build.sourceCommit && (
+                        <p className="small muted">
+                          Your checkout at {build.sourceCommit.slice(0, 12)}
+                        </p>
+                      )}
+                      {build.error && <p role="status">{build.error}</p>}
+                      {build.machineId &&
+                        ['queued', 'launching', 'running'].includes(
+                          build.status,
+                        ) &&
+                        !readOnly && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!!busy}
+                            onClick={() =>
+                              void action('Cancelling machine build…', () =>
+                                api(
+                                  base +
+                                    '/machine-queue/' +
+                                    build.id +
+                                    '/cancel',
+                                  'POST',
+                                  {},
+                                ),
+                              )
+                            }
+                          >
+                            Cancel this build
+                          </Button>
+                        )}
+                    </div>
+                  ))}
+                </section>
               )}
               {graph && (
                 <div className="implementation-version">
@@ -1136,17 +1216,49 @@ export function ImplementationPanel({
                           Repository push access and the exact graph are checked
                           again when work starts.
                         </p>
+                        <Field label="Your connected machine">
+                          <Select
+                            aria-label="Your connected machine"
+                            value={machineId}
+                            onChange={(event) =>
+                              setMachineId(event.target.value)
+                            }
+                          >
+                            <option value="">
+                              Choose automatically from my connected checkouts
+                            </option>
+                            {ownMachines.map((machine) => (
+                              <option
+                                key={machine.id}
+                                value={machine.id}
+                                disabled={!machine.connected}
+                              >
+                                {machine.label}
+                                {machine.branch ? ' · ' + machine.branch : ''}
+                                {machine.connected ? '' : ' · offline'}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                        {!ownMachines.some((machine) => machine.connected) && (
+                          <p className="small muted">
+                            Pair your own machine in Connections and register
+                            its repository checkout before building.
+                          </p>
+                        )}
                         <Button
                           size="sm"
                           disabled={
                             disabled ||
                             !project.repository ||
-                            readiness?.ready === false
+                            readiness?.ready === false ||
+                            !ownMachines.some((machine) => machine.connected)
                           }
                           onClick={() =>
                             void action('Queuing implementation…', () =>
                               api(base + '/queue', 'POST', {
                                 expected: implementationPointer(graph),
+                                ...(machineId ? { machineId } : {}),
                               }),
                             )
                           }
