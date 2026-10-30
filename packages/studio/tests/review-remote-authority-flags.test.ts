@@ -37,7 +37,8 @@ it.each(['editor', 'owner'] as const)(
     const viewer = await w.request(route, undefined, 'viewer-browser');
     expect(viewer.status).toBe(200);
     expect(viewer.value).toMatchObject({ canAnswer: false, canControl: false });
-    const editor = await w.store.userByEmail('viewer@remote.test');
+    const membership=await w.store.one('SELECT user_id FROM memberships WHERE project_id=? AND role=?',w.project.id,'viewer');
+    const editor = await w.store.publicUser(membership.user_id);
     await w.store.exec(
       'UPDATE memberships SET role=? WHERE project_id=? AND user_id=?',
       role,

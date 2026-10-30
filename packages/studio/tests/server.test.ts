@@ -42,7 +42,7 @@ describe('Studio durable API and authorization', () => {
       value => value.name === 'studio_session',
     );
     expect(session).toMatchObject({ httpOnly: true, sameSite: 'Strict' });
-    const stored = await instance.store.userByEmail('owner@example.test');
+    const stored = await instance.store.one('SELECT password FROM users WHERE id=?',user.id);
     expect(stored.password).toBeNull();
     expect(
       await instance.store.one(
