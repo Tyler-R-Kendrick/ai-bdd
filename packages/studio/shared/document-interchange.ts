@@ -86,11 +86,36 @@ function text(value: string, marks: RichNode['marks'] = []): RichNode[] {
     : [];
 }
 function checkedBlock(type: string, data: unknown): RichNode {
-  if (isInvestigationBlockKind(type))
+  if (isInvestigationBlockKind(type)) {
+    const envelope =
+      data && typeof data === 'object' && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : null;
+    const anchored =
+      envelope &&
+      Object.keys(envelope).length === 2 &&
+      Object.hasOwn(envelope, 'id') &&
+      Object.hasOwn(envelope, 'data');
+    if (
+      anchored &&
+      (typeof envelope.id !== 'string' ||
+        !envelope.id ||
+        envelope.id.length > 100 ||
+        /[\u0000-\u0020\u007f]/.test(envelope.id))
+    )
+      throw new Error(
+        'Investigation component anchors must be bounded identifiers',
+      );
     return {
       type,
-      attrs: { data: investigationBlockSchemas[type].parse(data) },
+      attrs: {
+        data: investigationBlockSchemas[type].parse(
+          anchored ? envelope.data : data,
+        ),
+        ...(anchored ? { id: envelope.id } : {}),
+      },
     };
+  }
   if (isDocumentBlockKind(type))
     return { type, attrs: { data: documentBlockSchemas[type].parse(data) } };
   if (Object.hasOwn(richVisualSchemas, type))
@@ -453,7 +478,11 @@ export function exportMarkdown(doc: RichNode, restrictedMdx = false): string {
         : '';
     }
     if (componentNames[node.type]) {
-      const data = node.attrs?.data ?? node.attrs ?? {};
+      const value = node.attrs?.data ?? node.attrs ?? {};
+      const data =
+        isInvestigationBlockKind(node.type) && node.attrs?.id
+          ? { id: node.attrs.id, data: value }
+          : value;
       return restrictedMdx
         ? `<${componentNames[node.type]} data={${JSON.stringify(data)}} />`
         : `\`\`\`studio:${node.type}\n${JSON.stringify(data, null, 2)}\n\`\`\``;

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { investigationReferences } from '../../shared/investigation-blocks.ts';
 import { investigationResultSchema } from '../../shared/investigations.ts';
-import type { ArtifactKind } from '../../shared/domain.ts';
+import type { ArtifactKind, RichNode } from '../../shared/domain.ts';
 import { HttpError, type Store } from '../store.ts';
 /** Invoked by the canonical source writer inside its project transaction, including imports, MCP and incoming Yjs. */
 export async function validateInvestigationReferences(
@@ -15,15 +15,46 @@ export async function validateInvestigationReferences(
 ) {
   if (input.kind !== 'document' && input.kind !== 'design') return;
   const references = investigationReferences(input.content.doc);
-  if (!references.length) return;
   if (!store.db.inTransaction())
     throw new Error(
       'Investigation source references must be checked inside the source transaction',
     );
   await store.db.lock('project:' + input.projectId);
+  const cards = (root: RichNode) => {
+    const result = new Map<string, string[]>();
+    const walk = (node: RichNode) => {
+      if (node.type === 'investigationCard') {
+        const id = String(node.attrs?.data?.investigationId ?? ''),
+          anchor = String(node.attrs?.id ?? '');
+        result.set(id, [...(result.get(id) ?? []), anchor]);
+      }
+      for (const child of node.content ?? []) walk(child);
+    };
+    walk(root);
+    return result;
+  };
+  const current = await store.one(
+    'SELECT content FROM artifacts WHERE id=? AND project_id=?',
+    input.artifactId,
+    input.projectId,
+  );
+  const before = current
+      ? cards(JSON.parse(current.content).doc ?? { type: 'doc' })
+      : new Map<string, string[]>(),
+    after = cards(input.content.doc);
+  for (const [id, anchors] of after)
+    if (anchors.length !== 1)
+      throw new HttpError(
+        400,
+        'Investigation request card ' + id + ' must occur exactly once',
+      );
   const ids = [
-    ...new Set(references.map((reference) => reference.investigationId)),
+    ...new Set([
+      ...references.map((reference) => reference.investigationId),
+      ...before.keys(),
+    ]),
   ];
+  if (!ids.length) return;
   const rows = await store.all(
     'SELECT id,artifact_id,project_id,child_artifact_id,length(result_json) AS result_bytes,result_hash,status FROM studio_investigations WHERE project_id=? AND id IN (' +
       ids.map(() => '?').join(',') +
@@ -32,6 +63,20 @@ export async function validateInvestigationReferences(
     ...ids,
   );
   const records = new Map(rows.map((row) => [row.id, row]));
+  for (const [id, anchors] of before) {
+    const record = records.get(id);
+    if (
+      record &&
+      record.status !== 'withdrawn' &&
+      (after.get(id)?.length !== 1 || after.get(id)?.[0] !== anchors[0])
+    )
+      throw new HttpError(
+        409,
+        'Keep investigation request card ' +
+          id +
+          ' with its stable identity. Withdraw a proposed investigation before removing its card.',
+      );
+  }
   let resultBytes = 0;
   const parsedResults = new Map<
     string,

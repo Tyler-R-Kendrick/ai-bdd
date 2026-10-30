@@ -56,6 +56,9 @@ describe('record-backed investigation document source', () => {
       expect(investigationReferences(imported.doc)).toEqual(
         investigationReferences(doc),
       );
+      expect(imported.doc.content!.map((node) => node.attrs?.id)).toEqual(
+        normalized.content!.map((node) => node.attrs?.id),
+      );
       expect(source).toContain(investigationId);
       expect(source).not.toContain('rows');
     }

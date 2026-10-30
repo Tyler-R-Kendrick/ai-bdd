@@ -21,6 +21,10 @@ import { InvestigationService } from '../server/integrations/investigations.ts';
 import { DiskObjectStore } from '../server/hosting/disk-objects.ts';
 import { validateInvestigationReferences } from '../server/integrations/investigation-references.ts';
 import { editorSchema } from '../shared/editor.ts';
+import {
+  exportMarkdown,
+  importMarkdown,
+} from '../shared/document-interchange.ts';
 import type { InvestigationResult } from '../shared/investigations.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -164,6 +168,7 @@ async function fixture(adapter: 'sqlite' | 'postgres') {
     },
   });
   return {
+    machine,
     store,
     user,
     project,
@@ -175,6 +180,20 @@ async function fixture(adapter: 'sqlite' | 'postgres') {
     doc,
   };
 }
+const append = (artifact: any, nodes: any[]) => ({
+  doc: {
+    ...artifact.content.doc,
+    content: [...artifact.content.doc.content, ...nodes],
+  },
+});
+const withoutCards = (artifact: any) => ({
+  doc: {
+    ...artifact.content.doc,
+    content: artifact.content.doc.content.filter(
+      (node: any) => node.type !== 'investigationCard',
+    ),
+  },
+});
 for (const adapter of ['sqlite', 'postgres'] as const)
   describe.skipIf(adapter === 'postgres' && !postgresUrl)(
     `${adapter} investigation references in canonical source writes`,
@@ -182,12 +201,11 @@ for (const adapter of ['sqlite', 'postgres'] as const)
       it('permits only a persisted parent request card and rejects arbitrary same-project/cross-project source cards', async () => {
         const w = await fixture(adapter),
           parent = await w.store.artifact(w.artifact.id, w.user.id);
-        await w.store.updateArtifact(
-          w.user,
-          parent.id,
-          parent.version,
-          w.doc('investigationCard'),
-        );
+        expect(
+          parent.content.doc.content.filter(
+            (node: any) => node.type === 'investigationCard',
+          ),
+        ).toHaveLength(1);
         const sibling = await w.store.createArtifact(
           w.user,
           w.project.id,
@@ -224,24 +242,27 @@ for (const adapter of ['sqlite', 'postgres'] as const)
             w.doc('investigationCard'),
           ),
         ).rejects.toThrow('belonging');
-        const current = await w.store.artifact(parent.id, w.user.id);
         await expect(
           w.store.updateArtifact(
             w.user,
             parent.id,
-            current.version,
-            w.doc('investigationCard', randomUUID()),
+            parent.version,
+            append(
+              parent,
+              w.doc('investigationCard', randomUUID()).doc.content,
+            ),
           ),
         ).rejects.toThrow('belonging');
       });
       it('publishes actual leased investigation views into the real child and permits the same record view in its source only', async () => {
-        const w = await fixture(adapter);
+        const w = await fixture(adapter),
+          initial = await w.store.artifact(w.artifact.id, w.user.id);
         await expect(
           w.store.updateArtifact(
             w.user,
-            w.artifact.id,
-            1,
-            w.doc('investigationView'),
+            initial.id,
+            initial.version,
+            append(initial, w.doc('investigationView').doc.content),
           ),
         ).rejects.toThrow('completed');
         const completed = await w.complete(),
@@ -253,7 +274,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           w.user,
           parent.id,
           parent.version,
-          w.doc('investigationView'),
+          append(parent, w.doc('investigationView').doc.content),
         );
         const sibling = await w.store.createArtifact(
           w.user,
@@ -275,9 +296,93 @@ for (const adapter of ['sqlite', 'postgres'] as const)
             w.user,
             parent.id,
             current.version,
-            w.doc('investigationView', w.proposed.id, 'missing'),
+            append(
+              current,
+              w.doc('investigationView', w.proposed.id, 'missing').doc.content,
+            ),
           ),
         ).rejects.toThrow('published view');
+      });
+      it('retains one stable request-card identity through source/MDX rewrites and permits removal only after an explicit withdrawal', async () => {
+        const w = await fixture(adapter),
+          before = await w.store.artifact(w.artifact.id, w.user.id),
+          card = before.content.doc.content.find(
+            (node: any) => node.type === 'investigationCard',
+          );
+        await expect(
+          w.store.updateArtifact(
+            w.user,
+            before.id,
+            before.version,
+            withoutCards(before),
+          ),
+        ).rejects.toThrow('stable identity');
+        await expect(
+          w.store.updateArtifact(
+            w.user,
+            before.id,
+            before.version,
+            append(before, [card]),
+          ),
+        ).rejects.toThrow('exactly once');
+        const changed = structuredClone(before.content);
+        changed.doc.content.find(
+          (node: any) => node.type === 'investigationCard',
+        ).attrs.id = randomUUID();
+        await expect(
+          w.store.updateArtifact(w.user, before.id, before.version, changed),
+        ).rejects.toThrow('stable identity');
+        const moved = {
+          doc: {
+            ...before.content.doc,
+            content: [card, ...withoutCards(before).doc.content],
+          },
+        };
+        await w.store.updateArtifact(w.user, before.id, before.version, moved);
+        const current = await w.store.artifact(before.id, w.user.id),
+          roundtrip = importMarkdown(
+            exportMarkdown(current.content.doc, true),
+            true,
+          );
+        await w.store.updateArtifact(w.user, before.id, current.version, {
+          doc: roundtrip.doc,
+        });
+        await w.service.transition(w.user, w.proposed.id, 'withdraw');
+        const withdrawn = await w.store.artifact(before.id, w.user.id);
+        await w.store.updateArtifact(
+          w.user,
+          before.id,
+          withdrawn.version,
+          withoutCards(withdrawn),
+        );
+        expect(
+          JSON.stringify(
+            (await w.store.artifact(before.id, w.user.id)).content,
+          ),
+        ).not.toContain('investigationCard');
+      });
+      it('prevents generic source edits from removing queued, running and completed request cards', async () => {
+        const w = await fixture(adapter);
+        const remove = async () => {
+          const current = await w.store.artifact(w.artifact.id, w.user.id);
+          return w.store.updateArtifact(
+            w.user,
+            current.id,
+            current.version,
+            withoutCards(current),
+          );
+        };
+        await w.service.run(w.user, w.proposed.id);
+        await expect(remove()).rejects.toThrow('stable identity');
+        const claim = await w.service.claim(w.machine);
+        expect(claim.work).toBeTruthy();
+        await expect(remove()).rejects.toThrow('stable identity');
+        await w.service.complete(w.machine, w.proposed.id, {
+          generation: claim.work!.generation,
+          leaseToken: claim.leaseToken!,
+          result: w.result,
+        });
+        await expect(remove()).rejects.toThrow('stable identity');
       });
       it('validates MCP/import-shaped writes and incoming Yjs source against the same persisted records before source/revisions commit', async () => {
         const w = await fixture(adapter);
@@ -332,7 +437,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
             w.user,
             parent.id,
             parent.version,
-            w.doc('investigationView'),
+            append(parent, w.doc('investigationView').doc.content),
           ),
         ).rejects.toThrow('integrity');
       });
