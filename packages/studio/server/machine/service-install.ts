@@ -14,6 +14,7 @@ import { promisify } from 'node:util';
 import { z } from 'zod';
 import { privateJson, readPrivateJson } from './runtime.ts';
 const execute = promisify(execFile);
+export class ServiceSetupError extends Error {}
 const configSchema = z
   .object({
     version: z.literal(1),
@@ -50,7 +51,9 @@ const digest = (bytes: Uint8Array | string) =>
   createHash('sha256').update(bytes).digest('hex');
 const safePath = (path: string) => {
   if (!isAbsolute(path) || /[\0\r\n]/.test(path))
-    throw new Error('Service paths must be absolute single-line paths');
+    throw new ServiceSetupError(
+      'Service paths must be absolute single-line paths',
+    );
   return path;
 };
 const systemdArg = (value: string) =>
@@ -82,7 +85,7 @@ export function serviceLocation(
 ) {
   const platform = options.platform ?? process.platform;
   if (platform !== 'linux' && platform !== 'darwin')
-    throw new Error(
+    throw new ServiceSetupError(
       'Service installation supports Linux user systemd and macOS LaunchAgents; run the connector in the foreground on this platform',
     );
   const state = resolve(env.STUDIO_MACHINE_STATE_DIR ?? 'studio-machine-state');
@@ -118,7 +121,7 @@ const target = (config: Config) => 'dev.studio.connector.' + config.id;
 const domain = () => {
   const uid = process.getuid?.();
   if (uid === undefined)
-    throw new Error('A user service requires a user session');
+    throw new ServiceSetupError('A user service requires a user session');
   return 'gui/' + uid;
 };
 export async function installConnectorService(input: {
@@ -136,18 +139,18 @@ export async function installConnectorService(input: {
     source.length > 12 * 1024 * 1024 ||
     !source.includes(Buffer.from('Studio connector redistribution notices'))
   )
-    throw new Error(
+    throw new ServiceSetupError(
       'Install services using the downloaded standalone studio-connector.mjs bundle',
     );
   const credential = input.env.STUDIO_MACHINE_CREDENTIALS;
   if (!credential || !isAbsolute(credential))
-    throw new Error(
+    throw new ServiceSetupError(
       'Pair first and select an absolute private credential file',
     );
   await readPrivateJson(credential);
   await mkdir(dirname(location.directory), { recursive: true, mode: 0o700 });
   await mkdir(location.directory, { mode: 0o700 }).catch(() => {
-    throw new Error(
+    throw new ServiceSetupError(
       'This service profile already exists; inspect status and uninstall it before reinstalling',
     );
   });
@@ -156,7 +159,7 @@ export async function installConnectorService(input: {
     directoryInfo.isSymbolicLink() ||
     (await realpath(location.directory)) !== location.directory
   )
-    throw new Error('A service profile cannot traverse symlinks');
+    throw new ServiceSetupError('A service profile cannot traverse symlinks');
   const environment: Record<string, string> = {};
   for (const key of allowed)
     if (input.env[key] !== undefined) environment[key] = input.env[key]!;
@@ -205,7 +208,7 @@ export async function installConnectorService(input: {
         else
           await run('launchctl', ['bootout', domain() + '/' + target(config)]);
       } catch {
-        throw new Error(
+        throw new ServiceSetupError(
           'Service activation is uncertain; its private profile was retained. Inspect service status and explicitly uninstall before retrying',
         );
       }
@@ -214,7 +217,7 @@ export async function installConnectorService(input: {
         await run('systemctl', ['--user', 'daemon-reload']).catch(() => {});
     }
     await rm(location.directory, { recursive: true, force: true });
-    throw new Error(
+    throw new ServiceSetupError(
       'The user service could not be installed; no service profile was retained. Check the user service manager and run in the foreground',
     );
   }
@@ -225,11 +228,11 @@ export async function readServiceConfiguration(path: string) {
     config.entry !== join(dirname(path), 'connector.mjs') ||
     digest(await readFile(config.entry)) !== config.entrySha256
   )
-    throw new Error(
+    throw new ServiceSetupError(
       'The installed connector bundle changed; uninstall and reinstall the service',
     );
   if (Object.keys(config.environment).some((key) => !allowed.has(key)))
-    throw new Error('Unexpected service environment key');
+    throw new ServiceSetupError('Unexpected service environment key');
   return config;
 }
 export async function connectorServiceAction(
@@ -255,14 +258,14 @@ export async function connectorServiceAction(
     config.unitPath !== location.unitPath ||
     config.platform !== location.platform
   )
-    throw new Error(
+    throw new ServiceSetupError(
       'The service profile does not match this operator configuration',
     );
   if (
     (await readFile(config.unitPath, 'utf8')) !==
     serviceTemplate(config, location.configPath)
   )
-    throw new Error(
+    throw new ServiceSetupError(
       'The service definition changed; review it before removing it',
     );
   const run = options.manager ?? manager;

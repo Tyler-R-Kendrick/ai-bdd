@@ -6,6 +6,7 @@ import {
   connectorServiceAction,
   installConnectorService,
   readServiceConfiguration,
+  ServiceSetupError,
 } from './service-install.ts';
 
 export const connectorHelp = `Studio connected-machine connector (Node 22+, Git, installed ACP agent)
@@ -34,6 +35,15 @@ it is not a stdio ACP preset. No agent download or service install happens by de
 `;
 
 export class ConnectorUsageError extends Error {}
+async function serviceOperation<T>(operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof ServiceSetupError)
+      throw new ConnectorUsageError(error.message);
+    throw error;
+  }
+}
 export async function runConnectorCLI(options: {
   args: string[];
   env: NodeJS.ProcessEnv;
@@ -95,7 +105,9 @@ export async function runConnectorCLI(options: {
       throw new ConnectorUsageError('Use service status or service uninstall');
     write(
       JSON.stringify(
-        await connectorServiceAction(args[1] as 'status' | 'uninstall', env),
+        await serviceOperation(() =>
+          connectorServiceAction(args[1] as 'status' | 'uninstall', env),
+        ),
       ) + '\n',
     );
     return;
@@ -170,7 +182,9 @@ export async function runConnectorCLI(options: {
     delete env.STUDIO_MACHINE_PAIR_CODE;
     write(
       JSON.stringify(
-        await installConnectorService({ env, entryFile: options.entryFile }),
+        await serviceOperation(() =>
+          installConnectorService({ env, entryFile: options.entryFile }),
+        ),
       ) + '\n',
     );
     return;

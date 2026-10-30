@@ -243,7 +243,7 @@ export async function accountAssignments(
       } as MachineCredentials,
     };
   });
-  return { ...result, assignments };
+  return { ...result, assignments, registry };
 }
 export async function runAccountMachineWorker(
   credentials: AccountMachineCredentials,

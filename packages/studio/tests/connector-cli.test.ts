@@ -19,7 +19,10 @@ import {
   canonicalCloneRepository,
   managedClone,
 } from '../server/machine/clone-registry.ts';
-import { runConnectorCLI } from '../server/machine/connector-cli.ts';
+import {
+  runConnectorCLI,
+  ConnectorUsageError,
+} from '../server/machine/connector-cli.ts';
 import {
   connectorServiceAction,
   installConnectorService,
@@ -268,6 +271,15 @@ readline.createInterface({input:process.stdin}).on('line',line=>{const m=JSON.pa
     await expect(installConnectorService(options)).rejects.toThrow('uncertain');
     const location = serviceLocation(f.env, options);
     expect(await stat(location.configPath)).toBeDefined();
+    await expect(
+      runConnectorCLI({
+        args: ['service', 'status'],
+        env: f.env,
+        entryFile: f.entryFile,
+        runWorker: async () => {},
+        prepareCredentials: async () => {},
+      }),
+    ).rejects.toBeInstanceOf(ConnectorUsageError);
     await writeFile(location.unitPath, 'operator changed definition');
     await expect(
       connectorServiceAction('uninstall', f.env, {
