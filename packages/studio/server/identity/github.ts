@@ -992,7 +992,7 @@ export class RepositoryIdentity {
       const userId = challenge.userId,
         sessionHash = challenge.sessionHash;
       const session = await this.store.one(
-        'SELECT user_id FROM sessions WHERE token=? AND user_id=? AND expires>?',
+        "SELECT user_id FROM sessions WHERE token=? AND user_id=? AND expires>? AND (kind='api' OR (kind='session' AND EXISTS(SELECT 1 FROM github_signin_sessions g WHERE g.token=sessions.token)))",
         sessionHash,
         userId,
         Date.now(),
@@ -1034,7 +1034,7 @@ export class RepositoryIdentity {
             payload.epoch,
           );
           const currentSession = await this.store.one(
-            'UPDATE sessions SET expires=expires WHERE token=? AND user_id=? AND expires>? RETURNING user_id',
+            "UPDATE sessions SET expires=expires WHERE token=? AND user_id=? AND expires>? AND (kind='api' OR (kind='session' AND EXISTS(SELECT 1 FROM github_signin_sessions g WHERE g.token=sessions.token))) RETURNING user_id",
             sessionHash,
             userId,
             Date.now(),

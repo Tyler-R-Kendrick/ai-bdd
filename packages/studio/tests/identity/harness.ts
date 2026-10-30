@@ -15,7 +15,7 @@ import { githubFixture } from './github-fixture.ts';
 export async function identityHarness() {
   const db = new DatabaseSync(':memory:');
   db.exec(
-    'PRAGMA foreign_keys=ON;CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT,name TEXT,color TEXT);CREATE TABLE sessions(token TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id),expires BIGINT,kind TEXT);CREATE TABLE projects(id TEXT PRIMARY KEY,title TEXT,repository TEXT);CREATE TABLE memberships(project_id TEXT,user_id TEXT,role TEXT,PRIMARY KEY(project_id,user_id));',
+    'PRAGMA foreign_keys=ON;CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT,name TEXT,color TEXT);CREATE TABLE sessions(token TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id),expires BIGINT,kind TEXT);CREATE TABLE github_signin_sessions(token TEXT PRIMARY KEY REFERENCES sessions(token) ON DELETE CASCADE);CREATE TABLE projects(id TEXT PRIMARY KEY,title TEXT,repository TEXT);CREATE TABLE memberships(project_id TEXT,user_id TEXT,role TEXT,PRIMARY KEY(project_id,user_id));',
   );
   let tail: Promise<void> = Promise.resolve();
   const active = new AsyncLocalStorage<boolean>();
@@ -68,15 +68,16 @@ export async function identityHarness() {
   const origin = 'http://studio.fixture.test',
     auth: IdentityAuth = {
       async user(req) {
-        const token =
-            req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1] ??
+        const bearer = req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1],
+          token = bearer ??
             req.cookies.studio_session,
           row =
             token &&
             (await store.one(
-              'SELECT user_id FROM sessions WHERE token=? AND expires>?',
+              'SELECT user_id FROM sessions WHERE token=? AND expires>? AND kind=?' + (bearer ? '' : ' AND EXISTS(SELECT 1 FROM github_signin_sessions g WHERE g.token=sessions.token)'),
               hash(token),
               Date.now(),
+              bearer ? 'api' : 'session',
             ));
         if (!row) throw new HttpError(401, 'Sign in');
         return store.publicUser(row.user_id);
@@ -121,6 +122,8 @@ export async function identityHarness() {
       Date.now() + 3600000,
       'session',
     );
+    // This isolated permission fixture starts after a verified browser sign-in.
+    await store.exec('INSERT INTO github_signin_sessions(token) VALUES(?)', hash(user.id + '-session'));
   }
   const fixture = await githubFixture(),
     settings: IdentitySettings = {

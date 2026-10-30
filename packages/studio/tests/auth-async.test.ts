@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { Store } from '../server/store.ts';
 import { settingsFromEnv, Auth, type Settings } from '../server/auth.ts';
 import { openDatabase } from '../server/persistence/index.ts';
+import { githubSignInResponse, injectedGitHub } from './identity/github-signin-inject-fixture.ts';
 const origin = 'http://127.0.0.1:8897',
   cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -18,6 +19,8 @@ async function fixture(store: Store) {
       origin,
       dataDir: '/tmp/studio-auth-async',
       demo: false,
+      adminEmail: 'owner@example.test',
+      githubSignInProvider: injectedGitHub,
     },
     auth = new Auth(store, settings);
   await auth.initialize();
@@ -33,25 +36,16 @@ async function fixture(store: Store) {
   );
   return { app, auth, store };
 }
-const setup = (
+const signIn = (
   app: Awaited<ReturnType<typeof fixture>>['app'],
   email = 'owner@example.test',
-) =>
-  app.inject({
-    method: 'POST',
-    url: '/api/auth/setup',
-    headers: { origin },
-    payload: {
-      email,
-      name: 'Admitted owner',
-      password: 'secure-shared-authentication-password',
-    },
-  });
+) => githubSignInResponse(app, email);
 describe('awaited authentication persistence', () => {
-  it('commits an actual password session before returning it and rejects durable revocation', async () => {
+  it('commits a GitHub-provenance session before returning it and rejects durable revocation', async () => {
     const { app, store } = await fixture(await Store.open(':memory:'));
-    const response = await setup(app);
-    expect(response.statusCode, response.body).toBe(200);
+    const response = await signIn(app);
+    expect(response.statusCode, response.body).toBe(302);
+    expect(response.headers.location).toBe('/');
     const session = response.cookies.find(
       (value) => value.name === 'studio_session',
     )!.value;
@@ -77,7 +71,7 @@ describe('awaited authentication persistence', () => {
 describe.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
   'real PostgreSQL authentication admission',
   () => {
-    it('admits exactly one first owner across two application instances', async () => {
+    it('admits exactly one GitHub identity for the first owner across two application instances', async () => {
       const url = process.env.STUDIO_TEST_POSTGRES_URL!,
         schema = 'auth_' + randomUUID().replaceAll('-', '');
       const first = await fixture(
@@ -91,19 +85,20 @@ describe.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
           ),
         );
       const result = await Promise.all([
-        setup(first.app, 'first@example.test'),
-        setup(second.app, 'second@example.test'),
+        githubSignInResponse(first.app, 'owner@example.test', {id:'101'}),
+        githubSignInResponse(second.app, 'owner@example.test', {id:'202'}),
       ]);
       expect(
-        result.filter((response) => response.statusCode === 200),
+        result.filter((response) => response.headers.location === '/'),
       ).toHaveLength(1);
       expect(
-        result.filter((response) => [403, 409].includes(response.statusCode)),
+        result.filter((response) => response.headers.location === '/?signin=failed'),
       ).toHaveLength(1);
       expect((await first.store.one('SELECT count(*) AS n FROM users')).n).toBe(
         1,
       );
-      const winner = result.find((response) => response.statusCode === 200)!,
+      expect((await first.store.one('SELECT count(*) AS n FROM github_signin_identities')).n).toBe(1);
+      const winner = result.find((response) => response.headers.location === '/')!,
         session = winner.cookies.find(
           (value) => value.name === 'studio_session',
         )!.value;
@@ -115,6 +110,22 @@ describe.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
           })
         ).statusCode,
       ).toBe(200);
+    });
+    it('consumes a shared GitHub callback exactly once across PostgreSQL application instances', async () => {
+      const url = process.env.STUDIO_TEST_POSTGRES_URL!, schema = 'auth_replay_' + randomUUID().replaceAll('-', '');
+      const first = await fixture(await Store.open(await openDatabase({adapter:'postgres',url,schema})));
+      const second = await fixture(await Store.open(await openDatabase({adapter:'postgres',url,schema})));
+      const start = await first.app.inject('/api/auth/github');
+      const binding = start.cookies.find(value=>value.name==='studio_github_signin')!.value;
+      const code = injectedGitHub.issue(String(start.headers.location),'owner@example.test');
+      const request = {url:'/api/auth/github/callback?'+new URLSearchParams(code),headers:{cookie:'studio_github_signin='+binding}};
+      const results = await Promise.all([first.app.inject(request),second.app.inject(request)]);
+      expect(results.filter(response=>response.headers.location==='/')).toHaveLength(1);
+      expect(results.filter(response=>response.headers.location==='/?signin=failed')).toHaveLength(1);
+      expect((await first.store.one('SELECT COUNT(*) AS n FROM sessions')).n).toBe(1);
+      expect((await first.store.one('SELECT COUNT(*) AS n FROM github_signin_sessions')).n).toBe(1);
+      expect((await first.store.one('SELECT COUNT(*) AS n FROM identity_challenges')).n).toBe(0);
+      expect((await second.app.inject(request)).headers.location).toBe('/?signin=failed');
     });
   },
 );

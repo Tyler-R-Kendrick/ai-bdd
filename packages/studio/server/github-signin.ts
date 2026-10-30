@@ -41,16 +41,22 @@ export const githubCodeChallenge = (verifier: string) =>
 async function boundedJson(response: Response, maximum: number) {
   let size = 0;
   const parts: Buffer[] = [];
+  const reader = response.body?.getReader();
   try {
-    for await (const part of response.body ?? []) {
+    if (!reader) throw new Error('response missing');
+    while (true) {
+      const { done, value: part } = await reader.read();
+      if (done) break;
       size += part.byteLength;
       if (size > maximum) throw new Error('response limit');
       parts.push(Buffer.from(part));
     }
     return JSON.parse(Buffer.concat(parts).toString('utf8'));
   } catch {
-    await response.body?.cancel().catch(() => {});
+    await reader?.cancel().catch(() => {});
     throw new HttpError(502, 'GitHub returned an invalid sign-in response');
+  } finally {
+    reader?.releaseLock();
   }
 }
 /** Sign-in asks for verified email access; repository authorization is separate. */
@@ -108,15 +114,15 @@ export class GitHubOAuthSignInProvider implements GitHubSignInProvider {
       }),
     }, 16384);
     if (
-      token.error || typeof token.access_token !== 'string' ||
+      !token || typeof token !== 'object' || token.error || typeof token.access_token !== 'string' ||
       token.access_token.length < 10 || token.access_token.length > 4096 ||
-      token.token_type?.toLowerCase() !== 'bearer'
+      typeof token.token_type !== 'string' || token.token_type.toLowerCase() !== 'bearer'
     ) throw new HttpError(401, 'GitHub could not complete sign-in. Start again.');
     const headers = { Authorization: 'Bearer ' + token.access_token };
     const profile = await this.request('https://api.github.com/user', { headers }, 65536);
     const emails = await this.request('https://api.github.com/user/emails?per_page=100', { headers }, 65536);
     if (
-      !Number.isSafeInteger(profile.id) || profile.id <= 0 ||
+      !profile || typeof profile !== 'object' || !Number.isSafeInteger(profile.id) || profile.id <= 0 ||
       typeof profile.login !== 'string' || !/^[A-Za-z0-9-]{1,39}$/.test(profile.login) ||
       !Array.isArray(emails) || emails.length > 100
     ) throw new HttpError(502, 'GitHub returned an invalid account identity');
