@@ -1,3 +1,5 @@
+import { HttpError } from './http-error.ts';
+export { HttpError } from './http-error.ts';
 import { canonicalDocumentIds } from '../shared/document-identity.ts';
 import { openDatabase, type SqlDatabase } from './persistence/index.ts';
 import * as Y from 'yjs';
@@ -20,14 +22,6 @@ import {
   type Message,
   type RichNode,
 } from '../shared/domain.ts';
-export class HttpError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 export const hash = (s: string | Uint8Array) =>
   createHash('sha256').update(s).digest('hex');
 const now = () => new Date().toISOString();

@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { HttpError } from './store.ts';
+import { HttpError } from './http-error.ts';
 const execute = promisify(execFile);
 export const MAX_AUDIO_SOURCE_BYTES = 10 * 1024 * 1024;
 export const MAX_AUDIO_DECODED_BYTES = 64 * 1024 * 1024;
