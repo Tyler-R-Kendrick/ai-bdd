@@ -206,7 +206,7 @@ test('shows shared connections to a fresh viewer without exposing write or pairi
       panel.getByRole('button', { name: 'Resume agent', exact: true }),
     ).toBeDisabled();
     await expect(
-      panel.getByLabel('Participation mode', { exact: true }),
+      panel.getByRole('combobox', { name: 'Participation mode', exact: true }),
     ).toBeDisabled();
     await expect(
       panel.getByRole('button', { name: 'Pair a machine', exact: true }),
