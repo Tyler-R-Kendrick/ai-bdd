@@ -60,6 +60,16 @@ export class UploadAdmission {
         `CREATE TABLE IF NOT EXISTS studio_uploads(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),name TEXT NOT NULL,declared_type TEXT NOT NULL,storage_key TEXT NOT NULL UNIQUE,byte_size BIGINT NOT NULL,expires_at BIGINT NOT NULL,status TEXT NOT NULL,lease_until BIGINT NOT NULL DEFAULT 0);CREATE INDEX IF NOT EXISTS studio_uploads_expiry ON studio_uploads(status,expires_at);`,
       );
     });
+    this.store.fileQuotaReservations = async (projectId, exemptFileId) =>
+      Number(
+        (
+          await this.store.one(
+            "SELECT coalesce(sum(byte_size),0) AS n FROM studio_uploads WHERE project_id=? AND id<>? AND status IN ('reserved','deleting')",
+            projectId,
+            exemptFileId,
+          )
+        ).n,
+      );
     return this;
   }
   async grant(

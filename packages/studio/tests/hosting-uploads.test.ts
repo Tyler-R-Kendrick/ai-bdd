@@ -214,6 +214,15 @@ describe('durable private upload admission', () => {
       ]);
       expect(results.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
       expect(results.filter((x) => x.status === 'rejected')).toHaveLength(1);
+      await expect(
+        second.registerFile(f.user, f.project.mainArtifactId, {
+          name: 'render.mp4',
+          mime: 'video/mp4',
+          sha256: 'f'.repeat(64),
+          storageKey: 'renders/unrelated',
+          byteSize: 3 * 1024 * 1024,
+        }),
+      ).rejects.toThrow('512 MB');
       const grant = await other.grant(f.user, f.project.mainArtifactId, {
         name: 'photo.png',
         byteSize: png.length,
