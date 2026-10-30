@@ -2,3 +2,5 @@ packages:
   - packages/*
 overrides:
   qs: ">=6.16.0"
+  "@vercel/queue@0.10.0>@vercel/oidc": "4.0.5"
+  "@ai-sdk/gateway@4.0.110>@vercel/oidc": "4.0.5"
