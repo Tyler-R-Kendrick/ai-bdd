@@ -79,7 +79,10 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
     // This helper reads the current validated native OIDC context. It keeps no JWT.
     const provider = await observeGitHubSignIn(observer,'connector-configuration',()=>this.scoped(async()=>connect({
       id:'github',name:'GitHub',connector:this.connector,
-      scopes:['openid','profile','email','user:email'],
+      // This is the SDK's OAuth + PKCE contract. GitHub's own authenticated
+      // profile and verified email API, rather than optional Connect OIDC
+      // profile claims, determine the Studio identity.
+      scopes:['user:email'],
     })));
     const sdkFetch = provider[authJsCustomFetch];
     if (!sdkFetch || provider.clientId !== this.connector)
@@ -116,7 +119,6 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
   }
   async authorizationUrl(input: GitHubSignInAuthorization) {
     await this.metadata(input.onDiagnostic);
-    if (!input.nonce) throw new HttpError(503,'A fresh GitHub sign-in challenge is required');
     const {provider,configuration} = await this.configuration(input.onDiagnostic);
     const authorization = provider.authorization;
     if (!authorization || typeof authorization==='string' || authorization.url?.split('?')[0]!==endpoints.authorization_endpoint)
@@ -124,46 +126,41 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
     const url = oidc.buildAuthorizationUrl(configuration,{
       ...Object.fromEntries(new URL(authorization.url).searchParams),
       ...authorization.params,
-      redirect_uri:input.redirectUri,state:input.state,nonce:input.nonce,
+      redirect_uri:input.redirectUri,state:input.state,
       code_challenge:input.codeChallenge,code_challenge_method:'S256',
     });
     return url.href;
   }
   async authenticate(input:{code:string;verifier:string;redirectUri:string;state?:string;nonce?:string;onDiagnostic?:GitHubSignInObserver}) {
-    if (!input.state || !input.nonce) throw new HttpError(401,'A fresh GitHub sign-in challenge is required');
+    if (!input.state) throw new HttpError(401,'A fresh GitHub sign-in challenge is required');
     const observer=input.onDiagnostic;
     const metadata = await this.metadata(observer), {configuration} = await this.configuration(observer);
     const callback = new URL(input.redirectUri);
     callback.searchParams.set('code',input.code);callback.searchParams.set('state',input.state);
     const tokens = await observeGitHubSignIn(observer,'token-exchange',()=>oidc.authorizationCodeGrant(configuration,callback,{
-      expectedState:input.state,expectedNonce:input.nonce,pkceCodeVerifier:input.verifier,
+      expectedState:input.state,pkceCodeVerifier:input.verifier,
     }));
-    const claims = await observeGitHubSignIn(observer,'id-claims',async()=>{
-    const claims=tokens.claims();
-    if (!claims || typeof claims.sub!=='string' || !claims.sub || claims.sub.length>1024 ||
-      typeof tokens.access_token!=='string' || tokens.access_token.length<10 || tokens.access_token.length>16384)
-      throw new HttpError(401,'Vercel Connect did not verify a GitHub sign-in identity');
-    return claims;
+    await observeGitHubSignIn(observer,'oauth-token',async()=>{
+      if (typeof tokens.access_token!=='string' || tokens.access_token.length<10 || tokens.access_token.length>16384 ||
+        typeof tokens.token_type!=='string' || tokens.token_type.toLowerCase()!=='bearer')
+        throw new HttpError(401,'Vercel Connect did not return a usable GitHub sign-in token');
     });
-    const profile = await observeGitHubSignIn(observer,'userinfo',async()=>{
-    const profile=await oidc.fetchUserInfo(configuration,tokens.access_token,claims.sub);
-    if (profile.sub!==claims.sub || profile.email_verified!==true || typeof profile.email!=='string' || profile.email.length>254)
-      throw new HttpError(403,'A verified GitHub email is required');
-    return {...profile,email:profile.email};
-    });
+    // The SDK's OAuth provider does not require an ID token or verified Connect
+    // email claims. openid-client still verifies issuer/audience/time, nonce
+    // absence and the RS256 signature of any optional ID token it receives.
+    // Do not consume its subject or userinfo as a Studio identity authority.
     // Exchange the server-obtained OAuth session token. No app grant, caller
     // subject ID, inferred subject format or project-wide user impersonation.
     const parameters = {subject:{type:'token' as const,token:tokens.access_token},scopes:['user:email']};
     try {
-      const result = await observeGitHubSignIn(observer,'github-token',()=>this.scoped(()=>getTokenResponse(this.connector,parameters,{forceRefresh:true})
-        .finally(()=>deleteTokenCacheEntry(this.connector,parameters))));
-      if (!result?.connector || result.connector.id!==metadata.id || result.connector.uid!==metadata.uid || typeof result.token!=='string')
-        throw new HttpError(401,'Vercel Connect returned an unexpected GitHub credential');
-      const identity = await observeGitHubSignIn(observer,'github-profile',()=>githubSignInIdentityFromToken(result.token));
-      await observeGitHubSignIn(observer,'email-match',async()=>{
-      if (!identity.verifiedEmails.includes(profile.email.toLowerCase()))
-        throw new HttpError(403,'The verified GitHub identity did not match the sign-in profile');
+      const result = await observeGitHubSignIn(observer,'github-token',async()=>{
+        const result=await this.scoped(()=>getTokenResponse(this.connector,parameters,{forceRefresh:true})
+          .finally(()=>deleteTokenCacheEntry(this.connector,parameters)));
+        if (!result?.connector || result.connector.id!==metadata.id || result.connector.uid!==metadata.uid || typeof result.token!=='string')
+          throw new HttpError(401,'Vercel Connect returned an unexpected GitHub credential');
+        return result;
       });
+      const identity = await observeGitHubSignIn(observer,'github-profile',()=>githubSignInIdentityFromToken(result.token));
       return identity;
     } finally {
       deleteTokenCacheEntry(this.connector,parameters);

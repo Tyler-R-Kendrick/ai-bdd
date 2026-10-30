@@ -37,9 +37,9 @@ afterEach(async()=>{
   vi.useRealTimers();
 });
 const scope:IdentityScope={ownerId:'team_Fixture',ownerSlug:'fixture-team',projectId:'prj_Fixture',projectName:'fixture-project',environment:'preview',deploymentId:'dpl_Fixture',issuer:'https://oidc.vercel.com/fixture-team',audience:'https://vercel.com/fixture-team'};
-type Fault='signature'|'issuer'|'audience'|'nonce'|'missing-id-token'|'userinfo-sub'|'unverified'|'different-github-email'|'different-connector'|'foreign-discovery'|'oversized-token'|'wrong-service'|'provider-error';
+type Fault='id-token'|'signature'|'issuer'|'audience'|'expired'|'nonce'|'missing-access-token'|'short-access-token'|'dpop-token'|'unverified-github-email'|'invalid-github-id'|'different-github-email'|'different-connector'|'foreign-discovery'|'oversized-token'|'wrong-service'|'provider-error';
 async function fixture(fault?:Fault){
-  let leaseCalls=0, expectedNonce='', expectedChallenge=githubCodeChallenge('v'.repeat(43)), tokenRequests=0, providerTokenRequests=0, githubRequests=0;
+  let leaseCalls=0, expectedChallenge=githubCodeChallenge('v'.repeat(43)), tokenRequests=0, providerTokenRequests=0, githubRequests=0, userinfoRequests=0;
   const nativeTokenIds:string[]=[], protectedTokenIds:string[]=[], requests:{url:string;options:RequestInit}[]=[];
   const nativeFetch:typeof fetch=async(input,init)=>{
     if(String(input)==='https://oidc.vercel.com/.well-known/jwks')return Response.json({keys:[nativeJwk]});
@@ -84,18 +84,18 @@ async function fixture(fault?:Fault){
       expect(body.get('redirect_uri')).toBe('https://studio.fixture.test/api/auth/github/callback');
       if(fault==='provider-error')return Response.json({error:'secret-provider-description',access_token:'secret-token'}, {status:401});
       if(fault==='oversized-token')return new Response('x'.repeat(65537));
-      let jwt=await new SignJWT({nonce:fault==='nonce'?'another-nonce':expectedNonce})
+      let jwt=await new SignJWT(fault==='nonce'?{nonce:'unsolicited-nonce'}:{})
         .setProtectedHeader({alg:'RS256',kid:'connect-fixture'}).setIssuer(fault==='issuer'?'https://attacker.invalid':issuer)
         .setAudience(fault==='audience'?'another-connector':connector).setSubject('opaque-connect-subject')
-        .setIssuedAt().setExpirationTime('2m').sign(connectKeys.privateKey);
+        .setIssuedAt().setExpirationTime(fault==='expired'?Math.floor(Date.now()/1000)-300:'2m').sign(connectKeys.privateKey);
       if(fault==='signature'){
         const parts=jwt.split('.');parts[2]=(parts[2]![0]==='A'?'B':'A')+parts[2]!.slice(1);jwt=parts.join('.');
       }
-      return Response.json({access_token:'connect-oauth-session-token',token_type:'Bearer',expires_in:120,...(fault==='missing-id-token'?{}:{id_token:jwt})});
+      return Response.json({...(fault==='missing-access-token'?{}:{access_token:fault==='short-access-token'?'short':'connect-oauth-session-token'}),token_type:fault==='dpop-token'?'DPoP':'Bearer',expires_in:120,...(['id-token','signature','issuer','audience','expired','nonce'].includes(fault??'')?{id_token:jwt}:{})});
     }
     if(url===issuer+'/oauth/userinfo'){
-      expect(headers.get('authorization')).toBe('Bearer connect-oauth-session-token');
-      return Response.json({sub:fault==='userinfo-sub'?'another-subject':'opaque-connect-subject',email:'owner@example.test',email_verified:fault!=='unverified',name:'Connect account'});
+      userinfoRequests++;
+      throw new Error('Connect userinfo is not an identity authority for GitHub sign-in');
     }
     if(url==='https://api.vercel.com/v1/connect/token/'+encodeURIComponent(connector)){
       providerTokenRequests++;await assertProjectCredential(headers.get('authorization')!);
@@ -104,57 +104,62 @@ async function fixture(fault?:Fault){
     }
     if(url==='https://api.github.com/user'){
       githubRequests++;expect(headers.get('authorization')).toBe('Bearer github-user-token-fixture');
-      return Response.json({id:12345,login:'owned-github',name:'Actual GitHub name'});
+      return Response.json({id:fault==='invalid-github-id'?'caller-selected-id':12345,login:'owned-github',name:'Actual GitHub name'});
     }
     if(url==='https://api.github.com/user/emails?per_page=100'){
-      githubRequests++;return Response.json([{email:fault==='different-github-email'?'different@example.test':'owner@example.test',verified:true,primary:false},{email:'not-verified@example.test',verified:false,primary:true}]);
+      githubRequests++;return Response.json([{email:fault==='different-github-email'?'different@example.test':'owner@example.test',verified:fault!=='unverified-github-email',primary:false},{email:'not-verified@example.test',verified:false,primary:true}]);
     }
     throw new Error('Unexpected owned fixture URL');
   }));
   const provider=new VercelConnectGitHubSignInProvider(connector,context);
   const input={state:'s'.repeat(43),nonce:'n'.repeat(43),codeChallenge:githubCodeChallenge('v'.repeat(43)),redirectUri:'https://studio.fixture.test/api/auth/github/callback'};
-  expectedNonce=input.nonce;
   return {provider,input,context,requests,nativeTokenIds,protectedTokenIds,
-    setAuthorization:(url:URL)=>{expectedNonce=url.searchParams.get('nonce')!;expectedChallenge=url.searchParams.get('code_challenge')!;},
-    counts:()=>({leaseCalls,tokenRequests,providerTokenRequests,githubRequests}),
+    setAuthorization:(url:URL)=>{expect(url.searchParams.has('nonce')).toBe(false);expectedChallenge=url.searchParams.get('code_challenge')!;},
+    counts:()=>({leaseCalls,tokenRequests,providerTokenRequests,githubRequests,userinfoRequests}),
     authenticate:(onDiagnostic?:GitHubSignInObserver)=>provider.authenticate({code:'owned-code',state:input.state,nonce:input.nonce,verifier:'v'.repeat(43),redirectUri:input.redirectUri,onDiagnostic})};
 }
 describe('official Vercel Connect GitHub sign-in adapter',()=>{
-  it.each(['missing-id-token','nonce','signature','userinfo-sub','unverified','different-github-email','provider-error'] as Fault[])('diagnoses %s using finite stages and token shape without identity, token or provider text',async fault=>{
+  it.each(['nonce','signature','unverified-github-email','different-connector','short-access-token','provider-error'] as Fault[])('diagnoses %s using finite stages and token shape without identity, token or provider text',async fault=>{
     const f=await fixture(fault),events:GitHubSignInDiagnostic[]=[];
     await expect(f.authenticate(event=>{events.push(event);})).rejects.toThrow();
     const token=events.find(event=>event.stage==='token-response');
-    expect(token).toMatchObject({stage:'token-response',idTokenPresent:!['missing-id-token','provider-error'].includes(fault),accessTokenPresent:true,tokenTypeBearer:fault!=='provider-error'});
-    const stage=['userinfo-sub','unverified'].includes(fault)?'userinfo':fault==='different-github-email'?'email-match':'token-exchange';
+    expect(token).toMatchObject({stage:'token-response',idTokenPresent:['nonce','signature'].includes(fault),accessTokenPresent:true,tokenTypeBearer:fault!=='provider-error'});
+    const stage=fault==='unverified-github-email'?'github-profile':fault==='different-connector'?'github-token':fault==='short-access-token'?'oauth-token':'token-exchange';
     expect(events.some(event=>event.stage===stage&&event.state==='failure')).toBe(true);
     if(fault==='nonce')expect(events.find(event=>event.stage==='token-exchange'&&event.state==='failure')).toMatchObject({errorCode:'OAUTH_JWT_CLAIM_COMPARISON_FAILED',claim:'nonce'});
     const json=JSON.stringify(events);
     for(const value of ['connect-oauth-session-token','secret-provider-description','owned-code','opaque-connect-subject','owner@example.test','github-user-token-fixture',f.input.state,f.input.nonce,'eyJ'])expect(json).not.toContain(value);
     expect(events.every(event=>event.elapsedMs>=0&&event.elapsedMs<=2147483647)).toBe(true);
-    if(fault!=='different-github-email')expect(f.counts().providerTokenRequests).toBe(0);
+    if(!['different-connector','unverified-github-email'].includes(fault))expect(f.counts().providerTokenRequests).toBe(0);
   });
-  it('uses project-scoped SDK OAuth, verifies signed identity and returns actual numeric GitHub identity without a static app secret',async()=>{
+  it('uses profile-free project-scoped SDK OAuth and returns actual numeric GitHub identity without an ID token or static app secret',async()=>{
     const f=await fixture(),url=new URL(await f.provider.authorizationUrl(f.input));
     expect(url.origin+url.pathname).toBe(issuer+'/oauth/authorize');
     expect(url.searchParams.get('client_id')).toBe(connector);
-    expect(url.searchParams.get('state')).toBe(f.input.state);expect(url.searchParams.get('nonce')).toBe(f.input.nonce);
+    expect(url.searchParams.get('state')).toBe(f.input.state);expect(url.searchParams.has('nonce')).toBe(false);
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
-    expect(url.searchParams.get('scope')).toBe('openid profile email user:email offline_access');
+    expect(url.searchParams.get('scope')).toBe('user:email offline_access');
     expect(url.searchParams.get('teamId')).toBe(scope.ownerId);expect(url.searchParams.get('projectId')).toBe(scope.projectId);
     expect(url.searchParams.get('environment')).toBe('preview');
     expect(url.href).not.toContain('eyJ');
     expect(await f.authenticate()).toEqual({id:'12345',login:'owned-github',name:'Actual GitHub name',verifiedEmails:['owner@example.test']});
-    expect(f.counts()).toMatchObject({tokenRequests:1,providerTokenRequests:1,githubRequests:2});
+    expect(f.counts()).toMatchObject({tokenRequests:1,providerTokenRequests:1,githubRequests:2,userinfoRequests:0});
     expect(new Set(f.protectedTokenIds).size).toBe(f.protectedTokenIds.length);
     expect(f.counts().leaseCalls).toBeGreaterThan(f.protectedTokenIds.length);
     expect(()=>getVercelOidcTokenSync()).toThrow();
     await expect(getTokenResponse(connector,{subject:{type:'token',token:'connect-oauth-session-token'},scopes:['user:email']})).rejects.toThrow();
   });
-  it.each(['signature','issuer','audience','nonce','userinfo-sub','unverified','different-github-email','different-connector','oversized-token','provider-error'] as Fault[])('rejects %s without publishing a Studio session or provider error',async fault=>{
+  it('verifies an optional signed ID token without using its opaque subject as a GitHub identity',async()=>{
+    const f=await fixture('id-token');
+    expect(await f.authenticate()).toMatchObject({id:'12345',verifiedEmails:['owner@example.test']});
+    expect(f.counts()).toMatchObject({providerTokenRequests:1,githubRequests:2,userinfoRequests:0});
+    expect(f.requests.some(request=>String(request.options.body).includes('opaque-connect-subject'))).toBe(false);
+  });
+  it.each(['signature','issuer','audience','expired','nonce','missing-access-token','short-access-token','dpop-token','unverified-github-email','invalid-github-id','different-connector','oversized-token','provider-error'] as Fault[])('rejects %s without publishing a Studio session or provider error',async fault=>{
     const f=await fixture(fault);
     await f.provider.authorizationUrl(f.input);
     await expect(f.authenticate()).rejects.not.toThrow('secret-provider-description');
-    if(['signature','issuer','audience','nonce','userinfo-sub','unverified','oversized-token','provider-error'].includes(fault))expect(f.counts().providerTokenRequests).toBe(0);
+    if(['signature','issuer','audience','expired','nonce','missing-access-token','short-access-token','dpop-token','oversized-token','provider-error'].includes(fault))expect(f.counts().providerTokenRequests).toBe(0);
     expect(()=>getVercelOidcTokenSync()).toThrow();
   });
   it.each(['wrong-service','foreign-discovery'] as Fault[])('refuses %s before returning a browser authorization URL',async fault=>{
@@ -195,8 +200,8 @@ describe('official Vercel Connect GitHub sign-in adapter',()=>{
     expect(f.counts().githubRequests).toBe(0);
     await expect(getTokenResponse(connector,{subject:{type:'token',token:'connect-oauth-session-token'},scopes:['user:email']})).rejects.toThrow();
   });
-  it('preserves SQL state/PKCE/nonce and GitHub provenance in the existing Auth callback workflow',async()=>{
-    const f=await fixture(),store=await Store.open(':memory:'),app=Fastify();
+  it.each([undefined,'different-github-email'] as const)('preserves SQL state, PKCE, native verified email admission and GitHub session provenance (%s)',async fault=>{
+    const logs:string[]=[],f=await fixture(fault),store=await Store.open(':memory:'),app=Fastify({logger:{redact:['req.url'],stream:{write:(line:string)=>{logs.push(line);}}}});
     await app.register(cookie);
     const auth=new Auth(store,{production:true,origin:'https://studio.fixture.test',dataDir:'/tmp/studio-connect-auth',demo:false,adminEmail:'owner@example.test',githubSignInConnector:connector},f.context);
     await auth.initialize();await auth.routes(app);cleanup.push(()=>store.close(),()=>app.close());
@@ -204,7 +209,19 @@ describe('official Vercel Connect GitHub sign-in adapter',()=>{
     expect(start.statusCode).toBe(302);f.setAuthorization(url);
     const binding=start.cookies.find(value=>value.name==='studio_github_signin')!.value;
     const callback={url:'/api/auth/github/callback?'+new URLSearchParams({state:url.searchParams.get('state')!,code:'opaque.code~with+symbols'}),headers:{cookie:'studio_github_signin='+binding}};
-    const response=await app.inject(callback);expect(response.headers.location).toBe('/');
+    const response=await app.inject(callback);
+    if(fault==='different-github-email'){
+      expect(response.headers.location).toBe('/?signin=failed');
+      expect(response.cookies.some(value=>value.name==='studio_session')).toBe(false);
+      expect((await store.one('SELECT COUNT(*) AS n FROM github_signin_sessions')).n).toBe(0);
+      expect((await store.one('SELECT COUNT(*) AS n FROM users')).n).toBe(0);
+      const events=logs.map(line=>JSON.parse(line)).filter(value=>value.githubSignIn).map(value=>value.githubSignIn);
+      expect(events.some(event=>event.stage==='admission'&&event.state==='failure')).toBe(true);
+      expect(events.some(event=>event.stage==='callback'&&event.state==='failure')).toBe(true);
+      for(const value of [binding,url.searchParams.get('state')!,'opaque.code','owner@example.test','different@example.test','github-user-token-fixture','connect-oauth-session-token'])expect(logs.join('')).not.toContain(value);
+      return;
+    }
+    expect(response.headers.location).toBe('/');
     const session=response.cookies.find(value=>value.name==='studio_session')!.value;
     expect((await app.inject({url:'/api/me',headers:{cookie:'studio_session='+session}})).statusCode).toBe(200);
     expect((await app.inject(callback)).headers.location).toBe('/?signin=failed');

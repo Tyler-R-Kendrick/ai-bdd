@@ -94,8 +94,11 @@ lock after awaited work. Trusted proxy CIDRs are explicit.
 
 Browser sign-in uses GitHub with durable one-use state, browser-bound PKCE,
 verified email admission and a stable numeric GitHub identity. The preferred
-Vercel Connect adapter also verifies issuer, audience, signature, nonce and
-userinfo subject through a fresh server-side identity scope. A direct GitHub
+Vercel Connect adapter uses the official OAuth/PKCE contract through a fresh
+server-side identity scope. Only its server-exchanged, token-bound GitHub
+credential supplies the numeric identity and verified emails; optional Connect
+profile claims do not admit users. Any returned ID token still receives issuer,
+audience, timestamp and signature validation. A direct GitHub
 OAuth adapter is an explicit alternative outside Connect. Password/setup/demo
 and generic organization OIDC sign-in are disabled; provider failure leaves a
 visible retry state. Historical browser sessions without GitHub provenance are

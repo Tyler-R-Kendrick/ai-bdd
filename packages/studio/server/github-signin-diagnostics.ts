@@ -1,7 +1,7 @@
 export type GitHubSignInStage =
   | 'authorization' | 'challenge' | 'provider' | 'admission' | 'session' | 'callback'
   | 'connector-metadata' | 'connector-configuration' | 'discovery' | 'token-exchange'
-  | 'token-response' | 'id-claims' | 'userinfo' | 'github-token' | 'github-profile' | 'email-match';
+  | 'token-response' | 'oauth-token' | 'id-claims' | 'userinfo' | 'github-token' | 'github-profile' | 'email-match';
 type SafeFailure = {errorClass?:string;errorCode?:string;claim?:string;status?:number};
 export type GitHubSignInDiagnostic = SafeFailure & {stage:GitHubSignInStage;state:'start'|'success'|'failure';elapsedMs:number;idTokenPresent?:boolean;accessTokenPresent?:boolean;tokenTypeBearer?:boolean};
 export type GitHubSignInObserver = (event:GitHubSignInDiagnostic)=>void|Promise<void>;
