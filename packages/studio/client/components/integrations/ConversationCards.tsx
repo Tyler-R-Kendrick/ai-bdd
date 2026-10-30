@@ -77,7 +77,8 @@ export function ConversationCards({
   const pending = view.jobs.find(
       (j) => j.status === 'queued' || j.status === 'running',
     ),
-    failed = view.jobs[0]?.status === 'failed' ? view.jobs[0] : null;
+    failed = view.jobs[0]?.status === 'failed' ? view.jobs[0] : null,
+    eligibility = view.jobs[0]?.eligibility;
   return (
     <section
       className="conversation-offers"
@@ -91,13 +92,45 @@ export function ConversationCards({
         Review questions and research briefs suggested from this discussion.
       </p>
       {!view.modelConfigured && (
-        <p>Configure a model to analyze this discussion.</p>
+        <p>
+          Select configured decision and agent models to analyze this
+          discussion.
+        </p>
       )}
       {pending && <p role="status">Analysis {pending.status}…</p>}
       {failed && (
         <p role="alert" className="conversation-error">
           Analysis failed: {failed.error}
         </p>
+      )}
+      {eligibility && (
+        <details className="conversation-eligibility">
+          <summary>Proposal eligibility: {eligibility.answerStatus}</summary>
+          <p>
+            Decision provider: {eligibility.provider} · {eligibility.model}
+          </p>
+          {eligibility.probability !== null && (
+            <p>
+              True probability: {(eligibility.probability * 100).toFixed(1)}%
+            </p>
+          )}
+          {eligibility.confidence !== null && (
+            <p>
+              Reported confidence: {(eligibility.confidence * 100).toFixed(1)}%
+            </p>
+          )}
+          {eligibility.answerStatus !== 'answered' && (
+            <p role={eligibility.answerStatus === 'error' ? 'alert' : 'status'}>
+              No proposal text was generated. The decision was{' '}
+              {eligibility.answerStatus}
+              {eligibility.error ? ` (${eligibility.error})` : ''}.
+            </p>
+          )}
+          {eligibility.answerStatus === 'answered' &&
+            eligibility.value === false && (
+              <p>No unresolved offer was identified.</p>
+            )}
+        </details>
       )}
       {error && (
         <p role="alert" className="conversation-error">

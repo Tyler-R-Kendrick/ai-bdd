@@ -1,3 +1,13 @@
+import { decisionProfileSchema } from '../shared/decision-profile.ts';
+import { createGateway } from 'ai';
+import { DecisionModels } from '../server/decisions/models.ts';
+import type { AgentProfile } from '../shared/agent-profile.ts';
+import type {
+  DecisionEvaluation,
+  DecisionProfile,
+  DecisionAnswer,
+} from '../shared/decision-profile.ts';
+import type { DecisionInvocation } from '../server/decisions/contracts.ts';
 import '@fastify/cookie';
 import '@fastify/websocket';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,12 +28,14 @@ import { DurableJobCoordinator } from '../server/runtime/jobs.ts';
 import {
   registerConversationRoutes,
   conversationExportPage,
+  conversationDecisionInput,
   type StartConversationResearch,
 } from '../server/integrations/conversation.ts';
 import type {
   ConversationCard,
   ConversationOffer,
   ConversationView,
+  ConversationSnapshot,
 } from '../shared/conversation.ts';
 import type { User } from '../shared/domain.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
@@ -32,6 +44,43 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 const postgresUrl = process.env.STUDIO_TEST_POSTGRES_URL;
+it('bounds Unicode eligibility context to the selected native provider without mutating the full snapshot', () => {
+  const source: ConversationSnapshot = {
+    artifactId: randomUUID(),
+    artifactVersion: 4,
+    artifactTitle: 'Boundary design',
+    contentHash: 'a'.repeat(64),
+    threadId: randomUUID(),
+    messages: Array.from({ length: 12 }, () => ({
+      id: randomUUID(),
+      author: 'Owner',
+      role: 'user',
+      body: '境界🧪'.repeat(600),
+      bodyHash: 'b'.repeat(64),
+      truncated: false,
+    })),
+    decisions: Array.from({ length: 40 }, () => ({
+      id: randomUUID(),
+      version: 1,
+      title: '承認済み境界'.repeat(50),
+      status: 'accepted',
+    })),
+  };
+  const original = JSON.stringify(source),
+    encoded = conversationDecisionInput(source, 32000),
+    limited = JSON.parse(encoded);
+  expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(32000);
+  expect(limited.eligibilityContext).toMatchObject({ limited: true });
+  expect(limited.eligibilityContext.fullSnapshotHash).toMatch(/^[a-f0-9]{64}$/);
+  expect(limited.messages.some((message: any) => message.truncated)).toBe(true);
+  for (const message of limited.messages) {
+    const full = source.messages.find((value) => value.id === message.id)!;
+    expect(full.body.startsWith(message.body)).toBe(true);
+    expect(message.bodyHash).toBe(full.bodyHash);
+  }
+  expect(JSON.stringify(source)).toBe(original);
+  expect(conversationDecisionInput(source, 120000)).toBe(original);
+});
 const generated = (text: string) => ({
   content: [{ type: 'text', text }],
   finishReason: { unified: 'stop', raw: 'stop' },
@@ -93,7 +142,8 @@ async function fixture(
     threadId,
     'Should previews use a contract fixture? Compare Pact and a direct integration.',
   );
-  const requests: any[] = [];
+  const requests: any[] = [],
+    evaluations: any[] = [];
   let beforeReply: (() => Promise<void>) | undefined;
   const offers: ConversationOffer[] = [
     {
@@ -111,6 +161,43 @@ async function fixture(
   const server = createServer(async (req, res) => {
     let source = '';
     for await (const chunk of req) source += chunk;
+    if (req.url === '/native/decisions') {
+      const body = JSON.parse(source);
+      evaluations.push({ url: req.url, body, headers: req.headers });
+      res.setHeader('content-type', 'application/json');
+      if (eligibilityStatus === 'error') {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: 'Explicit provider fixture error' }));
+        return;
+      }
+      res.end(
+        JSON.stringify({
+          model: body.model,
+          answers: body.questions.map((question: any) =>
+            eligibilityStatus === 'refused'
+              ? { name: question.name, type: 'refusal' }
+              : {
+                  name: question.name,
+                  type: 'predicate',
+                  probability:
+                    eligibilityStatus === 'abstained'
+                      ? 0.6
+                      : eligible
+                        ? 0.93
+                        : 0.07,
+                },
+          ),
+          usage: {
+            input_tokens: 10,
+            output_tokens: 1,
+            total_tokens: 11,
+            input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+            output_tokens_details: { reasoning_tokens: 0 },
+          },
+        }),
+      );
+      return;
+    }
     requests.push({
       url: req.url,
       body: JSON.parse(source),
@@ -167,6 +254,37 @@ async function fixture(
   const starts: Parameters<StartConversationResearch>[0][] = [];
   let failStart = false;
   const jobs = new Map<string, string>();
+  // Both native classification and generative authoring use the production adapters against explicit local HTTP fixtures.
+  let generationProfile: AgentProfile = {
+      harness: 'vercel-fx',
+      provider: 'ai-gateway',
+      model: 'fixture/model',
+    },
+    eligibilityStatus: DecisionAnswer['status'] = 'answered',
+    eligible = true;
+  const decisionModels = new DecisionModels({
+    store,
+    settings: {
+      production: false,
+      timeoutMs: 10000,
+      defaultProfile: decisionProfileSchema.parse({
+        provider: 'openai-decisions',
+        model: 'fixture/decision',
+        minimumConfidence: 0.7,
+      }),
+      openai: {
+        baseUrl: `http://127.0.0.1:${(server.address() as any).port}/native`,
+        apiKey: 'fixture-only-decision-key',
+        models: [
+          'fixture/decision',
+          'fixture/decision-two',
+          'fixture/after-admission',
+        ],
+      },
+    },
+  });
+  await decisionModels.ready;
+  cleanup.push(() => decisionModels.close());
   const registered = await registerConversationRoutes(app, {
     store,
     collab,
@@ -174,6 +292,27 @@ async function fixture(
     settings,
     enabled,
     debounceMs: 0,
+    generation: {
+      captureProfile: async () => {
+        if (generationProfile.harness !== 'vercel-fx')
+          throw new HttpError(
+            503,
+            'The selected generative harness is offline',
+          );
+        return generationProfile;
+      },
+      modelForProfile: (profile) => {
+        if (profile.harness !== 'vercel-fx')
+          throw new HttpError(
+            503,
+            'The selected generative harness is offline',
+          );
+        return createGateway({
+          baseURL: settings.integrations!.gatewayBaseUrl,
+        })(profile.model);
+      },
+    },
+    decisionModels,
     auth: {
       user: async (req) => {
         const id = req.headers['x-test-user'];
@@ -243,6 +382,23 @@ async function fixture(
     publish,
     starts,
     registered,
+    evaluations,
+    setEligibility: (status: DecisionAnswer['status'], value = true) => {
+      eligibilityStatus = status;
+      eligible = value;
+    },
+    setProfiles: async (
+      decision: z.input<typeof decisionProfileSchema>,
+      generation: AgentProfile,
+    ) => {
+      generationProfile = generation;
+      await decisionModels.profile(
+        user,
+        artifact.id,
+        decisionProfileSchema.parse(decision),
+      );
+    },
+    decisionModels,
     beforeReply: (fn: () => Promise<void>) => {
       beforeReply = fn;
     },
@@ -336,6 +492,116 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           ),
         ).toBe(true);
         expect((await w.publish(first)).statusCode).toBe(200);
+      });
+      for (const status of ['abstained', 'refused', 'error'] as const)
+        it(
+          'preserves ' +
+            status +
+            ' from the independent decision port and generates no offer text',
+          async () => {
+            const w = await fixture(adapter);
+            w.setEligibility(status);
+            const id = await w.analyze(),
+              view = await w.view();
+            expect((await w.runtime.get(id))?.status).toBe('completed');
+            expect(view.jobs[0]!.eligibility?.answerStatus).toBe(status);
+            expect(view.jobs[0]!.eligibility?.value).toBeNull();
+            expect(view.cards).toHaveLength(0);
+            expect(w.requests).toHaveLength(0);
+            expect(w.evaluations).toHaveLength(1);
+            await w.runtime.executeJob(id, {
+              messageId: 'redelivery',
+              deliveryCount: 2,
+            });
+            expect(w.evaluations).toHaveLength(1);
+          },
+        );
+      it('keeps an answered negative decision distinct and freezes decision and generative profiles before queued execution', async () => {
+        const w = await fixture(adapter);
+        w.setEligibility('answered', false);
+        const no = await w.analyze();
+        expect((await w.view()).jobs[0]!.eligibility).toMatchObject({
+          answerStatus: 'answered',
+          value: false,
+          probability: 0.07,
+          confidence: null,
+        });
+        expect(w.requests).toHaveLength(0);
+        w.setEligibility('answered', true);
+        await w.setProfiles(
+          {
+            provider: 'openai-decisions',
+            model: 'fixture/decision-two',
+            minimumConfidence: 0.85,
+          },
+          {
+            harness: 'vercel-fx',
+            provider: 'ai-gateway',
+            model: 'fixture/second',
+          },
+        );
+        const response = await w.request('POST', '/analyze', {
+            threadId: w.threadId,
+            retry: true,
+          }),
+          id = response.json().jobId;
+        expect(id).not.toBe(no);
+        await w.setProfiles(
+          {
+            provider: 'openai-decisions',
+            model: 'fixture/after-admission',
+            minimumConfidence: 0.99,
+          },
+          {
+            harness: 't3-code',
+            provider: 'project-default',
+            model: 'project-default',
+          },
+        );
+        await w.runtime.executeJob(id, {
+          messageId: randomUUID(),
+          deliveryCount: 1,
+        });
+        const frozen = (await w.runtime.get(id))!.result as any;
+        const evaluation = await w.decisionModels.readEvaluation(
+          w.user,
+          frozen.eligibility.evaluationId,
+        );
+        expect(evaluation!.provenance).toMatchObject({
+          provider: 'openai-decisions',
+          requestedModel: 'fixture/decision-two',
+          minimumConfidence: 0.85,
+        });
+        expect(w.evaluations[1]!.body.model).toBe('fixture/decision-two');
+        expect(w.requests[0]!.headers['ai-language-model-id']).toBe(
+          'fixture/second',
+        );
+        expect((await w.view()).cards).toHaveLength(1);
+      });
+      it('leaves ordinary automatic chat unblocked by an offline selected generative harness and refuses explicit analysis without fallback', async () => {
+        const w = await fixture(adapter);
+        await w.setProfiles(
+          {
+            provider: 'openai-decisions',
+            model: 'fixture/decision',
+            minimumConfidence: 0.7,
+          },
+          {
+            harness: 't3-code',
+            provider: 'project-default',
+            model: 'project-default',
+          },
+        );
+        expect(
+          await w.registered.observe(w.user, w.artifact.id, w.threadId),
+        ).toBeNull();
+        const response = await w.request('POST', '/analyze', {
+          threadId: w.threadId,
+        });
+        expect(response.statusCode).toBe(503);
+        expect(w.evaluations).toHaveLength(0);
+        expect(w.requests).toHaveLength(0);
+        expect((await w.view()).modelConfigured).toBe(false);
       });
       it('creates a proposed ADR for media/code artifacts without accepting a model decision', async () => {
         const w = await fixture(adapter, true, 'code');

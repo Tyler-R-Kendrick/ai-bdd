@@ -1,3 +1,8 @@
+import type {
+  DecisionEvaluation,
+  DecisionAnswer,
+  DecisionProfile,
+} from './decision-profile.ts';
 import { z } from 'zod';
 const title = z.string().trim().min(1).max(180);
 export const conversationOfferSchema = z
@@ -51,6 +56,18 @@ export type ConversationCard = ConversationOffer & {
   stale: boolean;
   error: string | null;
 };
+export type ConversationEligibility = {
+  evaluationId: string;
+  status: DecisionEvaluation['status'];
+  answerStatus: DecisionAnswer['status'];
+  value: boolean | null;
+  candidate: boolean | null;
+  probability: number | null;
+  confidence: number | null;
+  error: DecisionAnswer['error'] | null;
+  provider: DecisionProfile['provider'];
+  model: string;
+};
 export type ConversationView = {
   enabled: boolean;
   modelConfigured: boolean;
@@ -60,5 +77,6 @@ export type ConversationView = {
     status: string;
     error: string | null;
     createdAt: string;
+    eligibility?: ConversationEligibility;
   }[];
 };
