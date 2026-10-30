@@ -14,7 +14,7 @@ import {
   loadConfig,
   type Engine,
 } from '@ai-bdd/sdk';
-import { docText, type User, type Artifact } from '../shared/domain.ts';
+import { docText, type User } from '../shared/domain.ts';
 import { HttpError, type Store, hash } from './store.ts';
 import type { Settings } from './auth.ts';
 import type { Collaboration } from './collaboration.ts';

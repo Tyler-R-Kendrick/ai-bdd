@@ -5,7 +5,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from 'node:crypto';
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { setTimeout as delay } from 'node:timers/promises';
 import { HttpError, hash } from '../store.ts';
@@ -755,7 +755,12 @@ export class RepositoryIdentity {
                     !path
                       .split('/')
                       .some((part) => !part || part === '.' || part === '..') &&
-                    !/[\u0000-\u001f\u007f\\]/.test(path),
+                    !path.includes('\\') &&
+                    !Array.from(path).some(
+                      (character) =>
+                        character.charCodeAt(0) < 32 ||
+                        character.charCodeAt(0) === 127,
+                    ),
                 ),
               type: z.enum(['blob', 'tree', 'commit']),
               sha: z.string().regex(/^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/),

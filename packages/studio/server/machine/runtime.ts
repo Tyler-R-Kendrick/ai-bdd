@@ -5,7 +5,6 @@ import {
   readFile,
   writeFile,
   rename,
-  stat,
   lstat,
   realpath,
   open,

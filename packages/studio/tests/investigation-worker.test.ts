@@ -1,7 +1,6 @@
 import { afterEach, describe, it, expect } from 'vitest';
 import {
   mkdtemp,
-  mkdir,
   readFile,
   readdir,
   writeFile,

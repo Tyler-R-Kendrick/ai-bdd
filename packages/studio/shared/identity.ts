@@ -36,7 +36,8 @@ export const repositoryReadSchema = z.discriminatedUnion('kind', [
             !p
               .split('/')
               .some((part) => !part || part === '.' || part === '..') &&
-            !/[\u0000-\u001f\\]/.test(p),
+            !p.includes('\\') &&
+            !Array.from(p).some((character) => character.charCodeAt(0) < 32),
         ),
       ref: z.string().min(1).max(200).optional(),
     })

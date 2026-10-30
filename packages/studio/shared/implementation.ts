@@ -83,7 +83,11 @@ export const implementationClaimSchema = z
     repository: z.string().url().max(300),
     branch: text(200).refine(
       (value) =>
-        !/[\s\x00-\x1f\x7f~^:?*\[\\]/.test(value) &&
+        !/[\s~^:?*[\\]/.test(value) &&
+        !Array.from(value).some(
+          (character) =>
+            character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+        ) &&
         !value.includes('..') &&
         !value.includes('@{') &&
         !value.startsWith('/') &&

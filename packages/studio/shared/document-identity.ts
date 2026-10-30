@@ -31,7 +31,10 @@ const validId = (value: unknown): value is string =>
   typeof value === 'string' &&
   value.length > 0 &&
   value.length <= 100 &&
-  !/[\u0000-\u0020\u007f]/.test(value);
+  !Array.from(value).some(
+    (character) =>
+      character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
+  );
 /** Clone once. The caller supplies UUIDs and persists this exact result/state inside its authoritative write lock. */
 export function canonicalDocumentIds<T extends RichNode>(
   source: T,

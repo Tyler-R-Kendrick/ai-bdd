@@ -1,9 +1,5 @@
 import Provider from 'oidc-provider';
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from 'node:http';
+import { createServer } from 'node:http';
 import { generateKeyPairSync } from 'node:crypto';
 
 export async function oidcFixture(redirectUri: string) {
@@ -117,7 +113,7 @@ export async function oidcFixture(redirectUri: string) {
         return;
       }
       provider.callback()(req, res);
-    } catch (error) {
+    } catch {
       if (!res.headersSent)
         res.writeHead(500, { 'content-type': 'text/plain' });
       res.end('The local issuer could not complete this request.');

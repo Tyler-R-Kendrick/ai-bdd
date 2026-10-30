@@ -8,7 +8,7 @@ import { initialAudioContent } from '../shared/audio.ts';
 import { initialMidiContent } from '../shared/midi.ts';
 import { uploadedMediaType } from '../server/media-files.ts';
 import { createApp } from '../server/app.ts';
-import { client, setup, testSettings } from './helpers.ts';
+import { setup, testSettings } from './helpers.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
