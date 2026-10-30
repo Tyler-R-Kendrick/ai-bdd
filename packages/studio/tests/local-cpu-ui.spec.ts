@@ -188,7 +188,7 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
   await page
     .getByLabel('Message this artifact', { exact: true })
     .fill(
-      'Based on this design, describe the button the developer should build in one sentence.',
+      'What color and label does this design require for the button?',
     );
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.locator('.message-assistant')).toHaveCount(1, {
