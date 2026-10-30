@@ -160,7 +160,6 @@ export default function CodeEditor({
   useEffect(() => {
     const timer = setTimeout(() => {
       setPreviewFiles(draft);
-      setReady(false);
     }, 450);
     return () => clearTimeout(timer);
   }, [draft]);
