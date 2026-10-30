@@ -10,7 +10,8 @@ export type IntegrationSettings = {
   plannerVisuals?: boolean;
   fxModels?: string[];
   t3?: {
-    command: string;
+    /** Legacy registration metadata; generation never starts a CLI subprocess. */
+    command?: string;
     args: string[];
     project: string;
     providers: { id: string; label: string; models: string[] }[];
@@ -65,15 +66,22 @@ export function integrationSettingsFromEnv(
     openDesign = parsed;
   }
   let t3: IntegrationSettings['t3'];
-  if (env.STUDIO_T3_COMMAND || env.STUDIO_T3_PROJECT) {
+  if (
+    env.STUDIO_T3_COMMAND ||
+    env.STUDIO_T3_PROJECT ||
+    env.STUDIO_T3_MCP_URL ||
+    env.STUDIO_T3_MCP_ACCESS_TOKEN ||
+    env.STUDIO_T3_PROVIDERS_JSON ||
+    env.STUDIO_T3_ARGS
+  ) {
     if (
-      !env.STUDIO_T3_COMMAND ||
-      !isAbsolute(env.STUDIO_T3_COMMAND) ||
+      (env.STUDIO_T3_COMMAND && !isAbsolute(env.STUDIO_T3_COMMAND)) ||
+      (!env.STUDIO_T3_COMMAND && !env.STUDIO_T3_MCP_URL) ||
       !env.STUDIO_T3_PROJECT ||
       !isAbsolute(env.STUDIO_T3_PROJECT)
     )
       throw new Error(
-        'T3 requires absolute STUDIO_T3_COMMAND and STUDIO_T3_PROJECT paths selected by the operator',
+        'T3 requires an operator-selected absolute STUDIO_T3_PROJECT and native MCP endpoint; legacy CLI-only registration requires an absolute command but cannot generate',
       );
     const providers = z
       .array(
@@ -88,7 +96,7 @@ export function integrationSettingsFromEnv(
       .max(30)
       .parse(JSON.parse(env.STUDIO_T3_PROVIDERS_JSON ?? '[]'));
     t3 = {
-      command: env.STUDIO_T3_COMMAND,
+      ...(env.STUDIO_T3_COMMAND ? { command: env.STUDIO_T3_COMMAND } : {}),
       project: env.STUDIO_T3_PROJECT,
       args: z
         .array(z.string().max(2000))

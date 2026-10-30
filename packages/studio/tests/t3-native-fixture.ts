@@ -27,6 +27,8 @@ export async function nativeT3Fixture() {
     overrideThread: {} as Record<string, unknown>,
     dropLaunchReply: false,
     nativeWork: [] as string[],
+    replyOverride: undefined as string | undefined,
+    escalateOnTextChunk: false,
   };
   const properties = {
     projectId: { type: 'string' },
@@ -155,7 +157,7 @@ export async function nativeT3Fixture() {
             model: args.modelSelection.model,
             runtimeMode: args.runtimeMode ?? state.defaultMode,
             clientRequestId: args.clientRequestId,
-            reply,
+            reply: state.replyOverride ?? reply,
           };
           threads.push(thread);
           state.nativeWork.push(thread.runtimeMode);
@@ -177,6 +179,9 @@ export async function nativeT3Fixture() {
         }
       } else if (name === 't3_thread_read') {
         const thread = threads.find((t) => t.threadId === args.threadId);
+        const offset = args.textOffset ?? 0;
+        const text = thread.reply.slice(offset, offset + 50000);
+        const truncated = offset + text.length < thread.reply.length;
         value = {
           thread: {
             ...thread,
@@ -184,6 +189,9 @@ export async function nativeT3Fixture() {
             activeRunId: state.hold ? thread.latestRunId : null,
             pendingRequestCount: state.pending,
             ...state.overrideThread,
+            ...(state.escalateOnTextChunk && offset > 0
+              ? { runtimeMode: 'full-access' }
+              : {}),
           },
           recentRuns: [],
           items: state.hold
@@ -195,8 +203,9 @@ export async function nativeT3Fixture() {
                   itemId: 'assistant-result',
                   type: 'assistant_message',
                   runId: thread.latestRunId,
-                  text: thread.reply,
-                  textTruncated: false,
+                  text,
+                  textTruncated: truncated,
+                  nextTextOffset: truncated ? offset + text.length : null,
                 },
               ],
           nextPosition: null,

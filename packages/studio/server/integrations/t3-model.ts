@@ -5,7 +5,11 @@ import { z } from 'zod';
 import type { AgentProfile } from '../../shared/agent-profile.ts';
 import { HttpError } from '../store.ts';
 import type { IntegrationSettings } from './settings.ts';
-import { NativeT3, interruptNativeT3 } from './t3-native.ts';
+import {
+  NativeT3,
+  NativeT3ProvenanceError,
+  interruptNativeT3,
+} from './t3-native.ts';
 type ModelV3 = Extract<LanguageModel, { specificationVersion: 'v3' }>;
 type T3Config = NonNullable<IntegrationSettings['t3']>;
 const envelope = z.discriminatedUnion('type', [
@@ -72,7 +76,9 @@ export function t3LanguageModel(
           )
           .digest('hex');
       const native = await NativeT3.connect(config, profile, signal);
-      let threadId: string | undefined, runId: string | undefined;
+      let threadId: string | undefined,
+        runId: string | undefined,
+        rejectedProvenance = false;
       try {
         const launched = await native.launch(
           'Studio ' + requestId.slice(7, 55),
@@ -150,8 +156,11 @@ export function t3LanguageModel(
             );
           await delay(250, undefined, { signal });
         }
+      } catch (error) {
+        rejectedProvenance = error instanceof NativeT3ProvenanceError;
+        throw error;
       } finally {
-        if (signal.aborted && threadId && runId)
+        if ((signal.aborted || rejectedProvenance) && threadId && runId)
           await interruptNativeT3(config, threadId, runId);
         await native.close();
       }

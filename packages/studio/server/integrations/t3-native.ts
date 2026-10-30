@@ -54,11 +54,15 @@ const incompatible = () =>
     503,
     'T3 native permission, project or provider capabilities could not be verified; no CLI fallback is permitted',
   );
-const changed = () =>
-  new HttpError(
-    409,
-    'The T3 thread permission, project, provider, model or run no longer matches this request',
-  );
+export class NativeT3ProvenanceError extends HttpError {
+  constructor() {
+    super(
+      409,
+      'The T3 thread permission, project, provider, model or run no longer matches this request',
+    );
+  }
+}
+const changed = () => new NativeT3ProvenanceError();
 
 /** Resolve only local JSON-schema references. Unknown schemas cannot establish a native permission contract. */
 function permitsMode(schema: any, root: any, depth = 0): boolean {

@@ -202,6 +202,22 @@ describe('actual AI SDK orchestration through the public T3 Code native MCP prot
       }),
     ).rejects.toMatchObject({ statusCode: 400 });
   });
+  it('keeps a legacy CLI-only T3 registration visibly offline and requires an explicit FX choice', async () => {
+    const x = await executable(),
+      { mcp: _mcp, ...legacy } = x.config;
+    const w = await workspace({ t3: legacy });
+    const view = await w.agent.profiles.view(w.user, w.artifact.id);
+    expect(view.profile.harness).toBe('t3-code');
+    expect(view.harnesses[0]).toMatchObject({
+      configured: false,
+      reason: expect.stringContaining('CLI-only generation is disabled'),
+    });
+    await expect(
+      w.agent.respond(w.user, w.artifact.id, w.threadId, 'chat'),
+    ).rejects.toMatchObject({ statusCode: 503 });
+    expect(await x.cliStarted()).toBe(false);
+    expect(x.state.nativeWork).toEqual([]);
+  });
   it('requests the native T3 interrupt operation for the exact running thread and run when the SDK call is aborted', async () => {
     const x = await executable();
     x.state.hold = true;
