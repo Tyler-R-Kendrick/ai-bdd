@@ -54,8 +54,9 @@ async function fixture() {
       ],
     },
   };
-  const initial = (await request('GET', `/api/artifacts/${artifactId}`)).json()
-    .artifact;
+  const initial = (
+    await request('GET', `/api/artifacts/${artifactId}`)
+  ).json().artifact;
   const response = await request('PATCH', `/api/artifacts/${artifactId}`, {
     version: initial.version,
     content,
@@ -273,7 +274,11 @@ describe('attributed document review and questionnaire decisions', () => {
     ).json();
     expect(older.answers[0].id).toBe(first.json().id);
     const exported = (
-      await documentReviewExportPage(f.store, f.artifactId, 'document_answers')
+      await documentReviewExportPage(
+        f.store,
+        f.artifactId,
+        'document_answers',
+      )
     ).rows;
     expect(exported).toHaveLength(2);
     expect(exported[1].decision_id).toBe(decision.id);
@@ -338,7 +343,11 @@ describe('attributed document review and questionnaire decisions', () => {
       'failed',
       JSON.stringify({
         scenarios: [
-          { scenarioId: 'fixture', title: 'Lookup fixture', status: 'failed' },
+          {
+            scenarioId: 'fixture',
+            title: 'Lookup fixture',
+            status: 'failed',
+          },
         ],
       }),
       '2020-01-01T00:00:00.000Z',
@@ -352,9 +361,9 @@ describe('attributed document review and questionnaire decisions', () => {
         'error',
         new Date().toISOString(),
       );
-    expect((await f.store.runs(source.id)).some((run) => run.id === old)).toBe(
-      false,
-    );
+    expect(
+      (await f.store.runs(source.id)).some((run) => run.id === old),
+    ).toBe(false);
     const evidence = await f.request(
       'GET',
       `/api/artifacts/${f.artifactId}/document/evidence/${old}`,

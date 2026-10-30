@@ -181,13 +181,21 @@ export async function registerDocumentReview(
         artifact = await document(req.params.id, user),
         query = z
           .object({
-            beforeSuggestions: z.coerce.number().int().nonnegative().optional(),
+            beforeSuggestions: z.coerce
+              .number()
+              .int()
+              .nonnegative()
+              .optional(),
             beforeAnswers: z.coerce.number().int().nonnegative().optional(),
             limit: z.coerce.number().int().min(1).max(200).default(100),
           })
           .strict()
           .parse(req.query);
-      const page = async (table: string, columns: string, before?: number) => {
+      const page = async (
+        table: string,
+        columns: string,
+        before?: number,
+      ) => {
         const result = await store.all(
             `SELECT ${columns} FROM ${table} WHERE artifact_id=? ${before === undefined ? '' : 'AND rowid<?'} ORDER BY rowid DESC LIMIT ?`,
             artifact.id,
@@ -227,7 +235,10 @@ export async function registerDocumentReview(
             hasMore: suggestions.hasMore,
             nextCursor: suggestions.nextCursor,
           },
-          answers: { hasMore: answers.hasMore, nextCursor: answers.nextCursor },
+          answers: {
+            hasMore: answers.hasMore,
+            nextCursor: answers.nextCursor,
+          },
         },
       };
     },
@@ -248,62 +259,66 @@ export async function registerDocumentReview(
           })
           .strict()
           .parse(req.body);
-      const suggestion = await write(req.params.id, user, async (artifact) => {
-        current(artifact, body.version);
-        await quota('document_suggestions', artifact.id);
-        const passage = conflict(() =>
-          suggestionPassage(
-            artifact.content.doc,
+      const suggestion = await write(
+        req.params.id,
+        user,
+        async (artifact) => {
+          current(artifact, body.version);
+          await quota('document_suggestions', artifact.id);
+          const passage = conflict(() =>
+            suggestionPassage(
+              artifact.content.doc,
+              body.anchor,
+              body.from,
+              body.to,
+            ),
+          );
+          if (passage.before !== body.before)
+            throw new HttpError(
+              409,
+              'The selected passage changed. Select it again before suggesting an edit.',
+            );
+          if (passage.snapshot.length > 100000)
+            throw new HttpError(
+              413,
+              'This paragraph is too large for a review suggestion. Split it into smaller paragraphs.',
+            );
+          if (body.before === body.after)
+            throw new HttpError(
+              400,
+              'A suggestion must change the selected text',
+            );
+          const id = randomUUID();
+          await store.exec(
+            'INSERT INTO document_suggestions(id,project_id,artifact_id,anchor,before_text,after_text,range_from,range_to,block_snapshot,base_version,author_id,author,created_at,comment) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            id,
+            artifact.projectId,
+            artifact.id,
             body.anchor,
+            body.before,
+            body.after,
             body.from,
             body.to,
-          ),
-        );
-        if (passage.before !== body.before)
-          throw new HttpError(
-            409,
-            'The selected passage changed. Select it again before suggesting an edit.',
+            passage.snapshot,
+            artifact.version,
+            user.id,
+            user.name,
+            stamp(),
+            body.comment,
           );
-        if (passage.snapshot.length > 100000)
-          throw new HttpError(
-            413,
-            'This paragraph is too large for a review suggestion. Split it into smaller paragraphs.',
+          await store.audit(
+            artifact.projectId,
+            artifact.id,
+            user.name,
+            'document.suggestion.created',
+            id,
           );
-        if (body.before === body.after)
-          throw new HttpError(
-            400,
-            'A suggestion must change the selected text',
+          return store.one(
+            `SELECT ${suggestionColumns} FROM document_suggestions WHERE id=?`,
+            id,
           );
-        const id = randomUUID();
-        await store.exec(
-          'INSERT INTO document_suggestions(id,project_id,artifact_id,anchor,before_text,after_text,range_from,range_to,block_snapshot,base_version,author_id,author,created_at,comment) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-          id,
-          artifact.projectId,
-          artifact.id,
-          body.anchor,
-          body.before,
-          body.after,
-          body.from,
-          body.to,
-          passage.snapshot,
-          artifact.version,
-          user.id,
-          user.name,
-          stamp(),
-          body.comment,
-        );
-        await store.audit(
-          artifact.projectId,
-          artifact.id,
-          user.name,
-          'document.suggestion.created',
-          id,
-        );
-        return store.one(
-          `SELECT ${suggestionColumns} FROM document_suggestions WHERE id=?`,
-          id,
-        );
-      });
+        },
+      );
       return reply.code(201).send(suggestion);
     },
   );
@@ -333,7 +348,10 @@ export async function registerDocumentReview(
           initial.id,
         );
         if (result.changes !== 1)
-          throw new HttpError(409, 'This suggestion has already been resolved');
+          throw new HttpError(
+            409,
+            'This suggestion has already been resolved',
+          );
         await store.audit(
           initial.projectId,
           initial.id,
@@ -344,7 +362,10 @@ export async function registerDocumentReview(
       };
       if (body.action === 'accept') {
         if (row.status !== 'pending')
-          throw new HttpError(409, 'This suggestion has already been resolved');
+          throw new HttpError(
+            409,
+            'This suggestion has already been resolved',
+          );
         const next = conflict(() =>
           applyDocumentSuggestion(
             initial.content.doc,
@@ -428,6 +449,7 @@ export async function registerDocumentReview(
               previous.id,
             ),
           };
+        await quota('document_answers', artifact.id);
         const id = randomUUID();
         await store.exec(
           'INSERT INTO document_answers(id,project_id,artifact_id,anchor,question_id,option_id,answer,question,option,question_snapshot,author_id,author,created_at,supersedes_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -487,7 +509,8 @@ export async function registerDocumentReview(
           artifact.id,
           req.params.answerId,
         );
-        if (!answer) throw new HttpError(404, 'Questionnaire answer not found');
+        if (!answer)
+          throw new HttpError(404, 'Questionnaire answer not found');
         if (answer.decision_id)
           throw new HttpError(
             409,
@@ -499,7 +522,10 @@ export async function registerDocumentReview(
           question = questionnaire.questions.find(
             (question) => question.id === answer.question_id,
           );
-        if (!question || JSON.stringify(question) !== answer.question_snapshot)
+        if (
+          !question ||
+          JSON.stringify(question) !== answer.question_snapshot
+        )
           throw new HttpError(
             409,
             'This question changed after the answer was written. Collect a new answer before accepting a decision.',

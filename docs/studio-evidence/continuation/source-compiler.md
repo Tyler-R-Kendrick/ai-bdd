@@ -1,0 +1,1 @@
+This capture shows the actual introducing-layer source compiler output in an opaque-origin sandbox in local Chromium. The React/TSX counter was clicked and the declared Pact response was loaded. The surrounding header belongs to the capture harness, not the application. It does not establish live provider access or deployment.

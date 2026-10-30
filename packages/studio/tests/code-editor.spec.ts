@@ -47,6 +47,7 @@ async function capture(page: Page, name: string) {
   await page.screenshot({
     path: resolve(process.env.STUDIO_CAPTURE_DIR, name),
     fullPage: true,
+    animations: 'disabled',
   });
 }
 
@@ -121,11 +122,19 @@ test('authors, renames, imports and exports a persistent real React/TypeScript p
   await expect(page.locator('.editor-statusbar')).toContainText(
     'Preview ready',
   );
+  // The initial draft debounce must not clear a loaded iframe without replacing it.
+  await page.waitForTimeout(600);
+  await expect(page.locator('.editor-statusbar')).toContainText('Preview ready');
   await capture(page, '17-react-typescript-project.png');
   await page
     .getByRole('button', { name: 'Installed packages', exact: true })
     .click();
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.sidebar')).toHaveAttribute('aria-hidden', 'true');
+  await expect.poll(async () => {
+    const bounds = await page.locator('.sidebar').boundingBox();
+    return bounds ? bounds.x + bounds.width : 0;
+  }).toBeLessThanOrEqual(1);
   await preview.getByRole('button', { name: 'Increase', exact: true }).click();
   await expect(preview.locator('output')).toHaveText('1');
   expect(

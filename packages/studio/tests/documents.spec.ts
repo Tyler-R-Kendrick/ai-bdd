@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { signInAcceptanceActor } from './browser-auth.ts';
 import { unzipSync, strFromU8 } from 'fflate';
 import { documentBlockDefaults } from '../shared/document-blocks.ts';
 const p = (text: string, id?: string) => ({
@@ -22,7 +23,8 @@ async function fixture(page: Page, content?: any[]) {
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  const user = await call('/auth/demo'),
+  await signInAcceptanceActor(page);
+  const user = await call('/me', 'GET'),
     project = await call('/projects', 'POST', {
       title: 'Document review ' + randomUUID().slice(0, 8),
       description: 'Synthetic acceptance review content',
@@ -63,7 +65,9 @@ async function fixture(page: Page, content?: any[]) {
     version: bundle.artifact.version,
     content: { doc: { type: 'doc', content: doc } },
   });
-  await page.goto(`/?project=${project.id}&artifact=${project.mainArtifactId}`);
+  await page.goto(
+    `/?project=${project.id}&artifact=${project.mainArtifactId}`,
+  );
   await expect(
     page.getByLabel('Document editor', { exact: true }),
   ).toBeVisible();
@@ -81,11 +85,15 @@ test('collaborators answer inline questions, accept an attributed ADR, and revie
   );
   await questionnaire.getByRole('radio', { name: 'Approach B' }).check();
   await questionnaire
-    .getByRole('textbox', { name: 'Reason for Which approach should we take?' })
+    .getByRole('textbox', {
+      name: 'Reason for Which approach should we take?',
+    })
     .fill(
       'The second approach keeps the integration boundary independently testable.',
     );
-  await questionnaire.getByRole('button', { name: 'Save your answer' }).click();
+  await questionnaire
+    .getByRole('button', { name: 'Save your answer' })
+    .click();
   await expect(questionnaire.locator('.document-answers strong')).toHaveText(
     user.name,
   );
@@ -94,6 +102,10 @@ test('collaborators answer inline questions, accept an attributed ADR, and revie
     .click();
   await expect(
     questionnaire.getByRole('button', { name: 'Accepted ADR' }),
+  ).toBeVisible();
+  await questionnaire.getByRole('button', { name: 'Accepted ADR' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Architecture decisions' }),
   ).toBeVisible();
   await page.locator('.document-scroll').evaluate((element) => {
     element.scrollTop = 0;
@@ -112,7 +124,9 @@ test('collaborators answer inline questions, accept an attributed ADR, and revie
     selection.addRange(range);
     document.dispatchEvent(new Event('selectionchange'));
   });
-  await page.getByRole('button', { name: 'Suggest edit', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Suggest edit', exact: true })
+    .click();
   await expect(
     page.getByRole('dialog', { name: 'Suggest a text change' }),
   ).toBeVisible();
@@ -198,7 +212,9 @@ test('Word and restricted MDX interchange are actual downloads and confirmed imp
   await page
     .getByRole('button', { name: 'Replace document', exact: true })
     .click();
-  await expect(page.locator('.document-page h1')).toHaveText('Imported design');
+  await expect(page.locator('.document-page h1')).toHaveText(
+    'Imported design',
+  );
   await expect(
     page.locator('[data-component-kind="columnsBlock"]'),
   ).toBeVisible();
@@ -215,7 +231,9 @@ test('Word and restricted MDX interchange are actual downloads and confirmed imp
     return canvas.toDataURL('image/png').split(',')[1]!;
   });
   const picker = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Insert image', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Insert image', exact: true })
+    .click();
   await (
     await picker
   ).setFiles({
@@ -256,10 +274,14 @@ test('Word and restricted MDX interchange are actual downloads and confirmed imp
   await page
     .getByRole('button', { name: 'Replace document', exact: true })
     .click();
-  await expect(page.locator('.document-page h1')).toHaveText('Imported design');
-  await expect(page.locator('.document-page strong')).toHaveText(
-    'Evidence remains reviewable.',
+  await expect(page.locator('.document-page h1')).toHaveText(
+    'Imported design',
   );
+  await expect(
+    page
+      .locator('.document-page strong')
+      .filter({ hasText: /^Evidence remains reviewable\.$/ }),
+  ).toHaveText('Evidence remains reviewable.');
   await expect(page.locator('.document-page img')).toBeVisible();
   await expect
     .poll(() =>
@@ -269,7 +291,9 @@ test('Word and restricted MDX interchange are actual downloads and confirmed imp
     )
     .toBe(2);
   const mdxDownload = page.waitForEvent('download');
-  await page.getByLabel('Export document', { exact: true }).selectOption('mdx');
+  await page
+    .getByLabel('Export document', { exact: true })
+    .selectOption('mdx');
   const mdx = await mdxDownload;
   expect(await readFile((await mdx.path())!, 'utf8')).toContain(
     '**Evidence remains reviewable.**',
@@ -326,12 +350,15 @@ test('find and replace edits real document text, the outline navigates headings,
   await expect
     .poll(() =>
       page.evaluate(
-        () => !!window.getSelection()?.anchorNode?.parentElement?.closest('h1'),
+        () =>
+          !!window.getSelection()?.anchorNode?.parentElement?.closest('h1'),
       ),
     )
     .toBe(true);
   await page.locator('.document-page [data-id="intent"]').click();
-  await page.getByRole('button', { name: 'Insert table', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Insert table', exact: true })
+    .click();
   const table = page.locator('.document-page table');
   await expect(table.locator('tr')).toHaveCount(3);
   await table.locator('td,th').first().click();
@@ -374,7 +401,9 @@ test('a fresh viewer can read document review and search without editing questio
     await expect(
       viewer.getByRole('button', { name: 'Import', exact: true }),
     ).toBeDisabled();
-    await expect(viewer.getByLabel('Insert planning component')).toBeDisabled();
+    await expect(
+      viewer.getByLabel('Insert planning component'),
+    ).toBeDisabled();
     await expect(
       viewer.locator('[data-component-kind="questionnaireBlock"] input'),
     ).toHaveCount(0);
@@ -402,13 +431,11 @@ test('an imported restricted-MDX questionnaire has a durable anchor and accepts 
       '# Imported team decision\n\n<Questionnaire data={' +
       JSON.stringify(documentBlockDefaults.questionnaireBlock) +
       '} />\n';
-  await page
-    .getByLabel('Choose document to import')
-    .setInputFiles({
-      name: 'Decision.mdx',
-      mimeType: 'text/markdown',
-      buffer: Buffer.from(source),
-    });
+  await page.getByLabel('Choose document to import').setInputFiles({
+    name: 'Decision.mdx',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from(source),
+  });
   await expect(
     page.getByRole('dialog', { name: 'Review document import' }),
   ).toBeVisible();
@@ -420,9 +447,13 @@ test('an imported restricted-MDX questionnaire has a durable anchor and accepts 
   );
   await questionnaire.getByRole('radio', { name: 'Approach A' }).check();
   await questionnaire
-    .getByRole('textbox', { name: 'Reason for Which approach should we take?' })
+    .getByRole('textbox', {
+      name: 'Reason for Which approach should we take?',
+    })
     .fill('The exact imported question is now anchored.');
-  await questionnaire.getByRole('button', { name: 'Save your answer' }).click();
+  await questionnaire
+    .getByRole('button', { name: 'Save your answer' })
+    .click();
   await questionnaire
     .getByRole('button', { name: 'Accept as decision' })
     .click();

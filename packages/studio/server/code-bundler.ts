@@ -592,12 +592,10 @@ export async function compileCodePreview(
       diagnostics: compiled.warnings.map((value) =>
         diagnostic(value, 'warning'),
       ),
-      dependencies: [...dependencyNames]
-        .sort()
-        .map((name) => ({
-          name,
-          version: versions.get(name) ?? 'installed',
-        })),
+      dependencies: [...dependencyNames].sort().map((name) => ({
+        name,
+        version: versions.get(name) ?? 'installed',
+      })),
       availableDependencies: codePreviewDependencies(),
       modules: [...loaded]
         .filter(

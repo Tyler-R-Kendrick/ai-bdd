@@ -139,7 +139,9 @@ function mediaMetadata(
     const timeout = setTimeout(
       () =>
         finish(
-          new Error('Media metadata timed out. Try a smaller supported file.'),
+          new Error(
+            'Media metadata timed out. Try a smaller supported file.',
+          ),
         ),
       15000,
     );
@@ -391,10 +393,15 @@ export default function VideoEditor({
             ? 'image'
             : null;
       if (!type) throw new Error('Choose an image, video, or audio file.');
-      const metadata = type === 'image' ? undefined : await mediaMetadata(file);
+      const metadata =
+        type === 'image' ? undefined : await mediaMetadata(file);
       const body = new FormData();
       body.append('file', file);
-      const result = await api(`/artifacts/${artifact.id}/files`, 'POST', body);
+      const result = await api(
+        `/artifacts/${artifact.id}/files`,
+        'POST',
+        body,
+      );
       if (!result.mime.startsWith(type + '/'))
         throw new Error(
           'The uploaded file does not match its declared media type.',
@@ -432,7 +439,11 @@ export default function VideoEditor({
         throw new Error('Font uploads are limited to 10 MB.');
       const body = new FormData();
       body.append('file', file);
-      const result = await api(`/artifacts/${artifact.id}/files`, 'POST', body);
+      const result = await api(
+        `/artifacts/${artifact.id}/files`,
+        'POST',
+        body,
+      );
       if (result.mime !== 'font/woff2')
         throw new Error('Choose a valid WOFF2 font file.');
       setPast((items) => [...items.slice(-49), structuredClone(draft)]);
@@ -639,7 +650,9 @@ export default function VideoEditor({
         if (!stopped && mounted.current) {
           setJobs(history);
           if (
-            history.some((job) => ['queued', 'rendering'].includes(job.status))
+            history.some((job) =>
+              ['queued', 'rendering'].includes(job.status),
+            )
           )
             setBusy(true);
         }
@@ -659,7 +672,9 @@ export default function VideoEditor({
           if (stopped || !mounted.current) return;
           setJobs(history);
           setBusy(
-            history.some((job) => ['queued', 'rendering'].includes(job.status)),
+            history.some((job) =>
+              ['queued', 'rendering'].includes(job.status),
+            ),
           );
           const completed = history.find(
             (job) =>
@@ -801,8 +816,12 @@ export default function VideoEditor({
             item.id === active.id
               ? {
                   ...item,
-                  x: Math.round(source.x + (event.clientX - active.x) / scale),
-                  y: Math.round(source.y + (event.clientY - active.y) / scale),
+                  x: Math.round(
+                    source.x + (event.clientX - active.x) / scale,
+                  ),
+                  y: Math.round(
+                    source.y + (event.clientY - active.y) / scale,
+                  ),
                 }
               : item,
           ),
@@ -1030,7 +1049,10 @@ export default function VideoEditor({
                     .filter((item) => item.start < duration)
                     .map((item) => ({
                       ...item,
-                      duration: Math.min(item.duration, duration - item.start),
+                      duration: Math.min(
+                        item.duration,
+                        duration - item.start,
+                      ),
                     })),
                 };
                 change(next);
@@ -1240,7 +1262,9 @@ export default function VideoEditor({
                     disabled={locked || clip.locked}
                     onCommit={(scale) => patch({ scale })}
                   />
-                  {['text', 'rect', 'ellipse', 'path'].includes(clip.type) && (
+                  {['text', 'rect', 'ellipse', 'path'].includes(
+                    clip.type,
+                  ) && (
                     <Field label="Clip color">
                       <Input
                         aria-label="Clip color"
@@ -1705,13 +1729,17 @@ export default function VideoEditor({
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => void downloadRender(job).catch(report)}
+                          onClick={() =>
+                            void downloadRender(job).catch(report)
+                          }
                         >
                           Download
                         </Button>
                       )}
                       {job.error && (
-                        <span className="video-render-error">{job.error}</span>
+                        <span className="video-render-error">
+                          {job.error}
+                        </span>
                       )}
                     </li>
                   ))}
@@ -1804,7 +1832,9 @@ export default function VideoEditor({
                                     start: frameTime(
                                       clamp(
                                         entry.start +
-                                          (event.key === 'ArrowLeft' ? -1 : 1) /
+                                          (event.key === 'ArrowLeft'
+                                            ? -1
+                                            : 1) /
                                             draft.fps,
                                         0,
                                         draft.duration - entry.duration,
