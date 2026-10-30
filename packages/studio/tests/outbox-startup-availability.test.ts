@@ -7,7 +7,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { createApp } from '../server/app.ts';
-import { githubSignIn } from './identity/github-signin-inject-fixture.ts';
+import { githubSignIn, fixtureGitHubIdentity } from './identity/github-signin-inject-fixture.ts';
+import { Auth } from '../server/auth.ts';
 import { Store, HttpError } from '../server/store.ts';
 import {
   openDatabase,
@@ -86,6 +87,12 @@ async function fixture(adapter: Adapter) {
       'code',
       'Durable output target',
     );
+  // This cold-start fixture restores an explicitly bound historical actor.
+  // No production admission path matches or claims accounts by email.
+  await new Auth(store, testSettings(dir)).initialize();
+  const principal = fixtureGitHubIdentity(user.email);
+  if (principal.kind !== 'github') throw new Error('Expected the owned numeric GitHub fixture');
+  await store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)', principal.id, user.id, Date.now());
   await store.db.exec(
     'CREATE TABLE startup_publications(job_id TEXT PRIMARY KEY,fence INTEGER NOT NULL,source TEXT NOT NULL)',
   );
