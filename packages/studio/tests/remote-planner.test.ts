@@ -25,6 +25,7 @@ async function fixture() {
     origin: 'http://localhost',
     dataDir: '/tmp/studio-remote-fixture',
     demo: false,
+    integrations: { remotePlanner: true },
   };
   const collab = new Collaboration(store, { settings } as any);
   await collab.initialize();
@@ -49,6 +50,11 @@ async function fixture() {
     project = await store.createProject(user, 'Remote planning', ''),
     artifact = await store.artifact(project.mainArtifactId, user.id),
     threadId = (await store.threads(artifact.id))[0]!.id;
+  await agent.profiles.view(user, artifact.id, {
+    harness: 'remote-planner',
+    provider: 'operator-acp',
+    model: 'remote',
+  });
   let revoked = false;
   // Explicit credential adapter isolates transport behavior; production uses the same App Auth.user bearer/session verifier.
   const remote = new RemotePlanner({

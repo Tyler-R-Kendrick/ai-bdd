@@ -32,7 +32,15 @@ export class AgentProfiles {
       'SELECT harness,provider,model FROM studio_agent_profiles WHERE artifact_id=?',
       id,
     );
-    return row ? agentProfileSchema.parse(row) : { ...fallback };
+    if (row) return agentProfileSchema.parse(row);
+    const provider = this.integrations.t3?.providers[0];
+    return provider
+      ? {
+          harness: 't3-code',
+          provider: provider.id,
+          model: provider.models[0]!,
+        }
+      : { ...fallback };
   }
   catalog(): AgentProfileView['harnesses'] {
     const t3 = this.integrations.t3;
@@ -40,16 +48,21 @@ export class AgentProfiles {
       {
         id: 't3-code',
         label: 'T3 Code',
-        configured: !!t3,
-        reason: t3
-          ? null
-          : 'The workspace has no registered T3 Code runtime. Choose another harness explicitly or connect the operator-owned T3 environment.',
+        configured: !!t3 && t3.providers.length > 0,
+        reason:
+          t3 && t3.providers.length > 0
+            ? null
+            : 'The workspace has no registered T3 Code runtime with a concrete provider and model. Choose another harness explicitly or connect the operator-owned T3 environment.',
         providers: [
-          {
-            id: 'project-default',
-            label: 'T3 project default',
-            models: ['project-default'],
-          },
+          ...(t3?.providers.length
+            ? []
+            : [
+                {
+                  id: 'project-default',
+                  label: 'T3 project default',
+                  models: ['project-default'],
+                },
+              ]),
           ...(t3?.providers ?? []),
         ],
       },

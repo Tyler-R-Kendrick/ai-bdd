@@ -96,6 +96,11 @@ async function fixture(integrations: any = {}) {
     );
   const artifact = await store.artifact(project.mainArtifactId, user.id),
     threadId = (await store.threads(artifact.id))[0]!.id;
+  await agent.profiles.view(user, artifact.id, {
+    harness: 'vercel-fx',
+    provider: 'ai-gateway',
+    model: 'fixture/model',
+  });
   return {
     store,
     settings,

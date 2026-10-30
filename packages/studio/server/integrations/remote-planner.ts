@@ -3,6 +3,7 @@ import type { WebSocket } from 'ws';
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
+import type { AgentProfile } from '../../shared/agent-profile.ts';
 import type { User } from '../../shared/domain.ts';
 import type { Settings } from '../auth.ts';
 import { HttpError, type Store } from '../store.ts';
@@ -10,6 +11,7 @@ import type { DurableJobContext } from '../runtime/contracts.ts';
 import { RepositoryReader, type RepositoryReadPort } from './repository.ts';
 
 export type RemoteTurn = {
+  profile: AgentProfile;
   artifactId: string;
   threadId: string;
   intent: 'chat' | 'edit' | 'research';

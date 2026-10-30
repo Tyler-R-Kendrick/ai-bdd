@@ -1,4 +1,4 @@
-import { createGateway, generateText, Output } from 'ai';
+import { createGateway, generateText, Output, type LanguageModel } from 'ai';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Artifact, RichNode } from '../../shared/domain.ts';
@@ -48,17 +48,20 @@ export function visualTarget(
     : null;
 }
 export class VisualRouting {
-  constructor(readonly options: { model: string; gatewayBaseUrl?: string }) {}
+  constructor(
+    readonly options: { model: LanguageModel; gatewayBaseUrl?: string },
+  ) {}
   async propose(
     ctx: DurableJobContext,
     target: VisualTarget,
     artifact: Artifact,
   ) {
-    const model = this.options.gatewayBaseUrl
-      ? createGateway({ baseURL: this.options.gatewayBaseUrl })(
-          this.options.model,
-        )
-      : this.options.model;
+    const model =
+      this.options.gatewayBaseUrl && typeof this.options.model === 'string'
+        ? createGateway({ baseURL: this.options.gatewayBaseUrl })(
+            this.options.model,
+          )
+        : this.options.model;
     const prompt = JSON.stringify({
       request: target.request,
       paragraph: target.paragraph,

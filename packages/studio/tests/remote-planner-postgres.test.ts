@@ -41,6 +41,7 @@ describe.skipIf(!pg)('PostgreSQL remote Planner attachment recovery', () => {
       origin: 'http://localhost',
       dataDir: '/tmp/studio-remote-pg-fixture',
       demo: false,
+      integrations: { remotePlanner: true },
     };
     const user = await first.createUser(
         randomUUID() + '@test.invalid',
@@ -83,6 +84,11 @@ describe.skipIf(!pg)('PostgreSQL remote Planner attachment recovery', () => {
     const agent1 = new Agent(first, settings, collab1, { runtime: runtime1 }),
       agent2 = new Agent(second, settings, collab2, { runtime: runtime2 });
     await Promise.all([agent1.initialize(), agent2.initialize()]);
+    await agent1.profiles.view(user, artifact.id, {
+      harness: 'remote-planner',
+      provider: 'operator-acp',
+      model: 'remote',
+    });
     const remote = (store: Store, agent: Agent) =>
       new RemotePlanner({
         store,
