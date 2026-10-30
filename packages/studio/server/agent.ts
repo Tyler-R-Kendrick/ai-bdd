@@ -24,6 +24,8 @@ import type {
   DurableJobRuntime,
 } from './runtime/contracts.ts';
 import { mutateDocument } from './runtime/document-write.ts';
+import type { RemotePlanner } from './integrations/remote-planner.ts';
+import { implementationDefinitionSchema } from '../shared/implementation.ts';
 
 const stamp = () => new Date().toISOString();
 const hash = (value: unknown) =>
@@ -45,6 +47,7 @@ type Snapshot = {
   addressed: boolean;
   latestId: string | null;
   ownerEpoch: number;
+  remote: boolean;
 };
 export type AgentOptions = {
   runtime: DurableJobRuntime;
@@ -55,6 +58,7 @@ export type AgentOptions = {
     id: string,
     threadId: string,
   ) => Promise<void>;
+  remote?: RemotePlanner;
 };
 
 /** SQL owns turn scheduling and ownership. Instances only execute fenced, frozen jobs. */
@@ -244,7 +248,7 @@ export class Agent {
     try {
       await this.store.artifact(id, user.id, 'write');
       if (
-        !this.settings.model ||
+        (!this.settings.model && !this.options.remote) ||
         (await this.policy(user, id)).paused ||
         (await this.options.implementationLocked?.(id))
       )
@@ -263,6 +267,25 @@ export class Agent {
       await this.cancelJobs(user, id, jobId);
     });
     await this.refresh(artifact.projectId, id, user.id);
+  }
+  async claimPlanner(user: User, id: string) {
+    const artifact = await this.store.artifact(id, user.id, 'write');
+    await this.store.tx(async () => {
+      await this.store.db.lock('project:' + artifact.projectId);
+      await this.store.artifact(id, user.id, 'write');
+      if (
+        (await this.policy(user, id)).paused ||
+        (await this.options.implementationLocked?.(id))
+      )
+        throw new HttpError(
+          409,
+          'Planner participation is paused or implementation-locked',
+        );
+      await this.claimOwner(user, id);
+    });
+  }
+  async claimBackgroundOwnership(user: User, id: string) {
+    await this.claimPlanner(user, id);
   }
   private async cancelJobs(user: User, id: string, jobId?: string) {
     const jobs = await this.store.all(
@@ -290,7 +313,7 @@ export class Agent {
     const policy = await this.policy(user, id),
       addressed = /(?:^|\s)@(studio|chopin)\b/i.test(body);
     if (
-      !this.settings.model ||
+      (!this.settings.model && !this.options.remote) ||
       policy.paused ||
       (!addressed && policy.mode !== 'automatic')
     )
@@ -403,7 +426,7 @@ export class Agent {
     },
   ) {
     const outerTransaction = this.store.db.inTransaction();
-    if (!this.settings.model)
+    if (!this.settings.model && !this.options.remote)
       throw new HttpError(
         503,
         'The workspace owner has not configured an AI model',
@@ -509,7 +532,8 @@ export class Agent {
         threadId,
         intent,
         brief: submittedBrief,
-        model: this.settings.model!,
+        model: this.settings.model ?? 'remote',
+        remote: !!this.options.remote,
         repository: project.repository ?? '',
         requestHash,
         ownerEpoch,
@@ -698,6 +722,35 @@ export class Agent {
       .replace(/^['"]|['"]$/g, '')
       .slice(0, 100);
   }
+  async generateImplementationGraph(input: {
+    artifact: Artifact;
+    text: string;
+    signal: AbortSignal;
+    idempotencyKey: string;
+  }) {
+    if (!this.settings.model)
+      throw new HttpError(503, 'The workspace model is not configured');
+    const result = await generateText({
+      model: this.model(this.settings.model),
+      system:
+        system +
+        ' Produce an implementation task DAG, with explicit acceptance criteria grounded only in the supplied plan. Dependencies point from prerequisite task to dependent task. No task is executed or approved by drafting this graph.',
+      prompt: JSON.stringify({
+        artifact: {
+          id: input.artifact.id,
+          title: input.artifact.title,
+          kind: input.artifact.kind,
+        },
+        plan: input.text.slice(0, 70000),
+      }),
+      output: Output.object({ schema: implementationDefinitionSchema }),
+      abortSignal: input.signal,
+      maxRetries: 0,
+      maxOutputTokens: 14000,
+      headers: { 'Idempotency-Key': input.idempotencyKey },
+    });
+    return implementationDefinitionSchema.parse(result.output);
+  }
   private async execute(ctx: DurableJobContext) {
     const snapshot = ctx.snapshot as Snapshot,
       { artifact, user, threadId, intent } = snapshot,
@@ -712,10 +765,10 @@ export class Agent {
           signal,
         )
       : undefined;
-    if (reader)
-      reader.pin(
-        await ctx.step('repository-revision', () => reader.revision()),
-      );
+    const revision = reader
+      ? await ctx.step('repository-revision', () => reader.revision())
+      : undefined;
+    if (reader && revision) reader.pin(revision);
     const tools = reader
       ? {
           repository_tree: tool({
@@ -753,6 +806,27 @@ export class Agent {
       );
     const output = await ctx.step('model-output', async (key) => {
       await this.guard(ctx, snapshot);
+      if (snapshot.remote) {
+        if (!this.options.remote)
+          throw new HttpError(
+            503,
+            'The remote Planner transport is not configured on this instance',
+          );
+        return this.options.remote.invoke(
+          ctx,
+          {
+            artifactId: id,
+            threadId,
+            intent,
+            context: snapshot.context,
+            brief: snapshot.brief,
+            sources,
+            repository: snapshot.repository,
+            ...(revision ? { revision } : {}),
+          },
+          key,
+        );
+      }
       const options = {
         model: this.model(snapshot.model),
         system,

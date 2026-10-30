@@ -6,6 +6,8 @@ export type IntegrationSettings = {
   gatewayBaseUrl?: string;
   searchUrl?: string;
   searchToken?: string;
+  remotePlanner?: boolean;
+  plannerVisuals?: boolean;
   openDesign?: { command: string; args: string[]; envNames: string[] };
 };
 const localHosts = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -55,6 +57,9 @@ export function integrationSettingsFromEnv(
     openDesign = parsed;
   }
   return {
+    remotePlanner: env.STUDIO_REMOTE_PLANNER === 'on',
+    plannerVisuals:
+      env.PLANNER_VISUALS === 'on' || env.STUDIO_PLANNER_VISUALS === 'on',
     ...(env.STUDIO_GATEWAY_BASE_URL
       ? {
           gatewayBaseUrl: trustedEndpoint(
