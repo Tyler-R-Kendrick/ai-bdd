@@ -233,6 +233,7 @@ function DefinitionEditor({
           <Field label={`Task ${index + 1} description`}>
             <Textarea
               value={task.description}
+              aria-label={`Task ${index + 1} description`}
               maxLength={5000}
               onChange={(event) =>
                 update(index, { description: event.target.value })
@@ -242,6 +243,7 @@ function DefinitionEditor({
           <Field label={`Task ${index + 1} acceptance criteria (one per line)`}>
             <Textarea
               value={task.acceptanceCriteria.join('\n')}
+              aria-label={`Task ${index + 1} acceptance criteria (one per line)`}
               onChange={(event) =>
                 update(index, {
                   acceptanceCriteria: event.target.value.split('\n'),
@@ -296,6 +298,7 @@ function DefinitionEditor({
           <Field label="Prerequisite task">
             <Select
               value={from}
+              aria-label="Prerequisite task"
               onChange={(event) => setFrom(event.target.value)}
             >
               <option value="">Choose prerequisite</option>
@@ -307,7 +310,11 @@ function DefinitionEditor({
             </Select>
           </Field>
           <Field label="Dependent task">
-            <Select value={to} onChange={(event) => setTo(event.target.value)}>
+            <Select
+              aria-label="Dependent task"
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+            >
               <option value="">Choose dependent</option>
               {value.tasks.map((task) => (
                 <option key={task.id} value={task.id}>
@@ -377,6 +384,7 @@ function TaskReporter({
     ),
     [summary, setSummary] = useState(''),
     [reason, setReason] = useState(''),
+    [noChangeReason, setNoChangeReason] = useState(''),
     [evidence, setEvidence] = useState(''),
     [noChange, setNoChange] = useState(false),
     [url, setUrl] = useState(task.pullRequest?.url ?? ''),
@@ -403,6 +411,7 @@ function TaskReporter({
           <Field label={`Report for ${task.taskId}`}>
             <Select
               value={action}
+              aria-label={`Report for ${task.taskId}`}
               onChange={(event) => setAction(event.target.value)}
             >
               {task.status !== 'complete' && (
@@ -417,6 +426,7 @@ function TaskReporter({
           {action === 'block' && (
             <Field label="Blocker reason">
               <Textarea
+                aria-label="Blocker reason"
                 value={reason}
                 maxLength={5000}
                 onChange={(event) => setReason(event.target.value)}
@@ -435,6 +445,7 @@ function TaskReporter({
               <Field label="Reported pull request state">
                 <Select
                   value={state}
+                  aria-label="Reported pull request state"
                   onChange={(event) =>
                     setState(event.target.value as typeof state)
                   }
@@ -450,6 +461,7 @@ function TaskReporter({
             <>
               <Field label="Completion summary">
                 <Textarea
+                  aria-label="Completion summary"
                   value={summary}
                   maxLength={5000}
                   onChange={(event) => setSummary(event.target.value)}
@@ -469,13 +481,17 @@ function TaskReporter({
                 <>
                   <Field label="No-change reason">
                     <Textarea
-                      value={reason}
+                      aria-label="No-change reason"
+                      value={noChangeReason}
                       maxLength={1000}
-                      onChange={(event) => setReason(event.target.value)}
+                      onChange={(event) =>
+                        setNoChangeReason(event.target.value)
+                      }
                     />
                   </Field>
                   <Field label="No-change evidence">
                     <Textarea
+                      aria-label="No-change evidence"
                       value={evidence}
                       maxLength={5000}
                       onChange={(event) => setEvidence(event.target.value)}
@@ -494,7 +510,7 @@ function TaskReporter({
               (action === 'complete' &&
                 (!summary.trim() ||
                   (!task.pullRequest &&
-                    (!noChange || !reason.trim() || !evidence.trim()))))
+                    (!noChange || !noChangeReason.trim() || !evidence.trim()))))
             }
             onClick={() => {
               const command: ImplementationReport['command'] =
@@ -511,7 +527,7 @@ function TaskReporter({
                         taskId: task.taskId,
                         summary,
                         ...(noChange && !task.pullRequest
-                          ? { noChange: { reason, evidence } }
+                          ? { noChange: { reason: noChangeReason, evidence } }
                           : {}),
                       };
               void report(command);
@@ -557,6 +573,7 @@ function IndependentReview({
       <Field label="Whole-graph review summary">
         <Textarea
           value={summary}
+          aria-label="Whole-graph review summary"
           maxLength={5000}
           onChange={(event) => setSummary(event.target.value)}
         />
@@ -570,6 +587,7 @@ function IndependentReview({
           <Field label={`Review outcome ${task.id} ${index + 1}`}>
             <Select
               value={results[key]?.outcome ?? ''}
+              aria-label={`Review outcome ${task.id} ${index + 1}`}
               onChange={(event) =>
                 setResults({
                   ...results,
@@ -590,6 +608,7 @@ function IndependentReview({
             <Textarea
               maxLength={5000}
               value={results[key]?.evidence ?? ''}
+              aria-label={`Review evidence ${task.id} ${index + 1}`}
               onChange={(event) =>
                 setResults({
                   ...results,
@@ -1240,6 +1259,7 @@ export function ImplementationPanel({
                               <Field label="Revision request reason">
                                 <Textarea
                                   value={revisionReason}
+                                  aria-label="Revision request reason"
                                   maxLength={5000}
                                   onChange={(event) =>
                                     setRevisionReason(event.target.value)
