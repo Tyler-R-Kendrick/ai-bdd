@@ -98,6 +98,10 @@ export class ImplementationGraphs {
         artifact: Artifact,
         actor: ImplementationActor,
       ) => Promise<void>;
+      /** Optional durable pre-claim queue lock. Must be a DB-only read without calling this service. */
+      externalEditingLock?: (
+        artifactId: string,
+      ) => Promise<ImplementationEditingLock | null>;
       /** Best-effort invalidation AFTER commit. Durable events/snapshots remain authoritative. */
       notify?: (event: {
         projectId: string;
@@ -174,7 +178,7 @@ export class ImplementationGraphs {
           claimedBy: run.claimedBy,
           startedAt: run.startedAt,
         }
-      : null;
+      : ((await this.options.externalEditingLock?.(id)) ?? null);
   }
   /** Invoke inside the same project-locked transaction as EVERY source/decision mutation. */
   async assertPlanEditable(id: string) {
@@ -375,6 +379,26 @@ export class ImplementationGraphs {
     );
     return this.editDraft(artifact, who, request);
   }
+  private async transactionContext(
+    actor: ImplementationActor,
+    id: string,
+    allowArchived: boolean,
+  ) {
+    if (!this.store.db.inTransaction())
+      throw new Error(
+        'Atomic graph commands require an existing project transaction',
+      );
+    const who = attribution(actor),
+      initial = await this.context(actor.user, id, true, allowArchived);
+    await this.store.lock('project:' + initial.projectId);
+    const artifact = await this.context(actor.user, id, true, allowArchived);
+    await this.store.lock('implementation:' + id);
+    await this.store.exec(
+      'INSERT INTO implementation_heads(artifact_id,revision) VALUES(?,0) ON CONFLICT(artifact_id) DO NOTHING',
+      id,
+    );
+    return { artifact, who };
+  }
   private async editDraft(
     artifact: Artifact,
     who: ImplementationAttribution,
@@ -425,36 +449,60 @@ export class ImplementationGraphs {
         'Only a person can approve an implementation graph',
       );
     return this.mutate(actor, id, false, async (artifact, who) => {
-      await this.assertPlanEditable(id);
-      const graph = await this.latest(id);
-      checkPointer(graph, expected);
-      if (!graph || graph.status !== 'draft')
-        fail('not-draft', 'Only the latest draft can be approved');
-      if (artifact.version !== graph.planRevision)
-        fail('plan-conflict', 'The source changed after the graph was drafted');
-      await this.options.assertReady?.(artifact, actor);
-      const previous = (
-        await this.store.all(
-          'SELECT payload FROM implementation_graphs WHERE artifact_id=? AND version<?',
-          id,
-          graph.graphVersion,
-        )
-      ).map((row) => decode<ImplementationGraph>(row)!);
-      for (const old of previous)
-        if (old.status === 'approved') {
-          old.status = 'superseded';
-          old.updatedAt = timestamp();
-          await this.saveGraph(old);
-        }
-      graph.status = 'approved';
-      graph.approvedBy = who;
-      graph.approvedAt = graph.updatedAt = timestamp();
-      await this.saveGraph(graph);
-      await this.event(artifact, who, 'approved', {
-        pointer: implementationPointer(graph),
-      });
-      return graph;
+      return this.approveState(artifact, who, expected, actor);
     });
+  }
+  /** Atomic connector/job composition. Caller owns commit and durable invalidation publication. */
+  async approveInTransaction(
+    actor: ImplementationActor,
+    id: string,
+    input: unknown,
+  ): Promise<ImplementationGraph> {
+    const expected = implementationPointerSchema.parse(input);
+    if (actor.kind !== 'human')
+      throw new HttpError(
+        403,
+        'Only a person can approve an implementation graph',
+      );
+    const { artifact, who } = await this.transactionContext(actor, id, false);
+    return this.approveState(artifact, who, expected, actor);
+  }
+  private async approveState(
+    artifact: Artifact,
+    who: ImplementationAttribution,
+    expected: ReturnType<typeof implementationPointerSchema.parse>,
+    actor: ImplementationActor,
+  ): Promise<ImplementationGraph> {
+    const id = artifact.id;
+    await this.assertPlanEditable(id);
+    const graph = await this.latest(id);
+    checkPointer(graph, expected);
+    if (!graph || graph.status !== 'draft')
+      fail('not-draft', 'Only the latest draft can be approved');
+    if (artifact.version !== graph.planRevision)
+      fail('plan-conflict', 'The source changed after the graph was drafted');
+    await this.options.assertReady?.(artifact, actor);
+    const previous = (
+      await this.store.all(
+        'SELECT payload FROM implementation_graphs WHERE artifact_id=? AND version<?',
+        id,
+        graph.graphVersion,
+      )
+    ).map((row) => decode<ImplementationGraph>(row)!);
+    for (const old of previous)
+      if (old.status === 'approved') {
+        old.status = 'superseded';
+        old.updatedAt = timestamp();
+        await this.saveGraph(old);
+      }
+    graph.status = 'approved';
+    graph.approvedBy = who;
+    graph.approvedAt = graph.updatedAt = timestamp();
+    await this.saveGraph(graph);
+    await this.event(artifact, who, 'approved', {
+      pointer: implementationPointer(graph),
+    });
+    return graph;
   }
   async claim(
     actor: ImplementationActor,
@@ -463,80 +511,99 @@ export class ImplementationGraphs {
   ): Promise<ImplementationRun> {
     const request = implementationClaimSchema.parse(input);
     return this.mutate(actor, id, false, async (artifact, who) => {
-      await this.assertPlanEditable(id);
-      const graph = await this.latest(id);
-      checkPointer(graph, request.expected);
-      if (!graph || graph.status !== 'approved')
-        fail('not-approved', 'Approve the latest graph before claiming it');
-      if (artifact.version !== graph.planRevision)
-        fail('plan-conflict', 'The canonical plan changed after approval');
-      if (
-        await this.store.one(
-          "SELECT id FROM implementation_runs WHERE artifact_id=? AND graph_version=? AND status IN ('implemented','delivered') LIMIT 1",
-          id,
-          graph.graphVersion,
-        )
-      )
-        fail(
-          'already-implemented',
-          'This graph passed verification and cannot be claimed again',
-        );
-      const project = await this.store.one(
-        'SELECT repository FROM projects WHERE id=?',
-        artifact.projectId,
-      );
-      let requested: string, actual: string;
-      try {
-        requested = repositoryKey(request.repository);
-        actual = repositoryKey(project.repository);
-      } catch {
-        throw new HttpError(
-          400,
-          'Select the project GitHub repository before claiming an implementation',
-        );
-      }
-      if (actual !== requested)
-        throw new HttpError(
-          403,
-          'The checkout repository does not match the project repository',
-        );
-      await this.options.assertReady?.(artifact, actor);
-      const run: ImplementationRun = {
-        id: randomUUID(),
-        artifactId: id,
-        ...implementationPointer(graph),
-        status: 'running',
-        checkout: {
-          repository: 'https://github.com/' + actual,
-          branch: request.branch,
-          commit: request.commit,
-        },
-        claimedBy: who,
-        startedAt: timestamp(),
-        tasks: graph.definition.tasks.map((task) => ({
-          taskId: task.id,
-          status: 'queued',
-          contributors: [],
-        })),
-      };
-      graph.status = 'locked';
-      graph.updatedAt = timestamp();
-      await this.saveGraph(graph);
-      await this.saveRun(run);
-      await this.store.exec(
-        'UPDATE implementation_heads SET active_run_id=? WHERE artifact_id=?',
-        run.id,
-        id,
-      );
-      await this.event(
-        artifact,
-        who,
-        'claimed',
-        { pointer: implementationPointer(graph), checkout: run.checkout },
-        run.id,
-      );
-      return run;
+      return this.claimState(artifact, who, request, actor);
     });
+  }
+  /** Atomic connector/job composition. Caller owns commit and durable invalidation publication. */
+  async claimInTransaction(
+    actor: ImplementationActor,
+    id: string,
+    input: unknown,
+  ): Promise<ImplementationRun> {
+    const request = implementationClaimSchema.parse(input);
+    const { artifact, who } = await this.transactionContext(actor, id, false);
+    return this.claimState(artifact, who, request, actor);
+  }
+  private async claimState(
+    artifact: Artifact,
+    who: ImplementationAttribution,
+    request: ReturnType<typeof implementationClaimSchema.parse>,
+    actor: ImplementationActor,
+  ): Promise<ImplementationRun> {
+    const id = artifact.id;
+    await this.assertPlanEditable(id);
+    const graph = await this.latest(id);
+    checkPointer(graph, request.expected);
+    if (!graph || graph.status !== 'approved')
+      fail('not-approved', 'Approve the latest graph before claiming it');
+    if (artifact.version !== graph.planRevision)
+      fail('plan-conflict', 'The canonical plan changed after approval');
+    if (
+      await this.store.one(
+        "SELECT id FROM implementation_runs WHERE artifact_id=? AND graph_version=? AND status IN ('implemented','delivered') LIMIT 1",
+        id,
+        graph.graphVersion,
+      )
+    )
+      fail(
+        'already-implemented',
+        'This graph passed verification and cannot be claimed again',
+      );
+    const project = await this.store.one(
+      'SELECT repository FROM projects WHERE id=?',
+      artifact.projectId,
+    );
+    let requested: string, actual: string;
+    try {
+      requested = repositoryKey(request.repository);
+      actual = repositoryKey(project.repository);
+    } catch {
+      throw new HttpError(
+        400,
+        'Select the project GitHub repository before claiming an implementation',
+      );
+    }
+    if (actual !== requested)
+      throw new HttpError(
+        403,
+        'The checkout repository does not match the project repository',
+      );
+    await this.options.assertReady?.(artifact, actor);
+    const run: ImplementationRun = {
+      id: randomUUID(),
+      artifactId: id,
+      ...implementationPointer(graph),
+      status: 'running',
+      checkout: {
+        repository: 'https://github.com/' + actual,
+        branch: request.branch,
+        commit: request.commit,
+      },
+      claimedBy: who,
+      startedAt: timestamp(),
+      tasks: graph.definition.tasks.map((task) => ({
+        taskId: task.id,
+        status: 'queued',
+        contributors: [],
+      })),
+    };
+    graph.status = 'locked';
+    graph.updatedAt = timestamp();
+    await this.saveGraph(graph);
+    await this.saveRun(run);
+    await this.store.exec(
+      'UPDATE implementation_heads SET active_run_id=? WHERE artifact_id=?',
+      run.id,
+      id,
+    );
+    await this.event(
+      artifact,
+      who,
+      'claimed',
+      { pointer: implementationPointer(graph), checkout: run.checkout },
+      run.id,
+    );
+    return run;
   }
   async report(
     actor: ImplementationActor,
@@ -545,81 +612,99 @@ export class ImplementationGraphs {
   ): Promise<ImplementationRun> {
     const request = implementationReportSchema.parse(input);
     return this.mutate(actor, id, true, async (artifact, who) => {
-      const run = await this.run(request.runId, id);
-      if (!run) throw new HttpError(404, 'Implementation run not found');
-      const requestHash = createHash('sha256')
-        .update(canonical(request.command))
-        .digest('hex');
-      const previous = await this.store.one(
-        'SELECT actor_key,request_hash,response FROM implementation_commands WHERE run_id=? AND key=?',
-        run.id,
-        request.idempotencyKey,
-      );
-      if (previous) {
-        if (
-          previous.actor_key !== who.key ||
-          previous.request_hash !== requestHash
-        )
-          fail(
-            'idempotency-conflict',
-            'This key already identifies another lifecycle report',
-          );
-        return JSON.parse(previous.response) as ImplementationRun;
-      }
-      const graph = decode<ImplementationGraph>(
-        await this.store.one(
-          'SELECT payload FROM implementation_graphs WHERE artifact_id=? AND version=?',
-          id,
-          run.graphVersion,
-        ),
-      );
-      if (!graph) throw new HttpError(404, 'Implementation graph not found');
-      const head = await this.store.one(
-        'SELECT active_run_id FROM implementation_heads WHERE artifact_id=?',
-        id,
-      );
-      const terminalPrUpdate =
-        request.command.kind === 'report_pr' &&
-        ['implemented', 'delivered'].includes(run.status);
+      return this.reportState(artifact, who, request);
+    });
+  }
+  /** Atomic connector/job composition. Caller owns commit and durable invalidation publication. */
+  async reportInTransaction(
+    actor: ImplementationActor,
+    id: string,
+    input: unknown,
+  ): Promise<ImplementationRun> {
+    const request = implementationReportSchema.parse(input);
+    const { artifact, who } = await this.transactionContext(actor, id, true);
+    return this.reportState(artifact, who, request);
+  }
+  private async reportState(
+    artifact: Artifact,
+    who: ImplementationAttribution,
+    request: ImplementationReport,
+  ): Promise<ImplementationRun> {
+    const id = artifact.id;
+    const run = await this.run(request.runId, id);
+    if (!run) throw new HttpError(404, 'Implementation run not found');
+    const requestHash = createHash('sha256')
+      .update(canonical(request.command))
+      .digest('hex');
+    const previous = await this.store.one(
+      'SELECT actor_key,request_hash,response FROM implementation_commands WHERE run_id=? AND key=?',
+      run.id,
+      request.idempotencyKey,
+    );
+    if (previous) {
       if (
-        !terminalPrUpdate &&
-        (run.status !== 'running' ||
-          head.active_run_id !== run.id ||
-          graph.status !== 'locked')
+        previous.actor_key !== who.key ||
+        previous.request_hash !== requestHash
       )
         fail(
-          'run-not-active',
-          'This report does not identify the active locked run',
+          'idempotency-conflict',
+          'This key already identifies another lifecycle report',
         );
-      this.transition(run, graph, request.command, who, terminalPrUpdate);
-      if (run.status !== 'running' && !terminalPrUpdate) {
-        graph.status = 'approved';
-        graph.updatedAt = timestamp();
-        await this.saveGraph(graph);
-        await this.store.exec(
-          'UPDATE implementation_heads SET active_run_id=NULL WHERE artifact_id=? AND active_run_id=?',
-          id,
-          run.id,
-        );
-      }
-      await this.saveRun(run);
-      await this.event(
-        artifact,
-        who,
-        request.command.kind,
-        request.command,
-        run.id,
+      return JSON.parse(previous.response) as ImplementationRun;
+    }
+    const graph = decode<ImplementationGraph>(
+      await this.store.one(
+        'SELECT payload FROM implementation_graphs WHERE artifact_id=? AND version=?',
+        id,
+        run.graphVersion,
+      ),
+    );
+    if (!graph) throw new HttpError(404, 'Implementation graph not found');
+    const head = await this.store.one(
+      'SELECT active_run_id FROM implementation_heads WHERE artifact_id=?',
+      id,
+    );
+    const terminalPrUpdate =
+      request.command.kind === 'report_pr' &&
+      ['implemented', 'delivered'].includes(run.status);
+    if (
+      !terminalPrUpdate &&
+      (run.status !== 'running' ||
+        head.active_run_id !== run.id ||
+        graph.status !== 'locked')
+    )
+      fail(
+        'run-not-active',
+        'This report does not identify the active locked run',
       );
+    this.transition(run, graph, request.command, who, terminalPrUpdate);
+    if (run.status !== 'running' && !terminalPrUpdate) {
+      graph.status = 'approved';
+      graph.updatedAt = timestamp();
+      await this.saveGraph(graph);
       await this.store.exec(
-        'INSERT INTO implementation_commands(run_id,key,actor_key,request_hash,response) VALUES(?,?,?,?,?)',
+        'UPDATE implementation_heads SET active_run_id=NULL WHERE artifact_id=? AND active_run_id=?',
+        id,
         run.id,
-        request.idempotencyKey,
-        who.key,
-        requestHash,
-        encode(run),
       );
-      return run;
-    });
+    }
+    await this.saveRun(run);
+    await this.event(
+      artifact,
+      who,
+      request.command.kind,
+      request.command,
+      run.id,
+    );
+    await this.store.exec(
+      'INSERT INTO implementation_commands(run_id,key,actor_key,request_hash,response) VALUES(?,?,?,?,?)',
+      run.id,
+      request.idempotencyKey,
+      who.key,
+      requestHash,
+      encode(run),
+    );
+    return run;
   }
   private transition(
     run: ImplementationRun,

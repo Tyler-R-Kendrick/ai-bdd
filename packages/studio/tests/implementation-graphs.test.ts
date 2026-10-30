@@ -210,6 +210,140 @@ for (const provider of ['sqlite', 'postgres'] as const)
   describe.skipIf(provider === 'postgres' && !pgURL)(
     provider + ' implementation lifecycle',
     () => {
+      it('atomically approves, queues, claims and reports with a durable pre-claim lock and shared rollback', async () => {
+        const f = await fixture(provider),
+          draft = await f.draft(),
+          queueId = randomUUID();
+        await f.first.db.exec(
+          'CREATE TABLE implementation_test_queue(id TEXT PRIMARY KEY,status TEXT NOT NULL,run_id TEXT)',
+        );
+        const lock = async () => {
+          const queue = await f.first.one(
+            "SELECT id FROM implementation_test_queue WHERE status IN ('queued','launching') LIMIT 1",
+          );
+          return queue
+            ? {
+                runId: queue.id,
+                graphVersion: 1,
+                claimedBy: draft.authoredBy,
+                startedAt: draft.createdAt,
+              }
+            : null;
+        };
+        f.graph.options.externalEditingLock = lock;
+        await expect(
+          f.first.tx(async () => {
+            await f.graph.approveInTransaction(
+              f.human,
+              f.id,
+              implementationPointer(draft),
+            );
+            await f.first.exec(
+              'INSERT INTO implementation_test_queue(id,status) VALUES(?,?)',
+              queueId,
+              'queued',
+            );
+            throw new Error('queue admission rollback');
+          }),
+        ).rejects.toThrow('queue admission rollback');
+        expect((await f.graph.read(f.owner, f.id)).graph?.status).toBe('draft');
+        await f.first.tx(async () => {
+          await f.graph.approveInTransaction(
+            f.human,
+            f.id,
+            implementationPointer(draft),
+          );
+          await f.first.exec(
+            'INSERT INTO implementation_test_queue(id,status) VALUES(?,?)',
+            queueId,
+            'queued',
+          );
+        });
+        expect((await f.graph.editingLock(f.id))?.runId).toBe(queueId);
+        const claim = {
+          expected: implementationPointer(draft),
+          repository: repo,
+          branch: 'atomic-queue',
+          commit: 'c'.repeat(40),
+        };
+        await expect(f.graph.claim(f.builder, f.id, claim)).rejects.toThrow(
+          'implementation-locked',
+        );
+        await expect(
+          f.first.tx(async () => {
+            await f.first.lock('project:' + f.project.id);
+            await f.graph.assertPlanEditable(f.id);
+          }),
+        ).rejects.toThrow('implementation-locked');
+        await expect(
+          f.first.tx(async () => {
+            await f.first.lock('project:' + f.project.id);
+            await f.first.exec(
+              'UPDATE implementation_test_queue SET status=? WHERE id=?',
+              'claiming',
+              queueId,
+            );
+            await f.graph.claimInTransaction(f.builder, f.id, claim);
+            throw new Error('claim rollback');
+          }),
+        ).rejects.toThrow('claim rollback');
+        expect((await f.graph.read(f.owner, f.id)).activeRun).toBeNull();
+        expect((await f.graph.editingLock(f.id))?.runId).toBe(queueId);
+        const run = await f.first.tx(async () => {
+          await f.first.lock('project:' + f.project.id);
+          await f.first.exec(
+            'UPDATE implementation_test_queue SET status=? WHERE id=?',
+            'claiming',
+            queueId,
+          );
+          const run = await f.graph.claimInTransaction(f.builder, f.id, claim);
+          await f.first.exec(
+            'UPDATE implementation_test_queue SET status=?,run_id=? WHERE id=?',
+            'running',
+            run.id,
+            queueId,
+          );
+          return run;
+        });
+        expect((await f.graph.editingLock(f.id))?.runId).toBe(run.id);
+        const report = {
+          runId: run.id,
+          idempotencyKey: 'atomic-revision',
+          command: {
+            kind: 'request_revision',
+            reason: 'Scoped queue cancelled',
+          },
+        };
+        await expect(
+          f.first.tx(async () => {
+            await f.graph.reportInTransaction(f.builder, f.id, report);
+            await f.first.exec(
+              'UPDATE implementation_test_queue SET status=? WHERE id=?',
+              'cancelled',
+              queueId,
+            );
+            throw new Error('report rollback');
+          }),
+        ).rejects.toThrow('report rollback');
+        expect((await f.graph.read(f.owner, f.id)).activeRun?.status).toBe(
+          'running',
+        );
+        const ended = await f.first.tx(async () => {
+          const ended = await f.graph.reportInTransaction(
+            f.builder,
+            f.id,
+            report,
+          );
+          await f.first.exec(
+            'UPDATE implementation_test_queue SET status=? WHERE id=?',
+            'cancelled',
+            queueId,
+          );
+          return ended;
+        });
+        expect(await f.graph.editingLock(f.id)).toBeNull();
+        expect(await f.graph.report(f.builder, f.id, report)).toEqual(ended);
+      });
       it('uses exact draft/plan CAS, human-only approval and versioned replacement without early supersession', async () => {
         const f = await fixture(provider),
           draft = await f.draft();
