@@ -18,7 +18,7 @@ export async function createApp(...args: Parameters<typeof createStudioApp>) {
     if (!(await studio.store.userByEmail(settings.adminEmail)))
       await studio.store.createUser(settings.adminEmail, 'Alex Morgan', null);
     studio.app.addHook('onClose', () => fixture.close());
-    return studio;
+    return Object.assign(studio, { testGitHubAuthorizationOrigin: fixture.origin });
   } catch (error) {
     await fixture.close();
     throw error;

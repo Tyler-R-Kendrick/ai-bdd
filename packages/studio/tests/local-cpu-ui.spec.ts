@@ -51,9 +51,14 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
 }) => {
   const faults: string[] = [];
   page.on('request', (request) => {
+    const target = new URL(request.url());
+    // Only the explicitly owned OAuth chooser is outside this app's origin.
+    // Inference and every other application request retain the offline guard.
     if (
-      /^https?:/.test(request.url()) &&
-      new URL(request.url()).origin !== origin
+      /^https?:/.test(target.protocol) &&
+      target.origin !== origin &&
+      !(target.origin === studio.testGitHubAuthorizationOrigin &&
+        target.pathname === '/authorize')
     )
       faults.push('Unexpected external browser request');
   });
