@@ -2,7 +2,7 @@ import { DurableChallenges } from './identity/challenges.ts';
 import { repositoryIdentitySettingsFromEnv } from './identity/settings.ts';
 import type { RepositoryIdentitySettings } from './identity/ports.ts';
 import { integrationSettingsFromEnv, type IntegrationSettings } from './integrations/settings.ts';
-import { scrypt, randomBytes, timingSafeEqual } from 'node:crypto';
+import { scrypt, randomBytes,randomUUID, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { hash, HttpError, type Store } from './store.ts';
@@ -33,6 +33,7 @@ export type Settings = {
   production: boolean;
   origin: string;
   dataDir: string;
+  /** Historical bootstrap configuration; GitHub identity, not email, admits users. */
   adminEmail?: string;
   /** Historical configuration fields do not enable a sign-in method. */
   adminPassword?: string;
@@ -128,7 +129,7 @@ export class Auth {
       await this.store.db.lock('user:' + user.id);
       if (!(await this.store.one('SELECT user_id FROM github_signin_identities WHERE user_id=?', user.id)) &&
           !(await this.store.one('SELECT user_id FROM github_connect_signin_identities WHERE user_id=?', user.id)))
-        throw new HttpError(401, 'A verified GitHub sign-in is required');
+        throw new HttpError(401, 'An authenticated GitHub sign-in is required');
       await this.store.exec("INSERT INTO sessions(token,user_id,expires,kind) VALUES(?,?,?,'session')", hash(token), user.id, Date.now() + 7 * 86400000);
       await this.store.exec('INSERT INTO github_signin_sessions(token) VALUES(?)', hash(token));
     });
@@ -141,31 +142,18 @@ export class Auth {
     const managed=identity.kind==='vercel-connect';
     if ((managed ? identity.issuer!=='https://connect.vercel.com' || !/^scl_[A-Za-z0-9]{1,100}$/.test(identity.connectorId) ||
       !validConnectGitHubSubject(identity.subject)
-      : identity.kind!=='github' || !/^[1-9][0-9]{0,19}$/.test(identity.id)) ||
-      !Array.isArray(identity.verifiedEmails) || identity.verifiedEmails.length > (managed?1:100))
+      : identity.kind!=='github' || !/^[1-9][0-9]{0,19}$/.test(identity.id)))
       throw new HttpError(403, 'GitHub returned an invalid account identity');
-    const emails = [...new Set(identity.verifiedEmails.filter(email => typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)).map(email => email.toLowerCase()))];
-    if (!emails.length) throw new HttpError(403, 'A verified GitHub email is required');
     return this.store.tx(async () => {
       await this.store.db.lock('identity:admission');
       const linked = managed
         ? await this.store.one('SELECT user_id FROM github_connect_signin_identities WHERE issuer=? AND connector_id=? AND subject=?',identity.issuer,identity.connectorId,identity.subject)
         : await this.store.one('SELECT user_id FROM github_signin_identities WHERE github_id=?', identity.id);
       if (linked) return this.store.publicUser(linked.user_id);
-      const matches = [];
-      for (const email of emails) {
-        const user = await this.store.userByEmail(email);
-        if (user) matches.push(user);
-      }
-      if (matches.length > 1) throw new HttpError(403, 'This GitHub account matches multiple workspace accounts. Ask a workspace owner for help.');
-      let user = matches[0];
-      const ownerEmail = this.settings.adminEmail?.toLowerCase();
-      if (!user && ownerEmail && emails.includes(ownerEmail) && !(await this.store.one('SELECT id FROM users LIMIT 1')))
-        user = await this.store.createUser(ownerEmail, String(identity.name || (managed?'GitHub user':identity.login)).slice(0, 100), null);
-      if (!user) throw new HttpError(403, 'Ask a workspace owner to invite your verified GitHub email');
-      const previous = await this.store.one('SELECT github_id FROM github_signin_identities WHERE user_id=?', user.id);
-      const previousManaged = await this.store.one('SELECT user_id FROM github_connect_signin_identities WHERE user_id=?', user.id);
-      if (previous || previousManaged) throw new HttpError(403, 'This workspace account is already connected to another GitHub identity');
+      // The legacy email column is an internal compatibility identifier. It
+      // never authorizes or claims an existing user, even when GitHub releases
+      // the same contact email. Principal continuity comes only from its binding.
+      const user=await this.store.createUser(randomUUID()+'@identity.invalid',String(identity.name||(managed?'GitHub user':identity.login)).slice(0,100),null);
       if(managed)await this.store.exec('INSERT INTO github_connect_signin_identities(issuer,connector_id,subject,user_id,created_at) VALUES(?,?,?,?,?)',identity.issuer,identity.connectorId,identity.subject,user.id,Date.now());
       else await this.store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)', identity.id, user.id, Date.now());
       return this.store.publicUser(user.id);

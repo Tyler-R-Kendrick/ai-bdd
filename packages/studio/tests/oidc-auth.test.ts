@@ -34,8 +34,6 @@ beforeEach(async () => {
   const auth = new Auth(store, settings);
   await auth.initialize();
   await store.createUser('owner@example.test', 'Legacy owner', await passwordHash(settings.adminPassword!));
-  await store.createUser('alice@example.test', 'Alice Verified', null);
-  await store.createUser('unverified@example.test', 'Unverified User', null);
   app = Fastify();
   await app.register(cookie);
   app.setErrorHandler((error: unknown, _req: FastifyRequest, reply: FastifyReply) =>
@@ -64,7 +62,7 @@ async function denied() {
   expect(await store.all('SELECT token FROM sessions')).toEqual([]);
 }
 describe('actual browser GitHub-only authentication', () => {
-  it('accepts an admitted verified GitHub identity with real durable binding/PKCE and refuses callback replay', async () => {
+  it('provisions an authenticated GitHub identity with durable binding/PKCE and refuses callback replay', async () => {
     let callback = '';
     page.on('request', req => { if (req.url().startsWith(origin + '/api/auth/github/callback?')) callback = req.url(); });
     await start();
@@ -73,19 +71,23 @@ describe('actual browser GitHub-only authentication', () => {
     await finish();
     await page.getByRole('heading', { name: 'Local authentication fixture', exact: true }).waitFor();
     const me = await page.request.get(origin + '/api/me');
-    expect(me.status()).toBe(200); expect((await me.json()).email).toBe('alice@example.test');
+    expect(me.status()).toBe(200); expect((await me.json()).email).toMatch(/@identity\.invalid$/);
     expect(issuer.tokenRequests).toBe(1);
     const before = await store.all('SELECT token FROM sessions');
     const replay = await page.request.get(callback, { headers: { cookie: 'studio_github_signin=' + binding.value }, maxRedirects: 0 });
     expect(replay.status()).toBe(302); expect(replay.headers().location).toBe('/?signin=failed');
     expect((await store.all('SELECT token FROM sessions')).length).toBe(before.length);
   });
-  it('rejects a verified GitHub account that has not been invited', async () => {
-    await start(); await finish('outsider@example.test'); await denied();
+  it('accepts a genuine GitHub account without any local invitation', async () => {
+    await start(); await finish('outsider@example.test');
+    await page.getByRole('heading',{name:'Local authentication fixture',exact:true}).waitFor();
+    expect((await page.request.get(origin+'/api/me')).status()).toBe(200);
     expect(await store.userByEmail('outsider@example.test')).toBeUndefined();
   });
-  it('rejects an admitted identity without a verified GitHub email', async () => {
-    await start(); await finish('unverified@example.test'); await denied();
+  it('accepts an authenticated identity without a released verified email', async () => {
+    await start(); await finish('unverified@example.test');
+    await page.getByRole('heading',{name:'Local authentication fixture',exact:true}).waitFor();
+    const result=await page.request.get(origin+'/api/me');expect(result.status()).toBe(200);expect((await result.json()).email).toMatch(/@identity\.invalid$/);
   });
   it('rejects expired durable state before exchanging the authorization code', async () => {
     await start();

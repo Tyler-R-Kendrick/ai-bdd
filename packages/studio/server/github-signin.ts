@@ -7,7 +7,7 @@ export type DirectGitHubSignInIdentity = {
   id: string;
   login: string;
   name: string;
-  verifiedEmails: string[];
+  verifiedEmails?: string[];
 };
 export type ConnectGitHubSignInIdentity = {
   kind: 'vercel-connect';
@@ -15,7 +15,7 @@ export type ConnectGitHubSignInIdentity = {
   connectorId: string;
   subject: string;
   name: string;
-  verifiedEmails: string[];
+  verifiedEmails?: string[];
 };
 export type GitHubSignInIdentity = DirectGitHubSignInIdentity | ConnectGitHubSignInIdentity;
 export const validConnectGitHubSubject=(subject:unknown):subject is string=>
@@ -78,7 +78,7 @@ async function boundedJson(response: Response, maximum: number) {
     reader?.releaseLock();
   }
 }
-/** Sign-in asks for verified email access; repository authorization is separate. */
+/** Sign-in authenticates GitHub identity; repository authorization is separate. */
 export class GitHubOAuthSignInProvider implements GitHubSignInProvider {
   constructor(readonly settings: GitHubSignInSettings) {}
   authorizationUrl(input: GitHubSignInAuthorization) {
@@ -87,7 +87,7 @@ export class GitHubOAuthSignInProvider implements GitHubSignInProvider {
       client_id: this.settings.clientId,
       redirect_uri: input.redirectUri,
       state: input.state,
-      scope: 'user:email',
+      scope: 'read:user',
       code_challenge: input.codeChallenge,
       code_challenge_method: 'S256',
       allow_signup: 'false',
@@ -142,27 +142,20 @@ async function githubSignInRequest(url: string, options: RequestInit, maximum: n
     return boundedJson(response, maximum);
   }
 
-/** Resolve the actual numeric GitHub account and verified emails from a server-obtained user token. */
+/** Resolve the actual numeric GitHub account from a server-obtained user token. */
 export async function githubSignInIdentityFromToken(accessToken: string): Promise<DirectGitHubSignInIdentity> {
   if (typeof accessToken !== 'string' || accessToken.length < 10 || accessToken.length > 4096 || /[\r\n]/.test(accessToken)) throw new HttpError(401, 'GitHub could not complete sign-in. Start again.');
     const headers = { Authorization: 'Bearer ' + accessToken };
     const profile = await githubSignInRequest('https://api.github.com/user', { headers }, 65536);
-    const emails = await githubSignInRequest('https://api.github.com/user/emails?per_page=100', { headers }, 65536);
     if (
       !profile || typeof profile !== 'object' || !Number.isSafeInteger(profile.id) || profile.id <= 0 ||
-      typeof profile.login !== 'string' || !/^[A-Za-z0-9-]{1,39}$/.test(profile.login) ||
-      !Array.isArray(emails) || emails.length > 100
+      typeof profile.login !== 'string' || !/^[A-Za-z0-9-]{1,39}$/.test(profile.login)
     ) throw new HttpError(502, 'GitHub returned an invalid account identity');
-    const verifiedEmails = [...new Set(emails.filter(value =>
-      value && value.verified === true && typeof value.email === 'string' &&
-      value.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email),
-    ).map(value => value.email.toLowerCase() as string))];
-    if (!verifiedEmails.length) throw new HttpError(403, 'A verified GitHub email is required');
     return {
       kind: 'github',
       id: String(profile.id), login: profile.login,
       name: typeof profile.name === 'string' && profile.name.trim()
         ? profile.name.trim().slice(0, 100) : profile.login,
-      verifiedEmails,
+      verifiedEmails:[],
     };
 }

@@ -79,7 +79,7 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
     // This helper reads the current validated native OIDC context. It keeps no JWT.
     const provider = await observeGitHubSignIn(observer,'connector-configuration',()=>this.scoped(async()=>connect({
       id:'github',name:'GitHub',connector:this.connector,
-      scopes:['openid','profile','email','user:email'],
+      scopes:['openid','profile','email'],
     })));
     const sdkFetch = provider[authJsCustomFetch];
     if (!sdkFetch || provider.clientId !== this.connector)
@@ -152,13 +152,11 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
     const claims=tokens.claims();
     const profile=await observeGitHubSignIn(observer,'userinfo',async()=>{
       const profile=await oidc.fetchUserInfo(configuration,tokens.access_token,claims?.sub??oidc.skipSubjectCheck);
-      if(!validConnectGitHubSubject(profile.sub) ||
-        profile.email_verified!==true || typeof profile.email!=='string' || profile.email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email))
-        throw new HttpError(403,'A verified GitHub sign-in profile is required');
-      return {...profile,email:profile.email};
+      if(!validConnectGitHubSubject(profile.sub))throw new HttpError(403,'A valid GitHub sign-in profile is required');
+      return profile;
     });
     return {kind:'vercel-connect',issuer,connectorId:metadata.id,subject:profile.sub,
       name:typeof profile.name==='string'&&profile.name.trim()?profile.name.trim().slice(0,100):'GitHub user',
-      verifiedEmails:[profile.email.toLowerCase()]};
+      verifiedEmails:profile.email_verified===true&&typeof profile.email==='string'&&profile.email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)?[profile.email.toLowerCase()]:[]};
   }
 }

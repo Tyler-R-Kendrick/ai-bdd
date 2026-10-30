@@ -71,7 +71,7 @@ describe('awaited authentication persistence', () => {
 describe.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
   'real PostgreSQL authentication admission',
   () => {
-    it('admits exactly one GitHub identity for the first owner across two application instances', async () => {
+    it('provisions separate GitHub identities across two application instances without email merging', async () => {
       const url = process.env.STUDIO_TEST_POSTGRES_URL!,
         schema = 'auth_' + randomUUID().replaceAll('-', '');
       const first = await fixture(
@@ -90,14 +90,14 @@ describe.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
       ]);
       expect(
         result.filter((response) => response.headers.location === '/'),
-      ).toHaveLength(1);
+      ).toHaveLength(2);
       expect(
         result.filter((response) => response.headers.location === '/?signin=failed'),
-      ).toHaveLength(1);
+      ).toHaveLength(0);
       expect((await first.store.one('SELECT count(*) AS n FROM users')).n).toBe(
-        1,
+        2,
       );
-      expect((await first.store.one('SELECT count(*) AS n FROM github_signin_identities')).n).toBe(1);
+      expect((await first.store.one('SELECT count(*) AS n FROM github_signin_identities')).n).toBe(2);
       const winner = result.find((response) => response.headers.location === '/')!,
         session = winner.cookies.find(
           (value) => value.name === 'studio_session',

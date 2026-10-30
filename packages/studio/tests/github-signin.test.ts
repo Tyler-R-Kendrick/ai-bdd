@@ -9,8 +9,8 @@ import { createApp } from '../server/app.ts';
 import { Auth, passwordHash, settingsFromEnv, type Settings } from '../server/auth.ts';
 import { Store, hash } from '../server/store.ts';
 import { GitHubOAuthSignInProvider, githubCodeChallenge } from '../server/github-signin.ts';
-import { githubSignIn, githubSignInResponse, injectedGitHub } from './identity/github-signin-inject-fixture.ts';
-import { client, project, testSettings } from './helpers.ts';
+import { githubSignIn, injectedGitHub } from './identity/github-signin-inject-fixture.ts';
+import { client, testSettings } from './helpers.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   vi.unstubAllGlobals();
@@ -65,7 +65,7 @@ describe('GitHub-only browser authentication', () => {
     expect((await app.inject({url:'/api/me',headers:{authorization:'Bearer '+api}})).statusCode).toBe(200);
     expect((await app.inject({method:'POST',url:'/api/auth/login',payload:{email:user.email,password:'valid-legacy-password-only'}})).statusCode).toBe(403);
     const actual = await githubSignIn(app);
-    expect(actual.user.id).toBe(user.id);
+    expect(actual.user.id).not.toBe(user.id);
     expect((await app.inject({url:'/api/me',headers:{cookie:'studio_session='+legacy}})).statusCode).toBe(401);
     await store.exec('DELETE FROM sessions WHERE token=?', hash(actual.cookie));
     expect((await app.inject({url:'/api/me',headers:{cookie:'studio_session='+actual.cookie}})).statusCode).toBe(401);
@@ -99,10 +99,11 @@ describe('GitHub-only browser authentication', () => {
     expect((await denied.callback()).headers.location).toBe('/?signin=failed');
     expect((await store.one('SELECT COUNT(*) AS n FROM sessions')).n).toBe(0);
   });
-  it('admits invited verified emails including non-primary emails and preserves role/user ownership', async () => {
+  it('preserves an existing exact GitHub binding regardless of optional email metadata', async () => {
     const { app, store } = await fixture();
     const invited = await store.createUser('work@example.test','Invited teammate',null);
-    const response = await githubSignIn(app,'private@example.test',{verifiedEmails:['primary@example.test','work@example.test']});
+    await store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)','123456',invited.id,Date.now());
+    const response = await githubSignIn(app,'private@example.test',{id:'123456',verifiedEmails:[]});
     expect(response.user.id).toBe(invited.id);
     expect((await store.one('SELECT COUNT(*) AS n FROM users')).n).toBe(1);
     const link = await store.one('SELECT github_id,user_id FROM github_signin_identities');
@@ -110,17 +111,14 @@ describe('GitHub-only browser authentication', () => {
     expect(changedEmail.user.id).toBe(invited.id);
     expect((await store.userByEmail('work@example.test')).id).toBe(invited.id);
   });
-  it('refuses public signup, unverified email, ambiguous invitations and another GitHub id claiming a bound email', async () => {
-    const { app, store } = await fixture();
-    expect((await githubSignInResponse(app,'outsider@example.test')).headers.location).toBe('/?signin=failed');
-    expect((await githubSignInResponse(app,'owner@example.test',{verifiedEmails:[]})).headers.location).toBe('/?signin=failed');
-    await store.createUser('first@example.test','First',null);
-    await store.createUser('second@example.test','Second',null);
-    expect((await githubSignInResponse(app,'first@example.test',{verifiedEmails:['first@example.test','second@example.test']})).headers.location).toBe('/?signin=failed');
-    const admitted = await githubSignIn(app,'first@example.test',{id:'1001'});
-    expect(admitted.user.email).toBe('first@example.test');
-    expect((await githubSignInResponse(app,'first@example.test',{id:'2002'})).headers.location).toBe('/?signin=failed');
-    expect((await store.one('SELECT COUNT(*) AS n FROM github_signin_identities')).n).toBe(1);
+  it('automatically provisions each genuine GitHub account without claiming an email-matched local account', async () => {
+    const { app, store } = await fixture({adminEmail:undefined});
+    const legacy=await store.createUser('first@example.test','Legacy account',null);
+    const first=await githubSignIn(app,'first@example.test',{id:'1001',verifiedEmails:[]});
+    const second=await githubSignIn(app,'first@example.test',{id:'2002',verifiedEmails:['first@example.test']});
+    expect(first.user.id).not.toBe(legacy.id);expect(second.user.id).not.toBe(legacy.id);expect(second.user.id).not.toBe(first.user.id);
+    expect(first.user.email).toMatch(/@identity\.invalid$/);expect(second.user.email).toMatch(/@identity\.invalid$/);
+    expect((await store.one('SELECT COUNT(*) AS n FROM github_signin_identities')).n).toBe(2);
   });
   it('fails closed without a configured provider even when historical credentials exist', async () => {
     const { app } = await fixture({githubSignInProvider:undefined,adminPassword:'legacy-unused-password'});
@@ -130,39 +128,33 @@ describe('GitHub-only browser authentication', () => {
     expect(()=>settingsFromEnv({NODE_ENV:'production',STUDIO_ORIGIN:'https://studio.example.test',STUDIO_ADMIN_PASSWORD:'legacy-unused-password'})).toThrow('GitHub sign-in client bindings');
     expect(()=>settingsFromEnv({STUDIO_GITHUB_SIGNIN_CLIENT_ID:'client-only'})).toThrow('GitHub sign-in requires');
   });
-  it('invites teammates without passwords and refuses credential creation even for a signed-in owner', async () => {
+  it('refuses password creation for an automatically provisioned signed-in account', async () => {
     const directory = await mkdtemp(join(tmpdir(),'studio-github-invites-'));
     const instance = await createApp(testSettings(directory),{db:':memory:'});
     cleanup.push(()=>rm(directory,{recursive:true,force:true}),()=>instance.app.close());
-    const owner = await githubSignIn(instance.app), request = client(instance.app,owner.cookie), workspace = await project(request);
-    const invited = await request('POST',`/api/projects/${workspace.id}/members`,{email:'teammate@example.test',name:'Teammate',role:'editor'});
-    expect(invited.statusCode,invited.body).toBe(200);
-    expect(invited.json()).toEqual({ok:true});
-    expect((await instance.store.userByEmail('teammate@example.test')).password).toBeNull();
+    const owner = await githubSignIn(instance.app), request = client(instance.app,owner.cookie);
     const disabled = await request('POST','/api/me/password',{current:'any-old-password',password:'new-password-long-enough'});
     expect(disabled.statusCode).toBe(403);
     expect((await instance.store.userByEmail(owner.user.email)).password).toBeNull();
-    const teammate = await githubSignIn(instance.app,'teammate@example.test');
-    expect(await instance.store.role(workspace.id,teammate.user.id,'write')).toBe('editor');
   });
 });
 describe('fixed GitHub sign-in provider transport',()=>{
   const configuration = {clientId:'owned-app-id',clientSecret:'owned-app-secret'};
-  it('requests only verified-email scope with S256 and fixed callback, then verifies actual email flags',async()=>{
+  it('uses S256 and a fixed callback to authenticate the numeric account without fetching private email',async()=>{
     const provider = new GitHubOAuthSignInProvider(configuration), verifier='x'.repeat(43), redirectUri='https://studio.example.test/api/auth/github/callback';
     const url=new URL(provider.authorizationUrl({state:'s'.repeat(43),codeChallenge:githubCodeChallenge(verifier),redirectUri}));
     expect(url.origin+url.pathname).toBe('https://github.com/login/oauth/authorize');
-    expect(url.searchParams.get('scope')).toBe('user:email');
+    expect(url.searchParams.get('scope')).toBe('read:user');
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     const calls: {url:string; options:RequestInit}[]=[];
     vi.stubGlobal('fetch',vi.fn(async(url:string,options:RequestInit)=>{
       calls.push({url,options});
       if(url==='https://github.com/login/oauth/access_token')return Response.json({access_token:'fixture-access-token',token_type:'bearer'});
       if(url==='https://api.github.com/user')return Response.json({id:123,login:'owned-github',name:'Actual name',email:'untrusted-profile@example.test'});
-      return Response.json([{email:'unverified@example.test',verified:false,primary:true},{email:'verified@example.test',verified:true,primary:false}]);
+      throw new Error('Sign-in must not fetch email endpoints');
     }));
-    expect(await provider.authenticate({code:'code',verifier,redirectUri})).toEqual({kind:'github',id:'123',login:'owned-github',name:'Actual name',verifiedEmails:['verified@example.test']});
-    expect(calls).toHaveLength(3);
+    expect(await provider.authenticate({code:'code',verifier,redirectUri})).toEqual({kind:'github',id:'123',login:'owned-github',name:'Actual name',verifiedEmails:[]});
+    expect(calls).toHaveLength(2);
     for(const call of calls)expect(call.options.redirect).toBe('error');
     const payload=new URLSearchParams(String(calls[0]!.options.body));
     expect(payload.get('code_verifier')).toBe(verifier);
@@ -170,7 +162,7 @@ describe('fixed GitHub sign-in provider transport',()=>{
     expect(calls[1]!.options.headers).toMatchObject({Authorization:'Bearer fixture-access-token'});
     expect(calls.map(call=>call.url).join(' ')).not.toContain('fixture-access-token');
   });
-  it.each(['provider-error','unverified','oversized','redirect','transport'])('refuses %s without exposing tokens or provider text',async(mode)=>{
+  it.each(['provider-error','invalid-profile','oversized','redirect','transport'])('refuses %s without exposing tokens or provider text',async(mode)=>{
     let calls=0;
     vi.stubGlobal('fetch',vi.fn(async()=>{
       calls++;
@@ -178,7 +170,7 @@ describe('fixed GitHub sign-in provider transport',()=>{
       if(mode==='provider-error')return Response.json({error:'secret-provider-detail',access_token:'fixture-secret-token'});
       if(mode==='oversized')return new Response('x'.repeat(16385));
       if(calls===1)return Response.json({access_token:'fixture-secret-token',token_type:'bearer'});
-      if(calls===2)return Response.json({id:1,login:'owned-github'});
+      if(calls===2)return Response.json({id:'untrusted-identifier',login:'owned-github'});
       return Response.json([{email:'owner@example.test',verified:false}]);
     }));
     await expect(new GitHubOAuthSignInProvider(configuration).authenticate({code:'code',verifier:'x'.repeat(43),redirectUri:'https://studio.example.test/api/auth/github/callback'})).rejects.not.toThrow('secret-provider-detail');
