@@ -1,0 +1,11 @@
+# Production dependency closure acceptance
+
+The pinned pnpm 10.28 production export (`deploy --prod --legacy`) passes the same strict normal-App native T3 gate using its own production dependencies. The 761 MiB export contains 615 packages; no root development dependency tree or host authentication was mounted. The freshly bundled application source is `447d6a0afdd7245444cc33b42f7248694ea70791`, whose runtime and dependency inputs are unchanged from diagnostic candidate `328c5ec`.
+
+The unmodified native HTTP gate passed in **57.652 seconds**: arithmetic, restart recall, saved blue/Start source facts, canonical source/ADR/thread preservation, encrypted checkpoint lease release and graceful shutdown. A separate real CPU/decision entrypoint passed in **5.754 seconds**: text answer 4, constrained JSON `{ "answer": 4 }`, and correctly differentiated blue/red predicates with actual native likelihoods. The probabilities remain explicitly uncalibrated.
+
+Both containers ran without network as UID 1000, with read-only roots, original `/tmp` tmpfs, 2 GiB memory, two CPUs, dropped capabilities and no new privileges. Read-only mounts contained only the exported application, public pinned weights, and (for native T3) the complete public installer output. A credential-path audit found no actual `.env`, auth, credential or host account files; the public `.env.example` is present.
+
+Legacy pnpm emits one workspace self-link back to the build directory. It was preserved unchanged and remains dangling in the isolated runtime; the workspace target was never mounted, no application self-imports were found, and all checks passed without it. An initial strict-offline export lacked cached peer metadata; the succeeding export resolved registry metadata and downloaded zero packages. Install scripts were disabled for this controlled export. The actual CPU optional binding is present at pinned version 3.22.2.
+
+This rules out the tested production dependency and CPU-binding omission hypothesis. It does not identify the hosted timeout cause or replace the complete Studio image and hosted release gates. See [production-closure.json](production-closure.json) for exact commands, artifact hashes, outputs and limits.

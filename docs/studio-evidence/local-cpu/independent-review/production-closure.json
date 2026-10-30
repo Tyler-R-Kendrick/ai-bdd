@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "447d6a0afdd7245444cc33b42f7248694ea70791",
+  "runtimeEquivalentTo": "328c5ec",
+  "scope": "Production pnpm deployment dependency tree and freshly bundled normal shipping entrypoints on existing public Node24 OCI; not a full Studio Docker build or hosted release",
+  "export": {
+    "pnpm": "10.28.0",
+    "flags": [
+      "--filter",
+      "@ai-bdd/studio",
+      "deploy",
+      "--prod",
+      "--legacy",
+      "--prefer-offline",
+      "--ignore-scripts",
+      "--config.manage-package-manager-versions=false"
+    ],
+    "copiedPackages": 615,
+    "packageDownloads": 0,
+    "diskUsage": "761 MiB",
+    "installScriptsRun": false,
+    "note": "A strict-offline attempt lacked cached ai peer metadata. The succeeding export allowed registry metadata resolution while reusing the existing public package store."
+  },
+  "credentialAudit": {
+    "forbiddenCredentialFilePaths": [],
+    "publicEnvExamplePresent": true,
+    "hostAuthenticationMounted": false,
+    "rootDevelopmentDependenciesMounted": false,
+    "existingUserHomesMounted": false
+  },
+  "symlinkAudit": {
+    "total": 1918,
+    "internal": 1917,
+    "legacyWorkspaceSelfLink": {
+      "path": "node_modules/.pnpm/node_modules/@ai-bdd/studio",
+      "status": "Preserved unmodified; refers to the build workspace and is dangling inside the isolated container. No application self-imports were found, and all recorded runtime checks pass without the target being mounted."
+    }
+  },
+  "verifiedCoreProductionVersions": {
+    "ai": "7.0.137",
+    "node-llama-cpp": "3.22.2",
+    "@node-llama-cpp/linux-x64": "3.22.2",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  },
+  "artifacts": {
+    "main.js": "5fc21afa37de6951d971df3653cf34539ebd4c3c9be55d2c12ed235189795503",
+    "local-model.js": "16d20cefa2e3af7256112ccb856ba277b0453372cb7f4de89d0209612bf6db69",
+    "studio-local-worker.mjs": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+    "studio-local-decisions.mjs": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
+    "studio-native-app-smoke.mjs": "3ab0377b53e74f688d8734583bdea87281ec354975a0d2a1ff1c7afee2566373",
+    "production-local-check.mjs": "4d99b636cee86b481cb8db5776463ebe807c86e0053beced737375b093bf8dad"
+  },
+  "nativeApp": {
+    "process": {
+      "exitCode": 0,
+      "elapsedSeconds": 57.652
+    },
+    "result": {
+      "scope": "shipping-main-http-native-t3-local-cpu",
+      "checks": [
+        "non-root production main.js",
+        "default genuine native T3/OpenCode with pinned Qwen",
+        "real completed HTTP chat and native checkpoint lease release",
+        "SQLite and disk object persistence",
+        "fresh-process authenticated reply/ADR/thread read",
+        "second genuine native turn after restart",
+        "third native turn uses saved design source: blue and Start",
+        "canonical source, dedicated ADR and thread preserved",
+        "graceful SIGTERM"
+      ],
+      "passed": true
+    },
+    "dockerCommand": [
+      "docker",
+      "--host=unix:///var/run/docker.sock",
+      "run",
+      "--rm",
+      "--name",
+      "studio-native-production-closure",
+      "--network=none",
+      "--read-only",
+      "--tmpfs",
+      "/tmp",
+      "--memory=2g",
+      "--cpus=2",
+      "--user",
+      "1000:1000",
+      "--cap-drop=ALL",
+      "--security-opt=no-new-privileges:true",
+      "--workdir",
+      "/app",
+      "--mount",
+      "type=bind,src=/tmp/ai-bdd-native-prod-closure,dst=/app,readonly",
+      "--mount",
+      "type=bind,src=/tmp/studio-t3-installer-repro,dst=/opt/studio-native-tools,readonly",
+      "--mount",
+      "type=bind,src=/workspace/.studio-local-model,dst=/opt/studio-model,readonly",
+      "-e",
+      "STUDIO_SMOKE_NATIVE_APP=1",
+      "-e",
+      "STUDIO_LOCAL_MODEL_DIR=/opt/studio-model",
+      "-e",
+      "STUDIO_T3_MANAGED_TOOLS_DIR=/opt/studio-native-tools",
+      "node:24-bookworm-slim",
+      "node",
+      "dist/server/studio-native-app-smoke.mjs"
+    ]
+  },
+  "explicitCpuAndDecisions": {
+    "process": {
+      "exitCode": 0,
+      "elapsedSeconds": 5.754
+    },
+    "result": {
+      "scope": "production-pnpm-closure-actual-local-generation-and-decisions",
+      "cases": [
+        {
+          "name": "actual direct CPU chat",
+          "output": "4",
+          "provenance": {
+            "revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+            "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+            "runtime": "node-llama-cpp@3.22.2",
+            "device": "cpu",
+            "constrained": false,
+            "processRssBytes": 745488384
+          }
+        },
+        {
+          "name": "schema constrained actual CPU generation",
+          "output": {
+            "answer": 4
+          }
+        },
+        {
+          "name": "actual native decision likelihood true",
+          "result": {
+            "answers": [
+              {
+                "questionId": "blue",
+                "kind": "boolean",
+                "value": true,
+                "probability": 0.9530458378221845,
+                "probabilities": [
+                  {
+                    "value": true,
+                    "probability": 0.9530458378221845
+                  },
+                  {
+                    "value": false,
+                    "probability": 0.0469541621778155
+                  }
+                ]
+              }
+            ],
+            "inputTokens": 52,
+            "outputTokens": 1,
+            "rss": 779436032,
+            "probabilityKind": "conditional-option-likelihood",
+            "calibrated": false
+          }
+        },
+        {
+          "name": "actual native decision likelihood false",
+          "result": {
+            "answers": [
+              {
+                "questionId": "blue",
+                "kind": "boolean",
+                "value": false,
+                "probability": 0.006766923436546058,
+                "probabilities": [
+                  {
+                    "value": true,
+                    "probability": 0.006766923436546058
+                  },
+                  {
+                    "value": false,
+                    "probability": 0.9932330765634538
+                  }
+                ]
+              }
+            ],
+            "inputTokens": 52,
+            "outputTokens": 1,
+            "rss": 831102976,
+            "probabilityKind": "conditional-option-likelihood",
+            "calibrated": false
+          }
+        }
+      ],
+      "passed": true
+    },
+    "dockerCommand": [
+      "docker",
+      "--host=unix:///var/run/docker.sock",
+      "run",
+      "--rm",
+      "--name",
+      "studio-local-production-closure",
+      "--network=none",
+      "--read-only",
+      "--tmpfs",
+      "/tmp",
+      "--memory=2g",
+      "--cpus=2",
+      "--user",
+      "1000:1000",
+      "--cap-drop=ALL",
+      "--security-opt=no-new-privileges:true",
+      "--workdir",
+      "/app",
+      "--mount",
+      "type=bind,src=/tmp/ai-bdd-native-prod-closure,dst=/app,readonly",
+      "--mount",
+      "type=bind,src=/workspace/.studio-local-model,dst=/opt/studio-model,readonly",
+      "-e",
+      "STUDIO_SMOKE_NATIVE_APP=1",
+      "-e",
+      "STUDIO_LOCAL_MODEL_DIR=/opt/studio-model",
+      "-e",
+      "STUDIO_T3_MANAGED_TOOLS_DIR=/opt/studio-native-tools",
+      "node:24-bookworm-slim",
+      "node",
+      "dist/server/production-local-check.mjs"
+    ],
+    "fixture": "Additional standalone test entrypoint calls the real exported local model and native decision APIs; no adapters, dependencies, handlers or model responses are stubbed."
+  },
+  "conclusion": "No missing production dependency or CPU binding failure was reproduced. Native T3, explicit CPU generation, structured JSON and balanced native decision likelihoods all completed using the exported production dependency closure alone.",
+  "limits": [
+    "No complete Studio image build, Chromium/media workflow, hosted inference, concurrency capacity or SLO is claimed.",
+    "Native decision probabilities remain uncalibrated; the two recorded factual predicates are a bounded semantic check, not general accuracy evidence.",
+    "The reported RSS values are observations from the native responses, not an unsampled process peak.",
+    "The actual hosted timeout cause remains unresolved by this local dependency-closure proof."
+  ]
+}
