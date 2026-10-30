@@ -665,6 +665,9 @@ export class DecisionModels {
     ]);
     while (true) {
       overall.throwIfAborted();
+      // Repository entitlement renewal may call the provider. Do it before
+      // entering the transaction; the locked check still fences revocation.
+      await this.store.artifact(input.artifactId, input.user.id, 'write');
       const claimed = await this.locked(row.id, async (current) => {
         await this.store.artifact(input.artifactId, input.user.id, 'write');
         if (terminal(current.status))
@@ -711,25 +714,32 @@ export class DecisionModels {
       const controller = new AbortController();
       this.controllers.add(controller);
       const signal = AbortSignal.any([overall, controller.signal]);
-      let heartbeat: Promise<void> | undefined;
+      let heartbeat: Promise<void> | undefined, heartbeatError: unknown;
       const timer = setInterval(
         () => {
           if (heartbeat) return;
-          heartbeat = this.locked(row.id, async (current) => {
-            this.assertLease(current, claimed.fence!);
-            await this.store.artifact(
-              input.artifactId,
-              input.user.id,
-              'write',
-            );
-            await this.store.exec(
-              'UPDATE studio_decision_calls SET lease_expires=? WHERE id=? AND fence=?',
-              Date.now() + (this.options.settings.leaseMs ?? 45000),
-              row.id,
-              claimed.fence!,
-            );
-          })
-            .catch((error) => controller.abort(error))
+          heartbeat = this.store
+            .artifact(input.artifactId, input.user.id, 'write')
+            .then(() =>
+              this.locked(row.id, async (current) => {
+                this.assertLease(current, claimed.fence!);
+                await this.store.artifact(
+                  input.artifactId,
+                  input.user.id,
+                  'write',
+                );
+                await this.store.exec(
+                  'UPDATE studio_decision_calls SET lease_expires=? WHERE id=? AND fence=?',
+                  Date.now() + (this.options.settings.leaseMs ?? 45000),
+                  row.id,
+                  claimed.fence!,
+                );
+              }),
+            )
+            .catch((error) => {
+              heartbeatError = error;
+              controller.abort(error);
+            })
             .finally(() => {
               heartbeat = undefined;
             });
@@ -778,16 +788,32 @@ export class DecisionModels {
         started,
         errorCode,
       );
+      let preflightError: unknown = heartbeatError;
+      try {
+        await this.store.artifact(input.artifactId, input.user.id, 'write');
+      } catch (denied) {
+        preflightError = denied;
+      }
       const published = await this.locked(row.id, async (current) => {
         this.assertLease(current, claimed.fence!);
         try {
+          if (preflightError) throw preflightError;
           await this.store.artifact(input.artifactId, input.user.id, 'write');
         } catch (denied) {
           if (
             !(denied instanceof HttpError) ||
             ![401, 403, 404].includes(denied.statusCode)
-          )
-            throw denied;
+          ) {
+            // A temporary entitlement provider failure cannot establish either
+            // authorization or revocation. Discard the answer and resume later.
+            await this.store.exec(
+              "UPDATE studio_decision_calls SET status='queued',lease_owner=NULL,lease_expires=NULL,error_code='authorization-unavailable',updated_at=? WHERE id=? AND fence=?",
+              stamp(),
+              row.id,
+              claimed.fence!,
+            );
+            return { denied };
+          }
           const cancelled = this.normalize(
             row.id,
             input,
