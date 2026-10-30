@@ -93,12 +93,25 @@ export function MidiEditor({
   const transport = useRef(new MidiTransport()),
     current = useRef(draft),
     savedRef = useRef(saved),
+    artifactRef = useRef(artifact),
+    versionRef = useRef(version),
     source = useRef<{ src: string; bytes: Uint8Array } | null>(null),
     importInput = useRef<HTMLInputElement>(null),
     mounted = useRef(true);
+  artifactRef.current = artifact;
+  versionRef.current = version;
   current.current = draft;
   savedRef.current = saved;
-  const requiredLength=Math.max(1,...draft.tempo.map(t=>t.beat),...draft.timeSignatures.map(t=>t.beat),...draft.meta.map(e=>e.tick/draft.ppq),...draft.tracks.flatMap(t=>[...t.notes.map(n=>n.start+n.duration),...t.events.map(e=>e.tick/draft.ppq)]));
+  const requiredLength = Math.max(
+    1,
+    ...draft.tempo.map((t) => t.beat),
+    ...draft.timeSignatures.map((t) => t.beat),
+    ...draft.meta.map((e) => e.tick / draft.ppq),
+    ...draft.tracks.flatMap((t) => [
+      ...t.notes.map((n) => n.start + n.duration),
+      ...t.events.map((e) => e.tick / draft.ppq),
+    ]),
+  );
   const dirty = serialized(draft) !== saved,
     locked = readOnly || conflict || busy || saving,
     track = draft.tracks.find((t) => t.id === selectedTrack) ?? draft.tracks[0],
@@ -303,10 +316,10 @@ export function MidiEditor({
       beatSeconds(draft, Math.max(0, Math.min(draft.lengthBeats, beat))),
     );
   }
-  async function original() {
-    if (!draft.sourceSrc) return undefined;
-    if (source.current?.src === draft.sourceSrc) return source.current.bytes;
-    const response = await fetch(draft.sourceSrc, {
+  async function original(sourceSrc?: string) {
+    if (!sourceSrc) return undefined;
+    if (source.current?.src === sourceSrc) return source.current.bytes;
+    const response = await fetch(sourceSrc, {
       credentials: 'same-origin',
       redirect: 'error',
       signal: AbortSignal.timeout(15000),
@@ -341,14 +354,15 @@ export function MidiEditor({
       offset += chunk.length;
     }
     parseMidiFile(bytes);
-    source.current = { src: draft.sourceSrc, bytes };
+    source.current = { src: sourceSrc, bytes };
     return bytes;
   }
   async function exportMidi() {
     setBusy(true);
     try {
-      const bytes = writeMidiFile(current.current, {
-        original: await original(),
+      const frozen = midiContentSchema.parse(current.current);
+      const bytes = writeMidiFile(frozen, {
+        original: await original(frozen.sourceSrc),
       });
       download(
         safeName(artifact.title) + '.mid',
@@ -356,7 +370,7 @@ export function MidiEditor({
         'audio/midi',
       );
       setNotice(
-        'MIDI exported. Unchanged imports retain their exact original bytes.',
+        'MIDI exported. Muted and unsoloed parts are omitted; unchanged imports retain their exact original bytes.',
       );
     } catch (error) {
       report(error);
@@ -388,6 +402,7 @@ export function MidiEditor({
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = '';
     if (!file || locked) return;
+    const admittedVersion = version;
     setBusy(true);
     try {
       if (file.size > MAX_MIDI_FILE_BYTES)
@@ -402,7 +417,10 @@ export function MidiEditor({
         form,
       );
       if (!mounted.current) return;
-      const next = { ...parsed, sourceSrc: uploaded.url };
+      const next = midiContentSchema.parse({
+        ...parsed,
+        sourceSrc: uploaded.url,
+      });
       setPast((items) => [
         ...items.slice(-49),
         structuredClone(current.current),
@@ -413,6 +431,13 @@ export function MidiEditor({
       setPlaying(false);
       current.current = next;
       setDraft(next);
+      if (
+        versionRef.current !== admittedVersion ||
+        artifactRef.current.version !== admittedVersion
+      ) {
+        setVersion(admittedVersion);
+        setConflict(true);
+      }
       setSelectedTrack(parsed.tracks[0]?.id ?? null);
       setSelectedNote(null);
       setSeconds(0);

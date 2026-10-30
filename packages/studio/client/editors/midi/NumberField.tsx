@@ -17,11 +17,14 @@ export function MidiNumberField({
   disabled: boolean;
   onChange: (value: number) => void;
 }) {
-  const [text, setText] = useState(String(Number(value.toFixed(5)))),
+  const format = (value: number) =>
+    String(Number(value.toFixed(step >= 1 ? 3 : 5)));
+  const [text, setText] = useState(format(value)),
     editing = useRef(false),
-    cancel = useRef(false);
+    cancel = useRef(false),
+    modified = useRef(false);
   useEffect(() => {
-    if (!editing.current) setText(String(Number(value.toFixed(5))));
+    if (!editing.current) setText(format(value));
   }, [value]);
   return (
     <Field label={label}>
@@ -35,22 +38,26 @@ export function MidiNumberField({
         disabled={disabled}
         onFocus={() => {
           editing.current = true;
+          modified.current = false;
         }}
-        onChange={(event) => setText(event.currentTarget.value)}
+        onChange={(event) => {
+          modified.current = true;
+          setText(event.currentTarget.value);
+        }}
         onBlur={() => {
           editing.current = false;
-          if (cancel.current) {
+          if (!modified.current || cancel.current) {
             cancel.current = false;
-            setText(String(Number(value.toFixed(5))));
+            setText(format(value));
             return;
           }
           const parsed = Number(text);
           if (!text.trim() || !Number.isFinite(parsed)) {
-            setText(String(Number(value.toFixed(5))));
+            setText(format(value));
             return;
           }
           const next = Math.max(min, Math.min(max, parsed));
-          setText(String(Number(next.toFixed(5))));
+          setText(format(next));
           onChange(next);
         }}
         onKeyDown={(event) => {

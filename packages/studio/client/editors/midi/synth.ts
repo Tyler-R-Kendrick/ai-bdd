@@ -6,10 +6,12 @@ import {
 } from '../../../shared/midi.ts';
 export const MAX_SYNTH_VOICES = 64,
   MAX_SYNTH_BOUNCE_SECONDS = 120;
+const MAX_SYNTH_CONTROL_WORK = 2_000_000;
 type Control = {
   seconds: number;
   kind: 'volume' | 'expression' | 'pan' | 'bend' | 'program' | 'pedal' | 'off';
   value: number;
+  gainFactor?: number;
 };
 export type PerformedNote = {
   id: string;
@@ -54,16 +56,31 @@ function controls(content: MidiContent, track: MidiTrack): Control[] {
       });
     else if (kind === 0xc0) result.push({ seconds, kind: 'program', value: a });
   }
-  return result.sort((a, b) => a.seconds - b.seconds);
+  result.sort((a, b) => a.seconds - b.seconds);
+  let volume = 100,
+    expression = 127;
+  for (const event of result) {
+    if (event.kind === 'volume') volume = event.value;
+    if (event.kind === 'expression') expression = event.value;
+    if (event.kind === 'volume' || event.kind === 'expression')
+      event.gainFactor = ((volume / 100) * expression) / 127;
+  }
+  return result;
 }
 export function midiPerformance(input: MidiContent): MidiPerformance {
   const content = midiContentSchema.parse(input),
     duration = beatSeconds(content, content.lengthBeats),
     solo = content.tracks.some((t) => t.solo && !t.mute),
     notes: PerformedNote[] = [];
+  let controlWork = 0;
   for (const track of content.tracks) {
     if (track.mute || (solo && !track.solo)) continue;
     const automation = controls(content, track);
+    controlWork += track.notes.length * (automation.length + 1);
+    if (controlWork > MAX_SYNTH_CONTROL_WORK)
+      throw new Error(
+        'This controller automation exceeds the browser synth budget. The score remains editable and can be exported as MIDI for an external instrument.',
+      );
     for (const note of track.notes) {
       const start = beatSeconds(content, note.start);
       let end = beatSeconds(content, note.start + note.duration);
@@ -171,9 +188,13 @@ function voice(
   envelope.gain.setValueAtTime(amplitude * 0.6, end);
   envelope.gain.linearRampToValueAtTime(0, end + 0.07);
   const volume = (seconds: number) =>
-    ((latest(note, 'volume', seconds, 100) / 100) *
-      latest(note, 'expression', seconds, 127)) /
-    127;
+    note.controls
+      .filter(
+        (event) =>
+          (event.kind === 'volume' || event.kind === 'expression') &&
+          event.seconds <= seconds,
+      )
+      .at(-1)?.gainFactor ?? 1;
   controller.gain.setValueAtTime(volume(start), at);
   pan.pan.setValueAtTime(
     Math.max(-1, Math.min(1, (latest(note, 'pan', start, 64) - 64) / 63)),
@@ -216,7 +237,7 @@ function voice(
     if (event.seconds <= start || event.seconds > note.end) continue;
     const when = origin + event.seconds - from;
     if (event.kind === 'volume' || event.kind === 'expression')
-      controller.gain.setValueAtTime(volume(event.seconds), when);
+      controller.gain.setValueAtTime(event.gainFactor ?? 1, when);
     else if (event.kind === 'pan')
       pan.pan.setValueAtTime(
         Math.max(-1, Math.min(1, (event.value - 64) / 63)),
@@ -258,14 +279,20 @@ function master(context: BaseAudioContext) {
   limiter.release.value = 0.1;
   gain.connect(limiter);
   limiter.connect(context.destination);
-  return gain;
+  return {
+    input: gain,
+    disconnect() {
+      gain.disconnect();
+      limiter.disconnect();
+    },
+  };
 }
 export class MidiTransport {
   private context?: AudioContext;
   private generation = 0;
   private timer?: ReturnType<typeof setInterval>;
   private voices: { stop: () => void }[] = [];
-  private output?: GainNode;
+  private output?: ReturnType<typeof master>;
   private auditionTimers = new Set<ReturnType<typeof setTimeout>>();
   stop() {
     this.generation++;
@@ -311,7 +338,7 @@ export class MidiTransport {
       ) {
         const note = performance.notes[index++]!;
         if (note.end > position)
-          this.voices.push(voice(context, output, note, origin, from));
+          this.voices.push(voice(context, output.input, note, origin, from));
       }
       onPosition(Math.min(performance.duration, position));
       if (position >= performance.duration) {
@@ -330,7 +357,7 @@ export class MidiTransport {
     const output = master(context),
       source = voice(
         context,
-        output,
+        output.input,
         {
           id: 'audition',
           pitch,
@@ -382,7 +409,8 @@ export async function bounceMidiWav(
       sampleRate,
     ),
     output = master(context);
-  for (const note of performance.notes) voice(context, output, note, 0, 0);
+  for (const note of performance.notes)
+    voice(context, output.input, note, 0, 0);
   const audio = await context.startRendering(),
     size = audio.length * audio.numberOfChannels * 2,
     bytes = new Uint8Array(44 + size),

@@ -104,4 +104,22 @@ describe('MIDI editing and tempo-aware performance', () => {
     content.tracks = [track];
     await expect(bounceMidiWav(content)).rejects.toThrow('120 seconds');
   });
+  it('bounds controller scheduling before allocating a pathological synth graph', () => {
+    const content = initialMidiContent();
+    content.lengthBeats = 3000;
+    const track = newMidiTrack(content);
+    track.notes = Array.from({ length: 5000 }, (_, i) => ({
+      ...newMidiNote(content, i * 0.5, 60, 0.1),
+      id: 'note-' + i,
+    }));
+    track.events = Array.from({ length: 500 }, (_, i) => ({
+      kind: 'midi' as const,
+      tick: i * 480,
+      data: [0xb0, 7, i % 128],
+    }));
+    content.tracks = [track];
+    expect(() => midiPerformance(content)).toThrow(
+      'controller automation exceeds',
+    );
+  });
 });

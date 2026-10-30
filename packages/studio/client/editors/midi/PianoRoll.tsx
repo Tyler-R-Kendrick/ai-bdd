@@ -77,7 +77,7 @@ export function PianoRoll({
   useEffect(() => {
     if (locked) drag.current = null;
   }, [locked]);
-  const width = Math.max(620, content.lengthBeats * zoom),
+  const width = Math.max(1, content.lengthBeats * zoom),
     start = Math.max(0, (viewport.left - KEYS) / zoom - 2),
     end = (viewport.left + viewport.width) / zoom + 2,
     low = 127 - Math.ceil((viewport.top + viewport.height - HEADER) / ROW) - 1,
