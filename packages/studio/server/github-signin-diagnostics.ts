@@ -12,7 +12,7 @@ const codes=new Set([
   'OAUTH_UNSUPPORTED_OPERATION','OAUTH_KEY_SELECTION_FAILED','OAUTH_SIGNATURE_VERIFICATION_FAILED',
   'ERR_JWT_INVALID','ERR_JWT_CLAIM_VALIDATION_FAILED','ERR_JWS_SIGNATURE_VERIFICATION_FAILED',
   'ERR_JWT_EXPIRED','ERR_JWKS_NO_MATCHING_KEY','ERR_JWKS_TIMEOUT',
-  'invalid_client','invalid_grant','unauthorized_client','invalid_request','invalid_scope',
+  'invalid_client','invalid_grant','invalid_token','unauthorized_client','invalid_request','invalid_scope',
   'access_denied','unsupported_grant_type','user_authorization_required','no_token',
   'client_not_linked_to_project','client_not_enabled_for_environment','connector_installation_required',
   'configuration','scope','verification','expired','transport','unavailable',

@@ -37,7 +37,7 @@ afterEach(async()=>{
   vi.useRealTimers();
 });
 const scope:IdentityScope={ownerId:'team_Fixture',ownerSlug:'fixture-team',projectId:'prj_Fixture',projectName:'fixture-project',environment:'preview',deploymentId:'dpl_Fixture',issuer:'https://oidc.vercel.com/fixture-team',audience:'https://vercel.com/fixture-team'};
-type Fault='id-token'|'signature'|'issuer'|'audience'|'expired'|'nonce'|'missing-access-token'|'short-access-token'|'dpop-token'|'unverified-github-email'|'invalid-github-id'|'different-github-email'|'different-connector'|'foreign-discovery'|'oversized-token'|'wrong-service'|'provider-error';
+type Fault='id-token'|'signature'|'issuer'|'audience'|'expired'|'nonce'|'missing-access-token'|'short-access-token'|'dpop-token'|'unverified-github-email'|'invalid-github-id'|'different-github-email'|'different-connector'|'invalid-subject-token'|'foreign-discovery'|'oversized-token'|'wrong-service'|'provider-error';
 async function fixture(fault?:Fault){
   let leaseCalls=0, expectedChallenge=githubCodeChallenge('v'.repeat(43)), tokenRequests=0, providerTokenRequests=0, githubRequests=0, userinfoRequests=0;
   const nativeTokenIds:string[]=[], protectedTokenIds:string[]=[], requests:{url:string;options:RequestInit}[]=[];
@@ -100,6 +100,7 @@ async function fixture(fault?:Fault){
     if(url==='https://api.vercel.com/v1/connect/token/'+encodeURIComponent(connector)){
       providerTokenRequests++;await assertProjectCredential(headers.get('authorization')!);
       expect(JSON.parse(String(options.body))).toEqual({subject:{type:'token',token:'connect-oauth-session-token'},scopes:['user:email']});
+      if(fault==='invalid-subject-token')return Response.json({error:{code:'invalid_token',message:'secret-provider-description',vendor:{credential:'secret-provider-credential'}}},{status:401});
       return Response.json({token:'github-user-token-fixture',expiresAt:Date.now()+120000,connector:{id:fault==='different-connector'?'scl_Another':connectorId,uid:connector,type:'github'}});
     }
     if(url==='https://api.github.com/user'){
@@ -119,18 +120,20 @@ async function fixture(fault?:Fault){
     authenticate:(onDiagnostic?:GitHubSignInObserver)=>provider.authenticate({code:'owned-code',state:input.state,nonce:input.nonce,verifier:'v'.repeat(43),redirectUri:input.redirectUri,onDiagnostic})};
 }
 describe('official Vercel Connect GitHub sign-in adapter',()=>{
-  it.each(['nonce','signature','unverified-github-email','different-connector','short-access-token','provider-error'] as Fault[])('diagnoses %s using finite stages and token shape without identity, token or provider text',async fault=>{
+  it.each(['nonce','signature','unverified-github-email','different-connector','short-access-token','invalid-subject-token','provider-error'] as Fault[])('diagnoses %s using finite stages and token shape without identity, token or provider text',async fault=>{
     const f=await fixture(fault),events:GitHubSignInDiagnostic[]=[];
     await expect(f.authenticate(event=>{events.push(event);})).rejects.toThrow();
     const token=events.find(event=>event.stage==='token-response');
     expect(token).toMatchObject({stage:'token-response',idTokenPresent:['nonce','signature'].includes(fault),accessTokenPresent:true,tokenTypeBearer:fault!=='provider-error'});
-    const stage=fault==='unverified-github-email'?'github-profile':fault==='different-connector'?'github-token':fault==='short-access-token'?'oauth-token':'token-exchange';
+    const stage=fault==='unverified-github-email'?'github-profile':['different-connector','invalid-subject-token'].includes(fault)?'github-token':fault==='short-access-token'?'oauth-token':'token-exchange';
     expect(events.some(event=>event.stage===stage&&event.state==='failure')).toBe(true);
     if(fault==='nonce')expect(events.find(event=>event.stage==='token-exchange'&&event.state==='failure')).toMatchObject({errorCode:'OAUTH_JWT_CLAIM_COMPARISON_FAILED',claim:'nonce'});
+    if(fault==='invalid-subject-token')expect(events.find(event=>event.stage==='github-token'&&event.state==='failure')).toMatchObject({errorClass:'ConnectError',errorCode:'invalid_token',status:401});
     const json=JSON.stringify(events);
-    for(const value of ['connect-oauth-session-token','secret-provider-description','owned-code','opaque-connect-subject','owner@example.test','github-user-token-fixture',f.input.state,f.input.nonce,'eyJ'])expect(json).not.toContain(value);
+    for(const value of ['connect-oauth-session-token','secret-provider-description','secret-provider-credential','owned-code','opaque-connect-subject','owner@example.test','github-user-token-fixture',f.input.state,f.input.nonce,'eyJ'])expect(json).not.toContain(value);
     expect(events.every(event=>event.elapsedMs>=0&&event.elapsedMs<=2147483647)).toBe(true);
-    if(!['different-connector','unverified-github-email'].includes(fault))expect(f.counts().providerTokenRequests).toBe(0);
+    if(!['different-connector','unverified-github-email','invalid-subject-token'].includes(fault))expect(f.counts().providerTokenRequests).toBe(0);
+    if(fault==='invalid-subject-token')expect(f.counts().githubRequests).toBe(0);
   });
   it('uses profile-free project-scoped SDK OAuth and returns actual numeric GitHub identity without an ID token or static app secret',async()=>{
     const f=await fixture(),url=new URL(await f.provider.authorizationUrl(f.input));
