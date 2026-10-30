@@ -10,6 +10,7 @@ import {
   readdir,
   lstat,
   mkdtemp,
+  realpath,
 } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -45,7 +46,12 @@ for (const output of Object.values(result.metafile.outputs))
       !['playwright-core'].includes(item.path)
     )
       throw new Error('Unexpected external worker dependency: ' + item.path);
-const driver = createRequire(require.resolve('@ai-bdd/driver-playwright'));
+// Read the declared installed dependency's metadata, not its unbuilt workspace export.
+const driver = createRequire(
+  await realpath(
+    join(studio, 'node_modules/@ai-bdd/driver-playwright/package.json'),
+  ),
+);
 const playwrightRoot = dirname(
   driver.resolve('playwright-core/package.json'),
 );
