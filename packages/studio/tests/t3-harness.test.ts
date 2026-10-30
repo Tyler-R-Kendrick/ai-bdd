@@ -8,6 +8,7 @@ import { Agent } from '../server/agent.ts';
 import { t3LanguageModel } from '../server/integrations/t3-model.ts';
 import { AgentProfiles } from '../server/integrations/agent-profiles.ts';
 import { nativeT3Fixture } from './t3-native-fixture.ts';
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
@@ -36,7 +37,10 @@ async function workspace(integrations: any = {}) {
     dataDir: '/tmp/t3-harness-fixture',
     demo: false,
     model: 'fixture/model',
-    integrations,
+    integrations: {
+      gatewayMetadataFetch: ownedFreeGatewayMetadata(['fixture/model']),
+      ...integrations,
+    },
   };
   const collab = new Collaboration(store, { settings } as any);
   await collab.initialize();

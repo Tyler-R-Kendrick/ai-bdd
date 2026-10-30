@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -13,6 +13,8 @@ import type { IdentityExecutionContext } from '../server/hosting/identity-contex
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 const usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
@@ -25,12 +27,27 @@ const generated = {
   warnings: [],
 };
 describe('optional per-attempt SDK identity execution port', () => {
-  it('keeps absent-port models and strings unchanged', () => {
+  it('keeps absent-port concrete models and guards string model identifiers', async () => {
     const model = createGateway({ apiKey: 'synthetic-sdk-fixture' })(
       'fixture/model',
     );
     expect(identityLanguageModel(model)).toBe(model);
-    expect(identityLanguageModel('fixture/model')).toBe('fixture/model');
+    const requests: string[] = [];
+    vi.stubEnv('AI_GATEWAY_API_KEY', 'owned-identity-model-fixture');
+    vi.stubGlobal('fetch', async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      requests.push(url.origin + url.pathname);
+      if (url.origin !== 'https://ai-gateway.vercel.sh' || url.pathname !== '/v1/models')
+        throw new Error('A paid model must not reach inference');
+      return Response.json({
+        data: [{ id: 'fixture/model', type: 'language', pricing: { input: '1', output: '0' } }],
+      }, { headers: { date: new Date().toUTCString(), age: '0' } });
+    });
+    const guarded = identityLanguageModel('fixture/model');
+    expect(guarded).toMatchObject({ modelId: 'fixture/model' });
+    await expect(generateText({ model: guarded, prompt: 'Owned fixture.', maxRetries: 0 }))
+      .rejects.toMatchObject({ cause: { code: 'FREE_MODEL_REQUIRED', reason: 'pricing' } });
+    expect(requests).toEqual(['https://ai-gateway.vercel.sh/v1/models']);
   });
   it('preserves v3 metadata/private receivers through actual AI SDK v4 generate and stream adaptation', async () => {
     const storage = new AsyncLocalStorage<boolean>();
