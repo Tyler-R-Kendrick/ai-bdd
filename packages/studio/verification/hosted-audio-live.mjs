@@ -495,6 +495,25 @@ try {
   };
   process.exitCode = 1;
 }
+if (
+  !report.passed &&
+  report.failure?.httpStatus !== 0 &&
+  !(report.failure?.httpStatus >= 500)
+) {
+  report.failedAttemptSessionCleanup = true;
+  for (const cookie of new Set([session, fresh].filter(Boolean))) {
+    try {
+      await request(
+        'close-owned-session-after-incomplete-attempt',
+        '/api/auth/logout',
+        { method: 'POST', cookie, body: {} },
+      );
+    } catch {
+      report.failedAttemptSessionCleanup = false;
+      break;
+    }
+  }
+}
 report.completedAt = new Date().toISOString();
 report.state = report.passed ? 'completed' : 'incomplete';
 report.syntheticResourcesRetainedForReview = true;
