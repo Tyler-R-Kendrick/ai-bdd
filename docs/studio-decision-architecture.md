@@ -1,6 +1,10 @@
 # Decision models: architecture review and decision record
 
-**Status:** independent architecture review and proposed acceptance baseline. Implementation is being developed separately; the recommendations below are not a claim that the new providers or consumers have shipped or passed live provider tests.
+**Status:** independent architecture review with an implementation checkpoint. The original inventory below is pinned to its audited revision. Native provider adapters, a separate decision profile/UI, frozen consumers and durable acceptance checks have since landed; live provider and classifier-quality acceptance remain distinct from those checks.
+
+**Implementation checkpoint (2026-10-30):** core `520195d`, review corrections `b188e56` and durable admission/receipt/revocation/actual-PostgreSQL tests `978b6f6` implement the central port. The independent review identified and confirmed source fixes for Jev literal response types, exact score legends and argmax consistency, unscored structured answers abstaining instead of bypassing certainty policy, and honest provider-reported unresolved model aliases. SQL project/principal budgets count every actual attempt; cached/idempotent responses do not start a new attempt. SHA receipts bind request/input/artifact version, and revoked membership discards the answer before publication. The implementation owner reports nineteen native HTTP/SDK/SQLite/actual-PG cases including SIGKILL recovery; the reviewer inspected these critical source paths without independently rerunning that process-death suite.
+
+Conversation eligibility now uses native finite decisions before the selected generative harness writes an offer. Visual possibility/comprehension/type, spike usefulness and automatic participation use the independent frozen profile, while explicit mentions bypass optional suppression. Semantic selected-passage design-gap reviews retain probability, score/confidence, abstention, source staleness and attributed discussion without granting approval. The [four-case full-App receipt](studio-evidence/continuation/full-product/README.md) at `28ea384` includes the separate provider/model/threshold picker, actual native HTTP fixtures and persisted uncertainty/provenance. It does not demonstrate paid live inference or classifier accuracy. Registration changes that alter tenant/credential scope must bump `STUDIO_DECISION_CONFIG_REVISION`; consumers must fence publication against their captured source, since the service may evaluate an explicit historical snapshot.
 
 **Audited application revision:** [`998defa8e44028d877aea3952e70f9d024b3b7ce`](https://github.com/Tyler-R-Kendrick/ai-bdd/tree/998defa8e44028d877aea3952e70f9d024b3b7ce), inspected on 2026-10-30. This includes explicit artifact T3/fx/remote-Planner profiles. The initial audit began at `18054388d44223a4f7237032f339b741979b3477`; findings were reconciled against the later pinned revision. Core files may advance after this record. Public contracts below are pinned independently.
 
@@ -12,7 +16,7 @@ The current source has three strong immediate consumers: conversation offer dete
 
 A decision model estimates a fact or selects among application-provided alternatives. It cannot authorize a tool, supply human consent, accept an ADR, approve a Build graph, discharge a required investigation, certify evidence, or establish a formal proof. Those remain deterministic, authenticated state transitions. Low confidence, refusal, missing configuration, invalid output, and timeout are distinct outcomes, never permission to proceed.
 
-## What the current code actually does
+## What the audited baseline did
 
 The links in this table point to the audited application revision. This inventory follows the model calls, their admission/publication paths, and adjacent policy. A method named `decide` is not automatically a model call: `InvestigationService.decide`, for example, records an attributed conclusion over a specific evidence selection.
 
