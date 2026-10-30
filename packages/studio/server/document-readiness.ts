@@ -1,8 +1,8 @@
 import { documentBlockSchemas } from '../shared/document-blocks.ts';
-import type { Artifact, RichNode } from '../shared/domain.ts';
+import { docText, type Artifact, type RichNode } from '../shared/domain.ts';
 import { HttpError, type Store } from './store.ts';
 export type DocumentImplementationBlocker = {
-  kind: 'questionnaire' | 'suggestion' | 'discussion';
+  kind: 'source' | 'questionnaire' | 'suggestion' | 'discussion';
   id: string;
   anchor?: string;
   questionId?: string;
@@ -25,6 +25,12 @@ export async function documentImplementationReadiness(
       'Document implementation readiness requires the project transaction',
     );
   const blockers: DocumentImplementationBlocker[] = [];
+  if (!docText(artifact.content.doc).trim())
+    blockers.push({
+      kind: 'source',
+      id: artifact.id,
+      message: 'Write the plan before approving or starting implementation.',
+    });
   const accepted = await store.all(
     `SELECT a.id,a.anchor,a.question_id,a.question_snapshot FROM document_answers a JOIN users u ON u.id=a.author_id JOIN decisions d ON d.id=a.decision_id AND d.artifact_id=a.artifact_id AND d.status='accepted' JOIN document_decision_anchors x ON x.artifact_id=a.artifact_id AND x.decision_id=d.id AND x.source_id=a.id AND x.source_kind='questionnaire-answer' AND x.anchor=a.anchor WHERE a.artifact_id=? AND NOT EXISTS(SELECT 1 FROM document_answers newer WHERE newer.supersedes_id=a.id)`,
     artifact.id,

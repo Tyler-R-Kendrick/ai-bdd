@@ -1,5 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { Store } from '../server/store.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app.ts';
@@ -10,8 +11,68 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
 describe('assembled cloud domain guards', () => {
+  it('refuses human approval of an empty canonical plan and exposes the concrete source blocker', async () => {
+    const studio = await createApp(testSettings('/tmp/studio-empty-plan'), {
+      db: ':memory:',
+    });
+    cleanup.push(() => studio.app.close());
+    const { cookie, user } = await setup(studio.app),
+      request = client(studio.app, cookie);
+    const project = await studio.store.createProject(
+      user,
+      'Empty plan',
+      '',
+      'https://github.com/example/empty-plan',
+    );
+    const artifact = await studio.store.artifact(
+      project.mainArtifactId,
+      user.id,
+    );
+    const empty = await studio.store.updateArtifact(
+      user,
+      artifact.id,
+      artifact.version,
+      { doc: { type: 'doc', content: [{ type: 'paragraph' }] } },
+    );
+    const graph = await studio.graphs.edit(
+      { user, kind: 'human' },
+      empty.id,
+      {
+        expected: null,
+        planRevision: empty.version,
+        definition: {
+          tasks: [
+            {
+              id: 'one',
+              title: 'Unfounded task',
+              description: 'No plan exists yet.',
+              acceptanceCriteria: ['Needs source intent.'],
+            },
+          ],
+          edges: [],
+        },
+      },
+    );
+    const approved = await request(
+      'POST',
+      `/api/artifacts/${empty.id}/implementation/approve`,
+      implementationPointer(graph),
+    );
+    expect(approved.statusCode).toBe(409);
+    const readiness = await request(
+      'GET',
+      `/api/artifacts/${empty.id}/implementation/readiness`,
+    );
+    expect(readiness.json().blockers).toContainEqual({
+      kind: 'source',
+      id: empty.id,
+      message: 'Write the plan before approving or starting implementation.',
+    });
+  });
   it('releases database and background resources when application initialization fails', async () => {
-    const directory = await mkdtemp('/workspace/ai-bdd/work/startup-cleanup-'),
+    const directory = await mkdtemp(
+        join(tmpdir(), 'studio-startup-cleanup-'),
+      ),
       file = join(directory, 'studio.sqlite');
     cleanup.push(() => rm(directory, { recursive: true, force: true }));
     await expect(
