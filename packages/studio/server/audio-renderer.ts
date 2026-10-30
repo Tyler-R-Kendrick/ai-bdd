@@ -264,6 +264,11 @@ function stereoPan(pan: number, mono = false) {
 export async function renderAudio(
   options: AudioRenderOptions,
 ): Promise<Buffer> {
+  if (!Object.hasOwn(audioMime, options.format))
+    throw new HttpError(
+      400,
+      'Choose WAV, FLAC, MP3, M4A or Ogg for the audio export.',
+    );
   const { audioContentSchema, audibleAudioTracks } = await import(
     '../shared/audio.ts'
   );

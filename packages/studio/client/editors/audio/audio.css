@@ -1,4 +1,7 @@
 .audio-editor {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
   height: 100%;
   overflow: auto;
   background: #f7f8fa;

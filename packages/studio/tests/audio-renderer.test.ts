@@ -139,7 +139,7 @@ describe('actual FFmpeg multitrack mixdown independently probed and decoded', ()
       expect(result.rms(0.5, 0.52)).toBeLessThan(result.rms(0.7, 0.8) / 3);
       expect(result.rms(1.55, 1.8)).toBeLessThan(0.002);
     });
-  it('applies mute/solo, master attenuation and track effects to actual output', async () => {
+  it('applies track attenuation and excludes muted tracks from actual output', async () => {
     const content = project();
     content.tracks[0].pan = 0;
     content.tracks[0].gainDb = -6;
@@ -173,6 +173,87 @@ describe('actual FFmpeg multitrack mixdown independently probed and decoded', ()
       'wav',
     );
     expect(silence.rms(0.1, 1.9)).toBe(0);
+  });
+  it('applies solo, master gain and a real high-pass filter to the measured mix', async () => {
+    const content = project();
+    content.masterGainDb = -6;
+    content.tracks[0].solo = true;
+    content.tracks[0].pan = -1;
+    content.tracks.push({
+      ...structuredClone(content.tracks[0]),
+      id: 'excluded',
+      solo: false,
+      gainDb: 12,
+      clips: content.tracks[0].clips.map((c) => ({
+        ...c,
+        id: 'excluded-clip',
+      })),
+    });
+    const normal = await decode(
+      await renderAudio({
+        content,
+        assets,
+        format: 'wav',
+        signal: AbortSignal.timeout(20000),
+      }),
+      'wav',
+    );
+    expect(normal.rms(0.7, 1.2)).toBeCloseTo(
+      (0.2 / Math.SQRT2) * Math.pow(10, -6 / 20),
+      3,
+    );
+    content.tracks[0].effects.highpassHz = 3000;
+    const filtered = await decode(
+      await renderAudio({
+        content,
+        assets,
+        format: 'wav',
+        signal: AbortSignal.timeout(20000),
+      }),
+      'wav',
+    );
+    expect(filtered.rms(0.7, 1.2)).toBeLessThan(normal.rms(0.7, 1.2) / 20);
+  });
+  it('reverses the actual trimmed source without changing the clip timeline', async () => {
+    const bytes = tone();
+    for (let i = 48000; i < 96000; i++)
+      bytes.writeInt16LE(
+        Math.round(Math.sin((i * 2 * Math.PI * 880) / 48000) * 0.2 * 32767),
+        44 + i * 2,
+      );
+    const content = project(),
+      clip = content.tracks[0].clips[0];
+    content.tracks[0].pan = -1;
+    Object.assign(clip, {
+      reverse: true,
+      start: 0.1,
+      offset: 0.25,
+      duration: 1.5,
+      fadeIn: 0,
+      fadeOut: 0,
+    });
+    const output = await decode(
+      await renderAudio({
+        content,
+        assets: new Map([[src, { bytes, mime: 'audio/wav' }]]),
+        format: 'wav',
+        signal: AbortSignal.timeout(20000),
+      }),
+      'wav',
+    );
+    const amplitude = (start: number, hz: number) => {
+      let real = 0,
+        imaginary = 0;
+      for (let i = 0; i < 9600; i++) {
+        const v = output.sample(start + i / 48000);
+        real += v * Math.cos((i * 2 * Math.PI * hz) / 48000);
+        imaginary += v * Math.sin((i * 2 * Math.PI * hz) / 48000);
+      }
+      return Math.hypot(real, imaginary);
+    };
+    expect(amplitude(0.2, 880)).toBeGreaterThan(amplitude(0.2, 440) * 20);
+    expect(amplitude(1.2, 440)).toBeGreaterThan(amplitude(1.2, 880) * 20);
+    expect(output.rms(1.7, 1.9)).toBeLessThan(0.001);
   });
   it('preserves exact split-clip timeline positions when mixing one immutable source twice', async () => {
     const content = project();
@@ -209,7 +290,15 @@ describe('actual FFmpeg multitrack mixdown independently probed and decoded', ()
     expect(output.rms(0.7, 0.9)).toBeCloseTo(0.2 / Math.SQRT2, 2);
     expect(output.rms(1.7, 2.8)).toBeLessThan(0.001);
   });
-  it('rejects source overruns and cancelled jobs before publication', async () => {
+  it('rejects source overruns, unknown formats and cancelled jobs before publication', async () => {
+    await expect(
+      renderAudio({
+        content: project(),
+        assets,
+        format: '../../invalid' as AudioExportFormat,
+        signal: AbortSignal.timeout(20000),
+      }),
+    ).rejects.toThrow('Choose WAV');
     const content = project();
     content.tracks[0].clips[0].offset = 1.5;
     await expect(

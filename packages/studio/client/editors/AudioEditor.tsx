@@ -19,7 +19,6 @@ import { api, download, ApiError } from '../lib.ts';
 import {
   audioContentSchema,
   audioTrackSchema,
-  audioClipSchema,
   initialAudioContent,
   type AudioContent,
   type AudioClip,
@@ -48,6 +47,63 @@ const normalized = (raw: unknown) =>
   audioContentSchema.safeParse(raw).success
     ? audioContentSchema.parse(raw)
     : initialAudioContent();
+function NumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  disabled,
+  onError,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  disabled: boolean;
+  onError: (e: unknown) => void;
+}) {
+  const [text, setText] = useState(String(clean(value)));
+  useEffect(() => setText(String(clean(value))), [value]);
+  const commit = () => {
+    const next = Number(text);
+    if (
+      text.trim() === '' ||
+      !Number.isFinite(next) ||
+      next < min ||
+      next > max
+    ) {
+      setText(String(clean(value)));
+      onError(
+        new Error(`${label} must be between ${clean(min)} and ${clean(max)}.`),
+      );
+      return;
+    }
+    if (next !== value) onChange(next);
+  };
+  return (
+    <label>
+      {label}
+      <input
+        aria-label={label}
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={text}
+        disabled={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+      />
+    </label>
+  );
+}
 function Waveform({
   clip,
   source,
@@ -77,7 +133,10 @@ function Waveform({
       ctx.stroke();
       return;
     }
-    const data = source.buffer.getChannelData(0),
+    const channels = Array.from(
+        { length: source.buffer.numberOfChannels },
+        (_, channel) => source.buffer.getChannelData(channel),
+      ),
       rate = source.buffer.sampleRate;
     for (let x = 0; x < w; x++) {
       const fraction = x / w,
@@ -88,14 +147,19 @@ function Waveform({
         span = Math.max(1, Math.floor((clip.duration * rate) / w)),
         stride = Math.max(1, Math.floor(span / 12));
       let peak = 0;
-      for (let i = 0; i < span; i += stride)
-        peak = Math.max(
-          peak,
-          Math.abs(
-            data[Math.min(data.length - 1, first + (clip.reverse ? -i : i))] ??
-              0,
-          ),
-        );
+      for (const data of channels)
+        for (let i = 0; i < span; i += stride)
+          peak = Math.max(
+            peak,
+            Math.abs(
+              data[
+                Math.max(
+                  0,
+                  Math.min(data.length - 1, first + (clip.reverse ? -i : i)),
+                )
+              ] ?? 0,
+            ),
+          );
       const fade =
         Math.min(
           1,
@@ -113,7 +177,14 @@ function Waveform({
       ctx.stroke();
     }
   }, [clip, source, width]);
-  return <canvas ref={canvas} className="audio-waveform" aria-hidden="true" />;
+  return (
+    <canvas
+      ref={canvas}
+      className="audio-waveform"
+      data-source-ready={Boolean(source)}
+      aria-hidden="true"
+    />
+  );
 }
 export default function AudioEditor({
   artifact,
@@ -137,7 +208,7 @@ export default function AudioEditor({
     [busy, setBusy] = useState(false),
     [saving, setSaving] = useState(false),
     [conflict, setConflict] = useState(false),
-    [sourceRevision, setSourceRevision] = useState(0),
+    [, setSourceRevision] = useState(0),
     [jobs, setJobs] = useState<RenderJob[]>([]),
     [format, setFormat] = useState('wav'),
     [error, setError] = useState('');
@@ -191,6 +262,15 @@ export default function AudioEditor({
   }
   function patchClip(patch: Partial<AudioClip>) {
     if (!clip) return;
+    const proposed = { ...clip, ...patch },
+      source = cache.current.get(clip.src);
+    if (
+      source &&
+      proposed.offset + proposed.duration > source.buffer.duration + 0.002
+    ) {
+      fail(new Error('The trim extends beyond the decoded audio source.'));
+      return;
+    }
     mutate((next) => {
       const item = next.tracks
         .flatMap((t) => t.clips)
@@ -439,7 +519,7 @@ export default function AudioEditor({
       track.clips.splice(index, 1, left, right);
     });
   }
-  async function render() {
+  async function render(requestedFormat = format) {
     if (locked || dirty) return;
     setBusy(true);
     try {
@@ -447,13 +527,17 @@ export default function AudioEditor({
       if (
         !existing ||
         existing.version !== version ||
-        existing.format !== format
+        existing.format !== requestedFormat
       )
-        renderRequest.current = { version, format, id: uid() };
+        renderRequest.current = { version, format: requestedFormat, id: uid() };
       const result = await api<RenderJob>(
         `/artifacts/${artifact.id}/audio/render`,
         'POST',
-        { version, format, idempotencyKey: renderRequest.current!.id },
+        {
+          version,
+          format: requestedFormat,
+          idempotencyKey: renderRequest.current!.id,
+        },
       );
       setJobs((old) => [result, ...old.filter((j) => j.id !== result.id)]);
       renderRequest.current = null;
@@ -574,28 +658,28 @@ export default function AudioEditor({
     max: number,
     step = 0.01,
   ) => (
-    <label>
-      {label}
-      <input
-        aria-label={label}
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={clean(value)}
-        disabled={locked}
-        onChange={(e) => {
-          const n = Number(e.target.value);
-          if (Number.isFinite(n)) onChange(n);
-        }}
-      />
-    </label>
+    <NumberField
+      label={label}
+      value={value}
+      onChange={onChange}
+      min={min}
+      max={max}
+      step={step}
+      disabled={locked}
+      onError={fail}
+    />
   );
   return (
-    <div className="audio-editor" data-testid="audio-editor">
+    <div
+      className="audio-editor"
+      data-testid="audio-editor"
+      role="region"
+      aria-label="Audio composition editor"
+    >
       <input
         hidden
         ref={fileInput}
+        aria-label="Import recorded audio file"
         type="file"
         accept="audio/wav,audio/x-wav,audio/flac,audio/mpeg,audio/mp4,audio/ogg,audio/webm,audio/aiff,.wav,.flac,.mp3,.m4a,.ogg,.aif,.aiff"
         onChange={(e) => {
@@ -607,6 +691,7 @@ export default function AudioEditor({
       <input
         hidden
         ref={projectInput}
+        aria-label="Import portable audio project"
         type="file"
         accept=".json,application/json"
         onChange={(e) => {
@@ -699,15 +784,29 @@ export default function AudioEditor({
             Download local draft
           </button>
           <button
-            onClick={() => {
-              stop();
-              setDraft(normalized(artifact.content));
-              setSaved(JSON.stringify(normalized(artifact.content)));
-              setVersion(artifact.version);
-              setConflict(false);
-              setPast([]);
-              setFuture([]);
-            }}
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                try {
+                  const latest = await api<{ artifact: typeof artifact }>(
+                    `/artifacts/${artifact.id}`,
+                  );
+                  stop();
+                  const value = normalized(latest.artifact.content);
+                  setDraft(value);
+                  setSaved(JSON.stringify(value));
+                  setVersion(latest.artifact.version);
+                  setConflict(false);
+                  setPast([]);
+                  setFuture([]);
+                } catch (e) {
+                  fail(e);
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
           >
             Load saved revision
           </button>
@@ -917,6 +1016,7 @@ export default function AudioEditor({
                         target.removeEventListener('pointermove', move);
                         target.removeEventListener('pointerup', end);
                         target.removeEventListener('pointercancel', cancel);
+                        target.style.left = `${original * zoom}px`;
                         if (last !== original)
                           mutate((next) => {
                             next.tracks
@@ -972,6 +1072,32 @@ export default function AudioEditor({
                   }
                 />
               </label>
+              <label>
+                Clip track
+                <select
+                  aria-label="Clip track"
+                  disabled={locked}
+                  value={selectedTrack!.id}
+                  onChange={(e) => {
+                    const targetId = e.target.value;
+                    mutate((next) => {
+                      const old = next.tracks.find(
+                          (t) => t.id === selectedTrack!.id,
+                        )!,
+                        target = next.tracks.find((t) => t.id === targetId)!;
+                      old.clips = old.clips.filter((c) => c.id !== clip.id);
+                      target.clips.push(clip);
+                      setTrackId(targetId);
+                    });
+                  }}
+                >
+                  {draft.tracks.map((track) => (
+                    <option key={track.id} value={track.id}>
+                      {track.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="audio-field-grid">
                 {number(
                   'Clip start (s)',
@@ -985,7 +1111,11 @@ export default function AudioEditor({
                   clip.offset,
                   (n) => patchClip({ offset: n }),
                   0,
-                  300 - clip.duration,
+                  Math.max(
+                    0,
+                    (cache.current.get(clip.src)?.buffer.duration ?? 300) -
+                      clip.duration,
+                  ),
                 )}
                 {number(
                   'Clip duration (s)',
@@ -997,7 +1127,11 @@ export default function AudioEditor({
                       fadeOut: Math.min(clip.fadeOut, n),
                     }),
                   0.01,
-                  draft.duration - clip.start,
+                  Math.min(
+                    draft.duration - clip.start,
+                    (cache.current.get(clip.src)?.buffer.duration ?? 300) -
+                      clip.offset,
+                  ),
                 )}
                 {number(
                   'Clip gain (dB)',
@@ -1278,7 +1412,8 @@ export default function AudioEditor({
                 disabled={locked || dirty}
                 onClick={() => {
                   renderRequest.current = null;
-                  void render();
+                  setFormat(job.format);
+                  void render(job.format);
                 }}
               >
                 Render again
