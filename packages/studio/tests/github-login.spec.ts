@@ -58,6 +58,22 @@ test('GitHub is the only sign-in action on desktop and mobile', async ({ page })
   await expect
     .poll(() => page.evaluate(() => document.fonts.check('12px "Inter Variable"')))
     .toBe(true);
+  const contrast = await signIn.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    const luminance = (color: string) => {
+      const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number);
+      const linear = channels.map((channel) => {
+        const value = channel / 255;
+        return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+      });
+      return .2126 * linear[0]! + .7152 * linear[1]! + .0722 * linear[2]!;
+    };
+    const foreground = luminance(styles.color),
+      background = luminance(styles.backgroundColor);
+    return (Math.max(foreground, background) + .05) /
+      (Math.min(foreground, background) + .05);
+  });
+  expect(contrast).toBeGreaterThanOrEqual(4.5);
   await mkdir(evidence, { recursive: true });
   await page.screenshot({ path: evidence + '/desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });

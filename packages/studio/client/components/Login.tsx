@@ -64,7 +64,7 @@ export function Login() {
                   GitHub sign-in wasn’t completed. Please try again.
                 </p>
               )}
-              <Button asChild className="w-full">
+              <Button asChild className="login-github w-full">
                 <a href="/api/auth/github">
                   <LogIn size={18} />
                   Continue with GitHub
