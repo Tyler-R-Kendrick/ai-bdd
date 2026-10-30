@@ -48,11 +48,11 @@ export class AgentProfiles {
       {
         id: 't3-code',
         label: 'T3 Code',
-        configured: !!t3 && t3.providers.length > 0,
+        configured: !!t3?.mcp?.accessToken && t3.providers.length > 0,
         reason:
-          t3 && t3.providers.length > 0
+          t3?.mcp?.accessToken && t3.providers.length > 0
             ? null
-            : 'The workspace has no registered T3 Code runtime with a concrete provider and model. Choose another harness explicitly or connect the operator-owned T3 environment.',
+            : 'T3 requires a registered native MCP endpoint, an approved Supervised client and a concrete provider/model. CLI-only generation is disabled. Choose another harness explicitly or connect the operator-owned T3 environment.',
         providers: [
           ...(t3?.providers.length
             ? []
