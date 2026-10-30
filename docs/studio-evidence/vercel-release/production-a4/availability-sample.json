@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": "a4c7fdd85e36ca366587b2dbbdd8557d255da758",
+  "deploymentId": "dpl_7BqK9hwArJV6cdu2pKK3KAQggM6U",
+  "origin": "https://ai-bdd-studio.vercel.app",
+  "startedAt": "2026-10-30T17:00:36.782Z",
+  "completedAt": "2026-10-30T17:00:44.809Z",
+  "kind": "bounded anonymous HTTPS availability sample",
+  "concurrency": 4,
+  "requests": 48,
+  "paths": {
+    "/": 12,
+    "/api/health": 36
+  },
+  "passed": true,
+  "failures": [],
+  "latencyMs": {
+    "min": 209,
+    "p50": 687,
+    "p95": 1050,
+    "max": 1097
+  },
+  "credentialHeadersSent": 0,
+  "redirectsFollowed": 0,
+  "modelsInvoked": 0,
+  "scope": "Single short sample through the managed network proxy; does not establish throughput ceiling, latency SLO, sustained load, HA, authenticated document or model capacity."
+}
