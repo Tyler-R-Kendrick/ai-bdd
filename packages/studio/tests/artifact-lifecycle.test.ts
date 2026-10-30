@@ -258,7 +258,9 @@ for (const postgres of [false, true])
             'Future owner',
           );
         await c.store.db.exec(
-          'CREATE TABLE studio_future_receipts(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,evidence_json TEXT NOT NULL)',
+          'CREATE TABLE studio_future_receipts(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,evidence_json ' +
+            (postgres ? 'JSONB' : 'TEXT') +
+            ' NOT NULL)',
         );
         await c.store.exec(
           'INSERT INTO studio_future_receipts(id,artifact_id,evidence_json) VALUES(?,?,?)',

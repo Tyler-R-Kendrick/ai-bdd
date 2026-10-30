@@ -17,7 +17,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 7px;
   padding: 9px;
 }
@@ -48,15 +48,15 @@
 .archive-item span {
   font-size: 11px;
   line-height: 1.4;
-  color: var(--muted-foreground);
+  color: var(--muted);
 }
 .archive-empty {
   padding: 24px 10px;
   text-align: center;
-  color: var(--muted-foreground);
+  color: var(--muted);
 }
 .archive-detail {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   padding-top: 16px;
   min-width: 0;
 }
@@ -139,7 +139,7 @@
 }
 .archive-notice {
   background: #f4f2ed;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   padding: 10px;
   border-radius: 6px;
   font-size: 12px;

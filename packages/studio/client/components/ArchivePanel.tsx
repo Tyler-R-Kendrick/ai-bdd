@@ -152,7 +152,8 @@ export function ArchivePanel({
               >
                 <strong>{item.title}</strong>
                 <span>
-                  {kindLabels[item.kind]} · Archived{' '}
+                  {kindLabels[item.kind]} ·{' '}
+                  {item.archivedAt ? 'Archived' : 'Last updated'}{' '}
                   {date(item.archivedAt ?? item.updatedAt)}
                 </span>
               </button>

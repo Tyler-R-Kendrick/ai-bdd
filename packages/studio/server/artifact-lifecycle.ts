@@ -439,7 +439,7 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
       const fields = textRows
         .filter(
           (row) =>
-            /TEXT|CHAR/i.test(row.type) &&
+            /TEXT|CHAR|JSON|XML|UUID/i.test(row.type) &&
             ![
               'id',
               'artifact_id',
@@ -449,7 +449,10 @@ CREATE INDEX IF NOT EXISTS studio_artifact_cleanup_due ON studio_artifact_object
               'updated_at',
             ].includes(row.name),
         )
-        .map((row) => `coalesce(s.${identifier(row.name)},'')`);
+        .map(
+          (row) =>
+            `coalesce(${this.store.db.dialect === 'postgres' ? `CAST(s.${identifier(row.name)} AS TEXT)` : `s.${identifier(row.name)}`},'')`,
+        );
       if (!fields.length) continue;
       const content = '(' + fields.join(' || ') + ')',
         own = table === 'artifacts',
