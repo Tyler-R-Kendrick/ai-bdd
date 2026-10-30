@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Store, hash } from '../server/store.ts';
 import { openDatabase } from '../server/persistence/index.ts';
@@ -55,7 +56,7 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
 async function fixture(postgres = false) {
-  const directory = await mkdtemp('/workspace/ai-bdd/work/runner-durable-');
+  const directory = await mkdtemp(join(tmpdir(), 'runner-durable-'));
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
   const database = postgres
     ? await openDatabase({

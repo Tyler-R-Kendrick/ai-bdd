@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/store.ts';
 import { openDatabase } from '../server/persistence/index.ts';
@@ -29,7 +30,7 @@ async function fixture(
   decisionMode = false,
 ) {
   vi.stubEnv('AI_GATEWAY_API_KEY', 'explicit-classifier-http-fixture');
-  const directory = await mkdtemp('/workspace/ai-bdd/work/spike-classifier-');
+  const directory = await mkdtemp(join(tmpdir(), 'spike-classifier-'));
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
   const requests: any[] = [];
   let beforeReply: (() => Promise<void>) | undefined;

@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { Store, hash } from '../server/store.ts';
 import { initialAudioContent } from '../shared/audio.ts';
 import { initialMidiContent } from '../shared/midi.ts';
@@ -113,7 +114,7 @@ describe('audio and MIDI admission boundaries', () => {
     ).rejects.toMatchObject({ statusCode: 400 });
   });
   it('rejects a small compressed decoding bomb through the actual multipart endpoint before publishing a file', async () => {
-    const directory = await mkdtemp('/workspace/ai-bdd/work/audio-admission-');
+    const directory = await mkdtemp(join(tmpdir(), 'audio-admission-'));
     cleanup.push(() => rm(directory, { recursive: true, force: true }));
     const path = join(directory, 'bomb.flac');
     await promisify(execFile)(
