@@ -45,7 +45,31 @@ export class VercelBlobObjectStore implements ObjectStore {
       return { ...expected, etag: result.etag };
     } catch (error) {
       // A timed-out successful write and a simultaneous identical write are both safe to adopt.
-      const existing = await this.get(key, {
+      const metadata = await blob
+        .head(key, {
+          ...this.#options,
+          abortSignal: AbortSignal.timeout(15000),
+        })
+        .catch(() => null);
+      if (!metadata) throw error;
+      if (
+        metadata.pathname !== key ||
+        !Number.isSafeInteger(metadata.size) ||
+        metadata.size < 0
+      )
+        throw new ObjectIntegrityError(
+          'Object provider returned invalid immutable metadata.',
+        );
+      // A different length/type proves conflict without reading an arbitrarily
+      // larger existing object. Equal metadata still requires the actual SHA.
+      if (
+        metadata.size !== bytes.byteLength ||
+        metadata.contentType !== contentType
+      )
+        throw new ObjectConflictError(
+          'An immutable object already exists with different content.',
+        );
+      const existing = await this.readObject(key, metadata, {
         maxBytes: Math.max(bytes.byteLength, 1),
       }).catch(() => null);
       if (existing) {
@@ -78,6 +102,13 @@ export class VercelBlobObjectStore implements ObjectStore {
       if (error instanceof blob.BlobNotFoundError) return null;
       throw error;
     }
+    return this.readObject(key, metadata, options);
+  }
+  private async readObject(
+    key: string,
+    metadata: Awaited<ReturnType<typeof blob.head>>,
+    options: { maxBytes: number; expectedSha256?: string },
+  ) {
     if (metadata.pathname !== key || metadata.size > options.maxBytes)
       throw new ObjectIntegrityError(
         'Object provider returned a different key or oversized object.',
@@ -95,7 +126,9 @@ export class VercelBlobObjectStore implements ObjectStore {
       );
     const bytes = await boundedObjectStream(result.stream, options.maxBytes);
     if (bytes.length !== metadata.size || result.blob.size !== metadata.size)
-      throw new ObjectIntegrityError('Object length changed during retrieval.');
+      throw new ObjectIntegrityError(
+        'Object length changed during retrieval.',
+      );
     const value = {
       ...describeObject(key, bytes, metadata.contentType, result.blob.etag),
       bytes,
