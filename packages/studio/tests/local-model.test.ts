@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { generateText, streamText, Output, tool, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { mkdtemp, rm, truncate, writeFile, symlink } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
+import { execFile, fork } from 'node:child_process';
+import { once } from 'node:events';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -243,6 +244,36 @@ describe.skipIf(!directory)(
         },
       );
       expect(result.stdout.trim()).toBe('closed');
+    });
+    it('stops a real inference subprocess when its private RSS ceiling is exceeded', async () => {
+      const child = fork(
+        new URL('../server/local/studio-local-worker.mjs', import.meta.url),
+        [],
+        {
+          execArgv: [],
+          env: { PATH: '/usr/local/bin:/usr/bin:/bin' },
+          stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+        },
+      );
+      const exited = once(child, 'exit');
+      try {
+        const message = once(child, 'message');
+        child.send({
+          configuration: {
+            directory: directory!,
+            file: localModelManifest.files[0],
+            rssCeilingBytes: 16777216,
+          },
+          system: '',
+          prompt: 'Hello',
+          history: [],
+          maxTokens: 16,
+        });
+        expect((await message)[0]).toEqual({ type: 'error', code: 'memory' });
+        expect((await exited)[0]).toBe(1);
+      } finally {
+        child.kill('SIGKILL');
+      }
     });
     it('uses the same pool for actual native decision logits and following chat', async () => {
       const result = await evaluateLocalDecisions(

@@ -41,7 +41,8 @@ export class LocalModelError extends Error {
       | 'inference'
       | 'schema'
       | 'configuration'
-      | 'deadline',
+      | 'deadline'
+      | 'memory',
     readonly statusCode = 503,
   ) {
     super(
@@ -59,11 +60,14 @@ export class LocalModelError extends Error {
           'The local CPU model requires its operator-configured absolute model directory.',
         deadline:
           'The local CPU model exceeded its bounded inference deadline.',
+        memory:
+          'The local CPU model exceeded its process memory budget. Retry with a smaller request.',
       }[code],
     );
     this.name = 'LocalModelError';
   }
 }
+export const LOCAL_MAX_RSS_BYTES = 1024 * 1024 * 1024;
 const ajv = new Ajv({
   strict: false,
   allErrors: false,
@@ -520,6 +524,16 @@ class CpuRuntime {
       worker.on('message', (message: any) => {
         if (this.worker !== worker || !this.active) return;
         const current = this.active;
+        const rss =
+          message.type === 'decision' ? message.result?.rss : message.rss;
+        if (
+          message.code === 'memory' ||
+          (typeof rss === 'number' && rss > LOCAL_MAX_RSS_BYTES)
+        ) {
+          this.finish(current, new LocalModelError('memory'));
+          void this.stop();
+          return;
+        }
         if (message.type === 'delta') {
           current.onDelta?.(message.text);
           return;
@@ -564,6 +578,7 @@ class CpuRuntime {
     this.worker.send({
       configuration: {
         directory: this.directory,
+        rssCeilingBytes: LOCAL_MAX_RSS_BYTES,
         file: localModelById(task.prepared.modelId)!.files[0],
       },
       ...task.prepared,

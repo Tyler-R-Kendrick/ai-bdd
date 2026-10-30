@@ -10,6 +10,24 @@ globalThis.fetch = async () => {
 const port = { postMessage: (value) => process.send?.(value) };
 process.once('disconnect', () => process.exit(0));
 let workerData;
+let refusingMemory = false;
+function checkMemory() {
+  const configured = workerData?.rssCeilingBytes;
+  // The private IPC test may lower this ceiling; no caller can raise the production 1 GiB limit.
+  const ceiling = Number.isSafeInteger(configured)
+    ? Math.min(1073741824, Math.max(16777216, configured))
+    : 1073741824;
+  if (refusingMemory || process.memoryUsage().rss <= ceiling) return;
+  refusingMemory = true;
+  try {
+    process.send?.({ type: 'error', code: 'memory' }, () => process.exit(1));
+  } catch {
+    process.exit(1);
+  }
+}
+const memoryTimer = setInterval(checkMemory, 100);
+memoryTimer.unref();
+
 let model, llama, loadedPath;
 async function load() {
   const root = await realpath(workerData.directory);
@@ -45,6 +63,8 @@ async function load() {
 }
 process.on('message', async (request) => {
   workerData = request.configuration;
+  checkMemory();
+  if (refusingMemory) return;
   let context, response;
   try {
     await load();
