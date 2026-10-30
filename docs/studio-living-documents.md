@@ -1,6 +1,6 @@
 # Living documents and existing-PR rebuilds
 
-A successful, independently verified browser implementation establishes an immutable delivered source baseline when it has an open PR. The baseline keeps the exact original source, approved graph and implementation run. Editing its document then shows a count of added, removed or changed top-level blocks. Moving an otherwise unchanged identified block does not count as new content.
+A successful, independently verified browser implementation establishes an immutable delivered source baseline when it has an open PR. The baseline keeps the exact original source, approved graph and implementation run. Editing its document then shows a count of added, removed or changed top-level blocks. A moved identified block counts as changed because its document position changed.
 
 **Build changes** seals the latest document and resolves the original PR URLs through the requesting user's repository identity. Every PR must still be open in the same repository, with a valid head branch and full commit. It queues the rebuild on the person's own registered machine. The connector prepares isolated worktrees at those commits and the server checks the current heads again before execution. It instructs the ACP agent to update only those original branches using ordinary non-force pushes; quoted before/after documents are data, never new agent permissions.
 

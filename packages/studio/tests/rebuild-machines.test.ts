@@ -478,7 +478,7 @@ for (const postgres of [false, true])
       });
     },
   );
-it('counts stable top-level block additions/removals/changes without turning a move into added content', () => {
+it('counts top-level block additions, removals, content changes and reordered blocks', () => {
   const a = {
       type: 'paragraph',
       attrs: { id: 'a' },
@@ -494,7 +494,7 @@ it('counts stable top-level block additions/removals/changes without turning a m
       { doc: { content: [a, b] } },
       { doc: { content: [b, a] } },
     ),
-  ).toBe(0);
+  ).toBe(2);
   expect(
     changedDocumentBlocks(
       { doc: { content: [a, b] } },
