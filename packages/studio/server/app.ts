@@ -1643,8 +1643,23 @@ export async function createApp(
       const bytes = await part.toBuffer();
       await store.artifact(a.id, u.id, 'write');
       const mime = uploadedMediaType(bytes, part.filename, part.mimetype);
-      if (mime.startsWith('audio/') && mime !== 'audio/midi')
-        await sourceProbe(bytes);
+      if (mime.startsWith('audio/') && mime !== 'audio/midi') {
+        const controller = new AbortController(),
+          abort = () =>
+            controller.abort(new Error('The upload request disconnected')),
+          close = () => {
+            if (!reply.raw.writableFinished) abort();
+          };
+        req.raw.once('aborted', abort);
+        reply.raw.once('close', close);
+        if (req.raw.aborted || reply.raw.destroyed) abort();
+        try {
+          await sourceProbe(bytes, { signal: controller.signal });
+        } finally {
+          req.raw.removeListener('aborted', abort);
+          reply.raw.removeListener('close', close);
+        }
+      }
       const fid = randomUUID(),
         sha256 = hash(bytes);
       const storageKey = `studio/v1/files/${a.projectId}/${sha256}`;
