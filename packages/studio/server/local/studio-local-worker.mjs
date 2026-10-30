@@ -66,7 +66,7 @@ async function load() {
     logger: () => {},
   });
   phase('binding-loaded');
-  model = await llama.loadModel({ modelPath: path, gpuLayers: 0 });
+  model = await llama.loadModel({ modelPath: path, gpuLayers: 0, useMmap: false });
   loadedPath = path;
   phase('model-loaded');
 }
