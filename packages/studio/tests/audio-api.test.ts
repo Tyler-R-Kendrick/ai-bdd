@@ -270,6 +270,29 @@ describe(`durable audio worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
       (await c.service.exportPage(artifact.id, 0, Number.MAX_SAFE_INTEGER))[0],
     ).toMatchObject({ status: 'completed', sourceSnapshot: input });
   });
+  it('rejects a runtime identity change after enqueue before provider work or publication', async () => {
+    const c = await context(),
+      { artifact } = await fixture(c),
+      job = await enqueue(c, artifact.id);
+    expect((await c.runtime.get(job.id))!.snapshot).toMatchObject({
+      runtimeFingerprint: c.renderer.name,
+    });
+    Object.defineProperty(c.renderer, 'fingerprint', {
+      value: 'changed-pinned-image',
+    });
+    await c.service.executeAudioJob(job.id, {
+      messageId: 'changed-runtime',
+      deliveryCount: 1,
+    });
+    expect(c.renderer.calls).toHaveLength(0);
+    expect(await c.service.publicJob(job.id, artifact.id)).toMatchObject({
+      status: 'failed',
+    });
+    expect(
+      (await c.store.one('SELECT count(*) AS n FROM files WHERE id=?', job.id))
+        .n,
+    ).toBe(0);
+  });
   it('resumes a queued job after both the SQL connection and runtime are recreated', async () => {
     const c = await context(),
       { artifact } = await fixture(c),
@@ -531,7 +554,7 @@ describe(`durable audio worker publication (${postgresURL ? 'PostgreSQL' : 'SQLi
     expect(
       (
         await c.store.one(
-          "SELECT count(*) AS n FROM files WHERE artifact_id=? AND id=?",
+          'SELECT count(*) AS n FROM files WHERE artifact_id=? AND id=?',
           artifact.id,
           response.json().id,
         )

@@ -59,7 +59,7 @@ class Reader {
 const utf8 = new TextEncoder(),
   decoder = new TextDecoder();
 function noSource(content: MidiContent) {
-  const { sourceSrc, ...canonical } = content;
+  const { sourceSrc: _sourceSrc, ...canonical } = content;
   return canonical;
 }
 /** Fully bounded SMF0/1 decoder; SMPTE imports normalize timing to PPQ while retaining a source for exact untouched export. */

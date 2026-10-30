@@ -174,6 +174,41 @@ describe('actual FFmpeg multitrack mixdown independently probed and decoded', ()
     );
     expect(silence.rms(0.1, 1.9)).toBe(0);
   });
+  it('preserves exact split-clip timeline positions when mixing one immutable source twice', async () => {
+    const content = project();
+    content.duration = 3;
+    content.tracks[0].pan = -1;
+    content.tracks.push({
+      ...structuredClone(content.tracks[0]),
+      id: 'muted',
+      mute: true,
+      clips: [],
+    });
+    const left = content.tracks[0].clips[0];
+    left.duration = 0.5;
+    left.fadeOut = 0;
+    content.tracks[0].clips.push({
+      ...left,
+      id: 'right',
+      start: 1,
+      offset: 0.75,
+      fadeIn: 0,
+      fadeOut: 0.1,
+    });
+    const output = await decode(
+      await renderAudio({
+        content,
+        assets,
+        format: 'wav',
+        signal: AbortSignal.timeout(20000),
+      }),
+      'wav',
+    );
+    expect(output.probe.format.duration).toBe('3.000000');
+    expect(output.rms(0.01, 0.3)).toBeLessThan(0.001);
+    expect(output.rms(0.7, 0.9)).toBeCloseTo(0.2 / Math.SQRT2, 2);
+    expect(output.rms(1.7, 2.8)).toBeLessThan(0.001);
+  });
   it('rejects source overruns and cancelled jobs before publication', async () => {
     const content = project();
     content.tracks[0].clips[0].offset = 1.5;

@@ -24,6 +24,7 @@ export type AudioRenderTask = {
   schemaVersion: 1;
   title: string;
   content: AudioContent;
+  runtimeFingerprint?: string;
   format: 'wav' | 'flac' | 'mp3' | 'm4a' | 'ogg';
 };
 const snapshotSchema = z
@@ -31,11 +32,13 @@ const snapshotSchema = z
     schemaVersion: z.literal(1),
     title: z.string().min(1).max(180),
     content: z.unknown(),
+    runtimeFingerprint: z.string().min(1).max(512).optional(),
     format: z.enum(['wav', 'flac', 'mp3', 'm4a', 'ogg']),
   })
   .strict();
 const outputSchema = z
   .object({
+    runtimeFingerprint: z.string().min(1).max(512).optional(),
     fileId: z.string().uuid(),
     downloadUrl: z.string(),
     artifactVersion: z.number().int(),
@@ -97,6 +100,8 @@ export async function registerAudioRoutes(
       job.status === 'completed' ? outputSchema.parse(job.result) : undefined;
     return {
       ...row,
+      runtimeFingerprint:
+        output?.runtimeFingerprint ?? snapshot(job).runtimeFingerprint,
       status: job.status === 'running' ? 'rendering' : job.status,
       progress:
         job.status === 'completed' ? 1 : (job.progress?.percent ?? 0) / 100,
@@ -214,6 +219,13 @@ export async function registerAudioRoutes(
   }
   async function execute(context: DurableJobContext) {
     const task = snapshot(context.job);
+    if (
+      task.runtimeFingerprint &&
+      task.runtimeFingerprint !== (renderer.fingerprint ?? renderer.name)
+    )
+      throw new TerminalJobError(
+        'The audio runtime changed after this job was queued. Submit a new export for the current runtime.',
+      );
     await context.assertCurrent({ requireCurrentVersion: true });
     await store.exec(
       "UPDATE audio_render_jobs SET status='rendering',error=NULL WHERE id=?",
@@ -336,6 +348,7 @@ export async function registerAudioRoutes(
             `revision ${context.job.artifactVersion}; ${task.format}; sha256 ${digest}`,
           );
           return {
+            runtimeFingerprint: renderer.fingerprint ?? renderer.name,
             fileId: file.id,
             downloadUrl: `/api/files/${file.id}`,
             artifactVersion: context.job.artifactVersion,
@@ -461,6 +474,7 @@ export async function registerAudioRoutes(
           artifactVersion: artifact.version,
           snapshot: {
             schemaVersion: 1,
+            runtimeFingerprint: renderer.fingerprint ?? renderer.name,
             title: artifact.title,
             content,
             format: input.format,

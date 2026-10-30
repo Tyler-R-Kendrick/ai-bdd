@@ -231,6 +231,7 @@ export type AudioRenderOptions = {
 };
 export interface AudioRenderDriver {
   readonly name: string;
+  readonly fingerprint?: string;
   readonly runtime: 'long-lived-worker' | 'remote-worker';
   render(options: AudioRenderOptions): Promise<Buffer>;
 }
@@ -359,7 +360,7 @@ export async function renderAudio(
         );
         const chain = [
           `atrim=start=${num(clip.offset)}:duration=${num(clip.duration)}`,
-          'asetpts=PTS-STARTPTS',
+          'asetpts=N/SR/TB',
           `aformat=sample_fmts=fltp:sample_rates=${content.sampleRate}:channel_layouts=${mono ? 'mono' : 'stereo'}`,
         ];
         if (clip.reverse) chain.push('areverse');
@@ -405,8 +406,10 @@ export async function renderAudio(
           ]
         : ['anull']),
       `volume=${num(content.masterGainDb)}dB`,
-      `apad=whole_dur=${num(content.duration)}`,
-      `atrim=duration=${num(content.duration)}`,
+      'asetpts=N/SR/TB',
+      `apad=whole_len=${Math.round(content.duration * content.sampleRate)}`,
+      `atrim=end_sample=${Math.round(content.duration * content.sampleRate)}`,
+      'asetpts=N/SR/TB',
     ];
     if (!input) {
       args.push(
@@ -457,7 +460,8 @@ export async function renderAudio(
       const finish = (error?: unknown) => {
         if (settled) return;
         settled = true;
-        error ? reject(error) : resolve();
+        if (error) reject(error);
+        else resolve();
       };
       child.stderr.on('data', (bytes: Buffer) => {
         errorText = (errorText + bytes.toString()).slice(-2000);
