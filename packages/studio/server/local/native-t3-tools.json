@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "platform": "linux-x64",
+  "t3Version": "0.1.5",
+  "t3Commit": "6d450a4284852af137b2f3407fddd89eb76e7644",
+  "openCodeVersion": "2.2.4",
+  "archives": [
+    {
+      "name": "t3",
+      "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/t3-0.1.5-linux-x64.tar.gz",
+      "sha256": "21d50dcc9c634221b11b58d6a94350d2c6ee36905737b054b11fa4eba295a98b",
+      "maxBytes": 268435456,
+      "stripComponents": 0
+    },
+    {
+      "name": "opencode",
+      "url": "https://registry.npmjs.org/@opencode%2fcli-linux-x64/-/cli-linux-x64-2.2.4.tgz",
+      "sha256": "25587c427ad9faa49ffbe3297275d0eb0a43b6f0c13255d37d75c1872696ab81",
+      "maxBytes": 118634475,
+      "stripComponents": 1
+    }
+  ],
+  "files": [
+    { "path": "t3/t3", "bytes": 167963776, "sha256": "76c5493ae5f49798fe08ac6835d0c3b596c4a40632e59365415fd2b872f3435b" },
+    { "path": "t3/resource-monitor/linux-x64/t3-resource-monitor", "bytes": 683856, "sha256": "4e4d7e5e4d7c405fba3d0074d514ef3fe54358215528d94ca15697c4471040cd" },
+    { "path": "opencode/bin/opencode", "bytes": 252696752, "sha256": "25facd7099c19018e83dce858f3ab922cd2d49ad29b144bc36968418ca6eb5aa" }
+  ]
+}
