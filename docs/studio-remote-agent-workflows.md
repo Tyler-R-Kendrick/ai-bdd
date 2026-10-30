@@ -19,7 +19,7 @@ The portable ACP client accepts ordinary `agent_message_chunk` updates, explicit
 
 ## Verification and screenshot review
 
-`tests/remote-agent-state.test.ts` checks pure stream order, tool identity, redaction, stage merging and terminal display semantics. `tests/remote-activity.test.ts` uses actual HTTP and WebSocket servers, the durable runtime and SQLite or PostgreSQL. It covers scoped credential replacement, human waits, timeout delivery, question validation, paused answers, reconnects, retained background work, source changes, stop/read aborts, tool errors and event replay violations. One test spawns a real ACP child process, streams its output and workflow report, answers its question over HTTP, verifies the canonical result, and verifies that an unsupported pause is not claimed as successful.
+`tests/remote-agent-state.test.ts` checks pure stream order, tool identity, redaction, stage merging and terminal display semantics, including an 8,000-stage cyclic report with iterative descendant propagation. `tests/remote-activity.test.ts` uses actual HTTP and WebSocket servers, the durable runtime and SQLite or PostgreSQL. It covers scoped credential replacement, human waits, timeout delivery, question validation, paused answers, reconnects, retained background work, source changes, stop/read aborts, tool errors and event replay violations. One test spawns a real ACP child process, streams its output and workflow report, answers its question over HTTP, verifies the canonical result, and verifies that an unsupported pause is not claimed as successful.
 
 `tests/remote-planner.test.ts` and `tests/remote-planner-postgres.test.ts` retain the original transport, credential revocation, actual ACP and independent SQL/server reconnect checks. `tests/account-planner-end-to-end.test.ts` separately exercises the real account-device assignment, worker, scoped WebSocket and spawned ACP chain.
 
@@ -29,7 +29,7 @@ The dedicated browser command is:
 pnpm --filter @ai-bdd/studio exec playwright test --config remote.playwright.config.ts
 ```
 
-All three browser cases use the built application with real password/session/token authentication and actual API/WebSocket traffic. They verify all five question methods, partial and written-answer reloads, held answers and acknowledged controls, export contents, one canonical assistant message, unchanged source, read-only member restrictions, source withdrawal late-output cancellation, and browsing an answered question after nine completed turns and a fresh page load. Captures assert no page errors, server errors, global error banner, device-panel error or activity error.
+All three browser cases use the built application with real password/session/token authentication and actual API/WebSocket traffic. Each case starts a fresh application/database so independent acceptance workloads do not share a member burst quota; the production rate policy remains enabled. They verify all five question methods, partial and written-answer reloads, held answers and acknowledged controls, export contents, one canonical assistant message, unchanged source, read-only member restrictions, source withdrawal late-output cancellation, and browsing an answered question after nine completed turns and a fresh page load. Captures assert no page errors, server errors, global error banner, device-panel error or activity error.
 
 | Capture | Reviewed claim |
 | --- | --- |
@@ -37,7 +37,7 @@ All three browser cases use the built application with real password/session/tok
 | [Completed history](studio-evidence/remote-agents/remote-completed-history.png) | Completed turn, ended workflow, finished stages and retained member responses after reload. |
 | [Written answers](studio-evidence/remote-agents/remote-written-answers.png) | Saved custom select/input/editor responses, actual control acknowledgements and one published assistant reply. |
 | [Earlier history](studio-evidence/remote-agents/remote-earlier-history.png) | Nine completed turns after reload, with the oldest answered question expanded through the normal history control. |
-| [Mobile read-only view](studio-evidence/remote-agents/remote-mobile-read-only.png) | Normal mobile artifact drawer, visible question and absence of writer/control actions for a viewer. |
+| [Mobile read-only view](studio-evidence/remote-agents/remote-mobile-read-only.png) | Normal mobile artifact drawer, explicit human-wait status, visible question and absence of writer/control actions for a viewer. |
 
 All five PNGs were opened and inspected after the final three-case browser run. Normal panel scrolling focuses the demonstrated controls; the screenshots do not alter application state or styles. The earlier captures containing an unwired device-panel error were replaced and are not release evidence.
 

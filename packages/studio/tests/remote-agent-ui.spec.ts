@@ -15,7 +15,8 @@ const origin = 'http://127.0.0.1:8896',
 let studio: Awaited<ReturnType<typeof createApp>>, directory: string;
 const clients: { controller: AbortController; promise: Promise<void> }[] = [];
 const faults: string[] = [];
-test.beforeAll(async () => {
+test.beforeEach(async () => {
+  faults.length = 0;
   directory = await mkdtemp('/tmp/studio-remote-browser-');
   studio = await createApp(
     {
@@ -34,8 +35,8 @@ test.beforeAll(async () => {
   );
   await studio.app.listen({ host: '127.0.0.1', port: 8896 });
 });
-test.afterAll(async () => {
-  for (const c of clients) {
+test.afterEach(async () => {
+  for (const c of clients.splice(0)) {
     c.controller.abort();
     await c.promise.catch(() => {});
   }
@@ -599,6 +600,10 @@ test('viewer cannot answer, source changes withdraw questions, and durable stop 
   await expect(
     mobile.getByRole('button', { name: 'Stop turn', exact: true }),
   ).toHaveCount(0);
+  await expect(
+    mobile.getByText('Waiting for a response…', { exact: true }),
+  ).toBeVisible();
+  await expect(mobile.getByText('Writing…', { exact: true })).toHaveCount(0);
   await mobile
     .getByRole('region', { name: 'Remote agent activity' })
     .scrollIntoViewIfNeeded();
@@ -625,7 +630,11 @@ test('viewer cannot answer, source changes withdraw questions, and durable stop 
   await page
     .getByRole('button', { name: 'Refresh activity', exact: true })
     .click();
-  await expect(page.getByText('Source changed', { exact: true })).toBeVisible();
+  await expect(
+    page
+      .locator('.remote-turn > summary')
+      .getByText('Source changed', { exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Stop turn', exact: true }).click();
   await expect
     .poll(
