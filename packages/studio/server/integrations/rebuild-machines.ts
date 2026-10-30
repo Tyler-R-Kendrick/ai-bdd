@@ -365,6 +365,7 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       return {
         pending: pending ?? null,
         automaticEnabled: !!consent?.enabled,
+        currentSourceVersion:current.version,
         currentSourceSha256: hash(JSON.stringify(current.content)),
         baseline: baseline
           ? {

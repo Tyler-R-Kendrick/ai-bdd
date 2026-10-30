@@ -6,6 +6,7 @@ import './rebuild.css';
 export type RebuildSnapshot = {
   artifactId?: string;
   pending?: { dueAt: number; error: string | null } | null;
+  currentSourceVersion: number;
   currentSourceSha256: string;
   automaticEnabled: boolean;
   baseline: {
@@ -43,7 +44,8 @@ export function RebuildPanel({
     [machines, setMachines] = useState<
       { id: string; label: string; connected: boolean }[]
     >([]),
-    [machineId, setMachineId] = useState('');
+    [machineId, setMachineId] = useState(''),
+    [consentDraft, setConsentDraft] = useState<boolean | null>(null);
   const sequence = useRef(0);
   const refresh = useCallback(async () => {
     const request = ++sequence.current;
@@ -95,6 +97,7 @@ export function RebuildPanel({
     } catch (error) {
       const message = (error as Error).message;
       setError(message);
+      await refresh().catch(() => {});
       onError?.(message);
     } finally {
       setBusy(false);
@@ -126,12 +129,13 @@ export function RebuildPanel({
           {running
             ? 'Building changes'
             : snapshot.changes
-              ? `${snapshot.changes} changes to build`
+              ? `${snapshot.changes} change${snapshot.changes === 1 ? '' : 's'} to build`
               : 'Built'}
         </Badge>
       </header>
       <p>
-        Delivered source v{snapshot.baseline.sourceVersion} ·{' '}
+        Current source v{snapshot.currentSourceVersion} · delivered v
+        {snapshot.baseline.sourceVersion} ·{' '}
         {date(snapshot.baseline.updatedAt)}. Rebuild keeps the existing PRs
         and the reviewed base graph.
       </p>
@@ -201,17 +205,18 @@ export function RebuildPanel({
         <label className="rebuild-consent">
           <input
             type="checkbox"
-            checked={snapshot.automaticEnabled}
+            checked={consentDraft ?? snapshot.automaticEnabled}
             disabled={busy}
             onChange={(event) => {
               const enabled = event.target.checked;
+              setConsentDraft(enabled);
               void act(() =>
                 api(
                   `/machines/${snapshot.baseline!.machineId}/rebuild-consent`,
                   'PUT',
                   { enabled },
                 ),
-              );
+              ).finally(() => setConsentDraft(null));
             }}
           />
           <span>
