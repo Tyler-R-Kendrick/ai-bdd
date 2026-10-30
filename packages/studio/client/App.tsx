@@ -1,5 +1,6 @@
 import RepositoryIdentity from './components/RepositoryIdentity.tsx';
 import { ArtifactTitle } from './components/ArtifactTitle.tsx';
+import { AccountMachinesPanel } from './components/AccountMachinesPanel.tsx';
 import type { AgentProfileView } from '../shared/agent-profile.ts';
 import { ImplementationPanel } from './components/integrations/ImplementationPanel.tsx';
 import { InvestigationPanel } from './components/investigations/InvestigationPanel.tsx';
@@ -1075,6 +1076,9 @@ export function App() {
             }}
             onError={report}
           />
+        </div>
+        <div className="settings-section">
+          <AccountMachinesPanel />
         </div>
         {project?.role === 'owner' && (
           <form

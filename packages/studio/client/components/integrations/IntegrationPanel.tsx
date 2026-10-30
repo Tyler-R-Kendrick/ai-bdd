@@ -36,6 +36,7 @@ import {
 } from '../ui.tsx';
 import './integrations.css';
 import { AgentProfile } from './AgentProfile.tsx';
+import { DecisionProfile } from './DecisionProfile.tsx';
 
 type Context = {
   capabilities: IntegrationCapabilities;
@@ -425,6 +426,12 @@ export function IntegrationPanel({
       >
         <AgentProfile
           key={artifact.id}
+          artifactId={artifact.id}
+          readOnly={readOnly}
+          onChanged={onRefresh}
+        />
+        <DecisionProfile
+          key={`decisions-${artifact.id}`}
           artifactId={artifact.id}
           readOnly={readOnly}
           onChanged={onRefresh}
