@@ -26,6 +26,11 @@ import type {
 import { mutateDocument } from './runtime/document-write.ts';
 import type { RemotePlanner } from './integrations/remote-planner.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
+import {
+  VisualRouting,
+  visualTarget,
+  type VisualTarget,
+} from './integrations/visual-routing.ts';
 
 const stamp = () => new Date().toISOString();
 const hash = (value: unknown) =>
@@ -48,6 +53,7 @@ type Snapshot = {
   latestId: string | null;
   ownerEpoch: number;
   remote: boolean;
+  visual: VisualTarget | null;
 };
 export type AgentOptions = {
   runtime: DurableJobRuntime;
@@ -510,9 +516,20 @@ export class Agent {
           );
       }
       const ownerEpoch = await this.claimOwner(user, id);
-      const messages = (
+      const transcript = (
         await this.store.messagePage(id, threadId, { limit: 30 })
-      ).messages
+      ).messages;
+      const latestHuman = transcript.filter((m) => m.role === 'user').at(-1);
+      const visual =
+        this.integrations.plannerVisuals &&
+        !this.options.remote &&
+        intent === 'chat' &&
+        (!options.automatic || options.addressed) &&
+        JSON.stringify(artifact.content).length <= 70000 &&
+        latestHuman
+          ? visualTarget(artifact, latestHuman.body)
+          : null;
+      const messages = transcript
         .map((m) => `${m.author}: ${m.body}`)
         .join('\n')
         .slice(-40000);
@@ -534,6 +551,7 @@ export class Agent {
         brief: submittedBrief,
         model: this.settings.model ?? 'remote',
         remote: !!this.options.remote,
+        visual,
         repository: project.repository ?? '',
         requestHash,
         ownerEpoch,
@@ -563,7 +581,7 @@ export class Agent {
       // The full frozen source is needed only for bounded edit validation; other turns retain bounded context.
       snapshot.artifact = {
         ...artifact,
-        content: intent === 'edit' ? artifact.content : {},
+        content: intent === 'edit' || visual ? artifact.content : {},
       };
       const job = await this.options.runtime.enqueue({
         kind: 'agent.' + intent,
@@ -806,6 +824,25 @@ export class Agent {
       );
     const output = await ctx.step('model-output', async (key) => {
       await this.guard(ctx, snapshot);
+      if (snapshot.visual) {
+        const visual = await new VisualRouting({
+          model: snapshot.model,
+          gatewayBaseUrl: this.integrations.gatewayBaseUrl,
+        }).propose(ctx, snapshot.visual, artifact);
+        if (visual)
+          return {
+            text:
+              'Proposed ' +
+              visual.kind.replace('Block', '') +
+              ' for the selected paragraph. Review it before applying.',
+            content: visual.content,
+            visual: {
+              blockId: visual.blockId,
+              blockHash: visual.blockHash,
+              kind: visual.kind,
+            },
+          };
+      }
       if (snapshot.remote) {
         if (!this.options.remote)
           throw new HttpError(
@@ -940,7 +977,7 @@ export class Agent {
             'assistant',
             { researchArtifactId: child.id, agentJobId: ctx.job.id },
           );
-        } else if (intent === 'edit') {
+        } else if (intent === 'edit' || 'visual' in output) {
           const content = await this.store.checkedContent(
             artifact.kind,
             output.content,
@@ -952,7 +989,12 @@ export class Agent {
             threadId,
             output.text,
             'assistant',
-            { version: artifact.version, content, agentJobId: ctx.job.id },
+            {
+              version: artifact.version,
+              content,
+              agentJobId: ctx.job.id,
+              ...('visual' in output ? { visual: output.visual } : {}),
+            },
           );
         } else
           await this.store.message(

@@ -431,4 +431,132 @@ describe('durable artifact agent using actual HTTP model/source transports', () 
       () => new Agent(other, w.settings, w.collab, { runtime: w.runtime }),
     ).toThrow('same Store');
   });
+  it('routes one paragraph through isolated visual decisions and creates a reviewed source-bound proposal', async () => {
+    let calls = 0;
+    const responses = [
+      { possible: true, reason: 'The paragraph describes relationships.' },
+      {
+        improves: true,
+        reason: 'A relationship diagram explains the boundary.',
+      },
+      { kind: 'diagramBlock' },
+      {
+        title: 'Contract boundary',
+        description: 'Proposed architecture from the paragraph.',
+        nodes: [
+          { id: 'consumer', label: 'Consumer', x: 20, y: 100 },
+          { id: 'provider', label: 'Provider', x: 400, y: 100 },
+        ],
+        edges: [
+          { from: 'consumer', to: 'provider', label: 'verified contract' },
+        ],
+      },
+    ];
+    const gateway = await http((_p, _b, r) =>
+      r.end(JSON.stringify(generated(JSON.stringify(responses[calls++])))),
+    );
+    const w = await fixture({
+      gatewayBaseUrl: gateway.url,
+      plannerVisuals: true,
+    });
+    await w.collab.replace(
+      w.artifact.id,
+      w.user,
+      {
+        doc: {
+          type: 'doc',
+          content: [
+            paragraph(
+              'The Consumer reads the Provider through a verified contract boundary, allowing its live preview to run independently.',
+            ),
+          ],
+        },
+      },
+      w.artifact.version,
+    );
+    await w.store.message(
+      w.user,
+      w.artifact.id,
+      w.threadId,
+      'Explain this integration relationship visually.',
+    );
+    const original = await w.store.artifact(w.artifact.id, w.user.id),
+      job = await w.agent.respond(w.user, w.artifact.id, w.threadId, 'chat');
+    await w.run(job.id);
+    await w.run(job.id);
+    expect(calls).toBe(4);
+    expect(JSON.stringify(gateway.requests[0].body)).not.toContain(
+      'decisions',
+    );
+    const assistant = (await w.store.messages(w.artifact.id)).find(
+      (m) => m.role === 'assistant',
+    )!;
+    expect(assistant.proposal).toMatchObject({
+      version: original.version,
+      visual: { kind: 'diagramBlock' },
+    });
+    expect(assistant.proposal.content.doc.content[1].type).toBe(
+      'diagramBlock',
+    );
+    expect(
+      (await w.store.artifact(w.artifact.id, w.user.id)).content,
+    ).toEqual(original.content);
+    expect(
+      (
+        await w.store.all(
+          "SELECT name FROM studio_job_receipts WHERE job_id=? AND phase='step'",
+          job.id,
+        )
+      ).map((x) => x.name),
+    ).toContain('visual.author');
+  });
+  it('uses actual configured model transports for protected title maintenance and graph drafting', async () => {
+    let calls = 0;
+    const definition = {
+      tasks: [
+        {
+          id: 'contract',
+          title: 'Verify boundary',
+          description: 'Implement consumer contract coverage.',
+          acceptanceCriteria: [
+            'Consumer preview works without the live provider.',
+          ],
+        },
+      ],
+      edges: [],
+    };
+    const gateway = await http((_p, _b, r) =>
+      r.end(
+        JSON.stringify(
+          generated(
+            calls++ === 0 ? 'Contract boundary' : JSON.stringify(definition),
+          ),
+        ),
+      ),
+    );
+    const w = await fixture({ gatewayBaseUrl: gateway.url });
+    expect(
+      await w.agent.generateTitle({
+        artifact: w.artifact,
+        messages: [
+          { author: w.user.name, body: 'Keep preview independent.' },
+        ],
+        signal: new AbortController().signal,
+        idempotencyKey: 'title-key',
+      }),
+    ).toBe('Contract boundary');
+    expect(
+      await w.agent.generateImplementationGraph({
+        artifact: w.artifact,
+        text: 'Verify the consumer contract before integration.',
+        signal: new AbortController().signal,
+        idempotencyKey: 'graph-key',
+      }),
+    ).toEqual(definition);
+    expect(gateway.requests).toHaveLength(2);
+    await w.agent.claimBackgroundOwnership(w.user, w.artifact.id);
+    expect((await w.agent.ownership(w.user, w.artifact.id))?.userId).toBe(
+      w.user.id,
+    );
+  });
 });
