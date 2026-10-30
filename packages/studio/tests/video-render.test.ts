@@ -192,4 +192,32 @@ describe('Deterministic video encoder', () => {
       await rm(folder, { recursive: true, force: true });
     }
   });
+  it('rejects an invalid uploaded font instead of completing with substituted typography', async () => {
+    const fontUrl = '/api/files/00000000-0000-4000-8000-000000000003';
+    const content: TimelineContent = {
+      width: 320,
+      height: 180,
+      duration: 1,
+      fps: 24,
+      background: '#ffffff',
+      clips: [{ ...newClip('text', 1, 0), fontFamily: 'Custom', fontUrl }],
+    };
+    await expect(
+      renderVideo({
+        content,
+        title: 'Font decode failure',
+        assets: new Map([
+          [
+            fontUrl,
+            {
+              bytes: Buffer.from('wOF2-corrupt-test-fixture'),
+              mime: 'font/woff2',
+            },
+          ],
+        ]),
+        format: 'mp4',
+        signal: AbortSignal.timeout(10000),
+      }),
+    ).rejects.toThrow('composition font could not be decoded');
+  });
 });

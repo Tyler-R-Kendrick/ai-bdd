@@ -73,6 +73,32 @@ function runtime(content: TimelineContent) {
   }
   w.__studioReady = Promise.all([
     document.fonts.ready,
+    ...content.clips
+      .filter(
+        (clip) =>
+          clip.type === 'text' &&
+          ['Inter', 'Custom', 'Generated'].includes(clip.fontFamily),
+      )
+      .map(async (clip) => {
+        const name =
+          clip.fontFamily === 'Custom'
+            ? 'Font-' + clip.fontUrl!.split('/').pop()
+            : clip.fontFamily === 'Generated'
+              ? 'ArtifactGenerated'
+              : 'Inter';
+        try {
+          const faces = await document.fonts.load(
+            `${clip.fontSize}px "${name}"`,
+            clip.text || 'A',
+          );
+          if (!faces.length || faces.some((font) => font.status !== 'loaded'))
+            throw new Error('Font face unavailable');
+        } catch {
+          throw new Error(
+            'A composition font could not be decoded. Reimport a valid font before rendering.',
+          );
+        }
+      }),
     ...Array.from(document.images).map((image) => image.decode()),
     ...Array.from(document.querySelectorAll('video,audio')).map((element) =>
       loaded(element as HTMLMediaElement),

@@ -16,6 +16,7 @@ import type {
   JobDelivery,
 } from './runtime/contracts.ts';
 import type { ObjectStore } from './hosting/ports.ts';
+import { JobLeaseLostError, TerminalJobError } from './runtime/jobs.ts';
 export type VideoRenderTask = {
   schemaVersion: 1;
   title: string;
@@ -222,20 +223,40 @@ export async function registerVideoRoutes(
       context.signal,
       AbortSignal.timeout(15 * 60 * 1000),
     ]);
-    const bytes = await renderer.render({
-      content: task.content,
-      title: task.title,
-      assets,
-      format: task.format,
-      signal,
-      onProgress: async (progress) => {
-        await context.assertCurrent({ requireCurrentVersion: true });
-        await context.progress({
-          percent: Math.max(0, Math.min(99, progress * 100)),
-          label: 'Rendering video',
-        });
-      },
-    });
+    let bytes: Buffer;
+    try {
+      bytes = await renderer.render({
+        content: task.content,
+        title: task.title,
+        assets,
+        format: task.format,
+        signal,
+        onProgress: async (progress) => {
+          await context.assertCurrent({ requireCurrentVersion: true });
+          await context.progress({
+            percent: Math.max(0, Math.min(99, progress * 100)),
+            label: 'Rendering video',
+          });
+        },
+      });
+    } catch (error) {
+      if (
+        context.signal.aborted ||
+        error instanceof JobLeaseLostError ||
+        error instanceof HttpError
+      )
+        throw error;
+      if (signal.aborted)
+        throw new TerminalJobError(
+          'The video render exceeded its 15 minute limit. Reduce resolution, duration, or frame rate before retrying.',
+        );
+      if (renderer.runtime === 'long-lived-worker')
+        throw new TerminalJobError(
+          'Video rendering failed: ' +
+            (error instanceof Error ? error.message : String(error)).slice(0, 1000),
+        );
+      throw error;
+    }
     if (bytes.length < 100 || bytes.length > MAX_OUTPUT_BYTES)
       throw new HttpError(
         413,
@@ -419,8 +440,9 @@ export async function registerVideoRoutes(
       });
       // The SQL snapshot/outbox is committed before external dispatch. Maintenance recovers a failed acknowledgment.
       await runtime.flushOutbox(4).catch(() => {});
+      const result = await publicJob(job.id, initial.id);
       await store.artifact(initial.id, user.id);
-      return reply.code(202).send(await publicJob(job.id, initial.id));
+      return reply.code(202).send(result);
     },
   );
   app.get<{ Params: { id: string } }>(
