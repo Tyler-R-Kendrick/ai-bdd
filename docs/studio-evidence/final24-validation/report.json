@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "runtimeSource": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+  "followupFixturePatch": "93f89e1739be723fbe6ff525707e008e1ba554c9",
+  "followupWorktreeHead": "2851e1af839c1d94ba1842dcbccc845170a75e32",
+  "environment": {
+    "node": "24.19.0",
+    "pnpm": "10.28.0",
+    "postgresServerVersionNum": 170011,
+    "database": "Existing synthetic PostgreSQL fixture; no volumes or ports changed",
+    "followupChromium": "/usr/bin/chromium",
+    "chromiumVersion": "154.0.8037.57 (Debian trixie)"
+  },
+  "fullStudioRun": {
+    "files": 109,
+    "totalTests": 770,
+    "passed": 754,
+    "failed": 2,
+    "blockedBySuiteSetup": 14,
+    "vitestDurationSeconds": 195.11,
+    "failureDetails": [
+      {
+        "file": "tests/conversation.test.ts",
+        "cases": 2,
+        "reason": "Existing assertions expected questionnaire as last document node; canonical editable trailing paragraph is now last. Corrected by the named fixture-only patch."
+      },
+      {
+        "file": "tests/code-bundler.test.ts",
+        "blockedCases": 14,
+        "reason": "Local Playwright chromium_headless_shell-1248 was not installed; corrected by selecting the existing system Chromium without product changes."
+      }
+    ]
+  },
+  "focusedFollowup": {
+    "files": 2,
+    "totalTests": 43,
+    "passed": 43,
+    "failed": 0,
+    "skipped": 0,
+    "vitestDurationSeconds": 8.87,
+    "coverage": [
+      "29 conversation cases, including SQLite and PostgreSQL",
+      "14 real Chromium code-bundler cases"
+    ],
+    "environmentCorrection": {
+      "STUDIO_CHROMIUM_PATH": "/usr/bin/chromium"
+    }
+  },
+  "formal": {
+    "exactLayoutCertificates": 6,
+    "finiteRoleCases": 9,
+    "compiledHandwiredVerdict": "unsat",
+    "tensorEquivalenceCases": 483330,
+    "externalMagnetar": {
+      "verified": false,
+      "status": "not-requested"
+    }
+  },
+  "scope": [
+    "No claim of one clean 770-case full pass: baseline and focused runs are reported separately.",
+    "Production Studio build includes typechecking, Vite client, server/hosting bundles and portable connector.",
+    "No fat Docker build, SDK test repetition, live-provider acceptance or full-App browser run in this lane.",
+    "No product source changes were made."
+  ],
+  "commands": {
+    "build": {
+      "source": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+      "name": "build",
+      "command": [
+        "/workspace/.ai-bdd-tools/node_modules/.bin/pnpm",
+        "--filter",
+        "@ai-bdd/studio",
+        "build"
+      ],
+      "cwd": "/workspace/ai-bdd/work/continuation/final24-qa",
+      "startedAt": "2026-10-30T04:32:13.271063+00:00",
+      "durationSeconds": 18.623,
+      "exitCode": 0,
+      "postgresConfigured": false
+    },
+    "typecheck": {
+      "source": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+      "name": "typecheck",
+      "command": [
+        "/workspace/.ai-bdd-tools/node_modules/.bin/pnpm",
+        "--filter",
+        "@ai-bdd/studio",
+        "typecheck"
+      ],
+      "cwd": "/workspace/ai-bdd/work/continuation/final24-qa",
+      "startedAt": "2026-10-30T04:34:00.094055+00:00",
+      "durationSeconds": 11.304,
+      "exitCode": 0,
+      "postgresConfigured": false
+    },
+    "lint": {
+      "source": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+      "name": "lint",
+      "command": [
+        "/workspace/.ai-bdd-tools/node_modules/.bin/pnpm",
+        "exec",
+        "oxlint",
+        "packages/studio"
+      ],
+      "cwd": "/workspace/ai-bdd/work/continuation/final24-qa",
+      "startedAt": "2026-10-30T04:32:44.930012+00:00",
+      "durationSeconds": 0.519,
+      "exitCode": 0,
+      "postgresConfigured": false
+    },
+    "formal": {
+      "source": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+      "name": "formal",
+      "command": [
+        "/workspace/.ai-bdd-tools/node_modules/.bin/pnpm",
+        "--filter",
+        "@ai-bdd/studio",
+        "verify"
+      ],
+      "cwd": "/workspace/ai-bdd/work/continuation/final24-qa",
+      "startedAt": "2026-10-30T04:32:44.921443+00:00",
+      "durationSeconds": 1.394,
+      "exitCode": 0,
+      "postgresConfigured": false
+    },
+    "tests-pg": {
+      "source": "ddee70150b81adb37e344709c026d3c1c9e9646e",
+      "name": "tests-pg",
+      "command": [
+        "/workspace/.ai-bdd-tools/node_modules/.bin/pnpm",
+        "--filter",
+        "@ai-bdd/studio",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.config.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=../../work/review/final24-qa/vitest.json"
+      ],
+      "cwd": "/workspace/ai-bdd/work/continuation/final24-qa",
+      "startedAt": "2026-10-30T04:33:49.669490+00:00",
+      "durationSeconds": 195.711,
+      "exitCode": 1,
+      "postgresConfigured": true
+    },
+    "followup": {
+      "source": "2851e1af839c1d94ba1842dcbccc845170a75e32",
+      "name": "followup",
+      "command": [
+        "/workspace/.ai-bdd-tools/node_modules/.bin/pnpm",
+        "--filter",
+        "@ai-bdd/studio",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.config.ts",
+        "tests/conversation.test.ts",
+        "tests/code-bundler.test.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=../../work/review/final24-qa/followup-vitest.json"
+      ],
+      "cwd": "/workspace/ai-bdd/work/continuation/final24-qa",
+      "startedAt": "2026-10-30T04:38:00.730619+00:00",
+      "durationSeconds": 9.326,
+      "exitCode": 0,
+      "postgresConfigured": true
+    }
+  }
+}
