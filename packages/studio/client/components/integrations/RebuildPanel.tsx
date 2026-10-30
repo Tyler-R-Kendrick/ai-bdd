@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Artifact } from '../../../shared/domain.ts';
 import { api, date } from '../../lib.ts';
-import { Badge, Button, Spinner } from '../ui.tsx';
+import { Badge, Button, Select, Spinner } from '../ui.tsx';
 import './rebuild.css';
 export type RebuildSnapshot = {
+  artifactId?: string;
   pending?: { dueAt: number; error: string | null } | null;
   currentSourceSha256: string;
   automaticEnabled: boolean;
@@ -38,16 +39,38 @@ export function RebuildPanel({
 }) {
   const [snapshot, setSnapshot] = useState<RebuildSnapshot | null>(null),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
-  const refresh = useCallback(
-    async () =>
-      setSnapshot(
-        await api<RebuildSnapshot>(
-          `/artifacts/${artifact.id}/implementation/rebuild`,
-        ),
+    [error, setError] = useState(''),
+    [machines, setMachines] = useState<
+      { id: string; label: string; connected: boolean }[]
+    >([]),
+    [machineId, setMachineId] = useState('');
+  const sequence = useRef(0);
+  const refresh = useCallback(async () => {
+    const request = ++sequence.current;
+    const [value, ownMachines] = await Promise.all([
+      api<Omit<RebuildSnapshot, 'artifactId'>>(
+        `/artifacts/${artifact.id}/implementation/rebuild`,
       ),
-    [artifact.id],
-  );
+      api<{ id: string; label: string; connected: boolean }[]>(
+        `/artifacts/${artifact.id}/implementation/machines`,
+      ),
+    ]);
+    if (request !== sequence.current) return;
+    setSnapshot({ ...value, artifactId: artifact.id });
+    setMachines(ownMachines);
+    setMachineId((current) =>
+      ownMachines.some(
+        (machine) => machine.id === current && machine.connected,
+      )
+        ? current
+        : ((
+            ownMachines.find(
+              (machine) =>
+                machine.id === value.baseline?.machineId && machine.connected,
+            ) ?? ownMachines.find((machine) => machine.connected)
+          )?.id ?? ''),
+    );
+  }, [artifact.id]);
   useEffect(() => {
     let active = true;
     const load = () =>
@@ -58,6 +81,7 @@ export function RebuildPanel({
     const timer = setInterval(load, 5000);
     return () => {
       active = false;
+      sequence.current++;
       clearInterval(timer);
     };
   }, [refresh, artifact.version]);
@@ -76,7 +100,7 @@ export function RebuildPanel({
       setBusy(false);
     }
   };
-  if (!snapshot)
+  if (!snapshot || snapshot.artifactId !== artifact.id)
     return error ? <p className="field-error">{error}</p> : <Spinner />;
   if (!snapshot.baseline)
     return (
@@ -113,8 +137,29 @@ export function RebuildPanel({
       </p>
       {!readOnly && (
         <div className="rebuild-actions">
+          <label>
+            Your rebuild machine
+            <Select
+              aria-label="Rebuild machine"
+              value={machineId}
+              disabled={busy || !!running}
+              onChange={(event) => setMachineId(event.target.value)}
+            >
+              <option value="">Connect your own machine</option>
+              {machines.map((machine) => (
+                <option
+                  key={machine.id}
+                  value={machine.id}
+                  disabled={!machine.connected}
+                >
+                  {machine.label}
+                  {machine.connected ? '' : ' · offline'}
+                </option>
+              ))}
+            </Select>
+          </label>
           <Button
-            disabled={busy || !!running || !snapshot.changes}
+            disabled={busy || !!running || !snapshot.changes || !machineId}
             onClick={() =>
               void act(() =>
                 api(
