@@ -58,6 +58,10 @@ type DraftJob = {
   error?: string | null;
   createdAt: string;
 };
+type Readiness = {
+  ready: boolean;
+  blockers: { id: string; message: string; question?: string }[];
+};
 
 function GraphDiagram({
   definition,
@@ -656,6 +660,7 @@ export function ImplementationPanel({
     [commit, setCommit] = useState(''),
     [revisionReason, setRevisionReason] = useState(''),
     [draftJobs, setDraftJobs] = useState<DraftJob[]>([]);
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
   const currentId = useRef(artifact.id);
   const draftRequestId = useRef<string | null>(null);
   const pendingReport = useRef<{
@@ -682,8 +687,10 @@ export function ImplementationPanel({
       const events = await api<ImplementationEvent[]>(base + '/history');
       if (currentId.current === id) setHistory(events);
       const drafts = await api<{ jobs: DraftJob[] }>(base + '/draft');
+      const ready = await api<Readiness>(base + '/readiness');
       if (currentId.current === id) {
         setDraftJobs(drafts.jobs);
+        setReadiness(ready);
         if (
           drafts.jobs[0] &&
           !['queued', 'running', 'retrying'].includes(drafts.jobs[0].status)
@@ -697,6 +704,7 @@ export function ImplementationPanel({
     setEditing(false);
     setError('');
     setDraftJobs([]);
+    setReadiness(null);
     draftRequestId.current = null;
     pendingReport.current = null;
     void load().catch(fail);
@@ -843,6 +851,23 @@ export function ImplementationPanel({
           )}
           {snapshot && (
             <>
+              {readiness && !readiness.ready && (
+                <section
+                  className="implementation-error"
+                  aria-label="Build prerequisites"
+                >
+                  <strong>
+                    Resolve these items before approval or execution
+                  </strong>
+                  <ul>
+                    {readiness.blockers.map((blocker) => (
+                      <li key={blocker.id + (blocker.question ?? '')}>
+                        {blocker.message}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               {locked && (
                 <p className="implementation-lock" role="status">
                   <GitBranch />
@@ -888,7 +913,9 @@ export function ImplementationPanel({
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={disabled || draftPending}
+                    disabled={
+                      disabled || draftPending || readiness?.ready === false
+                    }
                     onClick={() =>
                       void action('Requesting task draft…', async () => {
                         draftRequestId.current ??= crypto.randomUUID();
@@ -1056,6 +1083,7 @@ export function ImplementationPanel({
                         size="sm"
                         disabled={
                           disabled ||
+                          readiness?.ready === false ||
                           graph.planRevision !== snapshot.planRevision
                         }
                         onClick={() =>
@@ -1091,7 +1119,11 @@ export function ImplementationPanel({
                         </p>
                         <Button
                           size="sm"
-                          disabled={disabled || !project.repository}
+                          disabled={
+                            disabled ||
+                            !project.repository ||
+                            readiness?.ready === false
+                          }
                           onClick={() =>
                             void action('Queuing implementation…', () =>
                               api(base + '/queue', 'POST', {
@@ -1138,6 +1170,7 @@ export function ImplementationPanel({
                               variant="outline"
                               disabled={
                                 disabled ||
+                                readiness?.ready === false ||
                                 !branch ||
                                 !commit ||
                                 !project.repository
