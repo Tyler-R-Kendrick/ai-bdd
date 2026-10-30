@@ -54,6 +54,7 @@ export type AudioServices = {
   runtime: DurableJobRuntime;
   objects: ObjectStore;
   renderDriver?: AudioRenderDriver;
+  sourceProbe?: typeof probeAudio;
 };
 /** SQL owns snapshots, leases, cancellation, receipts, and results; queue messages contain only the durable job ID. */
 export async function registerAudioRoutes(
@@ -62,11 +63,14 @@ export async function registerAudioRoutes(
 ) {
   const { store, auth, runtime, objects } = dependencies;
   const renderer = dependencies.renderDriver ?? cpuAudioRenderDriver;
-  await store.db
-    .exec(`CREATE TABLE IF NOT EXISTS audio_render_jobs(sequence INTEGER NOT NULL UNIQUE,id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,artifact_version INTEGER NOT NULL,user_id TEXT NOT NULL REFERENCES users(id),format TEXT NOT NULL,status TEXT NOT NULL,progress REAL NOT NULL DEFAULT 0,file_id TEXT REFERENCES files(id),error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
+  await store.tx(async () => {
+    await store.db.lock('schema:studio.audio');
+    await store.db
+      .exec(`CREATE TABLE IF NOT EXISTS audio_render_jobs(sequence INTEGER NOT NULL UNIQUE,id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,artifact_version INTEGER NOT NULL,user_id TEXT NOT NULL REFERENCES users(id),format TEXT NOT NULL,status TEXT NOT NULL,progress REAL NOT NULL DEFAULT 0,file_id TEXT REFERENCES files(id),error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
     CREATE INDEX IF NOT EXISTS audio_render_artifact ON audio_render_jobs(artifact_id,created_at);
     CREATE TABLE IF NOT EXISTS studio_audio_staging(object_key TEXT PRIMARY KEY,job_id TEXT NOT NULL REFERENCES studio_durable_jobs(id) ON DELETE CASCADE,fence INTEGER NOT NULL,sha256 TEXT NOT NULL,byte_size INTEGER NOT NULL,state TEXT NOT NULL,created_at INTEGER NOT NULL,next_cleanup INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS studio_audio_staging_due ON studio_audio_staging(state,next_cleanup);`);
+  });
   function snapshot(job: DurableJob): AudioRenderTask {
     const value = snapshotSchema.parse(job.snapshot);
     return { ...value, content: audioContentSchema.parse(value.content) };
@@ -383,7 +387,7 @@ export async function registerAudioRoutes(
         hash(bytes) !== file.sha256
       )
         throw new HttpError(409, 'The source failed its integrity check.');
-      const probe = await probeAudio(bytes);
+      const probe = await (dependencies.sourceProbe ?? probeAudio)(bytes);
       await store.artifact(artifact.id, user.id);
       return { ...probe, sha256: file.sha256, byteSize: file.byteSize };
     },
