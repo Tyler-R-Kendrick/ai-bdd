@@ -177,6 +177,22 @@ describe('asynchronous SQL adapter boundaries', () => {
     expect(file.bytes).toBeUndefined();
     expect(file.byteSize).toBe(bytes.length);
     expect(file.storageKey).toContain(hash(bytes));
+    await store.registerFile(user, project.mainArtifactId, {
+      id: file.id,
+      name: 'fixture.txt',
+      mime: 'text/plain',
+      sha256: hash(bytes),
+      storageKey: file.storageKey,
+      byteSize: bytes.length,
+    });
+    expect(
+      await store.all(
+        "SELECT action,actor,detail FROM audit WHERE artifact_id=? AND action='file.uploaded'",
+        project.mainArtifactId,
+      ),
+    ).toEqual([
+      { action: 'file.uploaded', actor: user.name, detail: 'fixture.txt' },
+    ]);
     expect(
       (
         await store.one(

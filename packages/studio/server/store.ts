@@ -1114,6 +1114,13 @@ export class Store {
         input.storageKey ?? null,
         input.byteSize,
       );
+      await this.audit(
+        artifact.projectId,
+        artifactId,
+        user.name,
+        'file.uploaded',
+        input.name,
+      );
       return this.file(id, user.id);
     });
   }
