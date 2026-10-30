@@ -31,6 +31,47 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('reports exhausted active model time back to the durable server instead of leaving its lease running forever', async () => {
+    const w = await remoteFixture(),
+      controller = new AbortController();
+    let attached = false,
+      entered = false;
+    const client = connectRemotePlanner({
+      origin: w.origin,
+      artifactId: w.artifact.id,
+      token: 'explicit-fixture-token',
+      signal: controller.signal,
+      activeTurnMs: 100,
+      onAttached: () => {
+        attached = true;
+      },
+      run: async (_turn, signal) => {
+        entered = true;
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true }),
+        );
+        return { text: 'An expired model turn cannot publish.', content: null };
+      },
+    });
+    try {
+      await until(() => attached);
+      const run = await w.start();
+      await until(() => entered);
+      await until(
+        async () => (await w.runtime.get(run.job.id))?.status !== 'running',
+      );
+      await run.done;
+      expect((await w.runtime.get(run.job.id))?.status).toBe('queued');
+      expect(
+        (await w.store.messages(w.artifact.id)).filter(
+          (m) => m.role === 'assistant',
+        ),
+      ).toHaveLength(0);
+    } finally {
+      controller.abort();
+      await client;
+    }
+  });
   it('aborts the actual selected-user repository read when its durable remote turn is stopped', async () => {
     const w = await remoteFixture();
     await w.store.exec(
