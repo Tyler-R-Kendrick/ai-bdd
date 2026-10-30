@@ -70,6 +70,7 @@ import {
 } from '../../shared/video-appearance.ts';
 import { MediaClip } from './video/MediaClip.tsx';
 import { importVideoProject, videoProject } from './video/project.ts';
+import { mediaDecodeError } from './video/media-capabilities.ts';
 import './video/editor.css';
 type RenderJob = {
   id: string;
@@ -172,11 +173,7 @@ function mediaMetadata(
       finish();
     };
     element.onerror = () =>
-      finish(
-        new Error(
-          'The browser cannot decode this media. Use MP4, WebM, WAV, MP3, or Ogg.',
-        ),
-      );
+      finish(new Error(mediaDecodeError(file, element)));
     element.src = url;
   });
 }

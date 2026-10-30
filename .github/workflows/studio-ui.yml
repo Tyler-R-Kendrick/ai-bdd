@@ -30,6 +30,8 @@ jobs:
       - run: pnpm build
       - name: Install Chromium for both runner and UI checks
         run: pnpm --filter @ai-bdd/studio exec playwright install --with-deps chromium
+      - name: Prepare SHA-pinned official Chrome for real H.264 MP4 acceptance
+        run: node packages/studio/verification/prepare-mp4-browser.mjs
       - name: Install the encoder used by real media render checks
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Artifact API, collaboration, renderer, media, and Pact checks
