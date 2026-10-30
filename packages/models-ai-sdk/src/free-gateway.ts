@@ -155,22 +155,63 @@ export async function freeGatewayModels(kind: FreeGatewayModelKind, options: Pic
   return quotes.flatMap(quote => quote.status === 'fulfilled' ? [quote.value.modelId] : []);
 }
 
+const maximumRequestBytes = 16 * 1024 * 1024;
+const requestBodyTimeout = 10000;
+
+/** Consume the original Request stream so no unread clone branch can retain unbounded input. */
+async function boundedRequestBody(request: Request, signal: AbortSignal | null | undefined) {
+  signal?.throwIfAborted();
+  if (request.bodyUsed || !request.body || request.body.locked) throw new FreeGatewayPolicyError('transport');
+  const reader = request.body.getReader();
+  const timeout = AbortSignal.timeout(requestBodyTimeout);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  const deadline = performance.now() + requestBodyTimeout;
+  let content = new Uint8Array(0);
+  let bytes = 0;
+  try {
+    while (true) {
+      combined.throwIfAborted();
+      const part = await abortable(reader.read(), combined);
+      combined.throwIfAborted();
+      // A stream yielding immediately can starve the deadline's timer. Check
+      // elapsed time as well as racing each potentially blocked read.
+      if (performance.now() > deadline) throw new FreeGatewayPolicyError('transport');
+      if (part.done) break;
+      if (!(part.value instanceof Uint8Array)) throw new FreeGatewayPolicyError('transport');
+      bytes += part.value.byteLength;
+      if (bytes > maximumRequestBytes) throw new FreeGatewayPolicyError('transport');
+      if (bytes > content.byteLength) {
+        const grown = new Uint8Array(Math.min(maximumRequestBytes, Math.max(bytes, content.byteLength * 2, 16384)));
+        grown.set(content); content = grown;
+      }
+      content.set(part.value, bytes - part.value.byteLength);
+    }
+    return new TextDecoder('utf-8', { fatal: true }).decode(content.subarray(0, bytes));
+  } catch {
+    cancelQuietly(reader);
+    if (signal?.aborted) throw signal.reason;
+    throw new FreeGatewayPolicyError('transport');
+  } finally { reader.releaseLock(); }
+}
+
 /** Decode the request the SDK will actually send, before any public-price or inference fetch. */
 async function gatewayRequest(input: Parameters<GatewayFetch>[0], init: Parameters<GatewayFetch>[1], inferenceBase: URL, basePath: string) {
   const target = new URL(input instanceof Request ? input.url : String(input));
   const kind: FreeGatewayModelKind | null = target.pathname === basePath + '/language-model' ? 'language' : target.pathname === basePath + '/decision-model' ? 'evaluation' : null;
   if (target.username || target.password || target.origin !== inferenceBase.origin || !kind || target.search || target.hash || (init?.method ?? (input instanceof Request ? input.method : 'GET')) !== 'POST')
     throw new FreeGatewayPolicyError('transport');
+  // Fetch's explicit null clears a Request signal; undefined inherits it.
+  const signal = init?.signal !== undefined ? init.signal : (input instanceof Request ? input.signal : undefined);
+  signal?.throwIfAborted();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
   const id = headers.get(kind === 'language' ? 'ai-language-model-id' : 'ai-model-id') ?? '';
-  const raw = init?.body ?? (input instanceof Request ? await input.clone().text() : undefined);
-  if (typeof raw !== 'string' || new TextEncoder().encode(raw).byteLength > 16 * 1024 * 1024)
+  const raw = init?.body ?? (input instanceof Request ? await boundedRequestBody(input, signal) : undefined);
+  if (typeof raw !== 'string' || new TextEncoder().encode(raw).byteLength > maximumRequestBytes)
     throw new FreeGatewayPolicyError('transport');
   let body: unknown;
   try { body = JSON.parse(raw); } catch { throw new FreeGatewayPolicyError('transport'); }
   if (!record(body)) throw new FreeGatewayPolicyError('transport');
-  const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
   return { target, kind, headers, id, body, signal };
 }
 
