@@ -1,3 +1,4 @@
+import { readPlanSource } from '../plan-source.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -192,7 +193,11 @@ export class ImplementationMachines {
     const result = await this.atomic(initial.projectId, async () => {
       const artifact = await this.store.artifact(artifactId, user.id, 'write');
       await this.store.db.lock('implementation-machine:' + artifactId);
-      if(await this.dependencies.artifactWorkActive?.(artifactId))throw new HttpError(409,'An existing-PR rebuild is already active for this document');
+      if (await this.dependencies.artifactWorkActive?.(artifactId))
+        throw new HttpError(
+          409,
+          'An existing-PR rebuild is already active for this document',
+        );
       if (
         await this.store.one(
           "SELECT id FROM studio_implementation_machine_queue WHERE artifact_id=? AND status IN ('queued','launching','running')",
@@ -269,8 +274,13 @@ export class ImplementationMachines {
           409,
           'Only a reviewed draft or approved graph can be queued',
         );
-      const source = JSON.stringify(artifact.content),
+      const source = JSON.stringify(await readPlanSource(this.store, artifact)),
         at = time();
+      if (Buffer.byteLength(source) > 1024 * 1024)
+        throw new HttpError(
+          413,
+          'The complete plan and accepted decisions exceed the 1 MiB machine source limit; split the document.',
+        );
       await this.store.exec(
         'INSERT INTO studio_implementation_machine_queue(id,artifact_id,project_id,user_id,machine_id,expected_json,source_json,source_sha256,graph_json,repository,source_commit,branch,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         queuedId,
@@ -383,7 +393,8 @@ export class ImplementationMachines {
       );
       if (
         artifact.version !== JSON.parse(row.expected_json).planRevision ||
-        hash(JSON.stringify(artifact.content)) !== row.source_sha256
+        hash(JSON.stringify(await readPlanSource(this.store, artifact))) !==
+          row.source_sha256
       )
         throw new HttpError(
           409,

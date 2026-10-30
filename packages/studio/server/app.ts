@@ -1495,6 +1495,8 @@ export async function createApp(
           'decision.updated',
           JSON.stringify({ previous, next: b }),
         );
+        if (previous.status === 'accepted' || b.status === 'accepted')
+          await store.touchArtifactSource(u, a.id);
       });
       await collab.notify(a.projectId, a.id);
       return { ok: true };

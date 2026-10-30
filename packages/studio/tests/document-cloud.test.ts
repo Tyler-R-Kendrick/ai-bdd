@@ -271,6 +271,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           '/questionnaires/questionnaire/answers',
           {
             ...input,
+            version: (await f.state()).version,
             optionId: 'b',
             answer: 'A genuinely new response needs another history row.',
           },
@@ -387,7 +388,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           'POST',
           '/questionnaires/questionnaire/answers',
           {
-            version,
+            version: (await f.state()).version,
             questionId: 'approach',
             optionId: 'b',
             answer: 'A revised answer',
@@ -423,7 +424,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           f.b,
           'POST',
           `/answers/${second.json().id}/accept-decision`,
-          { version },
+          { version: (await f.state()).version },
         );
         expect(accepted.statusCode, accepted.body).toBe(201);
         const exported = await documentReviewExportPage(
@@ -676,7 +677,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           'POST',
           '/questionnaires/questionnaire/answers',
           {
-            version: state.version,
+            version: (await f.state()).version,
             questionId: 'approach',
             optionId: 'a',
             answer: 'Use a contract fixture.',
@@ -687,12 +688,12 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           f.a,
           'POST',
           '/answers/' + answer.json().id + '/accept-decision',
-          { version: state.version },
+          { version: (await f.state()).version },
         );
         expect(accepted.statusCode, accepted.body).toBe(201);
         expect((await readiness()).ready).toBe(true);
         const pending = await f.request(f.a, 'POST', '/suggestions', {
-          version: state.version,
+          version: (await f.state()).version,
           anchor: 'passage',
           from: 11,
           to: 16,
@@ -709,7 +710,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           f.a,
           'POST',
           '/suggestions/' + pending.json().id + '/resolve',
-          { version: state.version, action: 'reject' },
+          { version: (await f.state()).version, action: 'reject' },
         );
         await f.first.exec(
           'INSERT INTO threads(id,artifact_id,anchor,quote,resolved,created_at) VALUES(?,?,?,?,0,?)',
@@ -735,7 +736,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           'POST',
           '/questionnaires/questionnaire/answers',
           {
-            version: state.version,
+            version: (await f.state()).version,
             questionId: 'approach',
             optionId: 'b',
             answer: 'Changed recommendation.',
@@ -747,13 +748,18 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           f.a,
           'POST',
           '/answers/' + newer.json().id + '/accept-decision',
-          { version: state.version },
+          { version: (await f.state()).version },
         );
         expect((await readiness()).ready).toBe(true);
         const changed = structuredClone(state.content);
         changed.doc.content[1].attrs.data.questions[0].question =
           'Which boundary is appropriate now?';
-        await f.a.collab.replace(f.artifactId, f.user, changed, state.version);
+        await f.a.collab.replace(
+          f.artifactId,
+          f.user,
+          changed,
+          (await f.state()).version,
+        );
         expect((await readiness()).blockers[0]).toMatchObject({
           kind: 'questionnaire',
           question: 'Which boundary is appropriate now?',
@@ -783,6 +789,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
             },
           );
         expect(answer.statusCode).toBe(201);
+        const answerVersion = (await f.state()).version;
         let release!: () => void, entered!: () => void;
         const gate = new Promise<void>((resolve) => (release = resolve)),
           inside = new Promise<void>((resolve) => (entered = resolve)),
@@ -793,7 +800,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           f.artifactId,
           f.user,
           content,
-          before.version,
+          answerVersion,
           async () => {
             entered();
             await gate;
@@ -808,7 +815,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           f.b,
           'POST',
           `/answers/${answer.json().id}/accept-decision`,
-          { version: before.version },
+          { version: answerVersion },
         );
         try {
           if (observed) await observed.wait();

@@ -70,11 +70,7 @@ export type AgentOptions = {
   runtime: DurableJobRuntime;
   implementationLocked?: (id: string) => Promise<boolean>;
   onGeneratedArtifact?: (id: string) => Promise<void>;
-  observeMessage?: (
-    user: User,
-    id: string,
-    threadId: string,
-  ) => Promise<void>;
+  observeMessage?: (user: User, id: string, threadId: string) => Promise<void>;
   remote?: RemotePlanner;
   repositoryRead?: RepositoryReadPort;
   decisions?: DecisionModels;
@@ -325,12 +321,7 @@ export class Agent {
     }
   }
   /** Called only after a human message has committed. Title maintenance is independent of manual/automatic chat mode. */
-  async observeMessage(
-    user: User,
-    id: string,
-    threadId: string,
-    body: string,
-  ) {
+  async observeMessage(user: User, id: string, threadId: string, body: string) {
     await this.options.observeMessage?.(user, id, threadId);
     const policy = await this.policy(user, id),
       addressed = /(?:^|\s)@(studio|chopin)\b/i.test(body);
@@ -348,8 +339,7 @@ export class Agent {
       recent
         .filter(
           (m) =>
-            m.role === 'user' &&
-            Date.now() - Date.parse(m.createdAt) < 300000,
+            m.role === 'user' && Date.now() - Date.parse(m.createdAt) < 300000,
         )
         .map((m) => m.authorId),
     ).size;
@@ -403,10 +393,7 @@ export class Agent {
   private async references(user: User, projectId: string, text: string) {
     const ids = [
       ...new Set(
-        Array.from(
-          text.matchAll(/#artifact:([0-9a-f-]{36})/gi),
-          (m) => m[1]!,
-        ),
+        Array.from(text.matchAll(/#artifact:([0-9a-f-]{36})/gi), (m) => m[1]!),
       ),
     ].slice(0, 8);
     return (
@@ -455,8 +442,7 @@ export class Agent {
       );
     const submittedBrief = brief.trim(),
       key =
-        'agent:' +
-        hash([user.id, id, options.idempotencyKey ?? randomUUID()]);
+        'agent:' + hash([user.id, id, options.idempotencyKey ?? randomUUID()]);
     const requestHash = hash({
       userId: user.id,
       id,
@@ -607,11 +593,7 @@ export class Agent {
             0,
             18000,
           ),
-          references: await this.references(
-            user,
-            artifact.projectId,
-            messages,
-          ),
+          references: await this.references(user, artifact.projectId, messages),
           artifact: {
             id,
             title: artifact.title,
@@ -717,13 +699,9 @@ export class Agent {
   private async guard(ctx: DurableJobContext, snapshot: Snapshot) {
     await ctx.assertCurrent({ requireCurrentVersion: false });
     const policy = await this.policy(snapshot.user, ctx.job.artifactId);
-    if (policy.paused)
-      throw new HttpError(409, 'The artifact agent is paused');
+    if (policy.paused) throw new HttpError(409, 'The artifact agent is paused');
     if (await this.options.implementationLocked?.(ctx.job.artifactId))
-      throw new HttpError(
-        409,
-        'An active implementation locks this artifact',
-      );
+      throw new HttpError(409, 'An active implementation locks this artifact');
     const owner = await this.store.one(
       'SELECT * FROM studio_planner_owners WHERE artifact_id=?',
       ctx.job.artifactId,
@@ -809,6 +787,11 @@ export class Agent {
     idempotencyKey: string;
     profile?: AgentProfile;
   }) {
+    if (Buffer.byteLength(input.text) > 70000)
+      throw new HttpError(
+        413,
+        'The complete plan and accepted decisions exceed the graph context budget; split the document or edit the graph directly.',
+      );
     const profile =
       input.profile ?? (await this.profiles.selected(input.artifact.id));
     const result = await generateText({
@@ -822,7 +805,7 @@ export class Agent {
           title: input.artifact.title,
           kind: input.artifact.kind,
         },
-        plan: input.text.slice(0, 70000),
+        plan: input.text,
       }),
       output: Output.object({ schema: implementationDefinitionSchema }),
       abortSignal: input.signal,

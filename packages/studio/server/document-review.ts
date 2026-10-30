@@ -129,12 +129,13 @@ export async function registerDocumentReview(
     id: string,
     user: User,
     operation: (artifact: Artifact) => Promise<T>,
+    guard = true,
   ): Promise<T> => {
     const initial = await document(id, user, 'write');
     const result = await store.tx(async () => {
       await store.db.lock('project:' + initial.projectId);
       const current = await document(id, user, 'write');
-      await store.artifactWriteGuard?.(current, user.id);
+      if (guard) await store.artifactWriteGuard?.(current, user.id);
       return operation(current);
     });
     await collab.notify(initial.projectId, initial.id);
@@ -408,81 +409,88 @@ export async function registerDocumentReview(
           })
           .strict()
           .parse(req.body);
-      const result = await write(req.params.id, user, async (artifact) => {
-        current(artifact, body.version);
-        const questionnaire = conflict(() =>
-            questionnaireAt(artifact.content.doc, req.params.anchor),
-          ),
-          question = questionnaire.questions.find(
-            (question) => question.id === body.questionId,
-          ),
-          option = question?.options.find(
-            (option) => option.id === body.optionId,
+      const result = await write(
+        req.params.id,
+        user,
+        async (artifact) => {
+          const questionnaire = conflict(() =>
+              questionnaireAt(artifact.content.doc, req.params.anchor),
+            ),
+            question = questionnaire.questions.find(
+              (question) => question.id === body.questionId,
+            ),
+            option = question?.options.find(
+              (option) => option.id === body.optionId,
+            );
+          if (!question || !option)
+            throw new HttpError(
+              400,
+              'Choose an option from the current questionnaire',
+            );
+          if (!question.allowText && body.answer)
+            throw new HttpError(
+              400,
+              'This question does not accept a written answer',
+            );
+          const previous = await store.one(
+            'SELECT * FROM document_answers WHERE artifact_id=? AND anchor=? AND question_id=? AND author_id=? ORDER BY rowid DESC LIMIT 1',
+            artifact.id,
+            req.params.anchor,
+            question.id,
+            user.id,
           );
-        if (!question || !option)
-          throw new HttpError(
-            400,
-            'Choose an option from the current questionnaire',
+          if (
+            previous &&
+            previous.option_id === option.id &&
+            previous.answer === body.answer &&
+            previous.question_snapshot === JSON.stringify(question)
+          )
+            return {
+              created: false,
+              answer: await store.one(
+                `SELECT ${answerColumns} FROM document_answers WHERE id=?`,
+                previous.id,
+              ),
+            };
+          current(artifact, body.version);
+          await store.artifactWriteGuard?.(artifact, user.id);
+          await quota('document_answers', artifact.id);
+          const id = randomUUID();
+          await store.exec(
+            'INSERT INTO document_answers(id,project_id,artifact_id,anchor,question_id,option_id,answer,question,option,question_snapshot,author_id,author,created_at,supersedes_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            id,
+            artifact.projectId,
+            artifact.id,
+            req.params.anchor,
+            question.id,
+            option.id,
+            body.answer,
+            question.question,
+            option.label,
+            JSON.stringify(question),
+            user.id,
+            user.name,
+            stamp(),
+            previous?.id ?? null,
           );
-        if (!question.allowText && body.answer)
-          throw new HttpError(
-            400,
-            'This question does not accept a written answer',
+          await store.audit(
+            artifact.projectId,
+            artifact.id,
+            user.name,
+            'document.questionnaire.answered',
+            id,
           );
-        const previous = await store.one(
-          'SELECT * FROM document_answers WHERE artifact_id=? AND anchor=? AND question_id=? AND author_id=? ORDER BY rowid DESC LIMIT 1',
-          artifact.id,
-          req.params.anchor,
-          question.id,
-          user.id,
-        );
-        if (
-          previous &&
-          previous.option_id === option.id &&
-          previous.answer === body.answer &&
-          previous.question_snapshot === JSON.stringify(question)
-        )
+          await store.touchArtifactSource(user, artifact.id);
           return {
-            created: false,
+            created: true,
             answer: await store.one(
               `SELECT ${answerColumns} FROM document_answers WHERE id=?`,
-              previous.id,
+              id,
             ),
           };
-        await quota('document_answers', artifact.id);
-        const id = randomUUID();
-        await store.exec(
-          'INSERT INTO document_answers(id,project_id,artifact_id,anchor,question_id,option_id,answer,question,option,question_snapshot,author_id,author,created_at,supersedes_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-          id,
-          artifact.projectId,
-          artifact.id,
-          req.params.anchor,
-          question.id,
-          option.id,
-          body.answer,
-          question.question,
-          option.label,
-          JSON.stringify(question),
-          user.id,
-          user.name,
-          stamp(),
-          previous?.id ?? null,
-        );
-        await store.audit(
-          artifact.projectId,
-          artifact.id,
-          user.name,
-          'document.questionnaire.answered',
-          id,
-        );
-        return {
-          created: true,
-          answer: await store.one(
-            `SELECT ${answerColumns} FROM document_answers WHERE id=?`,
-            id,
-          ),
-        };
-      });
+        },
+        false,
+      );
       return reply.code(result.created ? 201 : 200).send(result.answer);
     },
   );
@@ -576,6 +584,7 @@ export async function registerDocumentReview(
           'decision.accepted-from-questionnaire',
           id,
         );
+        await store.touchArtifactSource(user, artifact.id);
         return { decisionId: id };
       });
       return reply.code(201).send(result);

@@ -1,9 +1,11 @@
+import { readPlanSource } from '../plan-source.ts';
+import { planSourceText, type PlanSource } from '../../shared/plan-source.ts';
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { AgentProfile } from '../../shared/agent-profile.ts';
 import type { Auth } from '../auth.ts';
-import { HttpError, type Store } from '../store.ts';
+import { HttpError, hash, type Store } from '../store.ts';
 import type { Artifact, User } from '../../shared/domain.ts';
 import { docText } from '../../shared/domain.ts';
 import {
@@ -22,6 +24,8 @@ type Snapshot = {
   user: User;
   artifact: Artifact;
   text: string;
+  source?: PlanSource;
+  sourceSha256?: string;
   expected: ImplementationPointer | null;
   profile?: AgentProfile;
 };
@@ -65,15 +69,8 @@ export class ImplementationDrafting {
   }
   async start(user: User, id: string, requestId = randomUUID() as string) {
     z.string().uuid().parse(requestId);
-    const {
-      store,
-      runtime,
-      graphs,
-      provider,
-      allowed,
-      onAdmit,
-      assertReady,
-    } = this.options;
+    const { store, runtime, graphs, provider, allowed, onAdmit, assertReady } =
+      this.options;
     if (!provider)
       throw new HttpError(
         503,
@@ -114,26 +111,27 @@ export class ImplementationDrafting {
       await assertReady?.(artifact);
       await onAdmit(user, id);
       const profile = await this.options.captureProfile?.(user, id);
-      const text = docText(artifact.content.doc);
-      if (!text.trim())
+      const source = await readPlanSource(store, artifact),
+        text = planSourceText(source);
+      if (!docText(artifact.content.doc).trim())
         throw new HttpError(
           409,
           'Write the plan before generating implementation tasks',
         );
-      if (text.length > 70000)
+      if (Buffer.byteLength(text) > 70000)
         throw new HttpError(
           413,
           'The plan exceeds the model draft context limit; edit the task graph directly or split the document',
         );
       const current = await graphs.read(user, id),
-        expected = current.graph
-          ? implementationPointer(current.graph)
-          : null;
+        expected = current.graph ? implementationPointer(current.graph) : null;
       const snapshot: Snapshot = {
         ...(profile ? { profile } : {}),
         user,
         artifact: { ...artifact, content: {} },
         text,
+        source,
+        sourceSha256: hash(JSON.stringify(source)),
         expected,
       };
       const admitted = await runtime.enqueue({
@@ -190,6 +188,16 @@ export class ImplementationDrafting {
           s.user.id,
           'write',
         );
+        const source = await readPlanSource(this.options.store, current);
+        if (
+          s.sourceSha256
+            ? hash(JSON.stringify(source)) !== s.sourceSha256
+            : !!source.acceptedDecisions?.length
+        )
+          throw new HttpError(
+            409,
+            'Accepted decisions or source changed; regenerate the task graph from the current plan.',
+          );
         await assertReady?.(current);
         const graph = await graphs.editInTransaction(
           { user: s.user, kind: 'agent', agentId: 'studio-planner' },
@@ -228,10 +236,8 @@ export function registerImplementationDraftRoutes(
       service.start(
         await auth.user(request),
         request.params.id,
-        z
-          .object({ requestId: z.string().uuid() })
-          .strict()
-          .parse(request.body).requestId,
+        z.object({ requestId: z.string().uuid() }).strict().parse(request.body)
+          .requestId,
       ),
   );
 }

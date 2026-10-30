@@ -219,6 +219,7 @@ describe('attributed document review and questionnaire decisions', () => {
       `/api/artifacts/${f.artifactId}/document/questionnaires/questionnaire/answers`,
       {
         ...input,
+        version: (await f.state()).version,
         optionId: 'b',
         answer: 'After review, the alternative has better evidence.',
       },
@@ -239,13 +240,13 @@ describe('attributed document review and questionnaire decisions', () => {
     const stale = await f.request(
       'POST',
       `/api/artifacts/${f.artifactId}/document/answers/${first.json().id}/accept-decision`,
-      { version: before.version },
+      { version: (await f.state()).version },
     );
     expect(stale.statusCode).toBe(409);
     const accepted = await f.request(
       'POST',
       `/api/artifacts/${f.artifactId}/document/answers/${second.json().id}/accept-decision`,
-      { version: before.version },
+      { version: (await f.state()).version },
     );
     expect(accepted.statusCode, accepted.body).toBe(201);
     const bundle = (
@@ -313,7 +314,7 @@ describe('attributed document review and questionnaire decisions', () => {
     expect(
       (
         await f.request('PATCH', `/api/artifacts/${f.artifactId}`, {
-          version: before.version,
+          version: (await f.state()).version,
           content: changed,
         })
       ).statusCode,
