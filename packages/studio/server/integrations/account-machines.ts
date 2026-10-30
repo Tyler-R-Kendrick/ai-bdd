@@ -248,6 +248,7 @@ export class AccountMachines {
       ['studio_machine_work', "'running'"],
       ['studio_investigations', "'running'"],
       ['studio_implementation_machine_queue', "'launching','running'"],
+      ['studio_rebuild_runs', "'running'"],
     ] as const) {
       if (
         (await this.table(table)) &&
@@ -514,6 +515,11 @@ export class AccountMachines {
           queue.id,
         );
       }
+    if (await this.table('studio_rebuild_runs'))
+      await this.store.exec(
+        `UPDATE studio_rebuild_runs SET status='failed',generation=generation+1,lease_hash=NULL,verifier_hash=NULL,error=?,updated_at=? WHERE machine_id IN (${marks}) AND status IN ('queued','running')`,
+        reason,now(),...children,
+      );
     if (await this.table('studio_investigations'))
       await this.store.exec(
         `UPDATE studio_investigations SET status='interrupted',generation=generation+1,lease_hash=NULL,error=?,updated_at=? WHERE machine_id IN (${marks}) AND status='running'`,
