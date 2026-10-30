@@ -1,3 +1,4 @@
+import { RemoteActivity } from './remote/RemoteActivity.tsx';
 import { IntegrationPanel } from './integrations/IntegrationPanel.tsx';
 import {
   Fragment,
@@ -405,6 +406,19 @@ function ChatPanel({
             : 'Your team, decisions, and agent share this artifact’s context.'}
         </p>
       </div>
+      {threadId && (
+        <RemoteActivity
+          artifactId={bundle.artifact.id}
+          artifactVersion={bundle.artifact.version}
+          threadId={threadId}
+          readOnly={readOnly}
+          active={
+            bundle.agentActive ||
+            bundle.agentProfile?.profile.harness === 'remote-planner'
+          }
+          onError={onError}
+        />
+      )}
       {threadId && (
         <ConversationCards
           artifactId={bundle.artifact.id}

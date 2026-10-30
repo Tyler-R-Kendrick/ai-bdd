@@ -1,0 +1,190 @@
+.remote-activity {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e7e8e2;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.remote-activity header,
+.remote-turn summary,
+.remote-run li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.remote-activity > header {
+  justify-content: space-between;
+}
+.remote-activity h3 {
+  font-size: 12px;
+  font-weight: 600;
+}
+.remote-turn {
+  margin: 8px 0;
+  border: 1px solid #e4e6df;
+  border-radius: 7px;
+  padding: 10px;
+  background: #fcfcfa;
+}
+.remote-turn > summary {
+  cursor: pointer;
+  font-size: 11px;
+}
+.remote-turn > summary > span:last-child {
+  color: #6c7464;
+  margin-left: auto;
+}
+.remote-stream-text,
+.remote-stream-details,
+.remote-tool-calls,
+.remote-runs {
+  margin-top: 12px;
+}
+.remote-note {
+  color: #69745e;
+  line-height: 1.5;
+  font-size: 11px;
+  margin: 8px 0;
+}
+.remote-activity pre {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f0f1ec;
+  padding: 8px;
+  border-radius: 5px;
+}
+.remote-stream-details summary,
+.remote-tool-calls summary {
+  cursor: pointer;
+  color: #636c59;
+  margin: 7px 0;
+}
+.remote-tool-calls summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.remote-run {
+  padding: 10px 0;
+  border-top: 1px solid #e6e7e1;
+}
+.remote-run ol {
+  padding-left: 12px;
+  margin: 8px 0;
+}
+.remote-run li {
+  padding: 5px 0;
+}
+.remote-run li > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.remote-run li small {
+  flex-basis: 100%;
+  color: #79816e;
+}
+.remote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.remote-control-receipts {
+  color: #69745e;
+  padding-left: 16px;
+  margin-top: 10px;
+}
+.remote-control-receipts li {
+  margin-bottom: 6px;
+}
+.remote-control-receipts li span {
+  display: block;
+}
+.remote-question {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #dcd5ec;
+  border-radius: 7px;
+  background: #fff;
+}
+.remote-question header {
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.remote-question-item {
+  border: 0;
+  margin: 12px 0;
+  padding: 0;
+  min-width: 0;
+}
+.remote-question-item legend {
+  font-size: 11px;
+  color: #7c6b99;
+}
+.remote-question-item > p {
+  line-height: 1.6;
+  margin: 6px 0;
+}
+.remote-option {
+  border: 1px solid #e5e2ec;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 6px 0;
+}
+.remote-option label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.remote-option input {
+  flex-shrink: 0;
+  margin-top: 3px;
+  accent-color: #8264b1;
+}
+.remote-option small {
+  display: block;
+  font-size: 11px;
+  color: #6e7565;
+  margin-top: 3px;
+}
+.remote-custom-answer {
+  display: grid;
+  gap: 6px;
+  color: #69745e;
+  font-size: 11px;
+  margin: 10px 0;
+}
+.remote-single-input form,
+.remote-single-input label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.remote-single-input select {
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #dcded5;
+  border-radius: 5px;
+}
+.remote-editor-input {
+  min-height: 160px;
+  font-family: ui-monospace, monospace;
+}
+.remote-activity [role='alert'] {
+  color: #b33838;
+  margin: 8px 0;
+}
+@media (max-width: 600px) {
+  .remote-activity {
+    padding: 10px;
+  }
+  .remote-turn {
+    padding: 8px;
+  }
+  .remote-question {
+    padding: 10px;
+  }
+}
