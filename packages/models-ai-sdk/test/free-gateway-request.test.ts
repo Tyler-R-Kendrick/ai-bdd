@@ -94,7 +94,8 @@ describe('free Gateway SDK request boundary', () => {
     expect(f.inference[0]!.init.signal).toBe(request.signal);
     expect(f.inference[0]!.body.prompt).toEqual(JSON.parse(body).prompt);
     expect(new Headers(f.inference[0]!.init.headers).get('ai-language-model-id')).toBe(modelId);
-    expect(await request.text()).toBe(body);
+    expect(request.bodyUsed).toBe(true);
+    await expect(request.text()).rejects.toBeInstanceOf(TypeError);
   });
 
   it('honors init method, matching model header, body and signal over the Request values', async () => {
