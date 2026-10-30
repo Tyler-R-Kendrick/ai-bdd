@@ -59,13 +59,13 @@ export async function recentAgentDocumentChanges(
   artifactId: string,
   now = Date.now(),
 ): Promise<DocumentAgentChange[]> {
+  // Repository entitlement renewal can perform HTTP and must precede SQL.
+  const initial = await store.artifact(artifactId, user.id);
   return store.tx(async () => {
+    await store.db.lock('project:' + initial.projectId);
     const artifact = await store.artifact(artifactId, user.id);
-    await store.db.lock('project:' + artifact.projectId);
     await store.role(artifact.projectId, user.id);
-    const nodes = nodeHashes(
-      (await store.artifact(artifactId, user.id)).content.doc,
-    );
+    const nodes = nodeHashes(artifact.content.doc);
     const events = await store.all(
       'SELECT actor,detail,created_at FROM audit WHERE artifact_id=? AND action=? AND created_at>=? ORDER BY id DESC LIMIT 12',
       artifactId,
