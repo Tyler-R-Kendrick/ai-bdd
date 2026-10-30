@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "assembledStudio": {
+    "source": "ff88c51d7d6c01a50d6e99789fcf631fb1bda27f",
+    "command": "STUDIO_TEST_POSTGRES_URL=<local PostgreSQL 17 binding> pnpm --dir packages/studio test",
+    "passedFiles": 88,
+    "passedTests": 578,
+    "failedTests": 0,
+    "durationSeconds": 114.93,
+    "actualPostgres": true,
+    "build": "passed; includes client, server, Vercel entry and portable connector",
+    "logs": [
+      "work/root-final-assembled-0218.log",
+      "work/root-final-build-0218.log"
+    ]
+  },
+  "subsequentScopedChanges": [
+    {
+      "source": "377ab3816d1caddb4311510a745c41b17320f2aa",
+      "scope": "Actual multipart client disconnect cancels audio probing and publishes no file",
+      "tests": 4,
+      "result": "passed"
+    },
+    {
+      "source": "00ec9543d132a1520e4112f815804d082f494245",
+      "scope": "Source/tsx video runtime serialization and actual Chromium encoding",
+      "tests": 11,
+      "result": "passed"
+    },
+    {
+      "source": "cd3c351e0f0c1f2544730a88d2fcd8310805a1fb",
+      "scope": "MIDI browser fixture derives its Origin from the actual response; complete integrated run recorded separately",
+      "result": "passed"
+    }
+  ],
+  "browserReceipt": "../final-all-browser/report.json",
+  "workerReceipt": "../../../../packages/studio/verification/evidence/media-container.json",
+  "repositoryReceipt": "../repo-release/report.json",
+  "independentReview": "../runtime-boundary-review.md",
+  "limits": [
+    "Counts belong to their pinned source and must not be summed across overlapping suites.",
+    "This record is local assembled validation, not an assertion that a later hosted final-head CI run passed.",
+    "Provider protocols may be local fixtures as documented in each suite; production deployment and live service acceptance are separate."
+  ]
+}
