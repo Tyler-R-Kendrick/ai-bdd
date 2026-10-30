@@ -197,3 +197,15 @@
     width: 100%;
   }
 }
+/* Native data tables keep intrinsic column sizing inside a prose document. */
+.document-page .investigation-view table,
+.investigation-view table {
+  table-layout: auto;
+  width: max-content;
+  min-width: 100%;
+}
+.document-page .investigation-view th,
+.document-page .investigation-view td {
+  width: auto;
+  white-space: nowrap;
+}
