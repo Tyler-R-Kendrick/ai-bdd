@@ -1,0 +1,202 @@
+import type { FastifyInstance } from 'fastify';
+import type { User } from '../../shared/domain.ts';
+import {
+  agentProfileSchema,
+  type AgentProfile,
+  type AgentProfileView,
+} from '../../shared/agent-profile.ts';
+import type { Auth, Settings } from '../auth.ts';
+import { HttpError, type Store } from '../store.ts';
+import type { IntegrationSettings } from './settings.ts';
+const fallback: AgentProfile = {
+  harness: 't3-code',
+  provider: 'project-default',
+  model: 'project-default',
+};
+export class AgentProfiles {
+  constructor(
+    readonly store: Store,
+    readonly settings: Settings,
+    readonly integrations: IntegrationSettings,
+  ) {}
+  async initialize() {
+    await this.store.tx(async () => {
+      await this.store.db.lock('schema:studio.agent-profile');
+      await this.store.db.exec(
+        'CREATE TABLE IF NOT EXISTS studio_agent_profiles(artifact_id TEXT PRIMARY KEY REFERENCES artifacts(id) ON DELETE CASCADE,harness TEXT NOT NULL,provider TEXT NOT NULL,model TEXT NOT NULL,updated_by TEXT NOT NULL REFERENCES users(id),updated_at TEXT NOT NULL)',
+      );
+    });
+  }
+  async selected(id: string): Promise<AgentProfile> {
+    const row = await this.store.one(
+      'SELECT harness,provider,model FROM studio_agent_profiles WHERE artifact_id=?',
+      id,
+    );
+    return row ? agentProfileSchema.parse(row) : { ...fallback };
+  }
+  catalog(): AgentProfileView['harnesses'] {
+    const t3 = this.integrations.t3;
+    const harnesses: AgentProfileView['harnesses'] = [
+      {
+        id: 't3-code',
+        label: 'T3 Code',
+        configured: !!t3,
+        reason: t3
+          ? null
+          : 'The workspace has no registered T3 Code runtime. Choose another harness explicitly or connect the operator-owned T3 environment.',
+        providers: [
+          {
+            id: 'project-default',
+            label: 'T3 project default',
+            models: ['project-default'],
+          },
+          ...(t3?.providers ?? []),
+        ],
+      },
+      {
+        id: 'vercel-fx',
+        label: 'Vercel / fx',
+        configured: !!this.settings.model,
+        reason: this.settings.model
+          ? null
+          : 'The workspace AI Gateway model is not configured.',
+        providers: [
+          {
+            id: 'ai-gateway',
+            label: 'Vercel AI Gateway',
+            models: [
+              this.settings.model ?? 'unconfigured',
+              ...(this.integrations.fxModels ?? []),
+            ],
+          },
+        ],
+      },
+    ];
+    if (this.integrations.remotePlanner)
+      harnesses.push({
+        id: 'remote-planner',
+        label: 'Attached remote Planner',
+        configured: true,
+        reason:
+          'An eligible authenticated Planner must be attached before executing a turn.',
+        providers: [
+          {
+            id: 'operator-acp',
+            label: 'Operator-selected remote agent',
+            models: ['remote'],
+          },
+        ],
+      });
+    return harnesses;
+  }
+  assertAvailable(profile: AgentProfile) {
+    const harness = this.catalog().find(
+      (value) => value.id === profile.harness,
+    );
+    if (!harness)
+      throw new HttpError(
+        503,
+        'The selected agent harness is not enabled in this workspace',
+      );
+    if (
+      !harness.providers.some(
+        (provider) =>
+          provider.id === profile.provider &&
+          provider.models.includes(profile.model),
+      )
+    )
+      throw new HttpError(
+        409,
+        'The selected provider or model is no longer registered for this harness',
+      );
+    if (!harness.configured)
+      throw new HttpError(
+        503,
+        harness.reason ?? 'The selected agent harness is not configured',
+      );
+  }
+  async view(
+    user: User,
+    id: string,
+    update?: AgentProfile,
+  ): Promise<AgentProfileView> {
+    const artifact = await this.store.artifact(
+      id,
+      user.id,
+      update ? 'write' : 'read',
+    );
+    if (update) {
+      const value = agentProfileSchema.parse(update);
+      const harness = this.catalog().find((h) => h.id === value.harness);
+      if (
+        !harness?.providers.some(
+          (p) => p.id === value.provider && p.models.includes(value.model),
+        )
+      )
+        throw new HttpError(
+          400,
+          'Choose a registered harness, provider and model',
+        );
+      await this.store.tx(async () => {
+        await this.store.db.lock('project:' + artifact.projectId);
+        await this.store.artifact(id, user.id, 'write');
+        await this.store.exec(
+          'INSERT INTO studio_agent_profiles VALUES(?,?,?,?,?,?) ON CONFLICT(artifact_id) DO UPDATE SET harness=excluded.harness,provider=excluded.provider,model=excluded.model,updated_by=excluded.updated_by,updated_at=excluded.updated_at',
+          id,
+          value.harness,
+          value.provider,
+          value.model,
+          user.id,
+          new Date().toISOString(),
+        );
+        await this.store.audit(
+          artifact.projectId,
+          id,
+          user.name,
+          'agent.profile.updated',
+          JSON.stringify(value),
+        );
+      });
+    }
+    return {
+      profile: await this.selected(id),
+      defaultHarness: 't3-code',
+      requiresExplicitFallback: true,
+      harnesses: this.catalog(),
+    };
+  }
+}
+export function registerAgentProfileRoutes(
+  app: FastifyInstance,
+  dependencies: {
+    profiles: AgentProfiles;
+    auth: Auth;
+    notify?: (projectId: string, id: string) => Promise<void>;
+  },
+) {
+  app.get<{ Params: { id: string } }>(
+    '/api/artifacts/:id/agent/profile',
+    async (req) =>
+      dependencies.profiles.view(
+        await dependencies.auth.user(req),
+        req.params.id,
+      ),
+  );
+  app.put<{ Params: { id: string } }>(
+    '/api/artifacts/:id/agent/profile',
+    async (req) => {
+      const user = await dependencies.auth.user(req),
+        view = await dependencies.profiles.view(
+          user,
+          req.params.id,
+          agentProfileSchema.parse(req.body),
+        );
+      const artifact = await dependencies.profiles.store.artifact(
+        req.params.id,
+        user.id,
+      );
+      await dependencies.notify?.(artifact.projectId, artifact.id);
+      return view;
+    },
+  );
+}

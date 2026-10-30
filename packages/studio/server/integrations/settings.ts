@@ -8,6 +8,14 @@ export type IntegrationSettings = {
   searchToken?: string;
   remotePlanner?: boolean;
   plannerVisuals?: boolean;
+  fxModels?: string[];
+  t3?: {
+    command: string;
+    args: string[];
+    project: string;
+    providers: { id: string; label: string; models: string[] }[];
+    mcp?: { url: string; accessToken?: string };
+  };
   openDesign?: { command: string; args: string[]; envNames: string[] };
 };
 const localHosts = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -56,7 +64,53 @@ export function integrationSettingsFromEnv(
       .parse(raw);
     openDesign = parsed;
   }
+  let t3: IntegrationSettings['t3'];
+  if (env.STUDIO_T3_COMMAND || env.STUDIO_T3_PROJECT) {
+    if (
+      !env.STUDIO_T3_COMMAND ||
+      !isAbsolute(env.STUDIO_T3_COMMAND) ||
+      !env.STUDIO_T3_PROJECT ||
+      !isAbsolute(env.STUDIO_T3_PROJECT)
+    )
+      throw new Error(
+        'T3 requires absolute STUDIO_T3_COMMAND and STUDIO_T3_PROJECT paths selected by the operator',
+      );
+    const providers = z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(100),
+            label: z.string().min(1).max(200),
+            models: z.array(z.string().min(1).max(200)).min(1).max(100),
+          })
+          .strict(),
+      )
+      .max(30)
+      .parse(JSON.parse(env.STUDIO_T3_PROVIDERS_JSON ?? '[]'));
+    t3 = {
+      command: env.STUDIO_T3_COMMAND,
+      project: env.STUDIO_T3_PROJECT,
+      args: z
+        .array(z.string().max(2000))
+        .max(30)
+        .parse(JSON.parse(env.STUDIO_T3_ARGS ?? '[]')),
+      providers,
+      ...(env.STUDIO_T3_MCP_URL
+        ? {
+            mcp: {
+              url: trustedEndpoint(env.STUDIO_T3_MCP_URL, production),
+              accessToken: env.STUDIO_T3_MCP_ACCESS_TOKEN,
+            },
+          }
+        : {}),
+    };
+  }
   return {
+    t3,
+    fxModels: z
+      .array(z.string().min(1).max(200))
+      .max(100)
+      .parse(JSON.parse(env.STUDIO_FX_MODELS_JSON ?? '[]')),
     remotePlanner: env.STUDIO_REMOTE_PLANNER === 'on',
     plannerVisuals:
       env.PLANNER_VISUALS === 'on' || env.STUDIO_PLANNER_VISUALS === 'on',
