@@ -20,6 +20,14 @@ import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { readMachineJson } from './machine/http.ts';
+import {
+  runConnectorCLI,
+  ConnectorUsageError,
+} from './machine/connector-cli.ts';
+import {
+  TerminalPermissionSession,
+  type PermissionTerminal,
+} from './machine/terminal-permissions.ts';
 import { investigationResultSchema } from '../shared/investigations.ts';
 import { runInvestigationBridge } from './machine/investigation-bridge.ts';
 import { runRebuildBridge } from './machine/rebuild-bridge.ts';
@@ -85,6 +93,9 @@ export type AcpOptions = {
   readResult?: () => Promise<unknown>;
   diagnostic?: (text: string) => void;
   promptPrefix?: string;
+  permissionTerminal?: PermissionTerminal;
+  onSessionUpdate?: (update: unknown) => void;
+  requestInput?: (input: unknown, signal: AbortSignal) => Promise<unknown>;
 };
 
 /** A version-1 ACP client. It advertises no editor filesystem/terminal capabilities. */
@@ -100,7 +111,12 @@ export class AcpClient {
   private sessionId?: string;
   private stopped = false;
   private readonly abort: () => void;
+  private readonly permissions: TerminalPermissionSession;
   constructor(readonly options: AcpOptions) {
+    this.permissions = new TerminalPermissionSession(
+      options.signal,
+      options.permissionTerminal,
+    );
     const env = { ...globalThis.process.env };
     for (const key of Object.keys(env))
       if (key.startsWith('STUDIO_')) delete env[key];
@@ -165,6 +181,11 @@ export class AcpClient {
     if (typeof message.method === 'string') {
       if (
         message.method === 'session/update' &&
+        message.params?.sessionId === this.sessionId
+      )
+        this.options.onSessionUpdate?.(message.params.update);
+      if (
+        message.method === 'session/update' &&
         message.params?.sessionId === this.sessionId &&
         message.params?.update?.sessionUpdate === 'agent_message_chunk' &&
         message.params.update.content?.type === 'text'
@@ -189,15 +210,56 @@ export class AcpClient {
                   typeof value.optionId === 'string',
               )
             : undefined;
-          this.write({
-            jsonrpc: '2.0',
-            id: message.id,
-            result: {
-              outcome: option
-                ? { outcome: 'selected', optionId: option.optionId }
-                : { outcome: 'cancelled' },
-            },
-          });
+          const answer = async () => {
+            const optionId =
+              option?.optionId ??
+              (await this.permissions.choose(message.params));
+            if (
+              this.stopped ||
+              this.options.signal.aborted ||
+              message.params.sessionId !== this.sessionId
+            )
+              return;
+            this.write({
+              jsonrpc: '2.0',
+              id: message.id,
+              result: {
+                outcome: optionId
+                  ? { outcome: 'selected', optionId }
+                  : { outcome: 'cancelled' },
+              },
+            });
+          };
+          void answer().catch(() =>
+            this.fail(
+              new Error('The local permission prompt could not complete'),
+            ),
+          );
+        } else if (
+          message.method === 'session/request_input' &&
+          message.params?.sessionId === this.sessionId &&
+          this.options.requestInput
+        ) {
+          const answer = async () => {
+            try {
+              const value = await this.options.requestInput!(
+                message.params,
+                this.options.signal,
+              );
+              if (Buffer.byteLength(JSON.stringify(value) ?? '') > 128000)
+                throw new Error('Input answer exceeded its bound');
+              if (!this.stopped && !this.options.signal.aborted)
+                this.write({ jsonrpc: '2.0', id: message.id, result: value });
+            } catch {
+              if (!this.stopped)
+                this.write({
+                  jsonrpc: '2.0',
+                  id: message.id,
+                  error: { code: -32000, message: 'Input was not answered' },
+                });
+            }
+          };
+          void answer();
         } else
           this.write({
             jsonrpc: '2.0',
@@ -220,6 +282,7 @@ export class AcpClient {
     else pending.resolve(message.result);
   }
   private fail(error: Error) {
+    this.permissions.close();
     for (const pending of this.pending.values()) pending.reject(error);
     this.pending.clear();
     if (!this.stopped) {
@@ -842,7 +905,7 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
   try {
-    await resumeRebuildRuns(credentials,stateDirectory,controller.signal);
+    await resumeRebuildRuns(credentials, stateDirectory, controller.signal);
     await resumeImplementationRuns(
       credentials,
       stateDirectory,
@@ -865,7 +928,7 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
           ),
         { signal: controller.signal },
       );
-      await resumeRebuildRuns(credentials,stateDirectory,controller.signal);
+      await resumeRebuildRuns(credentials, stateDirectory, controller.signal);
       await resumeImplementationRuns(
         credentials,
         stateDirectory,
@@ -878,16 +941,24 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
       );
       let result;
       try {
-        const rebuildOptions={command,args,cwd,allowPermissions,signal:controller.signal,stateDirectory};
-        result=await runRebuildOnce(credentials,rebuildOptions);
-        if(!result.claimed) result = await runImplementationOnce(credentials, {
+        const rebuildOptions = {
           command,
           args,
           cwd,
           allowPermissions,
           signal: controller.signal,
           stateDirectory,
-        });
+        };
+        result = await runRebuildOnce(credentials, rebuildOptions);
+        if (!result.claimed)
+          result = await runImplementationOnce(credentials, {
+            command,
+            args,
+            cwd,
+            allowPermissions,
+            signal: controller.signal,
+            stateDirectory,
+          });
         if (!result.claimed)
           result = await runInvestigationOnce(credentials, {
             command,
@@ -960,6 +1031,26 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
     await rm(lockFile, { force: true });
   }
 }
+async function prepareServiceCredentials(env: NodeJS.ProcessEnv) {
+  const base = origin(env.STUDIO_API_URL ?? 'http://127.0.0.1:8787');
+  const file = resolve(
+    env.STUDIO_MACHINE_CREDENTIALS ?? '.studio-machine.json',
+  );
+  const saved = env.STUDIO_MACHINE_PAIR_CODE
+    ? null
+    : await readPrivateJson(file);
+  const account =
+    env.STUDIO_MACHINE_SCOPE === 'account' || saved?.scope === 'account';
+  const credentials = account
+    ? env.STUDIO_MACHINE_PAIR_CODE
+      ? await connectAccountMachine(base, env.STUDIO_MACHINE_PAIR_CODE, file)
+      : await readAccountMachineCredentials(file)
+    : env.STUDIO_MACHINE_PAIR_CODE
+      ? await connectMachine(base, env.STUDIO_MACHINE_PAIR_CODE, file)
+      : await readMachineCredentials(file);
+  if (credentials.origin !== base)
+    throw new Error('The saved machine belongs to another Studio origin');
+}
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
@@ -969,15 +1060,25 @@ if (
         process.argv[process.argv.indexOf('--investigation-mcp') + 1]!,
       )
     : process.argv.includes('--rebuild-mcp')
-      ? runRebuildBridge(process.argv[process.argv.indexOf('--rebuild-mcp')+1]!)
-    : process.argv.includes('--implementation-mcp')
-      ? runImplementationBridge(
-          process.argv[process.argv.indexOf('--implementation-mcp') + 1]!,
+      ? runRebuildBridge(
+          process.argv[process.argv.indexOf('--rebuild-mcp') + 1]!,
         )
-      : runMachineWorker(process.env, process.argv.includes('--once'))
-  ).catch(() => {
+      : process.argv.includes('--implementation-mcp')
+        ? runImplementationBridge(
+            process.argv[process.argv.indexOf('--implementation-mcp') + 1]!,
+          )
+        : runConnectorCLI({
+            args: process.argv.slice(2),
+            env: process.env,
+            entryFile: resolve(process.argv[1]),
+            runWorker: runMachineWorker,
+            prepareCredentials: prepareServiceCredentials,
+          })
+  ).catch((error) => {
     process.stderr.write(
-      'The connected-machine worker stopped. Verify its private credential file, selected checkout, local ACP installation, and Studio connectivity.\n',
+      error instanceof ConnectorUsageError
+        ? error.message + '\n'
+        : 'The connected-machine worker stopped. Verify its private credential file, selected checkout, local ACP installation, and Studio connectivity.\n',
     );
     process.exitCode = 1;
   });
