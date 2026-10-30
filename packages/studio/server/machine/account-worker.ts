@@ -1,3 +1,4 @@
+import { runRebuildOnce, resumeRebuildRuns } from './rebuild-worker.ts';
 import { resolve, join, isAbsolute } from 'node:path';
 import { realpath, mkdir, open, rm } from 'node:fs/promises';
 import { z } from 'zod';
@@ -286,6 +287,7 @@ export async function runAccountMachineWorker(
           signal: controller.signal,
         };
         try {
+          await resumeRebuildRuns(assignment.credentials,projectState,controller.signal);
           await resumeImplementationRuns(
             assignment.credentials,
             projectState,
@@ -296,7 +298,8 @@ export async function runAccountMachineWorker(
             projectState,
             controller.signal,
           );
-          result = await runImplementationOnce(assignment.credentials, options);
+          result=await runRebuildOnce(assignment.credentials,options);
+          if(!result.claimed)result = await runImplementationOnce(assignment.credentials, options);
           if (!result.claimed)
             result = await runInvestigationOnce(
               assignment.credentials,

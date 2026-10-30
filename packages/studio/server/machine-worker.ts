@@ -22,6 +22,8 @@ import { z } from 'zod';
 import { readMachineJson } from './machine/http.ts';
 import { investigationResultSchema } from '../shared/investigations.ts';
 import { runInvestigationBridge } from './machine/investigation-bridge.ts';
+import { runRebuildBridge } from './machine/rebuild-bridge.ts';
+import { runRebuildOnce, resumeRebuildRuns } from './machine/rebuild-worker.ts';
 import { runImplementationBridge } from './machine/implementation-bridge.ts';
 import {
   connectAccountMachine,
@@ -839,6 +841,7 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
   try {
+    await resumeRebuildRuns(credentials,stateDirectory,controller.signal);
     await resumeImplementationRuns(
       credentials,
       stateDirectory,
@@ -861,6 +864,7 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
           ),
         { signal: controller.signal },
       );
+      await resumeRebuildRuns(credentials,stateDirectory,controller.signal);
       await resumeImplementationRuns(
         credentials,
         stateDirectory,
@@ -873,7 +877,9 @@ export async function runMachineWorker(env: NodeJS.ProcessEnv, once = false) {
       );
       let result;
       try {
-        result = await runImplementationOnce(credentials, {
+        const rebuildOptions={command,args,cwd,allowPermissions,signal:controller.signal,stateDirectory};
+        result=await runRebuildOnce(credentials,rebuildOptions);
+        if(!result.claimed) result = await runImplementationOnce(credentials, {
           command,
           args,
           cwd,
@@ -961,6 +967,8 @@ if (
     ? runInvestigationBridge(
         process.argv[process.argv.indexOf('--investigation-mcp') + 1]!,
       )
+    : process.argv.includes('--rebuild-mcp')
+      ? runRebuildBridge(process.argv[process.argv.indexOf('--rebuild-mcp')+1]!)
     : process.argv.includes('--implementation-mcp')
       ? runImplementationBridge(
           process.argv[process.argv.indexOf('--implementation-mcp') + 1]!,

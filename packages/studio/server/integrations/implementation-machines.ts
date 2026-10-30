@@ -38,6 +38,7 @@ export type ImplementationMachineDependencies = {
   };
   graphs: ImplementationGraphs;
   otherWorkActive?: (machineId: string) => Promise<boolean>;
+  artifactWorkActive?: (artifactId: string) => Promise<boolean>;
   authorizeMachine?: (machine: MachinePrincipal) => Promise<void>;
   notify?: (projectId: string, artifactId: string) => void;
 };
@@ -191,6 +192,7 @@ export class ImplementationMachines {
     const result = await this.atomic(initial.projectId, async () => {
       const artifact = await this.store.artifact(artifactId, user.id, 'write');
       await this.store.db.lock('implementation-machine:' + artifactId);
+      if(await this.dependencies.artifactWorkActive?.(artifactId))throw new HttpError(409,'An existing-PR rebuild is already active for this document');
       if (
         await this.store.one(
           "SELECT id FROM studio_implementation_machine_queue WHERE artifact_id=? AND status IN ('queued','launching','running')",
