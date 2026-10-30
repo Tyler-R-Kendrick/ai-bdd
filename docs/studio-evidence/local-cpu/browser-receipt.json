@@ -1,6 +1,6 @@
 {
   "scope": "Actual local CPU browser acceptance; no external model provider fixture",
-  "source": "43d68455c3f32611cf006cf2c83798b199170252",
+  "source": "992e1f865734d4b1139e648182f5d9b743d0f394",
   "model": "qwen2.5-0.5b-instruct-q4-k-m",
   "weightsSha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
   "nativeDecisionHelperSha256": "66fcb621b7147331367ec75ef481a24e918d644900d7744168c6e902974e6999",
@@ -24,15 +24,39 @@
   "screenshots": [
     {
       "file": "local-runtime-picker.png",
-      "sha256": "a2478a5d4092cc0765fe9bf505885ab3308c70a5cb3c79bd789104e3aabc6e9c"
+      "sha256": "b703ed4e42f0cbb6b08eef0c2cdd4ba1af8c173f9c46ed389ee30a809cdb0f2c"
     },
     {
       "file": "local-design-chat.png",
-      "sha256": "0876f4c78252c54f788f88f640e4cbb199dd309cfe6e95a3405e2b2582a81f25"
+      "sha256": "d85e96cb4624aceb5b78941c72ef9c83fa115aa4d4e79233a8c0cad7e45bf6ee"
     },
     {
       "file": "local-design-chat-mobile.png",
-      "sha256": "1c5bb185d16dd4cc1c162b27205c094d15d50ddd63020dc28dd308722b04d550"
+      "sha256": "37a699d02c956688032c77635ce4d1fe8aa28d8d07789faca67c91b6b65b7145"
     }
-  ]
+  ],
+  "sourceScope": "Isolated local CPU source with final-human-message role correction (root722c0d8, local93ae9fa); shipping root release is independently checked.",
+  "prompt": "What color and label does this design require for the button?",
+  "persistedReply": "The design requires a blue button labeled \"Start\" for the button.",
+  "runs": {
+    "passed": 2,
+    "lastPlaywrightTotalSeconds": 7.7,
+    "lastCaseSeconds": 6.2,
+    "requiredModel": true,
+    "providerFixture": false
+  },
+  "clientIndexSha256": "0cec71431da2613a5faf89e0ceadcb85edb1711280d30ee55e1849d0c80d2eda",
+  "nativeWorkerSha256": "b59f9fd4f7b6b6630397b643f61cff8c85bda39e5c00c3d6f5aad35c74e0b942",
+  "qualityLimitations": [
+    {
+      "prompt": "Based on this design, describe the button the developer should build in one sentence.",
+      "observed": "An earlier rerun after the final-human-message role correction omitted blue and failed the strict blue assertion. It is not a passing case in this receipt.",
+      "interpretation": "This focused passing explicit-facts question does not establish complete broad-summary fidelity or general model accuracy."
+    }
+  ],
+  "historicalEvidence": {
+    "directory": "historical-43d6845",
+    "source": "43d68455c3f32611cf006cf2c83798b199170252",
+    "scope": "Earlier pre-correction passing browser run and its original screenshots/receipt; not evidence of the later broad-summary rerun."
+  }
 }
