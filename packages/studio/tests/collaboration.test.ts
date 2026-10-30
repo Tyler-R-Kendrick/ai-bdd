@@ -18,9 +18,12 @@ import {
   type TestApp,
 } from './helpers.ts';
 
-async function eventually(check: () => boolean, timeout = 5000) {
+async function eventually(
+  check: () => boolean | Promise<boolean>,
+  timeout = 5000,
+) {
   const until = Date.now() + timeout;
-  while (!check()) {
+  while (!(await check())) {
     if (Date.now() > until)
       throw new Error('Collaboration condition did not converge');
     await new Promise((r) => setTimeout(r, 20));
@@ -112,11 +115,13 @@ describe('Authenticated CRDT collaboration', () => {
         text(b.doc).includes('Editor A adds'),
     );
     expect(text(a.doc)).toBe(text(b.doc));
-    await eventually(() =>
+    await eventually(async () =>
       JSON.stringify(
-        instance.store.artifact(
-          p.mainArtifactId,
-          instance.store.userByEmail('owner@example.test').id,
+        (
+          await instance.store.artifact(
+            p.mainArtifactId,
+            (await instance.store.userByEmail('owner@example.test')).id,
+          )
         ).content,
       ).includes('Editor B adds'),
     );
@@ -144,7 +149,8 @@ describe('Authenticated CRDT collaboration', () => {
     ).json();
     expect(
       history.audit.some(
-        (e: any) => e.action === 'document.edited' && e.actor === 'Test owner',
+        (e: any) =>
+          e.action === 'document.edited' && e.actor === 'Test owner',
       ),
     ).toBe(true);
   });
@@ -171,7 +177,8 @@ describe('Authenticated CRDT collaboration', () => {
     expect(text(owner.doc)).not.toContain('Unauthorized viewer mutation');
     expect(
       JSON.stringify(
-        instance.store.artifact(p.mainArtifactId, viewer.user.id).content,
+        (await instance.store.artifact(p.mainArtifactId, viewer.user.id))
+          .content,
       ),
     ).not.toContain('Unauthorized viewer mutation');
   });
@@ -199,12 +206,12 @@ describe('Authenticated CRDT collaboration', () => {
   it('leaves the live document unchanged when a replacement fails validation or storage', async () => {
     const p = await project(request),
       editor = await connect(p.mainArtifactId),
-      owner = instance.store.publicUser(
-        instance.store.userByEmail('owner@example.test').id,
+      owner = await instance.store.publicUser(
+        (await instance.store.userByEmail('owner@example.test')).id,
       ),
       before = text(editor.doc),
-      original = instance.store.artifact(p.mainArtifactId, owner.id);
-    expect(() =>
+      original = await instance.store.artifact(p.mainArtifactId, owner.id);
+    await expect(
       instance.collab.replace(
         p.mainArtifactId,
         owner,
@@ -216,17 +223,19 @@ describe('Authenticated CRDT collaboration', () => {
         },
         original.version,
       ),
-    ).toThrow();
-    expect(text(instance.collab.rooms.get(p.mainArtifactId)!.doc)).toBe(before);
-    expect(instance.store.artifact(p.mainArtifactId, owner.id).content).toEqual(
-      original.content,
+    ).rejects.toThrow();
+    expect(text(instance.collab.rooms.get(p.mainArtifactId)!.doc)).toBe(
+      before,
     );
+    expect(
+      (await instance.store.artifact(p.mainArtifactId, owner.id)).content,
+    ).toEqual(original.content);
     const persist = instance.store.persistDoc.bind(instance.store);
     instance.store.persistDoc = () => {
       throw new Error('Injected disk failure');
     };
     try {
-      expect(() =>
+      await expect(
         instance.collab.replace(
           p.mainArtifactId,
           owner,
@@ -248,15 +257,17 @@ describe('Authenticated CRDT collaboration', () => {
           },
           original.version,
         ),
-      ).toThrow('Injected disk failure');
+      ).rejects.toThrow('Injected disk failure');
     } finally {
       instance.store.persistDoc = persist;
     }
-    expect(text(instance.collab.rooms.get(p.mainArtifactId)!.doc)).toBe(before);
-    expect(text(editor.doc)).toBe(before);
-    expect(instance.store.artifact(p.mainArtifactId, owner.id).content).toEqual(
-      original.content,
+    expect(text(instance.collab.rooms.get(p.mainArtifactId)!.doc)).toBe(
+      before,
     );
+    expect(text(editor.doc)).toBe(before);
+    expect(
+      (await instance.store.artifact(p.mainArtifactId, owner.id)).content,
+    ).toEqual(original.content);
   });
   it('attributes presence to the authenticated account and blocks revoked memberships', async () => {
     const p = await project(request),
@@ -277,7 +288,10 @@ describe('Authenticated CRDT collaboration', () => {
       (v) => v.user?.id === editor.user.id,
     );
     expect(visible?.user.name).toBe('Test editor');
-    await request('DELETE', `/api/projects/${p.id}/members/${editor.user.id}`);
+    await request(
+      'DELETE',
+      `/api/projects/${p.id}/members/${editor.user.id}`,
+    );
     let rejected = false;
     edit.provider.on('connection-close', (event: any) => {
       if (event?.code === 1008) {
@@ -299,7 +313,10 @@ describe('Authenticated CRDT collaboration', () => {
     passive.provider.on('connection-close', () => {
       closed = true;
     });
-    await request('DELETE', `/api/projects/${p.id}/members/${editor.user.id}`);
+    await request(
+      'DELETE',
+      `/api/projects/${p.id}/members/${editor.user.id}`,
+    );
     append(owner.doc, 'Private content written after access revocation');
     await eventually(() => closed);
     expect(text(passive.doc)).not.toContain(

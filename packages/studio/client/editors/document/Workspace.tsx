@@ -53,6 +53,7 @@ type Workspace = {
   onError: (message: string) => void;
   onTests: () => void;
   onDecisions?: () => void;
+  onInvestigations?: (id: string) => void;
   onComment: (anchor: string, quote: string) => void;
   reviewOpen: boolean;
   setReviewOpen: (value: boolean) => void;

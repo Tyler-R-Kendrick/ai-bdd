@@ -319,7 +319,10 @@ describe('safe document interchange and passage review', () => {
                     attrs: { rowspan: 2, colspan: 1 },
                     content: [paragraph('Two rows')],
                   },
-                  { type: 'tableHeader', content: [paragraph('Next column')] },
+                  {
+                    type: 'tableHeader',
+                    content: [paragraph('Next column')],
+                  },
                 ],
               },
               {
@@ -363,7 +366,11 @@ describe('safe document interchange and passage review', () => {
     ).toContain('A deliberate plan');
     const counts = original.slice(),
       countView = new DataView(counts.buffer);
-    countView.setUint16(end + 8, countView.getUint16(end + 10, true) + 1, true);
+    countView.setUint16(
+      end + 8,
+      countView.getUint16(end + 10, true) + 1,
+      true,
+    );
     expect(() => importDocx(counts)).toThrow('inconsistent');
     const zip64 = original.slice();
     new DataView(zip64.buffer).setUint32(end - 20, 0x07064b50, true);
@@ -372,7 +379,28 @@ describe('safe document interchange and passage review', () => {
 });
 
 it('rejects every ASCII control and space inside exported links while retaining safe URLs', () => {
-  const linked = (href: string): RichNode => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Evidence', marks: [{ type: 'link', attrs: { href } }] }] }] });
-  for (let code = 0; code <= 32; code++) expect(exportMarkdown(linked('https://example.test/a' + String.fromCharCode(code) + 'b'))).not.toContain('[Evidence]');
-  expect(exportMarkdown(linked('https://example.test/evidence'))).toContain('[Evidence](https://example.test/evidence)');
+  const linked = (href: string): RichNode => ({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'Evidence',
+            marks: [{ type: 'link', attrs: { href } }],
+          },
+        ],
+      },
+    ],
+  });
+  for (let code = 0; code <= 32; code++)
+    expect(
+      exportMarkdown(
+        linked('https://example.test/a' + String.fromCharCode(code) + 'b'),
+      ),
+    ).not.toContain('[Evidence]');
+  expect(exportMarkdown(linked('https://example.test/evidence'))).toContain(
+    '[Evidence](https://example.test/evidence)',
+  );
 });

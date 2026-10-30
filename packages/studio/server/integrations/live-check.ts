@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { z } from 'zod';
@@ -54,6 +55,28 @@ export async function verifyLiveIntegrations(env: NodeJS.ProcessEnv) {
     throw new Error(
       'Live verification requires owner access to its dedicated test project',
     );
+  const waitForJob = async (artifactId: string, jobId: string) => {
+    if (!jobId)
+      throw new Error(
+        'The deployment did not return the durable agent job identity',
+      );
+    const deadline = Date.now() + 600000;
+    while (Date.now() < deadline) {
+      const history = await call(
+          `/artifacts/${artifactId}/integrations/jobs`,
+        ),
+        job = history.jobs.find((item: any) => item.id === jobId);
+      if (job?.status === 'completed') return job;
+      if (job && ['failed', 'cancelled', 'interrupted'].includes(job.status))
+        throw new Error(
+          'The selected live harness did not complete its durable job',
+        );
+      await delay(500);
+    }
+    throw new Error(
+      'The selected live harness exceeded the bounded verification window',
+    );
+  };
   const created: string[] = [],
     checks: string[] = [];
   const marker = `live-${randomUUID()}`;
@@ -71,14 +94,41 @@ export async function verifyLiveIntegrations(env: NodeJS.ProcessEnv) {
         'The live artifact did not own its dedicated discussion and ADR',
       );
     checks.push('dedicated live fixture artifact, chat, and ADR');
+    if (env.STUDIO_LIVE_HARNESS) {
+      const view = await call(`/artifacts/${artifact.id}/agent/profile`),
+        harness = view.harnesses.find(
+          (value: any) => value.id === env.STUDIO_LIVE_HARNESS,
+        );
+      if (!harness?.configured)
+        throw new Error(
+          'The explicitly selected live harness is not configured',
+        );
+      const provider = harness.providers.find(
+        (value: any) =>
+          value.id === (env.STUDIO_LIVE_PROVIDER ?? harness.providers[0]?.id),
+      );
+      if (!provider)
+        throw new Error(
+          'The explicitly selected live provider is not registered',
+        );
+      await call(`/artifacts/${artifact.id}/agent/profile`, 'PUT', {
+        harness: harness.id,
+        provider: provider.id,
+        model: env.STUDIO_LIVE_MODEL ?? provider.models[0],
+      });
+      checks.push('explicit harness/provider/model selection: ' + harness.id);
+    }
+
     await call(`/artifacts/${artifact.id}/messages`, 'POST', {
       threadId,
       body: `Reply with exactly this marker: ${marker}`,
     });
-    await call(`/artifacts/${artifact.id}/agent`, 'POST', {
-      threadId,
-      intent: 'chat',
-    });
+    const chatRequest = await call(
+      `/artifacts/${artifact.id}/agent`,
+      'POST',
+      { threadId, intent: 'chat' },
+    );
+    await waitForJob(artifact.id, chatRequest.id);
     const chat = await call(`/artifacts/${artifact.id}`),
       jobs = await call(`/artifacts/${artifact.id}/integrations/jobs`);
     if (
@@ -95,16 +145,17 @@ export async function verifyLiveIntegrations(env: NodeJS.ProcessEnv) {
       'configured model HTTP execution and artifact-bound persisted response',
     );
     if (env.STUDIO_LIVE_VERIFY_RESEARCH === '1') {
-      await call(`/artifacts/${artifact.id}/agent`, 'POST', {
-        threadId,
-        intent: 'research',
-        brief:
-          'Explain Pact consumer-driven contract boundaries using retrieved sources.',
-      });
-      const history = await call(
-          `/artifacts/${artifact.id}/integrations/jobs`,
-        ),
-        research = history.jobs.find((job: any) => job.intent === 'research');
+      const researchRequest = await call(
+        `/artifacts/${artifact.id}/agent`,
+        'POST',
+        {
+          threadId,
+          intent: 'research',
+          brief:
+            'Explain Pact consumer-driven contract boundaries using retrieved sources.',
+        },
+      );
+      const research = await waitForJob(artifact.id, researchRequest.id);
       if (research?.status !== 'completed' || !research.childArtifactId)
         throw new Error('Live source-backed research did not complete');
       created.push(research.childArtifactId);
@@ -126,6 +177,7 @@ export async function verifyLiveIntegrations(env: NodeJS.ProcessEnv) {
   } finally {
     for (const artifactId of created.reverse()) {
       try {
+        await call(`/artifacts/${artifactId}/agent/cancel`, 'POST');
         await call(`/artifacts/${artifactId}/archive`, 'POST');
       } catch {
         failure ??= new Error(

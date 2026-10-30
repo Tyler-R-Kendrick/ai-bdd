@@ -10,7 +10,6 @@ import {
   testSettings,
   type TestApp,
 } from './helpers.ts';
-
 describe('Artifact discussion pagination and complete streamed exports', () => {
   let instance: TestApp,
     request: ReturnType<typeof client>,
@@ -27,22 +26,25 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
     vi.restoreAllMocks();
     await instance.app.close();
   });
-  function seed(
+  async function seed(
     artifactId: string,
     threadId: string,
     count: number,
     prefix = 'message',
   ) {
-    return instance.store.tx(() =>
-      Array.from({ length: count }, (_, index) =>
-        instance.store.message(
-          user,
-          artifactId,
-          threadId,
-          `${prefix} ${index}`,
-        ),
-      ),
-    );
+    return await instance.store.tx(async () => {
+      const saved = [];
+      for (let index = 0; index < count; index++)
+        saved.push(
+          await instance.store.message(
+            user,
+            artifactId,
+            threadId,
+            `${prefix} ${index}`,
+          ),
+        );
+      return saved;
+    });
   }
   const pageUrl = (
     artifactId: string,
@@ -50,13 +52,12 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
     extra: Record<string, string> = {},
   ) =>
     `/api/artifacts/${artifactId}/messages?${new URLSearchParams({ threadId, ...extra })}`;
-
   it('reads every one of 1001 messages exactly once through exclusive, chronological UUID pages', async () => {
     const p = await project(request),
-      thread = instance.store.threads(p.mainArtifactId)[0];
-    const saved = seed(p.mainArtifactId, thread.id, 1001);
+      thread = (await instance.store.threads(p.mainArtifactId))[0];
+    const saved = await seed(p.mainArtifactId, thread.id, 1001);
     // Equal timestamps must not duplicate or skip rows at cursor boundaries.
-    instance.store.exec(
+    await instance.store.exec(
       'UPDATE messages SET created_at=? WHERE artifact_id=?',
       '2026-10-29T00:00:00.000Z',
       p.mainArtifactId,
@@ -100,28 +101,29 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
     );
     expect(all[0].body).toBe('message 0');
     expect(new Set(all.map((message: any) => message.id)).size).toBe(1001);
-    expect(instance.store.threads(p.mainArtifactId)[0].messageCount).toBe(1001);
+    expect(
+      (await instance.store.threads(p.mainArtifactId))[0].messageCount,
+    ).toBe(1001);
     const bundle = (
       await request('GET', `/api/artifacts/${p.mainArtifactId}`)
     ).json();
     expect(bundle.messages).toHaveLength(100);
     expect(bundle.messages.at(-1).body).toBe('message 1000');
   });
-
   it('scopes threads and cursors to both the artifact and discussion', async () => {
     const p = await project(request),
-      firstThread = instance.store.threads(p.mainArtifactId)[0];
-    const first = seed(p.mainArtifactId, firstThread.id, 2);
-    const second = instance.store.createArtifact(
+      firstThread = (await instance.store.threads(p.mainArtifactId))[0];
+    const first = await seed(p.mainArtifactId, firstThread.id, 2);
+    const second = await instance.store.createArtifact(
         user,
         p.id,
         'document',
         'Another artifact',
       ),
-      secondThread = instance.store.threads(second.id)[0];
-    const foreign = seed(second.id, secondThread.id, 1, 'foreign')[0]!;
+      secondThread = (await instance.store.threads(second.id))[0];
+    const foreign = (await seed(second.id, secondThread.id, 1, 'foreign'))[0]!;
     const commentId = randomUUID();
-    instance.store.exec(
+    await instance.store.exec(
       'INSERT INTO threads(id,artifact_id,anchor,quote,created_at) VALUES(?,?,?,?,?)',
       commentId,
       p.mainArtifactId,
@@ -129,7 +131,7 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
       'Original requirement',
       new Date().toISOString(),
     );
-    const comment = seed(p.mainArtifactId, commentId, 1, 'comment')[0]!;
+    const comment = (await seed(p.mainArtifactId, commentId, 1, 'comment'))[0]!;
     for (const url of [
       pageUrl(p.mainArtifactId, secondThread.id),
       pageUrl(p.mainArtifactId, firstThread.id, { before: foreign.id }),
@@ -147,10 +149,9 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
       'message 1',
     ]);
   });
-
   it('validates bounded pages, allows viewers, and denies nonmembers', async () => {
     const p = await project(request),
-      thread = instance.store.threads(p.mainArtifactId)[0];
+      thread = (await instance.store.threads(p.mainArtifactId))[0];
     for (const limit of ['0', '-1', '201', '1.5', 'NaN'])
       expect(
         (await request('GET', pageUrl(p.mainArtifactId, thread.id, { limit })))
@@ -189,13 +190,13 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
       (await instance.app.inject(pageUrl(p.mainArtifactId, thread.id)))
         .statusCode,
     ).toBe(401);
-    const outsider = instance.store.createUser(
+    const outsider = await instance.store.createUser(
         'outsider@example.test',
         'Outsider',
         null,
       ),
       token = randomUUID();
-    instance.store.exec(
+    await instance.store.exec(
       'INSERT INTO sessions VALUES(?,?,?,?)',
       hash(token),
       outsider.id,
@@ -211,13 +212,12 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
         .statusCode,
     ).toBe(404);
   });
-
   it('streams the complete JSON export without the bounded bundle message window', async () => {
     const p = await project(request),
-      thread = instance.store.threads(p.mainArtifactId)[0];
-    const saved = seed(p.mainArtifactId, thread.id, 1001);
+      thread = (await instance.store.threads(p.mainArtifactId))[0];
+    const saved = await seed(p.mainArtifactId, thread.id, 1001);
     const commentId = randomUUID();
-    instance.store.exec(
+    await instance.store.exec(
       'INSERT INTO threads(id,artifact_id,anchor,quote,created_at) VALUES(?,?,?,?,?)',
       commentId,
       p.mainArtifactId,
@@ -225,8 +225,8 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
       'Quoted requirement',
       new Date().toISOString(),
     );
-    seed(p.mainArtifactId, commentId, 3, 'comment');
-    const special = instance.store.message(
+    await seed(p.mainArtifactId, commentId, 3, 'comment');
+    const special = await instance.store.message(
       user,
       p.mainArtifactId,
       thread.id,
@@ -234,13 +234,18 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
       'assistant',
       { summary: 'A proposal', version: 1 },
     );
-    const other = instance.store.createArtifact(
+    const other = await instance.store.createArtifact(
       user,
       p.id,
       'document',
       'Excluded artifact',
     );
-    seed(other.id, instance.store.threads(other.id)[0].id, 5, 'excluded');
+    await seed(
+      other.id,
+      (await instance.store.threads(other.id))[0].id,
+      5,
+      'excluded',
+    );
     vi.spyOn(instance.store, 'messages').mockImplementation(() => {
       throw new Error('Export must not use the bounded bundle history');
     });
@@ -269,11 +274,10 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
     expect(result.decisions).toHaveLength(1);
     expect(result.links).toEqual([]);
   });
-
   it('excludes messages appended after a real streamed download starts', async () => {
     const p = await project(request),
-      thread = instance.store.threads(p.mainArtifactId)[0];
-    seed(p.mainArtifactId, thread.id, 1001);
+      thread = (await instance.store.threads(p.mainArtifactId))[0];
+    await seed(p.mainArtifactId, thread.id, 1001);
     const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
     settings.origin = address;
     const response = await fetch(
@@ -284,7 +288,7 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
     const reader = response.body!.getReader(),
       first = await reader.read();
     expect(first.done).toBe(false);
-    instance.store.message(
+    await instance.store.message(
       user,
       p.mainArtifactId,
       thread.id,
@@ -299,7 +303,7 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
     const exported = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     expect(exported.messages).toHaveLength(1001);
     expect(exported.messages.at(-1).body).toBe('message 1000');
-    expect(instance.store.messages(p.mainArtifactId).at(-1)!.body).toBe(
+    expect((await instance.store.messages(p.mainArtifactId)).at(-1)!.body).toBe(
       'Posted during the download',
     );
   });

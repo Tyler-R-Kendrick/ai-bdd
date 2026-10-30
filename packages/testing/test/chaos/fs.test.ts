@@ -67,6 +67,7 @@ describe('lockDirectory', () => {
   it('reports honestly whether the mode change binds this process, and restores the mode', () => {
     const dir = join(root, 'locked');
     mkdirSync(dir, { mode: 0o755 });
+    const originalMode = lstatSync(dir).mode & 0o777;
     const lock = lockDirectory(dir);
     try {
       if (lock.effective) {
@@ -79,7 +80,7 @@ describe('lockDirectory', () => {
     } finally {
       lock.restore();
     }
-    expect(lstatSync(dir).mode & 0o777).toBe(0o755);
+    expect(lstatSync(dir).mode & 0o777).toBe(originalMode);
     writeFileSync(join(dir, 'y'), '');
   });
 

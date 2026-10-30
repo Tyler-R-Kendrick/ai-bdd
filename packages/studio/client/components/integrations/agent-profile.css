@@ -1,0 +1,26 @@
+.agent-profile {
+  overflow-wrap: anywhere;
+}
+.agent-profile > p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.agent-profile .field {
+  margin-top: 10px;
+}
+.agent-profile select {
+  font-size: 12px;
+}
+.agent-profile-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.agent-profile .agent-profile-offline {
+  color: #825711;
+}
+.agent-profile [role='status'] {
+  font-size: 11px;
+  color: #626f56;
+}

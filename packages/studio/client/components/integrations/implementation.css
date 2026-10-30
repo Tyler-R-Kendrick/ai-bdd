@@ -1,0 +1,318 @@
+.dialog-content:has(.implementation-panel) {
+  width: min(1050px, calc(100vw - 32px));
+  max-width: 1050px;
+  padding: 24px;
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+.implementation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--foreground, #24292e);
+}
+.implementation-topline,
+.implementation-version,
+.implementation-actions,
+.implementation-task-heading,
+.implementation-edge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.implementation-topline {
+  justify-content: space-between;
+  color: #687068;
+  font-size: 12px;
+}
+.implementation-version h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-right: auto;
+}
+.implementation-panel h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.implementation-empty {
+  padding: 30px 20px;
+  text-align: center;
+  background: #f5f6f2;
+  border: 1px solid #e5e7e1;
+  border-radius: 8px;
+}
+.implementation-empty svg {
+  margin: 0 auto 14px;
+  color: #747d69;
+}
+.implementation-empty h3 {
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.implementation-empty p {
+  max-width: 540px;
+  margin: auto;
+  line-height: 1.7;
+  color: #626f56;
+}
+.implementation-error {
+  padding: 12px 14px;
+  color: #982b2b;
+  background: #fcf2f0;
+  border: 1px solid #efcfca;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.implementation-error p {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.implementation-lock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8f3e7;
+  border: 1px solid #e8dcc1;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 12px;
+}
+.implementation-lock svg {
+  width: 16px;
+  flex-shrink: 0;
+}
+.implementation-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.implementation-panel fieldset {
+  border: 1px solid #e5e7e1;
+  border-radius: 7px;
+  padding: 14px;
+  min-width: 0;
+}
+.implementation-panel legend {
+  font-weight: 600;
+  padding: 0 6px;
+  color: #626f56;
+  font-size: 12px;
+}
+.implementation-panel .field {
+  margin: 8px 0;
+}
+.implementation-panel textarea {
+  min-height: 72px;
+}
+.implementation-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.implementation-edge {
+  font-size: 12px;
+  justify-content: space-between;
+  border-top: 1px solid #eceeea;
+  margin-top: 8px;
+  padding-top: 6px;
+}
+.implementation-graph {
+  border: 1px solid #e5e7e1;
+  border-radius: 8px;
+  background: #f6f7f3;
+  padding: 12px;
+}
+.implementation-graph-scroll {
+  overflow: auto;
+  max-height: 390px;
+}
+.implementation-graph figcaption {
+  font-size: 11px;
+  color: #687068;
+  line-height: 1.7;
+  padding-top: 10px;
+}
+.implementation-node {
+  fill: white;
+  stroke: #d9dfd1;
+}
+.implementation-node.node-complete {
+  fill: #edf5ee;
+  stroke: #b8d7bc;
+}
+.implementation-node.node-in_progress {
+  fill: #f9f1df;
+  stroke: #e0cd99;
+}
+.implementation-node.node-blocked {
+  fill: #fcefeb;
+  stroke: #e5b5a9;
+}
+.implementation-graph text {
+  font-size: 12px;
+  fill: #30352f;
+  font-family: inherit;
+}
+.implementation-graph .implementation-node-state {
+  font-size: 10px;
+  fill: #687068;
+}
+.implementation-tasks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.implementation-task {
+  border: 1px solid #e5e7e1;
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 0;
+}
+.implementation-task-heading {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.implementation-task p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.implementation-task ol {
+  list-style: decimal;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 10px 0;
+  color: #4d5747;
+}
+.implementation-blocker {
+  color: #a13a2d;
+}
+.implementation-pr {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #555ca8;
+  margin-top: 10px;
+}
+.implementation-pr svg {
+  width: 14px;
+}
+.implementation-evidence {
+  background: #f5f6f2;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 10px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.implementation-evidence p {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  margin: 6px 0 0;
+}
+.implementation-panel details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 10px 0;
+  color: #505b47;
+}
+.implementation-report {
+  border-top: 1px solid #eceeea;
+  margin-top: 14px;
+  padding-top: 12px;
+}
+.implementation-report-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 12px;
+}
+.implementation-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin: 6px 0;
+}
+.implementation-approval,
+.implementation-launch,
+.implementation-run {
+  border-top: 1px solid #e5e7e1;
+  padding-top: 16px;
+}
+.implementation-approval p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+  color: #626f56;
+}
+.implementation-launch p {
+  margin: 10px 0;
+  line-height: 1.7;
+}
+.implementation-launch > button {
+  margin-bottom: 10px;
+}
+.implementation-review {
+  margin: 16px 0;
+}
+.implementation-review fieldset {
+  margin: 10px 0;
+}
+.implementation-review p {
+  margin-bottom: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.implementation-history {
+  border-top: 1px solid #e5e7e1;
+  padding-top: 4px;
+}
+.implementation-history ol {
+  list-style: none;
+  padding: 0;
+}
+.implementation-history li {
+  padding: 12px 0;
+  border-top: 1px solid #eceeea;
+  font-size: 12px;
+}
+.implementation-history li > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.implementation-history li span {
+  color: #687068;
+  font-size: 11px;
+}
+.implementation-history li p {
+  margin-top: 6px;
+  white-space: pre-wrap;
+}
+@media (max-width: 720px) {
+  .dialog-content:has(.implementation-panel) {
+    padding: 18px;
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+  .implementation-tasks,
+  .implementation-two {
+    grid-template-columns: 1fr;
+  }
+  .implementation-history li > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

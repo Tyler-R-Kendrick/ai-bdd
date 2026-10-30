@@ -46,18 +46,22 @@ describe.skipIf(!hasBrowser)('driver-playwright driver options', () => {
   });
 
   it('R-SDK2: baseURL resolution prefers the session option and falls back to the driver context', async () => {
-    const d = await playwright().create({ projectRoot: '.', policy: { allowHosts: ['example.invalid'], denyVerbs: [] }, artifactsDir: artifacts, baseURL: 'http://example.invalid' });
-    const s = await d.openSession(opts()); // the session baseURL (localhost) wins over the context baseURL
-    expect(await s.perform({ verb: 'navigate', url: '/plain' })).toEqual({ ok: true, navigatedTo: `${edge.url}/plain` });
-    await s.close();
-    const viaContext = await d.openSession({ scenarioId: 'ctx', policy: { allowHosts: ['example.invalid'], denyVerbs: [] }, resolveValue: () => '' });
-    const denied = await viaContext.perform({ verb: 'navigate', url: '/plain' });
-    expect(denied.ok).toBe(false);
-    // Without a session baseURL the context baseURL applies; example.invalid is allowed, so the browser really tries it.
-    expect(denied.error?.code).toBe('DRIVER_ERROR');
-    expect(denied.error?.message).toContain('http://example.invalid/plain');
-    await viaContext.close();
-    await d.dispose();
+    const contextEdge = await startEdgeServer();
+    const d = await playwright().create({ projectRoot: '.', policy, artifactsDir: artifacts, baseURL: contextEdge.url });
+    try {
+      const s = await d.openSession(opts());
+      expect(await s.perform({ verb: 'navigate', url: '/plain' })).toEqual({ ok: true, navigatedTo: `${edge.url}/plain` });
+      await s.close();
+      expect(contextEdge.hits).not.toContain('GET /plain');
+      const viaContext = await d.openSession({ scenarioId: 'ctx', policy, resolveValue: () => '' });
+      expect(await viaContext.perform({ verb: 'navigate', url: '/plain' })).toEqual({ ok: true, navigatedTo: `${contextEdge.url}/plain` });
+      expect(contextEdge.hits).toContain('GET /plain');
+      expect((await viaContext.observe()).treeText).toContain('heading "Plain"');
+      await viaContext.close();
+    } finally {
+      await d.dispose();
+      await contextEdge.close();
+    }
   });
 
   it('R-JU2: recordVideo writes a .webm per session under <artifactsDir>/video; the session option overrides the driver option either way', async () => {

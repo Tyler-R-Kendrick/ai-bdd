@@ -1,3 +1,5 @@
+import { investigationBlockSchemas } from './investigations.ts';
+import { isInvestigationBlockKind } from './investigation-blocks.ts';
 import { checkCodeProject } from './code-project.ts';
 import { z } from 'zod';
 import {
@@ -16,6 +18,8 @@ import {
   documentBlockText,
 } from './document-blocks.ts';
 import { videoContentSchema } from './video.ts';
+import { audioContentSchema, initialAudioContent } from './audio.ts';
+import { midiContentSchema, initialMidiContent } from './midi.ts';
 import {
   richVisualSchemas,
   richVisualText,
@@ -28,6 +32,8 @@ export const artifactKinds = [
   'code',
   'image',
   'video',
+  'audio',
+  'midi',
   'scene',
   'cad',
   'brand',
@@ -41,6 +47,8 @@ export const kindLabels: Record<ArtifactKind, string> = {
   code: 'Code',
   image: 'Image',
   video: 'Video',
+  audio: 'Audio',
+  midi: 'MIDI',
   scene: '3D scene',
   cad: 'CAD model',
   brand: 'Brand design',
@@ -195,6 +203,8 @@ const nodeSchema: z.ZodType<RichNode> = z.lazy(
           'questionnaireBlock',
           'artifactReferenceBlock',
           'evidenceBlock',
+          'investigationCard',
+          'investigationView',
         ]),
         text: z.string().max(200000).optional(),
         attrs: z.record(z.string().max(80), z.json()).optional(),
@@ -220,6 +230,18 @@ const nodeSchema: z.ZodType<RichNode> = z.lazy(
       })
       .strict()
       .superRefine((node, context) => {
+        if (isInvestigationBlockKind(node.type)) {
+          const result = investigationBlockSchemas[node.type].safeParse(
+            node.attrs?.data,
+          );
+          if (!result.success)
+            for (const issue of result.error.issues)
+              context.addIssue({
+                code: 'custom',
+                path: ['attrs', 'data', ...issue.path],
+                message: issue.message,
+              });
+        }
         if (isDocumentBlockKind(node.type)) {
           const result = documentBlockSchemas[node.type].safeParse(
             node.attrs?.data,
@@ -334,6 +356,8 @@ export function contentSchema(kind: ArtifactKind) {
       })
       .strict();
   if (kind === 'video') return videoContentSchema;
+  if (kind === 'audio') return audioContentSchema;
+  if (kind === 'midi') return midiContentSchema;
   if (kind === 'image' || kind === 'brand')
     return z
       .object({
@@ -397,6 +421,8 @@ export function initialContent(
   kind: ArtifactKind,
   title: string,
 ): Record<string, any> {
+  if (kind === 'audio') return initialAudioContent();
+  if (kind === 'midi') return initialMidiContent();
   if (kind === 'design')
     return {
       doc: {

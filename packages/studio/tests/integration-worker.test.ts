@@ -8,6 +8,7 @@ import { Store } from '../server/store.ts';
 import { Auth, type Settings } from '../server/auth.ts';
 import { Collaboration } from '../server/collaboration.ts';
 import { Agent } from '../server/agent.ts';
+import { DurableJobCoordinator } from '../server/runtime/jobs.ts';
 import { registerIntegrationRoutes } from '../server/integrations/routes.ts';
 import {
   AcpClient,
@@ -46,36 +47,56 @@ async function fixture() {
   cleanup.push(() => rm(dir, { recursive: true, force: true }));
   const agentFile = join(dir, 'explicit-acp-protocol-fixture.mjs');
   await writeFile(agentFile, agentScript);
-  const store = new Store(':memory:');
+  const store = await Store.open(':memory:');
   const settings: Settings = {
     production: false,
     origin: 'http://127.0.0.1:8787',
     dataDir: dir,
     demo: false,
   };
-  const auth = new Auth(store, settings),
-    collab = new Collaboration(store, auth),
-    agent = new Agent(store, settings, collab);
+  const auth = new Auth(store, settings);
+  await auth.initialize();
+  const collab = new Collaboration(store, auth);
+  await collab.initialize();
+  const runtime = new DurableJobCoordinator({
+    store,
+    dispatcher: {
+      provider: 'explicit-worker-test',
+      publish: async () => ({ provider: 'explicit-worker-test' }),
+    },
+  });
+  await runtime.ready;
+  const agent = new Agent(store, settings, collab, { runtime });
+  await agent.initialize();
   const app = Fastify();
   await app.register(cookie);
   app.addHook('onRequest', async (request) => {
-    if (request.method === 'POST') auth.assertOrigin(request);
+    if (request.method === 'POST') await auth.assertOrigin(request);
   });
   app.setErrorHandler((error, _request, reply) =>
     reply
       .code((error as any).statusCode ?? 500)
       .send({ error: (error as Error).message }),
   );
-  const services = registerIntegrationRoutes(app, {
+  const services = await registerIntegrationRoutes(app, {
     auth,
     store,
     collab,
     agent,
     settings,
   });
-  const user = store.createUser('owner@worker.test', 'Machine owner', null),
-    project = store.createProject(user, 'Machine worker fixture', '', '');
-  const artifact = store.createArtifact(
+  const user = await store.createUser(
+      'owner@worker.test',
+      'Machine owner',
+      null,
+    ),
+    project = (await store.createProject(
+      user,
+      'Machine worker fixture',
+      '',
+      '',
+    ))!;
+  const artifact = await store.createArtifact(
     user,
     project.id,
     'code',
@@ -86,8 +107,9 @@ async function fixture() {
   cleanup.push(async () => {
     await app.close();
     await agent.close();
-    collab.close();
-    store.close();
+    await runtime.close();
+    await collab.close();
+    await store.close();
   });
   return {
     dir,
@@ -105,16 +127,18 @@ async function fixture() {
 describe('local-machine HTTP and actual ACP child process', () => {
   it('pairs via HTTP, stores private credentials, runs ACP, and keeps the result reviewable', async () => {
     const w = await fixture(),
-      code = w.services.machines.pairing(
-        w.user,
-        w.project.id,
-        'Protocol fixture machine',
+      code = (
+        await w.services.machines.pairing(
+          w.user,
+          w.project.id,
+          'Protocol fixture machine',
+        )
       ).code;
     const file = join(w.dir, 'private-machine.json');
     const credentials = await connectMachine(w.settings.origin, code, file);
     expect((await stat(file)).mode & 0o077).toBe(0);
     expect(await readMachineCredentials(file)).toEqual(credentials);
-    const work = w.services.machines.queue(w.user, w.artifact.id, {
+    const work = await w.services.machines.queue(w.user, w.artifact.id, {
       version: 1,
       kind: 'implementation',
       brief: 'Return a complete code artifact proposal.',
@@ -129,15 +153,17 @@ describe('local-machine HTTP and actual ACP child process', () => {
       workId: work.id,
       status: 'awaiting-review',
     });
-    expect(w.store.artifact(w.artifact.id, w.user.id).version).toBe(1);
-    const review = w.services.machines.list(w.user, w.artifact.id)[0]!;
+    expect((await w.store.artifact(w.artifact.id, w.user.id)).version).toBe(1);
+    const review = (await w.services.machines.list(w.user, w.artifact.id))[0]!;
     expect(review.result.summary).toContain('denied execution');
     expect(review.result.evidenceStatus).toBe('external-unverified');
-    w.services.machines.review(w.user, w.artifact.id, work.id, true);
+    await w.services.machines.review(w.user, w.artifact.id, work.id, true);
     expect(
-      w.store.artifact(w.artifact.id, w.user.id).content.files['index.html'],
+      (await w.store.artifact(w.artifact.id, w.user.id)).content.files[
+        'index.html'
+      ],
     ).toContain('Reviewed ACP output');
-    expect(w.store.runs(w.artifact.id)).toEqual([]);
+    expect(await w.store.runs(w.artifact.id)).toEqual([]);
     expect(
       await runMachineOnce(credentials, {
         command: process.execPath,
@@ -164,39 +190,44 @@ describe('local-machine HTTP and actual ACP child process', () => {
   });
   it('rejects stale source application and rolls lifecycle state back with failed artifact persistence', async () => {
     const w = await fixture(),
-      machine = w.services.machines.pair(
-        w.services.machines.pairing(w.user, w.project.id, 'Atomic review')
-          .code,
+      machine = await w.services.machines.pair(
+        (
+          await w.services.machines.pairing(
+            w.user,
+            w.project.id,
+            'Atomic review',
+          )
+        ).code,
       );
-    const auth = w.services.machines.authenticate(
+    const auth = await w.services.machines.authenticate(
       { headers: { authorization: `Bearer ${machine.token}` } } as any,
       machine.id,
     );
-    const work = w.services.machines.queue(w.user, w.artifact.id, {
+    const work = await w.services.machines.queue(w.user, w.artifact.id, {
       version: 1,
       kind: 'implementation',
       brief: 'Review a full proposal.',
     });
-    const claim = w.services.machines.claim(auth);
-    w.services.machines.complete(auth, work.id, claim.leaseToken!, {
+    const claim = await w.services.machines.claim(auth);
+    await w.services.machines.complete(auth, work.id, claim.leaseToken!, {
       summary: 'Proposed edit',
       content: {
         ...w.artifact.content,
         files: { 'index.html': '<h1>Atomic replacement</h1>' },
       },
     });
-    w.store.db.exec(
+    await w.store.db.exec(
       "CREATE TRIGGER reject_machine_accept BEFORE UPDATE ON studio_machine_work WHEN NEW.status='accepted' BEGIN SELECT RAISE(ABORT,'fixture metadata write failure'); END",
     );
-    expect(() =>
+    await expect(
       w.services.machines.review(w.user, w.artifact.id, work.id, true),
-    ).toThrow('metadata write failure');
-    expect(w.store.artifact(w.artifact.id, w.user.id).version).toBe(1);
-    expect(w.services.machines.list(w.user, w.artifact.id)[0]?.status).toBe(
-      'awaiting-review',
-    );
+    ).rejects.toThrow('metadata write failure');
+    expect((await w.store.artifact(w.artifact.id, w.user.id)).version).toBe(1);
     expect(
-      w.store.all(
+      (await w.services.machines.list(w.user, w.artifact.id))[0]?.status,
+    ).toBe('awaiting-review');
+    expect(
+      await w.store.all(
         'SELECT * FROM revisions WHERE artifact_id=?',
         w.artifact.id,
       ),

@@ -1,7 +1,13 @@
+import { investigationBlockSchemas } from './investigations.ts';
+import {
+  isInvestigationBlockKind,
+  investigationBlockText,
+} from './investigation-blocks.ts';
 import { Lexer } from 'marked';
 import { unzipSync, zipSync, strToU8, strFromU8 } from 'fflate';
 import type { RichNode } from './domain.ts';
 import { editorSchema } from './editor.ts';
+import { canonicalDocumentIds } from './document-identity.ts';
 import {
   documentBlockSchemas,
   documentBlockText,
@@ -46,7 +52,7 @@ const decodeMarkdownText = (value: string) =>
   });
 const safeHref = (href: string) =>
   /^(https?:\/\/|mailto:|#|\/api\/files\/[0-9a-f-]{36}$)/i.test(href) &&
-  !Array.from(href).some(character => character.charCodeAt(0) <= 32);
+  !Array.from(href).some((character) => character.charCodeAt(0) <= 32);
 const components: Record<string, string> = {
   Chart: 'chartBlock',
   Diagram: 'diagramBlock',
@@ -58,6 +64,8 @@ const components: Record<string, string> = {
   Evidence: 'evidenceBlock',
   AcceptanceTest: 'testBlock',
   Research: 'researchBlock',
+  Investigation: 'investigationCard',
+  InvestigationView: 'investigationView',
 };
 const componentNames = Object.fromEntries(
   Object.entries(components).map(([name, type]) => [type, name]),
@@ -65,11 +73,17 @@ const componentNames = Object.fromEntries(
 export type DocumentImport = {
   doc: RichNode;
   warnings: string[];
-  attachments: { key: string; name: string; mime: string; bytes: Uint8Array }[];
+  attachments: {
+    key: string;
+    name: string;
+    mime: string;
+    bytes: Uint8Array;
+  }[];
 };
 function checkedDoc(doc: RichNode): RichNode {
-  editorSchema().nodeFromJSON(doc).check();
-  return doc;
+  const normalized = canonicalDocumentIds(doc, () => crypto.randomUUID()).doc;
+  editorSchema().nodeFromJSON(normalized).check();
+  return normalized;
 }
 function text(value: string, marks: RichNode['marks'] = []): RichNode[] {
   return value
@@ -77,6 +91,39 @@ function text(value: string, marks: RichNode['marks'] = []): RichNode[] {
     : [];
 }
 function checkedBlock(type: string, data: unknown): RichNode {
+  if (isInvestigationBlockKind(type)) {
+    const envelope =
+      data && typeof data === 'object' && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : null;
+    const anchored =
+      envelope &&
+      Object.keys(envelope).length === 2 &&
+      Object.hasOwn(envelope, 'id') &&
+      Object.hasOwn(envelope, 'data');
+    if (
+      anchored &&
+      (typeof envelope.id !== 'string' ||
+        !envelope.id ||
+        envelope.id.length > 100 ||
+        [...envelope.id].some(
+          (character) =>
+            character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
+        ))
+    )
+      throw new Error(
+        'Investigation component anchors must be bounded identifiers',
+      );
+    return {
+      type,
+      attrs: {
+        data: investigationBlockSchemas[type].parse(
+          anchored ? envelope.data : data,
+        ),
+        ...(anchored ? { id: envelope.id } : {}),
+      },
+    };
+  }
   if (isDocumentBlockKind(type))
     return { type, attrs: { data: documentBlockSchemas[type].parse(data) } };
   if (Object.hasOwn(richVisualSchemas, type))
@@ -92,7 +139,8 @@ function checkedBlock(type: string, data: unknown): RichNode {
     typeof value.label === 'string' &&
     value.label.length <= 180 &&
     (value.scenarioId === undefined ||
-      (typeof value.scenarioId === 'string' && value.scenarioId.length <= 300))
+      (typeof value.scenarioId === 'string' &&
+        value.scenarioId.length <= 300))
   )
     return {
       type,
@@ -134,7 +182,8 @@ export function importMarkdown(
   ): RichNode[] => {
     if (depth > 16) throw new Error('Markdown inline nesting is too deep');
     return tokens.flatMap((token) => {
-      if (++count > 10000) throw new Error('Document contains too many nodes');
+      if (++count > 10000)
+        throw new Error('Document contains too many nodes');
       if (
         token.type === 'strong' ||
         token.type === 'em' ||
@@ -170,7 +219,10 @@ export function importMarkdown(
         warnings.add(
           'Images remain links during Markdown import. Upload images through Insert image to attach owned project files.',
         );
-        return text(`Image: ${token.text ?? ''} (${token.href ?? ''})`, marks);
+        return text(
+          `Image: ${token.text ?? ''} (${token.href ?? ''})`,
+          marks,
+        );
       }
       if (token.type === 'html') {
         warnings.add(
@@ -197,7 +249,8 @@ export function importMarkdown(
   const blocks = (tokens: any[], depth = 0): RichNode[] => {
     if (depth > 16) throw new Error('Markdown block nesting is too deep');
     return tokens.flatMap((token) => {
-      if (++count > 10000) throw new Error('Document contains too many nodes');
+      if (++count > 10000)
+        throw new Error('Document contains too many nodes');
       if (token.type === 'space' || token.type === 'def') return [];
       if (token.type === 'heading')
         return [
@@ -299,9 +352,13 @@ export function importMarkdown(
       }
       if (token.type === 'html') {
         const value = token.raw.trim(),
-          match = /^<([A-Z][A-Za-z]+)\s+data=\{([\s\S]*)\}\s*\/>$/.exec(value);
+          match = /^<([A-Z][A-Za-z]+)\s+data=\{([\s\S]*)\}\s*\/>$/.exec(
+            value,
+          );
         if (match && components[match[1]!])
-          return [checkedBlock(components[match[1]!]!, JSON.parse(match[2]!))];
+          return [
+            checkedBlock(components[match[1]!]!, JSON.parse(match[2]!)),
+          ];
         if (restrictedMdx && /^<[A-Z]/.test(value))
           throw new Error(
             'Restricted MDX supports only the registered document components with literal JSON data',
@@ -388,7 +445,8 @@ export function exportMarkdown(doc: RichNode, restrictedMdx = false): string {
   const render = (node: RichNode, depth = 0): string => {
     const content = node.content ?? [],
       prose = () => content.map(inline).join('');
-    if (node.type === 'doc') return content.map((c) => render(c)).join('\n\n');
+    if (node.type === 'doc')
+      return content.map((c) => render(c)).join('\n\n');
     if (node.type === 'paragraph') return prose();
     if (node.type === 'heading')
       return `${'#'.repeat(Math.max(1, Math.min(6, Number(node.attrs?.level) || 1)))} ${prose()}`;
@@ -411,7 +469,10 @@ export function exportMarkdown(doc: RichNode, restrictedMdx = false): string {
     if (node.type === 'codeBlock') {
       const source = content.map((c) => c.text ?? '').join(''),
         fence = '`'.repeat(
-          Math.max(3, ...(source.match(/`+/g) ?? []).map((s) => s.length + 1)),
+          Math.max(
+            3,
+            ...(source.match(/`+/g) ?? []).map((s) => s.length + 1),
+          ),
         );
       return `${fence}${String(node.attrs?.language ?? '')}\n${source}\n${fence}`;
     }
@@ -439,7 +500,11 @@ export function exportMarkdown(doc: RichNode, restrictedMdx = false): string {
         : '';
     }
     if (componentNames[node.type]) {
-      const data = node.attrs?.data ?? node.attrs ?? {};
+      const value = node.attrs?.data ?? node.attrs ?? {};
+      const data =
+        isInvestigationBlockKind(node.type) && node.attrs?.id
+          ? { id: node.attrs.id, data: value }
+          : value;
       return restrictedMdx
         ? `<${componentNames[node.type]} data={${JSON.stringify(data)}} />`
         : `\`\`\`studio:${node.type}\n${JSON.stringify(data, null, 2)}\n\`\`\``;
@@ -462,18 +527,26 @@ export function validateDocxArchive(bytes: Uint8Array): number {
       end = i;
       break;
     }
-  if (end < 0 || view.getUint16(end + 4, true) || view.getUint16(end + 6, true))
+  if (
+    end < 0 ||
+    view.getUint16(end + 4, true) ||
+    view.getUint16(end + 6, true)
+  )
     throw new Error('DOCX archive structure is unsupported');
   if (
     (end >= 20 && view.getUint32(end - 20, true) === 0x07064b50) ||
     view.getUint16(end + 8, true) !== view.getUint16(end + 10, true)
   )
-    throw new Error('DOCX ZIP64 or inconsistent entry counts are unsupported');
+    throw new Error(
+      'DOCX ZIP64 or inconsistent entry counts are unsupported',
+    );
   const entries = view.getUint16(end + 10, true),
     centralSize = view.getUint32(end + 12, true),
     start = view.getUint32(end + 16, true);
   if (entries > 256 || entries === 65535 || start + centralSize > end)
-    throw new Error('DOCX archive contains too many entries or ZIP64 metadata');
+    throw new Error(
+      'DOCX archive contains too many entries or ZIP64 metadata',
+    );
   let position = start,
     total = 0;
   const names = new Set<string>();
@@ -698,7 +771,10 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
               'Nested Word list indentation was flattened; list text and sequence are retained.',
             );
           if (previous?.type === type)
-            previous.content!.push({ type: 'listItem', content: [paragraph] });
+            previous.content!.push({
+              type: 'listItem',
+              content: [paragraph],
+            });
           else
             result.push({
               type,
@@ -753,7 +829,10 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
             column += span;
           }
           if (!cells.length)
-            cells.push({ type: 'tableCell', content: [{ type: 'paragraph' }] });
+            cells.push({
+              type: 'tableCell',
+              content: [{ type: 'paragraph' }],
+            });
           rows.push({ type: 'tableRow', content: cells });
         }
         result.push({ type: 'table', content: rows });
@@ -769,8 +848,8 @@ export function importDocx(bytes: Uint8Array): DocumentImport {
       type: 'doc',
       content: content.length ? content : [{ type: 'paragraph' }],
     };
-  checkedDoc(doc);
-  return { doc, warnings: [...warnings], attachments };
+  const normalizedDoc = checkedDoc(doc);
+  return { doc: normalizedDoc, warnings: [...warnings], attachments };
 }
 export type DocxImage = {
   bytes: Uint8Array;
@@ -931,7 +1010,9 @@ export function exportDocx(
       return `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${drawingId}" name="${xmlEscape(String(node.attrs?.alt ?? 'Image'))}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${drawingId}" name="Image"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
     }
     let prose = '';
-    if (isDocumentBlockKind(node.type))
+    if (isInvestigationBlockKind(node.type))
+      prose = investigationBlockText(node.type, node.attrs?.data);
+    else if (isDocumentBlockKind(node.type))
       prose = documentBlockText(node.type, node.attrs?.data);
     else if (Object.hasOwn(richVisualSchemas, node.type))
       prose = richVisualText(node.type as RichVisualKind, node.attrs?.data);
@@ -939,7 +1020,8 @@ export function exportDocx(
       prose = `Acceptance criterion: ${String(node.attrs?.label ?? '')}\nScenario: ${String(node.attrs?.scenarioId || 'Not linked')}`;
     else if (node.type === 'researchBlock')
       prose = `Research: ${String(node.attrs?.brief ?? '')}`;
-    else if (node.type === 'blockMath') prose = String(node.attrs?.latex ?? '');
+    else if (node.type === 'blockMath')
+      prose = String(node.attrs?.latex ?? '');
     return prose
       .split('\n')
       .map((line) => paragraph({ type: 'paragraph', content: text(line) }))

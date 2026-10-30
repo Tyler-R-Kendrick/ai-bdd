@@ -1,0 +1,162 @@
+{
+  "sourceCommit": "4f4ddae638a82f850c1b620ea8f17b9750c5e5b9",
+  "projectId": "crimson-frog-10403185",
+  "productionBranchId": "br-shiny-fire-b8tn4wiv",
+  "testSourceBranchId": "br-hidden-dust-b8ilegv9",
+  "testRestoreBranchId": "br-square-bread-b8co5ej3",
+  "schema": "release_smoke_20261030_0236",
+  "postgresVersion": "17.11",
+  "appOnNeon": {
+    "verified": false,
+    "reason": "Native direct and pooled TCP fail ECONNREFUSED before Store/App migrations; one direct retry with additional network permission also failed.",
+    "credentials": "Retrieved privately; echo-disabled stdin and private IPC only; no DSN in argv/env/files/logs.",
+    "httpOperationsCompleted": 0,
+    "loadOrSloClaim": false
+  },
+  "schemaPortability": {
+    "localCreateAppMigrations": true,
+    "localPostgresMajor": 17,
+    "composition": "Default Node createApp with PostgreSQL adapter; not hosted production adapter extensions.",
+    "trustedStatementsAppliedThroughMcp": 645,
+    "applicationTables": 72,
+    "initialConstraints": 298,
+    "normalizedCapturedDdlSha256": "73b1d45101854b2bf5cf9d48e71f3275b063c5ee301bd196e74a3102ef66da3e"
+  },
+  "checkpoint": [
+    {
+      "artifact_version": "2",
+      "source_sha256": "ae2e44d98a2f97b3a6963ab3fff6baa1c596f40aa4d8fe7bc8e12ac65d799401",
+      "decision_status": "accepted",
+      "decision_version": "2",
+      "accepted_choice": "Retain the before-checkpoint source.",
+      "messages": "1",
+      "revisions": "2",
+      "marker": "before-provider-checkpoint",
+      "lsn": "0/1E0A338",
+      "database_time": "2026-10-30 02:55:09.517406+00"
+    }
+  ],
+  "branchpointCopy": [
+    {
+      "artifact_version": "2",
+      "source_sha256": "ae2e44d98a2f97b3a6963ab3fff6baa1c596f40aa4d8fe7bc8e12ac65d799401",
+      "decision_status": "accepted",
+      "decision_version": "2",
+      "accepted_choice": "Retain the before-checkpoint source.",
+      "messages": "1",
+      "revisions": "2",
+      "marker": "before-provider-checkpoint",
+      "lsn": "0/1E0ABA0",
+      "database_time": "2026-10-30 02:57:27.660965+00"
+    }
+  ],
+  "afterMutation": [
+    {
+      "artifact_version": "3",
+      "source_sha256": "e88e3b373361620e27d7f34f0198dcae0c991af0721d25f895ce5954d9bc2494",
+      "decision_status": "accepted",
+      "decision_version": "3",
+      "accepted_choice": "Different post-branchpoint choice",
+      "messages": "2",
+      "revisions": "2",
+      "marker": "after-provider-branchpoint",
+      "lsn": "0/1E0B458",
+      "database_time": "2026-10-30 02:57:41.164081+00"
+    }
+  ],
+  "afterComputeResume": [
+    {
+      "artifact_version": "3",
+      "source_sha256": "e88e3b373361620e27d7f34f0198dcae0c991af0721d25f895ce5954d9bc2494",
+      "decision_status": "accepted",
+      "decision_version": "3",
+      "accepted_choice": "Different post-branchpoint choice",
+      "messages": "2",
+      "revisions": "2",
+      "marker": "after-provider-branchpoint",
+      "lsn": "0/1E1A6F8",
+      "database_time": "2026-10-30 02:58:04.664408+00"
+    }
+  ],
+  "afterReset": [
+    {
+      "artifact_version": "2",
+      "source_sha256": "ae2e44d98a2f97b3a6963ab3fff6baa1c596f40aa4d8fe7bc8e12ac65d799401",
+      "decision_status": "accepted",
+      "decision_version": "2",
+      "accepted_choice": "Retain the before-checkpoint source.",
+      "messages": "1",
+      "revisions": "2",
+      "marker": "before-provider-checkpoint",
+      "lsn": "0/1E10F60",
+      "database_time": "2026-10-30 02:59:27.494524+00"
+    }
+  ],
+  "afterResetIntegrity": [
+    {
+      "application_tables": "72",
+      "validated_constraints": "299",
+      "post_checkpoint_messages": "0",
+      "rolled_back_rows": "0"
+    }
+  ],
+  "transactionRollback": [
+    {
+      "rolled_back_rows": "0"
+    }
+  ],
+  "foreignKeyCheckPassed": true,
+  "productionUntouched": [
+    {
+      "production_schema_untouched": true,
+      "postgres_version": "170011"
+    }
+  ],
+  "restoreSemantics": {
+    "operation": "reset_from_parent on disposable restore child only",
+    "source": "Untouched test source branch current HEAD",
+    "passed": true,
+    "pitrOrSnapshotVerified": false,
+    "snapshotLimitation": "HTTP 400: not allowed to snapshot non-root branch",
+    "productionBranchWritten": false
+  },
+  "boundedConnectorObservations": {
+    "maximumOutstandingMcpReads": 3,
+    "databaseQueryConcurrencyMeasured": false,
+    "roundTripMs": [
+      3325,
+      6493,
+      10110
+    ],
+    "batchWallMs": 10110,
+    "postSuspendResumeReadMs": 3753,
+    "postResetReadMs": 3977,
+    "scope": "MCP connector request observations, not application latency, RTO, load capacity or an SLO."
+  },
+  "compute": {
+    "sourceEndpoint": "ep-shy-cherry-b8v96o4f",
+    "restoreEndpoint": "ep-orange-dust-b8w8wmfj",
+    "minCu": 0.25,
+    "maxCu": 0.25,
+    "intervalOverride": "HTTP 412 denied by account policy",
+    "sourceFinalState": "deleted",
+    "restoreFinalState": "deleted"
+  },
+  "cleanup": {
+    "localTestSchemaDeleted": true,
+    "remoteBranchesDeleted": true,
+    "deletedInOrder": [
+      "br-square-bread-b8co5ej3",
+      "br-hidden-dust-b8ilegv9"
+    ],
+    "authorization": "Exact user approval for these two named disposable branches",
+    "priorAutomaticReviewRejection": "Irreversible branch deletion required exact trusted user approval; both computes were suspended while awaiting it.",
+    "remainingBranches": [
+      {
+        "id": "br-shiny-fire-b8tn4wiv",
+        "name": "production"
+      }
+    ],
+    "productionRetained": true
+  }
+}

@@ -1,0 +1,46 @@
+.rebuild-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.rebuild-panel header,
+.rebuild-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rebuild-panel h3 {
+  margin: 0;
+  font-size: 13px;
+}
+.rebuild-panel p {
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+.rebuild-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  line-height: 1.6;
+}
+.rebuild-consent input {
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.rebuild-panel ol {
+  padding-left: 18px;
+  margin: 14px 0 0;
+}
+.rebuild-panel li {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.rebuild-panel li span {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}

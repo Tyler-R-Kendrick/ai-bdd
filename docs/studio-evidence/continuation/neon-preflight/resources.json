@@ -1,0 +1,15 @@
+{
+  "projectId": "crimson-frog-10403185",
+  "productionBranchId": "br-shiny-fire-b8tn4wiv",
+  "testBranchId": "br-hidden-dust-b8ilegv9",
+  "testEndpointId": "ep-shy-cherry-b8v96o4f",
+  "testComputeMinCu": 0.25,
+  "testComputeMaxCu": 0.25,
+  "suspendIntervalChange": "account policy rejected HTTP 412; cleanup will explicitly suspend/delete test resources",
+  "productionBranchMutationAuthorized": false,
+  "cleanup": "complete after exact user approval: restore child deleted first, then test source parent; listing confirms only production remains",
+  "restoreBranchId": "br-square-bread-b8co5ej3",
+  "restoreEndpointId": "ep-orange-dust-b8w8wmfj",
+  "sourceEndpointState": "deleted",
+  "restoreEndpointState": "deleted"
+}

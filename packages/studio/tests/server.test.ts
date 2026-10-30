@@ -15,7 +15,6 @@ import {
   testSettings,
   type TestApp,
 } from './helpers.ts';
-
 describe('Studio durable API and authorization', () => {
   let instance: TestApp,
     dir: string,
@@ -34,7 +33,6 @@ describe('Studio durable API and authorization', () => {
     await instance.app.close();
     await rm(dir, { recursive: true, force: true });
   });
-
   it('issues secure session attributes and never persists plaintext credentials', async () => {
     const response = await instance.app.inject({
       method: 'POST',
@@ -48,13 +46,16 @@ describe('Studio durable API and authorization', () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers['set-cookie']).toContain('HttpOnly');
     expect(response.headers['set-cookie']).toContain('SameSite=Strict');
-    const stored = instance.store.userByEmail('owner@example.test');
+    const stored = await instance.store.userByEmail('owner@example.test');
     expect(stored.password).not.toContain('correct-horse');
     expect(
-      instance.store.one('SELECT token FROM sessions WHERE token=?', cookie),
+      await instance.store.one(
+        'SELECT token FROM sessions WHERE token=?',
+        cookie,
+      ),
     ).toBeUndefined();
     expect(
-      instance.store.one(
+      await instance.store.one(
         'SELECT token FROM sessions WHERE token=?',
         hash(cookie),
       ),
@@ -259,7 +260,7 @@ describe('Studio durable API and authorization', () => {
       null,
     );
     const token = 'foreign-api-token';
-    instance.store.exec(
+    await instance.store.exec(
       "INSERT INTO sessions VALUES(?,?,?,'api')",
       hash(token),
       other.id,
@@ -577,9 +578,11 @@ describe('Studio durable API and authorization', () => {
       });
     expect((await bearer()).statusCode).toBe(200);
     expect(
-      instance.store.one(
-        'SELECT expires FROM sessions WHERE token=?',
-        hash(token),
+      (
+        await instance.store.one(
+          'SELECT expires FROM sessions WHERE token=?',
+          hash(token),
+        )
       ).expires,
     ).toBeGreaterThan(Date.now());
     expect(

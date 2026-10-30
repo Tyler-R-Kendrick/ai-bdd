@@ -51,6 +51,65 @@ async function frame(html: string) {
   return { page, preview: page.frameLocator('iframe') };
 }
 describe('bounded source compiler', () => {
+  it('renders real Tailwind utilities, local theme imports, variants and shadcn-style tokens in the sandbox', async () => {
+    const result = await compileCodePreview({
+      channel: 'tailwind-real',
+      entry: 'src/App.tsx',
+      files: {
+        'src/App.tsx': `import './style.css';export default function App(){return <button className="inline-flex h-9 rounded-md bg-primary px-4 text-primary-foreground hover:bg-red-500">Styled button</button>}`,
+        'src/style.css':
+          '@import "tailwindcss";@import "./tokens.css";@theme inline{--color-primary:var(--primary);--color-primary-foreground:var(--primary-foreground)}',
+        'src/tokens.css':
+          ':root{--primary:#123456;--primary-foreground:#ffffff}',
+      },
+    });
+    const { page, preview } = await frame(result.html);
+    try {
+      const button = preview.getByRole('button', { name: 'Styled button' });
+      await expect
+        .poll(() =>
+          button.evaluate((el) => getComputedStyle(el).backgroundColor),
+        )
+        .toBe('rgb(18, 52, 86)');
+      expect(
+        await button.evaluate((el) => ({
+          display: getComputedStyle(el).display,
+          height: getComputedStyle(el).height,
+          padding: getComputedStyle(el).paddingLeft,
+        })),
+      ).toEqual({ display: 'inline-flex', height: '36px', padding: '16px' });
+      await button.hover();
+      await expect
+        .poll(() =>
+          button.evaluate((el) => getComputedStyle(el).backgroundColor),
+        )
+        .not.toBe('rgb(18, 52, 86)');
+    } finally {
+      await page.close();
+    }
+  });
+  it.each([
+    '@import "tailwindcss";@plugin "./execute.js";',
+    '@import "tailwindcss";@config "./execute.js";',
+    '@import "tailwindcss";@source inline("{1..1000000}");',
+    '@import "tailwindcss";@import "https://example.test/remote.css";',
+    '@import "tailwindcss";@import "../../outside.css";',
+  ])(
+    'rejects Tailwind execution, source expansion and external filesystem/network imports: %s',
+    async (css) => {
+      await expect(
+        compileCodePreview({
+          channel: 'tailwind-boundary',
+          entry: 'main.ts',
+          files: {
+            'main.ts': `import './style.css';`,
+            'style.css': css,
+            'execute.js': `throw new Error('must not execute')`,
+          },
+        }),
+      ).rejects.toThrow();
+    },
+  );
   it('bundles real React/TSX modules, JSON, CSS, alias imports and Pact fetch without network', async () => {
     const project = {
       entry: 'src/App.tsx',

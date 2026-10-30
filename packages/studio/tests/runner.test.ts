@@ -13,7 +13,19 @@ import { startAcmeApp } from '@ai-bdd/testing';
 import { createApp } from '../server/app.ts';
 import { hash } from '../server/store.ts';
 import { client, project, setup, testSettings } from './helpers.ts';
-
+async function waitForRun(
+  studio: Awaited<ReturnType<typeof createApp>>,
+  runId: string,
+  artifactId: string,
+) {
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    const run = await studio.store.run(runId, artifactId);
+    if (run && !['queued', 'running'].includes(run.status)) return run;
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  }
+  throw new Error('Durable runner did not finish before test deadline');
+}
 describe('Trusted acceptance runner adapter', () => {
   it('compiles grounded requirements, reviews, drives real Chromium, serves evidence and replays without model calls', async () => {
     // This fixture deliberately characterizes once, then replays. Production CI
@@ -103,19 +115,21 @@ describe('Trusted acceptance runner adapter', () => {
         );
         expect(review.statusCode, review.body).toBe(200);
       }
-      const version = studio.store.artifact(
-        p.mainArtifactId,
-        studio.store.userByEmail('owner@example.test').id,
+      const version = (
+        await studio.store.artifact(
+          p.mainArtifactId,
+          (await studio.store.userByEmail('owner@example.test')).id,
+        )
       ).version;
       const queued = await request(
         'POST',
         `/api/artifacts/${p.mainArtifactId}/runs`,
       );
       expect(queued.statusCode, queued.body).toBe(202);
-      await Promise.all([...studio.runner.pending]);
-      const first = studio.store
-        .runs(p.mainArtifactId)
-        .find((r) => r.id === queued.json().id)!;
+      await waitForRun(studio, queued.json().id, p.mainArtifactId);
+      const first = (await studio.store.runs(p.mainArtifactId)).find(
+        (r) => r.id === queued.json().id,
+      )!;
       expect(first.status, JSON.stringify(first)).toBe('passed');
       expect(first.artifactVersion).toBe(version);
       expect(first.result.scenarios).toHaveLength(
@@ -138,18 +152,34 @@ describe('Trusted acceptance runner adapter', () => {
       );
       expect(file.statusCode, file.body).toBe(200);
       expect(hash(file.rawPayload)).toBe(evidence.sha256);
+      if (process.env.STUDIO_REVIEW_CAPTURE_DIR) {
+        await mkdir(process.env.STUDIO_REVIEW_CAPTURE_DIR, { recursive: true });
+        await writeFile(
+          join(
+            process.env.STUDIO_REVIEW_CAPTURE_DIR,
+            'runner-real-browser-evidence.png',
+          ),
+          file.rawPayload,
+        );
+      }
       expect(file.rawPayload.subarray(0, 8)).toEqual(
         Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
       );
-      const evidencePath = join(
-        dir,
-        'data/workspaces',
-        p.mainArtifactId,
-        'runs',
-        first.result.runId,
-        evidence.path,
+      const manifest = await studio.hosting.objects.get(
+        first.result.evidenceWorkspace.key,
+        {
+          maxBytes: 4 * 1024 * 1024,
+          expectedSha256: first.result.evidenceWorkspace.sha256,
+        },
       );
-      await writeFile(evidencePath, 'tampered evidence');
+      const stored = JSON.parse(
+        Buffer.from(manifest!.bytes).toString(),
+      ).files.find((entry: any) => entry.path === evidence.path);
+      const evidencePath = join(dir, 'data/objects', stored.key),
+        originalObject = await readFile(evidencePath);
+      const tampered = Buffer.from(originalObject);
+      tampered[tampered.length - 1] ^= 1;
+      await writeFile(evidencePath, tampered);
       try {
         expect(
           (
@@ -160,7 +190,7 @@ describe('Trusted acceptance runner adapter', () => {
           ).statusCode,
         ).toBe(409);
       } finally {
-        await writeFile(evidencePath, file.rawPayload);
+        await writeFile(evidencePath, originalObject);
       }
       const calls = (await readFile(log, 'utf8')).trim().split('\n').length,
         replay = await request(
@@ -168,19 +198,19 @@ describe('Trusted acceptance runner adapter', () => {
           `/api/artifacts/${p.mainArtifactId}/runs`,
         );
       expect(replay.statusCode).toBe(202);
-      await Promise.all([...studio.runner.pending]);
-      const second = studio.store
-        .runs(p.mainArtifactId)
-        .find((r) => r.id === replay.json().id)!;
+      await waitForRun(studio, replay.json().id, p.mainArtifactId);
+      const second = (await studio.store.runs(p.mainArtifactId)).find(
+        (r) => r.id === replay.json().id,
+      )!;
       expect(second.status, JSON.stringify(second)).toBe('passed');
       expect(second.result.scenarios[0].mode).toBe('replay');
       expect((await readFile(log, 'utf8')).trim().split('\n')).toHaveLength(
         calls,
       );
       // Frozen execution must not turn an edited or empty document into green evidence.
-      const current = studio.store.artifact(
+      const current = await studio.store.artifact(
         p.mainArtifactId,
-        studio.store.userByEmail('owner@example.test').id,
+        (await studio.store.userByEmail('owner@example.test')).id,
       );
       await request('PATCH', `/api/artifacts/${p.mainArtifactId}`, {
         version: current.version,
@@ -206,14 +236,14 @@ describe('Trusted acceptance runner adapter', () => {
         `/api/artifacts/${p.mainArtifactId}/runs`,
       );
       expect(stale.statusCode).toBe(202);
-      await Promise.all([...studio.runner.pending]);
-      const rejected = studio.store
-        .runs(p.mainArtifactId)
-        .find((r) => r.id === stale.json().id)!;
+      await waitForRun(studio, stale.json().id, p.mainArtifactId);
+      const rejected = (await studio.store.runs(p.mainArtifactId)).find(
+        (r) => r.id === stale.json().id,
+      )!;
       expect(rejected.status).not.toBe('passed');
-      const changed = studio.store.artifact(
+      const changed = await studio.store.artifact(
         p.mainArtifactId,
-        studio.store.userByEmail('owner@example.test').id,
+        (await studio.store.userByEmail('owner@example.test')).id,
       );
       await request('PATCH', `/api/artifacts/${p.mainArtifactId}`, {
         version: changed.version,
@@ -240,10 +270,10 @@ describe('Trusted acceptance runner adapter', () => {
         `/api/artifacts/${p.mainArtifactId}/runs`,
       );
       expect(emptyRun.statusCode).toBe(202);
-      await Promise.all([...studio.runner.pending]);
-      const empty = studio.store
-        .runs(p.mainArtifactId)
-        .find((r) => r.id === emptyRun.json().id)!;
+      await waitForRun(studio, emptyRun.json().id, p.mainArtifactId);
+      const empty = (await studio.store.runs(p.mainArtifactId)).find(
+        (r) => r.id === emptyRun.json().id,
+      )!;
       expect(empty.status).not.toBe('passed');
       expect(empty.error).toBeTruthy();
     } finally {

@@ -31,7 +31,6 @@ RUN --mount=type=secret,id=proxy_ca \
 FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     STUDIO_HOST=0.0.0.0 \
-    STUDIO_PORT=8787 \
     STUDIO_DATA_DIR=/data \
     AI_BDD_CHROMIUM_PATH=/usr/bin/chromium \
     DO_NOT_TRACK=1 \
@@ -48,5 +47,5 @@ USER node
 VOLUME ["/data"]
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:8787/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.STUDIO_PORT??process.env.PORT??(process.env.VERCEL==='1'||process.env.STUDIO_HOSTING_PROVIDER==='vercel'?'80':'8787'))+'/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 CMD ["node", "dist/server/main.js"]

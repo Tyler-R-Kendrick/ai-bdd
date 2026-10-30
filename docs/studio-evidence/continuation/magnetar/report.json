@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "implementation": {
+    "repository": "https://github.com/Lulzx/open-magnetar",
+    "commit": "febfc0e66f5809e034dd1afac78202bd4882de27",
+    "archiveSha256": "2d019e8b032a82a9a50f8ca34aa25bbce5503644036d10fa28aa2de723156feb",
+    "profile": "provable-120",
+    "pcs": "ligerito",
+    "hash": "sha384",
+    "officialMicrosoftImplementation": false,
+    "audited": false
+  },
+  "binarySha256": "088aef340dbae69ec424f1d703f40f099de0abfea05efb25c0ce850b971a9282",
+  "guestSourceSha256": "fd3e4f87089d85d0adbdab04634dd45304bdd2ad215f69ec9f1d588880567504",
+  "modelSha256": "5f0add34c1dd7471f495a5bfa528880649019973609d434773d433c2a367b0e3",
+  "cases": [
+    {
+      "width": 320,
+      "detail": false,
+      "cycles": "256",
+      "proofBytes": 95254,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    },
+    {
+      "width": 320,
+      "detail": true,
+      "cycles": "256",
+      "proofBytes": 96310,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    },
+    {
+      "width": 900,
+      "detail": false,
+      "cycles": "256",
+      "proofBytes": 95462,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    },
+    {
+      "width": 900,
+      "detail": true,
+      "cycles": "256",
+      "proofBytes": 95382,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    },
+    {
+      "width": 1280,
+      "detail": false,
+      "cycles": "256",
+      "proofBytes": 96294,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    },
+    {
+      "width": 1280,
+      "detail": true,
+      "cycles": "256",
+      "proofBytes": 95030,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    },
+    {
+      "width": 4096,
+      "detail": false,
+      "cycles": "256",
+      "proofBytes": 95334,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    },
+    {
+      "width": 4096,
+      "detail": true,
+      "cycles": "256",
+      "proofBytes": 95078,
+      "verified": true,
+      "tamperedProofRejected": true,
+      "tamperedInputRejected": true,
+      "tamperedOutputRejected": true
+    }
+  ],
+  "adapterVerified": true,
+  "scope": "Experimental independent implementation of the Magnetar paper, unaudited and not affiliated with Microsoft. Public layout guest executions only; no confidential witness, browser rendering, or whole-application proof. This research result is not a production security certification."
+}

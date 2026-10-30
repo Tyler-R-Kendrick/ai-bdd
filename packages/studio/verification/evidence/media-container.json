@@ -1,0 +1,401 @@
+{
+  "schemaVersion": 1,
+  "provider": "local-OCI-worker-acceptance",
+  "image": "ai-bdd-studio-media:release-cd3c351",
+  "imageId": "sha256:ba1fb430dee5b1c5a90b2dc6dab665fa6c24896f90e2f18b9e59ce8eb914ad56",
+  "verifiedAt": "2026-10-30T02:33:52.956Z",
+  "vmsCreatedOnVercel": false,
+  "passed": true,
+  "checks": [
+    "actual packaged runtime hashes and versions verified",
+    "actual owned WAV completely decoded and probed",
+    "actual wav mixdown encoded and completely decoded",
+    "actual flac mixdown encoded and completely decoded",
+    "actual mp3 mixdown encoded and completely decoded",
+    "actual m4a mixdown encoded and completely decoded",
+    "actual ogg mixdown encoded and completely decoded",
+    "actual Chromium Inter frames and FFmpeg mp4 duration validated",
+    "actual Chromium Inter frames and FFmpeg webm duration validated",
+    "malformed audio source rejected by actual decoder",
+    "packaged binary/font integrity rejects changed runtime",
+    "cancel kills actual worker container before publication"
+  ],
+  "workerRequestsCompleted": 15,
+  "workerReceipts": [
+    {
+      "kind": "verify",
+      "format": null,
+      "status": "completed",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.probe",
+      "format": null,
+      "status": "completed",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.render",
+      "format": "wav",
+      "status": "completed",
+      "output": {
+        "byteSize": 96078,
+        "sha256": "ae94c192e3422a2ef06b3e38d4422b72c718a85f02eebdb135da7a8071ba6574"
+      },
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.probe",
+      "format": null,
+      "status": "completed",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.render",
+      "format": "flac",
+      "status": "completed",
+      "output": {
+        "byteSize": 34400,
+        "sha256": "90c6a8810b84e558e131344ccddf8f1b2dee6abdd189e78a11663b73b3fe290f"
+      },
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.probe",
+      "format": null,
+      "status": "completed",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.render",
+      "format": "mp3",
+      "status": "completed",
+      "output": {
+        "byteSize": 3645,
+        "sha256": "ad848095a5349d64e09ba6a5a92bcd68a0c20a882c713f30c097a83827380960"
+      },
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.probe",
+      "format": null,
+      "status": "completed",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.render",
+      "format": "m4a",
+      "status": "completed",
+      "output": {
+        "byteSize": 13584,
+        "sha256": "315243f1e7ad68feaf5aa7aed639b41ad55bdb5c4de8d6a1144e5d54f6ff1be8"
+      },
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.probe",
+      "format": null,
+      "status": "completed",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.render",
+      "format": "ogg",
+      "status": "completed",
+      "output": {
+        "byteSize": 6272,
+        "sha256": "7a6081dc1f92f216a9afc53b02c4df9ea7d93429025796c19f25867f375d5c1f"
+      },
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.probe",
+      "format": null,
+      "status": "completed",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "video.render",
+      "format": "mp4",
+      "status": "completed",
+      "output": {
+        "byteSize": 2996,
+        "sha256": "493b9f3081c6c4325d785ce626c36a85c31c1775483dbd7709724666e8a34475"
+      },
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "video.render",
+      "format": "webm",
+      "status": "completed",
+      "output": {
+        "byteSize": 2135,
+        "sha256": "23c93326cd3c3485b5b0a7abe4ef0322918e789eae99164ae2d48fa2d76bbf2e"
+      },
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    },
+    {
+      "kind": "audio.probe",
+      "format": null,
+      "status": "error",
+      "worker": {
+        "workerVersion": "studio-media-worker-v1",
+        "files": {
+          "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+          "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+          "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+          "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+          "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+        },
+        "versions": {
+          "node": "v24.22.2",
+          "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+          "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+          "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+        }
+      }
+    }
+  ],
+  "buildProvenance": {
+    "schemaVersion": 1,
+    "workerSha256": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+    "lockSha256": "74f1b2abe23990f498a9acecb949ec9a57293530f23f9001525c6342c8a4b753",
+    "sourceBuild": {
+      "schemaVersion": 1,
+      "workerSha256": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+      "playwrightCore": "1.64.0",
+      "sourceRevision": "cd3c351e0f0c1f2544730a88d2fcd8310805a1fb"
+    },
+    "manifest": {
+      "workerVersion": "studio-media-worker-v1",
+      "files": {
+        "worker": "fb00b1617f865c8cf1ea5eec8e351c430c5562fe2eb1d00cd50f6d52a7f7b2e7",
+        "ffmpeg": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+        "ffprobe": "0e598fe6d247bfe63757f5c839dc145a166b3f876f2875ca88a306a5b8ec5a58",
+        "chromium": "4316251c387424a3a13079c82a1ae2e7b4104e108b871c7c79b861685342a529",
+        "font": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+      },
+      "versions": {
+        "node": "v24.22.2",
+        "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+        "ffprobe": "ffprobe version 5.1.9-0+deb12u1 Copyright (c) 2007-2026 the FFmpeg developers",
+        "chromium": "Chromium 156.0.8078.73 built on Debian GNU/Linux 12 (bookworm)"
+      }
+    }
+  },
+  "buildContext": {
+    "byteSize": 14914258,
+    "files": 126,
+    "playwrightCore": "1.64.0"
+  }
+}

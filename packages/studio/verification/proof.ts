@@ -41,7 +41,8 @@ async function sha256File(file: string, limit: number): Promise<string> {
 
 /**
  * A fail-closed boundary for an operator-supplied verifier adapter.
- * This repository does not contain a Magnetar prover or verifier.
+ * The optional research workflow builds a pinned independent implementation;
+ * its executable verifier is supplied explicitly by the operator.
  * The adapter must cryptographically verify the proof, not echo this manifest.
  */
 export async function verifyExternalProof(options: {

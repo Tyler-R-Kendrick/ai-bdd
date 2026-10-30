@@ -1,3 +1,10 @@
+import RepositoryIdentity from './components/RepositoryIdentity.tsx';
+import { ArtifactTitle } from './components/ArtifactTitle.tsx';
+import { AccountMachinesPanel } from './components/AccountMachinesPanel.tsx';
+import { DesignReview } from './components/integrations/DesignReview.tsx';
+import type { AgentProfileView } from '../shared/agent-profile.ts';
+import { ImplementationPanel } from './components/integrations/ImplementationPanel.tsx';
+import { InvestigationPanel } from './components/investigations/InvestigationPanel.tsx';
 import {
   lazy,
   Suspense,
@@ -17,6 +24,8 @@ import {
   Code2,
   Image,
   Film,
+  AudioLines,
+  Piano,
   Box,
   Ruler,
   Palette,
@@ -37,6 +46,7 @@ import {
   Archive,
   History,
   ClipboardCheck,
+  FlaskConical,
 } from 'lucide-react';
 import { api, ApiError } from './lib.ts';
 import {
@@ -66,6 +76,8 @@ import {
 const CodeEditor = lazy(() => import('./editors/CodeEditor.tsx'));
 const VisualEditor = lazy(() => import('./editors/VisualEditor.tsx'));
 const VideoEditor = lazy(() => import('./editors/VideoEditor.tsx'));
+const AudioEditor = lazy(() => import('./editors/AudioEditor.tsx'));
+const MidiEditor = lazy(() => import('./editors/MidiEditor.tsx'));
 const SceneEditor = lazy(() => import('./editors/SceneEditor.tsx'));
 const GenerativeEditor = lazy(() => import('./editors/GenerativeEditor.tsx'));
 export const kindIcons = {
@@ -74,6 +86,8 @@ export const kindIcons = {
   code: Code2,
   image: Image,
   video: Film,
+  audio: AudioLines,
+  midi: Piano,
   scene: Box,
   cad: Ruler,
   brand: Palette,
@@ -87,6 +101,8 @@ export type Bundle = {
   runs: any[];
   links: any[];
   agentActive: boolean;
+  agentAvailable?: boolean;
+  agentProfile?: AgentProfileView;
   runnerActive: boolean;
 };
 export type MediaProps = {
@@ -128,6 +144,7 @@ export function App() {
     [settings, setSettings] = useState(false),
     [more, setMore] = useState(false),
     [busy, setBusy] = useState(false);
+  const [investigationsOpen, setInvestigationsOpen] = useState(false);
   const project = projects.find((p) => p.id === selection.project),
     artifact = bundle?.artifact,
     readOnly = project?.role === 'viewer';
@@ -672,27 +689,47 @@ export function App() {
                     {kindLabels[artifact.kind]}
                     {readOnly && <Badge>View only</Badge>}
                   </div>
-                  <button
-                    className="artifact-title"
-                    disabled={readOnly}
-                    title={readOnly ? undefined : 'Rename artifact'}
-                    onClick={() => {
-                      const t = window.prompt(
-                        'Artifact title',
-                        artifact.title,
-                      );
-                      if (t?.trim())
-                        api(`/artifacts/${artifact.id}/title`, 'PATCH', {
-                          title: t.trim(),
-                        })
-                          .then(refresh)
-                          .catch((e) => report(e.message));
-                    }}
-                  >
-                    {artifact.title}
-                  </button>
+                  <ArtifactTitle
+                    key={artifact.id}
+                    artifact={artifact}
+                    readOnly={readOnly}
+                    refresh={refresh}
+                    report={report}
+                  />
                 </div>
                 <div className="artifact-actions">
+                  {['design', 'document'].includes(artifact.kind) && (
+                    <>
+                      <DesignReview
+                        key={artifact.id}
+                        artifact={artifact}
+                        readOnly={readOnly}
+                        onDiscuss={(passage) => {
+                          setAnchor(passage);
+                          setPanel('chat');
+                          setRightOpen(true);
+                        }}
+                      />
+                      <ImplementationPanel
+                        artifact={artifact}
+                        project={project}
+                        readOnly={readOnly}
+                        onChanged={() => void refresh()}
+                        onError={report}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setInvestigationsOpen(true)}
+                        aria-label="Investigations"
+                      >
+                        <FlaskConical size={15} />
+                        <span className="investigation-header-label">
+                          Investigations
+                        </span>
+                      </Button>
+                    </>
+                  )}
                   {!['design', 'document'].includes(artifact.kind) && (
                     <span className="save-status">
                       {dirty ? (
@@ -780,6 +817,7 @@ export function App() {
                           setPanel('decisions');
                           setRightOpen(true);
                         }}
+                        onInvestigations={() => setInvestigationsOpen(true)}
                         onTests={() => {
                           setPanel('tests');
                           setRightOpen(true);
@@ -795,6 +833,10 @@ export function App() {
                       <CodeEditor key={artifact.id} {...mediaProps!} />
                     ) : artifact.kind === 'video' ? (
                       <VideoEditor key={artifact.id} {...mediaProps!} />
+                    ) : artifact.kind === 'audio' ? (
+                      <AudioEditor key={artifact.id} {...mediaProps!} />
+                    ) : artifact.kind === 'midi' ? (
+                      <MidiEditor key={artifact.id} {...mediaProps!} />
                     ) : artifact.kind === 'image' ||
                       artifact.kind === 'brand' ? (
                       <VisualEditor key={artifact.id} {...mediaProps!} />
@@ -828,7 +870,10 @@ export function App() {
               bundle={bundle}
               project={project}
               user={user}
-              capabilities={capabilities}
+              capabilities={{
+                ...capabilities,
+                agent: bundle.agentAvailable ?? capabilities.agent,
+              }}
               panel={panel}
               onPanel={setPanel}
               onRefresh={refresh}
@@ -953,6 +998,26 @@ export function App() {
           </div>
         </form>
       </Modal>
+      {artifact && (
+        <Modal
+          open={investigationsOpen}
+          onOpenChange={setInvestigationsOpen}
+          title="Local investigations"
+          description="Run approved investigations on your connected machine and retain the evidence with this artifact."
+        >
+          <InvestigationPanel
+            key={artifact.id}
+            artifactId={artifact.id}
+            artifactVersion={artifact.version}
+            currentUserId={user.id}
+            canWrite={!readOnly}
+            onOpenArtifact={(id) => {
+              setInvestigationsOpen(false);
+              navigate(artifact.projectId, id);
+            }}
+          />
+        </Modal>
+      )}
       <Modal open={command} onOpenChange={setCommand} title="Jump to…">
         <Input
           value={query}
@@ -1021,6 +1086,17 @@ export function App() {
         onOpenChange={setSettings}
         title="Workspace settings"
       >
+        <div className="settings-section">
+          <RepositoryIdentity
+            onChanged={() => {
+              void refreshProjects().catch((error) => report(error.message));
+            }}
+            onError={report}
+          />
+        </div>
+        <div className="settings-section">
+          <AccountMachinesPanel />
+        </div>
         {project?.role === 'owner' && (
           <form
             onSubmit={async (e) => {
@@ -1075,6 +1151,7 @@ export function App() {
             operator. Preview remains available without them.
           </p>
           <Button
+            disabled={!project}
             variant="outline"
             onClick={() => {
               setSettings(false);

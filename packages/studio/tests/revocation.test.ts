@@ -34,24 +34,26 @@ describe('Permission changes during asynchronous requests', () => {
     const lookup = instance.store.userByEmail.bind(instance.store),
       email = 'late-invite@example.test';
     let revoked = false;
-    vi.spyOn(instance.store, 'userByEmail').mockImplementation((value) => {
-      if (value === email && !revoked) {
-        revoked = true;
-        instance.store.exec(
-          'DELETE FROM memberships WHERE project_id=? AND user_id=?',
-          p.id,
-          owner.id,
-        );
-      }
-      return lookup(value);
-    });
+    vi.spyOn(instance.store, 'userByEmail').mockImplementation(
+      async (value) => {
+        if (value === email && !revoked) {
+          revoked = true;
+          await instance.store.exec(
+            'DELETE FROM memberships WHERE project_id=? AND user_id=?',
+            p.id,
+            owner.id,
+          );
+        }
+        return lookup(value);
+      },
+    );
     const response = await request('POST', `/api/projects/${p.id}/members`, {
       email,
       name: 'Late invitation',
       role: 'editor',
     });
     expect(response.statusCode).toBe(404);
-    expect(lookup(email)).toBeUndefined();
+    expect(await lookup(email)).toBeUndefined();
   });
   it('does not persist a provider result after the requesting editor is removed', async () => {
     const p = await project(request),
@@ -96,7 +98,8 @@ describe('Permission changes during asynchronous requests', () => {
     );
     expect((await pending).statusCode).toBe(404);
     expect(
-      instance.store.one('SELECT state FROM links WHERE id=?', link.id).state,
+      (await instance.store.one('SELECT state FROM links WHERE id=?', link.id))
+        .state,
     ).toBe('unknown');
   });
 });

@@ -4,102 +4,542 @@ import { z } from 'zod';
 import { Store, HttpError, hash } from './store.ts';
 import type { Auth, Settings } from './auth.ts';
 import { normalizeVideo, type TimelineContent } from '../shared/video.ts';
-import { renderVideo, type RenderAsset } from './video-renderer.ts';
-type Job = { id: string; artifactId: string; artifactVersion: number; userId: string; format: 'mp4' | 'webm'; content: TimelineContent; title: string };
-export function registerVideoRoutes(app: FastifyInstance, dependencies: { store: Store; auth: Auth; settings: Settings }) {
-  const { store, auth } = dependencies;
-  store.db.exec(`CREATE TABLE IF NOT EXISTS video_render_jobs(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,artifact_version INTEGER NOT NULL,user_id TEXT NOT NULL REFERENCES users(id),format TEXT NOT NULL,status TEXT NOT NULL,progress REAL NOT NULL DEFAULT 0,file_id TEXT REFERENCES files(id),error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
+import {
+  cpuVideoRenderDriver,
+  type VideoRenderDriver,
+  type RenderAsset,
+} from './video-renderer.ts';
+import type {
+  DurableJobContext,
+  DurableJobRuntime,
+  DurableJob,
+  JobDelivery,
+} from './runtime/contracts.ts';
+import type { ObjectStore } from './hosting/ports.ts';
+import { JobLeaseLostError, TerminalJobError } from './runtime/jobs.ts';
+export type VideoRenderTask = {
+  schemaVersion: 1;
+  title: string;
+  content: TimelineContent;
+  format: 'mp4' | 'webm';
+  runtimeFingerprint?: string;
+};
+const snapshotSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    title: z.string().min(1).max(180),
+    content: z.unknown(),
+    format: z.enum(['mp4', 'webm']),
+    runtimeFingerprint: z.string().min(1).max(300).optional(),
+  })
+  .strict();
+const outputSchema = z
+  .object({
+    fileId: z.string().uuid(),
+    downloadUrl: z.string(),
+    artifactVersion: z.number().int(),
+    format: z.enum(['mp4', 'webm']),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    byteSize: z.number().int().nonnegative(),
+    runtimeFingerprint: z.string().min(1).max(300).optional(),
+  })
+  .strict();
+const KIND = 'video.render';
+const MAX_SOURCE_BYTES = 128 * 1024 * 1024;
+const MAX_OUTPUT_BYTES = 100 * 1024 * 1024;
+export type VideoServices = {
+  store: Store;
+  auth: Auth;
+  settings: Settings;
+  runtime: DurableJobRuntime;
+  objects: ObjectStore;
+  renderDriver?: VideoRenderDriver;
+};
+/** SQL owns snapshots, leases, cancellation, receipts, and results; queue messages contain only the durable job ID. */
+export async function registerVideoRoutes(
+  app: FastifyInstance,
+  dependencies: VideoServices,
+) {
+  const { store, auth, runtime, objects } = dependencies;
+  const renderer = dependencies.renderDriver ?? cpuVideoRenderDriver;
+  await store.tx(async () => {
+    await store.lock('schema:studio.video');
+    await store.db
+      .exec(`CREATE TABLE IF NOT EXISTS video_render_jobs(id TEXT PRIMARY KEY,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,artifact_version INTEGER NOT NULL,user_id TEXT NOT NULL REFERENCES users(id),format TEXT NOT NULL,status TEXT NOT NULL,progress REAL NOT NULL DEFAULT 0,file_id TEXT REFERENCES files(id),error TEXT,created_at TEXT NOT NULL,finished_at TEXT);
     CREATE INDEX IF NOT EXISTS video_render_artifact ON video_render_jobs(artifact_id,created_at);
-    UPDATE video_render_jobs SET status='interrupted',error='Server restarted during rendering',finished_at=datetime('now') WHERE status IN ('queued','rendering');`);
-  const queue: Job[] = [];
-  const controllers = new Map<string, AbortController>();
-  const pending = new Set<Promise<void>>();
-  let stopped = false;
-  function publicJob(id: string, artifactId: string) {
-    const row = store.one('SELECT id,artifact_version AS artifactVersion,format,status,progress,file_id AS fileId,error,created_at AS createdAt,finished_at AS finishedAt FROM video_render_jobs WHERE id=? AND artifact_id=?', id, artifactId);
-    if (!row) throw new HttpError(404, 'Video render not found');
-    return { ...row, downloadUrl: row.fileId ? `/api/files/${row.fileId}` : null };
+    CREATE TABLE IF NOT EXISTS studio_video_staging(object_key TEXT PRIMARY KEY,job_id TEXT NOT NULL REFERENCES studio_durable_jobs(id) ON DELETE CASCADE,fence INTEGER NOT NULL,sha256 TEXT NOT NULL,byte_size INTEGER NOT NULL,state TEXT NOT NULL,created_at INTEGER NOT NULL,next_cleanup INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS studio_video_staging_due ON studio_video_staging(state,next_cleanup);`);
+  });
+  function snapshot(job: DurableJob): VideoRenderTask {
+    const value = snapshotSchema.parse(job.snapshot);
+    return { ...value, content: normalizeVideo(value.content) };
   }
-  function assets(content: TimelineContent, projectId: string) {
+  async function publicJob(id: string, artifactId: string) {
+    const row = await store.one(
+      'SELECT id,artifact_version AS artifactVersion,format,status,progress,file_id AS fileId,error,created_at AS createdAt,finished_at AS finishedAt FROM video_render_jobs WHERE id=? AND artifact_id=?',
+      id,
+      artifactId,
+    );
+    if (!row) throw new HttpError(404, 'Video render not found');
+    const job = await runtime.get(id);
+    if (!job)
+      return {
+        ...row,
+        status: ['queued', 'rendering'].includes(row.status)
+          ? 'interrupted'
+          : row.status,
+        downloadUrl: row.fileId ? `/api/files/${row.fileId}` : null,
+      };
+    if (job.kind !== KIND || job.artifactId !== artifactId)
+      throw new HttpError(404, 'Video render not found');
+    const output =
+      job.status === 'completed' ? outputSchema.parse(job.result) : undefined;
+    return {
+      ...row,
+      status: job.status === 'running' ? 'rendering' : job.status,
+      progress:
+        job.status === 'completed' ? 1 : (job.progress?.percent ?? 0) / 100,
+      error: job.error,
+      runtimeFingerprint: output?.runtimeFingerprint ?? null,
+      fileId: output?.fileId ?? null,
+      downloadUrl: output?.downloadUrl ?? null,
+      finishedAt: ['completed', 'cancelled', 'failed'].includes(job.status)
+        ? job.updatedAt
+        : null,
+    };
+  }
+  async function loadAssets(
+    content: TimelineContent,
+    projectId: string,
+    userId: string,
+  ) {
+    await store.checkedContent('video', content, projectId);
     const result = new Map<string, RenderAsset>();
+    let total = 0;
     for (const clip of content.clips) {
-      for (const [url, expected] of [[clip.src, clip.type], [clip.fontUrl, 'font']] as const) {
+      for (const [url, expected] of [
+        [clip.src, clip.type],
+        [clip.fontUrl, 'font'],
+      ] as const) {
         if (!url || result.has(url)) continue;
-        const file = store.one('SELECT mime,bytes FROM files WHERE id=? AND project_id=?', url.split('/').pop(), projectId);
-        if (!file || !(expected === 'font' ? file.mime === 'font/woff2' : file.mime.startsWith(expected + '/')))
-          throw new HttpError(400, 'A video asset is missing, has the wrong media type, or belongs to another project');
-        result.set(url, { bytes: Buffer.from(file.bytes), mime: file.mime });
+        if (result.size >= 64)
+          throw new HttpError(413, 'This render exceeds its 64 asset budget.');
+        const file = await store.file(url.split('/').pop()!, userId);
+        if (
+          file.projectId !== projectId ||
+          !(expected === 'font'
+            ? file.mime === 'font/woff2'
+            : file.mime.startsWith(expected + '/'))
+        )
+          throw new HttpError(
+            400,
+            'A video asset is missing, has the wrong type, or belongs to another project.',
+          );
+        total += file.byteSize;
+        if (file.byteSize > MAX_SOURCE_BYTES || total > MAX_SOURCE_BYTES)
+          throw new HttpError(
+            413,
+            'This render exceeds its 128 MB source budget.',
+          );
+        const external = file.storageKey
+          ? await objects.get(file.storageKey, {
+              maxBytes: file.byteSize,
+              expectedSha256: file.sha256,
+            })
+          : null;
+        const bytes = file.storageKey
+          ? external
+            ? Buffer.from(external.bytes)
+            : undefined
+          : file.bytes;
+        if (
+          !bytes ||
+          bytes.length !== file.byteSize ||
+          hash(bytes) !== file.sha256
+        )
+          throw new HttpError(
+            409,
+            'A video source is unavailable or failed its integrity check.',
+          );
+        result.set(url, { bytes, mime: file.mime });
       }
     }
     return result;
   }
-  async function execute(job: Job, controller: AbortController) {
-    const timeout = setTimeout(() => controller.abort(new Error('Video render exceeded its 15 minute limit')), 15 * 60 * 1000);
+  async function deleteStaging(key: string) {
+    const remove = await store.tx(async () => {
+      await store.db.lock('video-stage:' + key);
+      const row = await store.one(
+        'SELECT state FROM studio_video_staging WHERE object_key=?',
+        key,
+      );
+      if (!row || row.state === 'retained') return false;
+      await store.exec(
+        "UPDATE studio_video_staging SET state='delete-pending',next_cleanup=? WHERE object_key=?",
+        Date.now(),
+        key,
+      );
+      return true;
+    });
+    if (!remove) return;
+    await objects.delete(key);
+    await store.exec(
+      "UPDATE studio_video_staging SET state='deleted',next_cleanup=? WHERE object_key=? AND state<>'retained'",
+      Date.now() + 5 * 60 * 1000,
+      key,
+    );
+  }
+  async function cleanupStaged(limit = 20) {
+    const bounded = Math.max(1, Math.min(100, Math.floor(limit)));
+    const rows = await store.all(
+      "SELECT s.object_key AS objectKey,s.created_at AS createdAt,s.state FROM studio_video_staging s JOIN studio_durable_jobs j ON j.id=s.job_id WHERE s.state<>'retained' AND s.next_cleanup<=? AND (s.fence<j.fence OR j.status IN ('failed','cancelled','completed') OR s.created_at<?) ORDER BY s.next_cleanup LIMIT ?",
+      Date.now(),
+      Date.now() - 30 * 60 * 1000,
+      bounded,
+    );
+    let removed = 0;
+    for (const row of rows) {
+      try {
+        await deleteStaging(row.objectKey);
+        removed++;
+        if (row.createdAt < Date.now() - 24 * 60 * 60 * 1000)
+          await store.exec(
+            "DELETE FROM studio_video_staging WHERE object_key=? AND state='deleted'",
+            row.objectKey,
+          );
+      } catch {
+        /* Durable cleanup intent remains for the next maintenance/worker delivery. */
+      }
+    }
+    return { checked: rows.length, removed };
+  }
+  async function execute(context: DurableJobContext) {
+    const task = snapshot(context.job);
+    await context.assertCurrent({ requireCurrentVersion: true });
+    if (
+      task.runtimeFingerprint &&
+      task.runtimeFingerprint !== (renderer.fingerprint ?? renderer.name)
+    )
+      throw new TerminalJobError(
+        'The video renderer runtime changed after this job was queued. Resubmit against the configured renderer.',
+      );
+    await store.exec(
+      "UPDATE video_render_jobs SET status='rendering',error=NULL WHERE id=?",
+      context.job.id,
+    );
+    const assets = await loadAssets(
+      task.content,
+      context.job.projectId,
+      context.job.principalId,
+    );
+    await context.assertCurrent({ requireCurrentVersion: true });
+    const signal = AbortSignal.any([
+      context.signal,
+      AbortSignal.timeout(15 * 60 * 1000),
+    ]);
+    let bytes: Buffer;
     try {
-      const artifact = store.artifact(job.artifactId, job.userId, 'write');
-      if (artifact.version !== job.artifactVersion) throw new HttpError(409, 'Artifact changed before rendering. Save and render the current revision.');
-      store.exec("UPDATE video_render_jobs SET status='rendering' WHERE id=?", job.id);
-      const bytes = await renderVideo({ content: job.content, title: job.title, assets: assets(job.content, artifact.projectId), format: job.format, signal: controller.signal,
-        onProgress: (progress) => store.exec('UPDATE video_render_jobs SET progress=? WHERE id=?', progress, job.id) });
-      controller.signal.throwIfAborted();
-      const current = store.artifact(job.artifactId, job.userId, 'write');
-      if (current.version !== job.artifactVersion) throw new HttpError(409, 'Artifact changed during rendering. Save and render the current revision.');
-      const fileId = randomUUID(), now = new Date().toISOString();
-      store.tx(() => {
-        const used = store.one('SELECT coalesce(sum(length(bytes)),0) AS n FROM files WHERE project_id=?', current.projectId).n;
-        if (used + bytes.length > 512 * 1024 * 1024) throw new HttpError(413, 'The rendered video would exceed this project’s 512 MB asset quota.');
-        store.exec('INSERT INTO files VALUES(?,?,?,?,?,?,?,?)', fileId, current.projectId, current.id, `${current.title.slice(0, 160)}-v${job.artifactVersion}.${job.format}`, `video/${job.format}`, hash(bytes), bytes, now);
-        store.exec("UPDATE video_render_jobs SET status='completed',progress=1,file_id=?,finished_at=? WHERE id=?", fileId, now, job.id);
-        store.audit(current.projectId, current.id, store.publicUser(job.userId).name, 'video.rendered', `revision ${job.artifactVersion}; ${job.format}; sha256 ${hash(bytes)}`);
+      bytes = await renderer.render({
+        content: task.content,
+        title: task.title,
+        assets,
+        format: task.format,
+        signal,
+        onProgress: async (progress) => {
+          await context.assertCurrent({ requireCurrentVersion: true });
+          await context.progress({
+            percent: Math.max(0, Math.min(99, progress * 100)),
+            label: 'Rendering video',
+          });
+        },
       });
     } catch (error) {
-      store.exec('UPDATE video_render_jobs SET status=?,error=?,finished_at=? WHERE id=?', controller.signal.aborted ? 'cancelled' : 'failed', controller.signal.aborted ? 'Render cancelled or exceeded its time limit.' : (error as Error).message.slice(0, 2000), new Date().toISOString(), job.id);
+      if (
+        context.signal.aborted ||
+        error instanceof JobLeaseLostError ||
+        error instanceof HttpError
+      )
+        throw error;
+      if (signal.aborted)
+        throw new TerminalJobError(
+          'The video render exceeded its 15 minute limit. Reduce resolution, duration, or frame rate before retrying.',
+        );
+      if (renderer.runtime === 'long-lived-worker')
+        throw new TerminalJobError(
+          'Video rendering failed: ' +
+            (error instanceof Error ? error.message : String(error)).slice(
+              0,
+              1000,
+            ),
+        );
+      throw error;
+    }
+    if (bytes.length < 100 || bytes.length > MAX_OUTPUT_BYTES)
+      throw new HttpError(
+        413,
+        'Rendered output is empty or exceeds its 100 MB file limit.',
+      );
+    await context.assertCurrent({ requireCurrentVersion: true });
+    const key = `projects/${context.job.projectId}/artifacts/${context.job.artifactId}/renders/${context.job.id}/attempt-${context.fence}.${task.format}`;
+    const digest = hash(bytes),
+      mime = `video/${task.format}`;
+    await store.exec(
+      "INSERT INTO studio_video_staging(object_key,job_id,fence,sha256,byte_size,state,created_at,next_cleanup) VALUES(?,?,?,?,?,'planned',?,?) ON CONFLICT(object_key) DO NOTHING",
+      key,
+      context.job.id,
+      context.fence,
+      digest,
+      bytes.length,
+      Date.now(),
+      Date.now() + 30 * 60 * 1000,
+    );
+    let published = false;
+    try {
+      const object = await objects.put(key, bytes, { contentType: mime });
+      if (
+        object.key !== key ||
+        object.sha256 !== digest ||
+        object.byteSize !== bytes.length ||
+        object.contentType !== mime
+      )
+        throw new Error(
+          'The output object did not match its verified video descriptor.',
+        );
+      const result = await context.commit(
+        'publish-output',
+        async () => {
+          await store.db.lock('video-stage:' + key);
+          const staging = await store.one(
+            'SELECT state FROM studio_video_staging WHERE object_key=?',
+            key,
+          );
+          if (staging?.state !== 'planned')
+            throw new HttpError(
+              409,
+              'This output attempt is no longer eligible for publication.',
+            );
+          const user = await store.publicUser(context.job.principalId);
+          const file = await store.registerFile(user, context.job.artifactId, {
+            id: context.job.id,
+            name: `${task.title.slice(0, 160)}-v${context.job.artifactVersion}.${task.format}`,
+            mime,
+            sha256: digest,
+            storageKey: key,
+            byteSize: bytes.length,
+          });
+          await store.exec(
+            "UPDATE studio_video_staging SET state='retained' WHERE object_key=?",
+            key,
+          );
+          await store.exec(
+            "UPDATE video_render_jobs SET status='completed',progress=1,file_id=?,finished_at=? WHERE id=?",
+            file.id,
+            new Date().toISOString(),
+            context.job.id,
+          );
+          await store.audit(
+            context.job.projectId,
+            context.job.artifactId,
+            user.name,
+            'video.rendered',
+            `revision ${context.job.artifactVersion}; ${task.format}; sha256 ${digest}`,
+          );
+          return {
+            fileId: file.id,
+            downloadUrl: `/api/files/${file.id}`,
+            artifactVersion: context.job.artifactVersion,
+            format: task.format,
+            sha256: digest,
+            byteSize: bytes.length,
+            runtimeFingerprint:
+              task.runtimeFingerprint ?? renderer.fingerprint ?? renderer.name,
+          };
+        },
+        { requireCurrentVersion: true },
+      );
+      published = true;
+      return result;
     } finally {
-      clearTimeout(timeout); controllers.delete(job.id);
+      if (!published) await deleteStaging(key).catch(() => {});
     }
   }
-  function drain() {
-    if (stopped || controllers.size >= 1) return;
-    let job: Job | undefined;
-    while ((job = queue.shift())) {
-      if (store.one('SELECT status FROM video_render_jobs WHERE id=?', job.id)?.status !== 'queued') continue;
-      const controller = new AbortController(); controllers.set(job.id, controller);
-      const promise = execute(job, controller).finally(() => { pending.delete(promise); drain(); });
-      pending.add(promise); break;
-    }
+  runtime.register(KIND, execute);
+  app.post<{ Params: { id: string } }>(
+    '/api/artifacts/:id/video/render',
+    async (request, reply) => {
+      await auth.assertOrigin(request);
+      const user = await auth.user(request),
+        initial = await store.artifact(request.params.id, user.id, 'write');
+      if (initial.kind !== 'video')
+        throw new HttpError(400, 'Only video artifacts can be rendered');
+      const input = z
+        .object({
+          version: z.number().int().positive(),
+          format: z.enum(['mp4', 'webm']),
+          idempotencyKey: z.string().uuid().optional(),
+        })
+        .strict()
+        .parse(request.body);
+      const key = `video:${initial.id}:${user.id}:${input.idempotencyKey ?? randomUUID()}`;
+      const job = await store.tx(async () => {
+        await store.db.lock('admission:video.render');
+        await store.db.lock('project:' + initial.projectId);
+        const artifact = await store.artifact(initial.id, user.id, 'write');
+        if (artifact.version !== input.version)
+          throw new HttpError(
+            409,
+            'Save the current artifact revision before rendering.',
+          );
+        const duplicate = await store.one(
+          'SELECT id FROM studio_durable_jobs WHERE idempotency_key=?',
+          key,
+        );
+        if (!duplicate) {
+          const active = (
+            await store.one(
+              "SELECT count(*) AS n FROM studio_durable_jobs WHERE kind=? AND status IN ('queued','running')",
+              KIND,
+            )
+          ).n;
+          if (active >= 4)
+            throw new HttpError(
+              429,
+              'The video render queue is full. Wait for a render or cancel it.',
+            );
+          if (
+            await store.one(
+              "SELECT id FROM studio_durable_jobs WHERE kind=? AND principal_id=? AND status IN ('queued','running')",
+              KIND,
+              user.id,
+            )
+          )
+            throw new HttpError(
+              409,
+              'You already have a video render in progress.',
+            );
+        }
+        const content = normalizeVideo(
+          await store.checkedContent(
+            'video',
+            artifact.content,
+            artifact.projectId,
+          ),
+        );
+        const durable = await runtime.enqueue({
+          kind: KIND,
+          projectId: artifact.projectId,
+          artifactId: artifact.id,
+          principalId: user.id,
+          artifactVersion: artifact.version,
+          snapshot: {
+            schemaVersion: 1,
+            title: artifact.title,
+            content,
+            format: input.format,
+            runtimeFingerprint: z
+              .string()
+              .min(1)
+              .max(300)
+              .parse(renderer.fingerprint ?? renderer.name),
+          },
+          idempotencyKey: key,
+          maxAttempts: 3,
+        });
+        if (
+          !(await store.one(
+            'SELECT id FROM video_render_jobs WHERE id=?',
+            durable.id,
+          ))
+        )
+          await store.exec(
+            "INSERT INTO video_render_jobs(id,artifact_id,artifact_version,user_id,format,status,created_at) VALUES(?,?,?,?,?,'queued',?)",
+            durable.id,
+            artifact.id,
+            artifact.version,
+            user.id,
+            input.format,
+            durable.createdAt,
+          );
+        return durable;
+      });
+      // The SQL snapshot/outbox is committed before external dispatch. Maintenance recovers a failed acknowledgment.
+      await runtime.flushOutbox(4).catch(() => {});
+      const result = await publicJob(job.id, initial.id);
+      await store.artifact(initial.id, user.id);
+      return reply.code(202).send(result);
+    },
+  );
+  app.get<{ Params: { id: string } }>(
+    '/api/artifacts/:id/video/renders',
+    async (request) => {
+      const user = await auth.user(request);
+      await store.artifact(request.params.id, user.id);
+      const ids = await store.all(
+        'SELECT id FROM video_render_jobs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 20',
+        request.params.id,
+      );
+      const jobs = await Promise.all(
+        ids.map((row) => publicJob(row.id, request.params.id)),
+      );
+      await store.artifact(request.params.id, user.id);
+      return jobs;
+    },
+  );
+  app.get<{ Params: { id: string; job: string } }>(
+    '/api/artifacts/:id/video/renders/:job',
+    async (request) => {
+      const user = await auth.user(request);
+      await store.artifact(request.params.id, user.id);
+      const job = await publicJob(request.params.job, request.params.id);
+      await store.artifact(request.params.id, user.id);
+      return job;
+    },
+  );
+  app.delete<{ Params: { id: string; job: string } }>(
+    '/api/artifacts/:id/video/renders/:job',
+    async (request) => {
+      await auth.assertOrigin(request);
+      const user = await auth.user(request);
+      await store.artifact(request.params.id, user.id, 'write');
+      await publicJob(request.params.job, request.params.id);
+      await runtime.cancel(request.params.job, user);
+      return { ok: true };
+    },
+  );
+  async function exportPage(
+    artifactId: string,
+    after: number,
+    cutoff: number,
+    limit = 25,
+  ) {
+    const rows = await store.all(
+      'SELECT rowid AS sequence,id FROM video_render_jobs WHERE artifact_id=? AND rowid>? AND rowid<=? ORDER BY rowid LIMIT ?',
+      artifactId,
+      after,
+      cutoff,
+      Math.max(1, Math.min(25, limit)),
+    );
+    return Promise.all(
+      rows.map(async (row) => {
+        const durable = await runtime.get(row.id);
+        return {
+          sequence: row.sequence,
+          ...(await publicJob(row.id, artifactId)),
+          ...(durable ? { sourceSnapshot: durable.snapshot } : {}),
+        };
+      }),
+    );
   }
-  app.post<{ Params: { id: string } }>('/api/artifacts/:id/video/render', async (request, reply) => {
-    auth.assertOrigin(request);
-    const user = auth.user(request), artifact = store.artifact(request.params.id, user.id, 'write');
-    if (artifact.kind !== 'video') throw new HttpError(400, 'Only video artifacts can be rendered');
-    const { version, format } = z.object({ version: z.number().int().positive(), format: z.enum(['mp4', 'webm']) }).strict().parse(request.body);
-    if (version !== artifact.version) throw new HttpError(409, 'Save the latest artifact revision before rendering.');
-    if (stopped || queue.length + controllers.size >= 4) throw new HttpError(429, 'The video render queue is full. Wait for an existing render or cancel it.');
-    if (store.one("SELECT id FROM video_render_jobs WHERE user_id=? AND status IN ('queued','rendering')", user.id)) throw new HttpError(409, 'You already have a video render in progress.');
-    const content = normalizeVideo(artifact.content);
-    assets(content, artifact.projectId);
-    const job: Job = { id: randomUUID(), artifactId: artifact.id, artifactVersion: artifact.version, userId: user.id, title: artifact.title, content, format };
-    store.exec("INSERT INTO video_render_jobs(id,artifact_id,artifact_version,user_id,format,status,created_at) VALUES(?,?,?,?,?,'queued',?)", job.id, artifact.id, artifact.version, user.id, format, new Date().toISOString());
-    queue.push(job); drain();
-    return reply.code(202).send(publicJob(job.id, artifact.id));
-  });
-  app.get<{ Params: { id: string } }>('/api/artifacts/:id/video/renders', async (request) => {
-    const user = auth.user(request); store.artifact(request.params.id, user.id);
-    return store.all('SELECT id FROM video_render_jobs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 20', request.params.id).map((job) => publicJob(job.id, request.params.id));
-  });
-  app.get<{ Params: { id: string; job: string } }>('/api/artifacts/:id/video/renders/:job', async (request) => {
-    const user = auth.user(request); store.artifact(request.params.id, user.id);
-    return publicJob(request.params.job, request.params.id);
-  });
-  app.delete<{ Params: { id: string; job: string } }>('/api/artifacts/:id/video/renders/:job', async (request) => {
-    auth.assertOrigin(request);
-    const user = auth.user(request); store.artifact(request.params.id, user.id, 'write');
-    const job = publicJob(request.params.job, request.params.id);
-    if (job.status === 'queued' || job.status === 'rendering') {
-      controllers.get(job.id)?.abort();
-      store.exec("UPDATE video_render_jobs SET status='cancelled',error='Render cancelled.',finished_at=? WHERE id=?", new Date().toISOString(), job.id);
-    }
-    return { ok: true };
-  });
-  return { async close() { stopped = true; for (const controller of controllers.values()) controller.abort(); for (const job of queue) store.exec("UPDATE video_render_jobs SET status='interrupted',error='Server stopped before rendering',finished_at=? WHERE id=?", new Date().toISOString(), job.id); queue.length = 0; await Promise.allSettled([...pending]); } };
+  return {
+    close: async () => {},
+    cleanupStaged,
+    exportPage,
+    executeVideoJob: async (id: string, delivery: JobDelivery) => {
+      const job = await runtime.get(id);
+      if (!job || job.kind !== KIND)
+        throw new HttpError(404, 'Video render not found');
+      await runtime.executeJob(id, delivery);
+    },
+    publicJob,
+  };
 }

@@ -291,7 +291,9 @@ hr {
 }
 .studio {
   display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--detail-width);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(
+      --detail-width
+    );
   height: 100dvh;
   overflow: hidden;
 }
@@ -1942,4 +1944,15 @@ textarea::placeholder {
   background: white;
   border: 1px solid var(--line);
   border-radius: 4px;
+}
+:root .dialog-content:has(.investigation-panel) {
+  width: min(1100px, calc(100vw - 28px));
+  max-width: 1100px;
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+}
+@media (max-width: 700px) {
+  .investigation-header-label {
+    display: none;
+  }
 }

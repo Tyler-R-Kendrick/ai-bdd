@@ -1,9 +1,15 @@
+import { investigationBlockSchemas } from './investigations.ts';
+import {
+  investigationBlockText,
+  type InvestigationBlockKind,
+} from './investigation-blocks.ts';
 import { Node, getSchema, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { TableKit } from '@tiptap/extension-table';
 import Mathematics from '@tiptap/extension-mathematics';
 import Image from '@tiptap/extension-image';
 import UniqueID from '@tiptap/extension-unique-id';
+import { documentAnchorTypes } from './document-identity.ts';
 import {
   documentBlockSchemas,
   documentBlockText,
@@ -116,6 +122,35 @@ export const DocumentBlocks = Object.keys(documentBlockSchemas).map((kind) => {
     ],
   });
 });
+export const InvestigationBlocks = Object.keys(investigationBlockSchemas).map(
+  (kind) => {
+    const name = kind as InvestigationBlockKind;
+    return Node.create({
+      name,
+      group: 'block',
+      atom: true,
+      draggable: true,
+      addAttributes: () => ({
+        data: {
+          default: null,
+          validate: (value: unknown) => {
+            investigationBlockSchemas[name].parse(value);
+          },
+          renderHTML: () => ({}),
+        },
+      }),
+      parseHTML: () => [],
+      renderHTML: ({ node, HTMLAttributes }) => [
+        'section',
+        {
+          'data-investigation-component': name,
+          ...(HTMLAttributes.id ? { id: HTMLAttributes.id } : {}),
+        },
+        ['pre', {}, investigationBlockText(name, node.attrs.data)],
+      ],
+    });
+  },
+);
 export const baseExtensions = () => [
   StarterKit.configure({
     undoRedo: false,
@@ -137,20 +172,9 @@ export const baseExtensions = () => [
   DiagramBlock,
   TabsBlock,
   ...DocumentBlocks,
+  ...InvestigationBlocks,
   UniqueID.configure({
-    types: [
-      'heading',
-      'paragraph',
-      'testBlock',
-      'researchBlock',
-      'chartBlock',
-      'diagramBlock',
-      'tabsBlock',
-      'table',
-      'blockquote',
-      'codeBlock',
-      ...Object.keys(documentBlockSchemas),
-    ],
+    types: [...documentAnchorTypes],
   }),
 ];
 export const editorSchema = () => getSchema(baseExtensions());

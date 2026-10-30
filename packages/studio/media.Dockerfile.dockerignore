@@ -1,0 +1,14 @@
+# The preparer produces only these whitelisted files, never the repository.
+*
+!worker.mjs
+!inter.woff2
+!pnpm-lock.yaml
+!build-manifest.mjs
+!package.json
+!THIRD_PARTY_NOTICES.json
+!STUDIO_LICENSE
+!FONT_LICENSE
+!source-build.json
+!node_modules/
+!node_modules/playwright-core/
+!node_modules/playwright-core/**

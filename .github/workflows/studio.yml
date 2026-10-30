@@ -20,6 +20,22 @@ jobs:
     env:
       DO_NOT_TRACK: '1'
       SCARF_NO_ANALYTICS: 'true'
+      # Ephemeral CI fixture credentials; this service contains no production data.
+      STUDIO_TEST_POSTGRES_URL: postgresql://studio:studio-ci-fixture@127.0.0.1:5432/studio?sslmode=disable
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: studio
+          POSTGRES_PASSWORD: studio-ci-fixture
+          POSTGRES_DB: studio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U studio -d studio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -34,9 +50,23 @@ jobs:
         run: pnpm --filter @ai-bdd/studio typecheck
       - name: Install the pinned Chromium used by runner and browser tests
         run: pnpm --filter @ai-bdd/studio exec playwright install --with-deps chromium
+      - name: Prepare SHA-pinned official Chrome for real H.264 MP4 acceptance
+        run: node packages/studio/verification/prepare-mp4-browser.mjs
       - name: Install the video encoder used by real render tests
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: API, collaboration, Pact consumer/provider, MCP, and verifier boundary tests
+      - name: Require the real PostgreSQL fixture before any database acceptance tests
+        working-directory: packages/studio
+        run: |
+          node --input-type=module <<'JS'
+          import { Pool } from 'pg';
+          if (!process.env.STUDIO_TEST_POSTGRES_URL) throw new Error('PostgreSQL acceptance cannot be skipped in CI');
+          const pool = new Pool({ connectionString: process.env.STUDIO_TEST_POSTGRES_URL });
+          try {
+            const result = await pool.query('SHOW server_version_num');
+            if (Number(result.rows[0].server_version_num) < 170000) throw new Error('PostgreSQL 17+ fixture is required');
+          } finally { await pool.end(); }
+          JS
+      - name: API, mandatory PostgreSQL multi-instance/recovery, collaboration, Pact, MCP, and verifier tests
         run: pnpm --filter @ai-bdd/studio test
       - name: Exact shell allocation and role policy verification
         run: pnpm --filter @ai-bdd/studio verify
@@ -65,7 +95,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: packages/studio/Dockerfile
+          file: Dockerfile.studio
           push: false
           load: true
           tags: ai-bdd-studio:ci

@@ -1,0 +1,67 @@
+.conversation-offers {
+  padding: 14px 16px;
+  border-block: 1px solid var(--border, #e5e7e1);
+  font-size: 12px;
+  background: #f9f9f8;
+  overflow-wrap: anywhere;
+}
+.conversation-offers p {
+  margin: 8px 0;
+  color: #626f56;
+  line-height: 1.55;
+}
+.conversation-offers-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.conversation-offer {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7e1;
+  border-radius: 7px;
+  background: #fff;
+}
+.conversation-offer details {
+  margin: 10px 0;
+}
+.conversation-offer summary {
+  cursor: pointer;
+  color: #555ca8;
+}
+.conversation-offer blockquote {
+  margin: 10px 0;
+  padding-left: 10px;
+  border-left: 2px solid #dddfd9;
+  white-space: pre-wrap;
+}
+.conversation-offer label {
+  display: block;
+  margin: 10px 0 6px;
+  font-weight: 550;
+}
+.conversation-offer textarea {
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.conversation-offer button {
+  margin-top: 6px;
+}
+.conversation-offers .conversation-error {
+  color: #b83838;
+}
+.conversation-offers .conversation-stale {
+  color: #825711;
+}
+.conversation-offers .conversation-attribution {
+  font-size: 11px;
+}
+.conversation-offer ul {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+.conversation-offer code {
+  font-size: 10px;
+}

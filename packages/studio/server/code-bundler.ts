@@ -2,6 +2,7 @@ import { context, type Loader, type Message, type Plugin } from 'esbuild';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { compileCodeStyles } from './code-styles.ts';
 import {
   checkCodeProject,
   executableFile,
@@ -455,7 +456,7 @@ export async function compileCodePreview(
         }));
         builder.onLoad(
           { filter: /.*/, namespace: 'studio-files' },
-          (args) => {
+          async (args) => {
             loaded.add(args.path);
             if (/\.(?:svg|png|jpe?g|gif|webp|woff2?|ttf)$/i.test(args.path))
               return {
@@ -467,7 +468,9 @@ export async function compileCodePreview(
                 loader: 'js',
               };
             return {
-              contents: virtual[args.path]!,
+              contents: args.path.endsWith('.css')
+                ? await compileCodeStyles(args.path, virtual)
+                : virtual[args.path]!,
               loader: loader(args.path),
               resolveDir: '/',
             };
@@ -589,12 +592,10 @@ export async function compileCodePreview(
       diagnostics: compiled.warnings.map((value) =>
         diagnostic(value, 'warning'),
       ),
-      dependencies: [...dependencyNames]
-        .sort()
-        .map((name) => ({
-          name,
-          version: versions.get(name) ?? 'installed',
-        })),
+      dependencies: [...dependencyNames].sort().map((name) => ({
+        name,
+        version: versions.get(name) ?? 'installed',
+      })),
       availableDependencies: codePreviewDependencies(),
       modules: [...loaded]
         .filter(

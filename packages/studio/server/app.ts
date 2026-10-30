@@ -1,3 +1,47 @@
+import { rebuildExportRows } from './integrations/rebuild-export.ts';
+import { registerRebuildRoutes } from './integrations/rebuild-machines.ts';
+import { resolveExistingPullRequest } from './integrations/pull-request-head.ts';
+import { registerAudioRoutes } from './audio-api.ts';
+import type { AudioRenderDriver } from './audio-renderer.ts';
+import type { VideoRenderDriver } from './video-renderer.ts';
+import { decisionExportRows } from './decisions/export.ts';
+import { DecisionModels } from './decisions/models.ts';
+import { registerDecisionRoutes } from './decisions/routes.ts';
+import { decisionSettingsFromEnv } from './decisions/settings.ts';
+import type { DecisionSettings } from './decisions/contracts.ts';
+import {
+  DesignReviews,
+  registerDesignReviewRoutes,
+} from './decisions/design-review.ts';
+import { registerAccountMachineRoutes } from './integrations/account-machines.ts';
+import { registerConnectorDownload } from './connector-download.ts';
+import { probeAudio } from './audio-renderer.ts';
+import { investigationExportRows } from './integrations/investigation-export.ts';
+import { registerAgentProfileRoutes } from './integrations/agent-profiles.ts';
+import { registerImplementationMachineRoutes } from './integrations/implementation-machines.ts';
+import { SpeculativeSpikes } from './integrations/spikes.ts';
+import {
+  ImplementationDrafting,
+  registerImplementationDraftRoutes,
+} from './integrations/implementation-drafting.ts';
+import {
+  registerInvestigationRoutes,
+  type InvestigationService,
+} from './integrations/investigations.ts';
+import { validateInvestigationReferences } from './integrations/investigation-references.ts';
+import { RemotePlanner } from './integrations/remote-planner.ts';
+import { ImplementationGraphs } from './integrations/implementation.ts';
+import { registerImplementationRoutes } from './integrations/implementation-routes.ts';
+import {
+  documentImplementationReady,
+  documentImplementationReadiness,
+} from './document-readiness.ts';
+import { ArtifactTitles } from './integrations/titles.ts';
+import {
+  registerConversationRoutes,
+  conversationExportTables,
+  conversationExportPage,
+} from './integrations/conversation.ts';
 import {
   registerIntegrationRoutes,
   integrationExportRows,
@@ -14,7 +58,16 @@ import {
 } from './document-review.ts';
 import { registerVideoRoutes } from './video.ts';
 import { uploadedMediaType } from './media-files.ts';
-import Fastify from 'fastify';
+import Fastify, { type FastifyRequest } from 'fastify';
+import type { SqlDatabase } from './persistence/types.ts';
+import type { DurableJobRuntime } from './runtime/contracts.ts';
+import { createDurableJobRuntime } from './runtime/jobs.ts';
+import type { HostingServices } from './hosting/ports.ts';
+import { DiskObjectStore } from './hosting/disk-objects.ts';
+import { ObjectWorkspaceStore } from './hosting/workspaces.ts';
+import { LocalJobDispatcher } from './hosting/local-queue.ts';
+import { registerHostingRoutes } from './hosting/routes.ts';
+import { registerRepositoryIdentity } from './identity/github.ts';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -45,7 +98,20 @@ const repo = z
   );
 export async function createApp(
   settings: Settings,
-  options: { db?: string; logger?: boolean; clientDir?: string } = {},
+  options: {
+    db?: string;
+    database?: SqlDatabase;
+    store?: Store;
+    runtime?: DurableJobRuntime;
+    hosting?: HostingServices;
+    logger?: boolean;
+    clientDir?: string;
+    connectorFile?: string;
+    decisionSettings?: DecisionSettings;
+    audioRenderDriver?: AudioRenderDriver;
+    videoRenderDriver?: VideoRenderDriver;
+    audioSourceProbe?: typeof probeAudio;
+  } = {},
 ) {
   const app = Fastify({
     logger: options.logger
@@ -58,136 +124,588 @@ export async function createApp(
           ],
         }
       : false,
-    bodyLimit: 2_100_000,
+    bodyLimit: 2100000,
     requestTimeout: 150000,
     connectionTimeout: 15000,
     trustProxy: settings.trustedProxies ?? false,
   });
-  const store = new Store(
-    options.db ?? resolve(settings.dataDir, 'studio.sqlite'),
-  );
-  const auth = new Auth(store, settings);
-  await auth.initialize();
-  const collab = new Collaboration(store, auth),
-    runner = new Runner(store, settings, collab),
-    agent = new Agent(store, settings, collab);
-  await app.register(cookie);
-  await app.register(helmet, {
-    contentSecurityPolicy: {
-      directives: {
-        mediaSrc: ["'self'", 'blob:'],
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:'],
-        fontSrc: ["'self'"],
-        connectSrc: ["'self'"],
-        workerSrc: ["'self'", 'blob:'],
-        frameSrc: ['blob:', "'self'"],
-        objectSrc: ["'none'"],
-        frameAncestors: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
-      },
-    },
-    crossOriginEmbedderPolicy: false,
-  });
-  await app.register(rateLimit, {
-    max: 240,
-    timeWindow: '1 minute',
-    allowList: (req) => !req.url.startsWith('/api/'),
-    keyGenerator: (req) => {
-      try {
-        return 'user:' + auth.user(req).id;
-      } catch {
-        return req.ip;
-      }
-    },
-  });
-  await app.register(websocket, {
-    options: { maxPayload: 1024 * 1024, perMessageDeflate: false },
-  });
-  await app.register(multipart, {
-    limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 1 },
-  });
-  app.setErrorHandler((error, req, reply) => {
-    if (error instanceof ZodError)
-      return reply.code(400).send({
-        error: 'Invalid request',
-        issues: error.issues.map((i) => ({
-          path: i.path.join('.'),
-          message: i.message,
-        })),
-      });
-    const status = (error as any).statusCode ?? 500;
-    if (status >= 500) req.log.error({ err: error }, 'Request failed');
-    return reply.code(status).send({
-      error:
-        status < 500
-          ? (error as Error).message
-          : 'The server could not complete this request',
-    });
-  });
-  app.addHook('onRequest', async (req) => {
-    if (
-      req.url.startsWith('/api/') &&
-      !req.url.startsWith('/api/auth/') &&
-      !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
-    )
-      auth.assertOrigin(req);
-  });
-  app.addHook('onSend', async (req, reply, payload) => {
-    if (/^\/assets\/kernel\.worker-[A-Za-z0-9_-]+\.js$/.test(req.url))
-      reply.header(
-        'Content-Security-Policy',
-        "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; object-src 'none'",
-      );
-    reply.header('Cache-Control', 'no-store');
-    return payload;
-  });
-  await auth.routes(app);
-  registerDocumentReview(app, { store, auth, collab });
-  const video = registerVideoRoutes(app, { store, auth, settings });
-  const integrations = registerIntegrationRoutes(app, {
-    store,
-    auth,
-    collab,
-    agent,
-    settings,
-  });
-  app.get('/api/health', async () => {
-    store.one('SELECT 1');
-    return { ok: true };
-  });
-  app.get('/api/capabilities', async (req) => {
-    auth.user(req);
-    return {
-      agent: !!settings.model,
-      runner: !!settings.runnerConfig,
-      oidc: !!settings.oidcIssuer,
-      github: true,
-      githubAuthenticated:
-        !!settings.githubToken && !!settings.githubRepositories?.length,
-      openDesign: !!settings.integrations?.openDesign,
-      research: true,
-      machines: true,
-      magnetar: false,
+  const store =
+    options.store ??
+    (await Store.open(
+      options.database ??
+        options.db ??
+        resolve(settings.dataDir, 'studio.sqlite'),
+    ));
+  const startupCleanup: (() => Promise<unknown>)[] = [() => store.close()];
+  try {
+    const localDispatcher =
+      !options.runtime && !options.hosting
+        ? new LocalJobDispatcher()
+        : undefined;
+    if (localDispatcher) startupCleanup.unshift(() => localDispatcher.close());
+    const sourceProbe = options.audioSourceProbe ?? probeAudio;
+    const objects =
+      options.hosting?.objects ??
+      new DiskObjectStore(resolve(settings.dataDir, 'objects'));
+    const hosting = options.hosting ?? {
+      objects,
+      workspaces: new ObjectWorkspaceStore(objects),
+      jobs: localDispatcher!,
     };
-  });
-  const previews = new Map<
-    string,
-    { userId: string; artifactId: string; html: string; expires: number }
-  >();
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/previews',
-    async (req, reply) => {
-      const user = auth.user(req),
-        artifact = store.artifact(req.params.id, user.id);
+    const runtime =
+      options.runtime ??
+      (await createDurableJobRuntime({ store, dispatcher: hosting.jobs }));
+    if ('options' in runtime && (runtime as any).options.store !== store)
+      throw new Error(
+        'The application and durable runtime must share one Store',
+      );
+    startupCleanup.unshift(() => runtime.close());
+    localDispatcher?.bind(runtime.executeJob);
+    const auth = new Auth(store, settings);
+    await auth.initialize();
+    const collab = new Collaboration(store, auth);
+    startupCleanup.unshift(() => collab.close());
+    await collab.initialize();
+    const decisions = new DecisionModels({
+      store,
+      settings:
+        options.decisionSettings ??
+        decisionSettingsFromEnv(process.env, settings.production),
+      notify: (projectId, id) => collab.notify(projectId, id),
+    });
+    startupCleanup.unshift(() => decisions.close());
+    await decisions.initialize();
+    let investigations: InvestigationService | undefined;
+    const graphs = new ImplementationGraphs({
+      store,
+      notify: ({ projectId, artifactId }) =>
+        collab.notify(projectId, artifactId),
+      assertReady: async (artifact) => {
+        await documentImplementationReady(store, artifact);
+        await investigations?.assertReady(artifact.id);
+      },
+    });
+    await graphs.initialize();
+    store.artifactWriteGuard = (artifact) =>
+      graphs.assertPlanEditable(artifact.id);
+    const runner = new Runner(store, settings, collab, { runtime, hosting }),
+      agent = new Agent(store, settings, collab, {
+        runtime,
+        decisions,
+        implementationLocked: async (id) => !!(await graphs.editingLock(id)),
+      });
+    await agent.initialize();
+    const remotePlanner = settings.integrations?.remotePlanner
+      ? new RemotePlanner({
+          store,
+          settings,
+          authenticate: (req) => auth.user(req),
+          claim: (user, id) => agent.claimPlanner(user, id),
+          allowed: (user, id) => agent.canParticipate(user, id),
+        })
+      : undefined;
+    if (remotePlanner) {
+      startupCleanup.unshift(() => remotePlanner.close());
+      await remotePlanner.initialize();
+      agent.options.remote = remotePlanner;
+    }
+    await runner.initialize();
+    const titles = new ArtifactTitles({
+      store,
+      runtime,
+      provider: agent.profiles.catalog().some((harness) => harness.configured)
+        ? (input) => agent.generateTitle(input)
+        : undefined,
+      captureProfile: (user, id) => agent.captureProfile(user, id),
+      available: async (user, id) => {
+        const profile = await agent.captureProfile(user, id);
+        try {
+          agent.profiles.assertAvailable(profile);
+          return true;
+        } catch (error) {
+          if (
+            error instanceof HttpError &&
+            [409, 503].includes(error.statusCode)
+          )
+            return false;
+          throw error;
+        }
+      },
+      allowed: (user, id) => agent.canParticipate(user, id),
+      notify: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
+      onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
+    });
+    await titles.initialize();
+    agent.options.onGeneratedArtifact = (id) => titles.markGenerated(id);
+    agent.options.observeMessage = (user, id, thread) =>
+      titles.observeMessage(user, id, thread);
+    await app.register(cookie);
+    await app.register(helmet, {
+      contentSecurityPolicy: {
+        directives: {
+          mediaSrc: ["'self'", 'blob:'],
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          fontSrc: ["'self'"],
+          connectSrc: [
+            "'self'",
+            ...(hosting.objects.provider === 'vercel-blob'
+              ? ['https://vercel.com/api/blob/']
+              : []),
+          ],
+          workerSrc: ["'self'", 'blob:'],
+          frameSrc: ['blob:', "'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    });
+    await app.register(rateLimit, {
+      max: 240,
+      timeWindow: '1 minute',
+      allowList: (req) => !req.url.startsWith('/api/'),
+      keyGenerator: async (req) => {
+        try {
+          return 'user:' + (await auth.user(req)).id;
+        } catch {
+          return req.ip;
+        }
+      },
+    });
+    await app.register(websocket, {
+      options: { maxPayload: 1024 * 1024, perMessageDeflate: false },
+    });
+    await app.register(multipart, {
+      limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 1 },
+    });
+    app.setErrorHandler((error, req, reply) => {
+      if (error instanceof ZodError)
+        return reply.code(400).send({
+          error: 'Invalid request',
+          issues: error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+      const status = (error as any).statusCode ?? 500;
+      if (status >= 500) req.log.error({ err: error }, 'Request failed');
+      return reply.code(status).send({
+        ...(status === 409 && Array.isArray((error as any).blockers)
+          ? { blockers: (error as any).blockers.slice(0, 200) }
+          : {}),
+        error:
+          status < 500 || (error instanceof HttpError && status === 503)
+            ? (error as Error).message
+            : 'The server could not complete this request',
+      });
+    });
+    app.addHook('onRequest', async (req) => {
+      if (
+        req.url.startsWith('/api/') &&
+        !req.url.startsWith('/api/auth/') &&
+        !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+      )
+        auth.assertOrigin(req);
+    });
+    app.addHook('onSend', async (req, reply, payload) => {
+      if (/^\/assets\/kernel\.worker-[A-Za-z0-9_-]+\.js$/.test(req.url))
+        reply.header(
+          'Content-Security-Policy',
+          "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'; object-src 'none'",
+        );
+      reply.header('Cache-Control', 'no-store');
+      return payload;
+    });
+    await auth.routes(app);
+    registerAgentProfileRoutes(app, {
+      auth,
+      profiles: agent.profiles,
+      notify: (projectId, id) => collab.notify(projectId, id),
+    });
+    registerDecisionRoutes(app, { auth, models: decisions });
+    const designReviews = new DesignReviews({
+      store,
+      runtime,
+      models: decisions,
+      harnesses: async (user, id) => {
+        const selected = await agent.captureProfile(user, id);
+        return agent.profiles
+          .catalog()
+          .filter((harness) => harness.configured)
+          .map((harness) => ({
+            id: harness.id,
+            label:
+              harness.label +
+              (harness.id === selected.harness ? ' (currently selected)' : ''),
+          }));
+      },
+    });
+    await designReviews.initialize();
+    registerDesignReviewRoutes(app, auth, designReviews);
+    remotePlanner?.register(app);
+    const identity = await registerRepositoryIdentity(app, {
+      store,
+      auth,
+      settings,
+    });
+    if (settings.repositoryIdentity) {
+      agent.options.repositoryRead = (user, repository, input, signal) =>
+        identity.readRepository(user, repository, input, signal);
+      if (remotePlanner)
+        remotePlanner.options.repositoryRead = (
+          user,
+          repository,
+          input,
+          signal,
+        ) => identity.readRepository(user, repository, input, signal);
+    }
+    if (settings.repositoryIdentity)
+      store.repositoryAuthorizer = async (
+        projectId,
+        userId,
+        action,
+        atomic,
+      ) => {
+        const project = await store.one(
+          'SELECT repository FROM projects WHERE id=?',
+          projectId,
+        );
+        if (!project?.repository) return;
+        const permission = action === 'read' ? 'read' : 'write';
+        if (atomic) {
+          await store.lock('repository-identity:' + userId);
+          if (
+            !(await identity.checkLease(userId, project.repository, permission))
+          )
+            throw new HttpError(
+              403,
+              'Repository permission changed. Reconnect or refresh access.',
+            );
+        } else
+          await identity.assertRepository(
+            await store.publicUser(userId),
+            project.repository,
+            permission,
+          );
+      };
+    if (hosting.uploads) {
+      if (hosting.uploads.store !== store)
+        throw new Error(
+          'Upload admission and application must share one Store',
+        );
+      const previousValidator = hosting.uploads.validateAsset;
+      hosting.uploads.validateAsset = async (input) => {
+        await previousValidator?.(input);
+        if (input.mime.startsWith('audio/') && input.mime !== 'audio/midi')
+          await sourceProbe(input.bytes);
+      };
+    }
+    await registerHostingRoutes(app, {
+      uploads: hosting.uploads,
+      user: (req) => auth.user(req),
+      assertOrigin: (req) => auth.assertOrigin(req),
+    });
+    await registerDocumentReview(app, { store, auth, collab });
+    await registerImplementationRoutes(app, { auth, graphs });
+    app.get<{ Params: { id: string } }>(
+      '/api/artifacts/:id/implementation/readiness',
+      async (req) => {
+        const user = await auth.user(req),
+          artifact = await store.artifact(req.params.id, user.id);
+        return store.tx(async () => {
+          await store.lock('project:' + artifact.projectId);
+          const current = await store.artifact(artifact.id, user.id);
+          const readiness = await documentImplementationReadiness(
+              store,
+              current,
+            ),
+            required = await investigations!.required(current.id);
+          return {
+            ready: readiness.ready && required.length === 0,
+            blockers: [
+              ...readiness.blockers,
+              ...required.map((row) => ({
+                kind: 'investigation',
+                id: row.id,
+                message:
+                  'Incorporate required investigation findings: ' + row.brief,
+                reason: row.reason,
+                status: row.status,
+              })),
+            ],
+          };
+        });
+      },
+    );
+    const conversation = await registerConversationRoutes(app, {
+      store,
+      auth,
+      collab,
+      runtime,
+      settings,
+      enabled: process.env.STUDIO_CONVERSATION_CARDS === '1',
+      startResearch: (input) => agent.startResearch(input),
+      decisionModels: decisions,
+      generation: {
+        captureProfile: async (user, id) => {
+          const profile = await agent.captureProfile(user, id);
+          agent.profiles.assertAvailable(profile);
+          return profile;
+        },
+        modelForProfile: (profile, key) => agent.modelForProfile(profile, key),
+      },
+    });
+    const video = await registerVideoRoutes(app, {
+      store,
+      auth,
+      settings,
+      runtime,
+      objects: hosting.objects,
+      renderDriver: options.videoRenderDriver,
+    });
+    const audio = await registerAudioRoutes(app, {
+      store,
+      auth,
+      settings,
+      runtime,
+      objects: hosting.objects,
+      renderDriver: options.audioRenderDriver,
+      ...(options.audioSourceProbe
+        ? { sourceProbe: options.audioSourceProbe }
+        : {}),
+    });
+    const integrations = await registerIntegrationRoutes(app, {
+      store,
+      auth,
+      collab,
+      agent,
+      settings,
+    });
+    const spikesEnabled = process.env.STUDIO_SPECULATIVE_SPIKES === '1';
+    investigations = await registerInvestigationRoutes(app, {
+      store,
+      auth,
+      machines: integrations.machines,
+      objects: hosting.objects,
+      spikes: { enabled: spikesEnabled, decisionDriven: true },
+      implementationLocked: async (id) => !!(await graphs.editingLock(id)),
+      notify: (projectId, id) => {
+        void collab.notify(projectId, id).catch(() => {});
+      },
+    });
+    integrations.machines.hooks.otherWorkActive = (id) =>
+      investigations!.activeOnMachine(id);
+    store.contentReferenceValidator = (input) =>
+      validateInvestigationReferences(store, input);
+    const implementationMachines = await registerImplementationMachineRoutes(
+      app,
+      {
+        store,
+        auth,
+        machines: integrations.machines,
+        graphs,
+        otherWorkActive: (id) => investigations!.activeOnMachine(id),
+        notify: (projectId, id) => {
+          void collab.notify(projectId, id).catch(() => {});
+        },
+      },
+    );
+    graphs.options.externalEditingLock = (id) =>
+      implementationMachines.editingLock(id);
+    investigations.dependencies.otherWorkActive = (id) =>
+      implementationMachines.activeOnMachine(id);
+    integrations.machines.hooks.otherWorkActive = async (id) =>
+      (await investigations!.activeOnMachine(id)) ||
+      (await implementationMachines.activeOnMachine(id));
+    const accounts = await registerAccountMachineRoutes(app, {
+      store,
+      auth,
+      graphs,
+      notify: (projectId, id) => {
+        const notify = async () => {
+          await collab.notify(projectId, id);
+        };
+        if (store.db.inTransaction()) store.db.afterCommit(notify);
+        else void notify().catch(() => {});
+      },
+    });
+    const authorizeMachine = (machine: any) =>
+      accounts.assertCurrentMachine(machine);
+    integrations.machines.hooks.authorizeMachine = authorizeMachine;
+    investigations.dependencies.authorizeMachine = authorizeMachine;
+    implementationMachines.dependencies.authorizeMachine = authorizeMachine;
+    integrations.machines.hooks.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id)) ||
+      (await implementationMachines.activeOnMachine(id));
+    investigations.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await implementationMachines.activeOnMachine(id));
+    implementationMachines.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id));
+    const rebuilds = await registerRebuildRoutes(app, {
+      captureAuthoringProfile: (_user, id) => agent.profiles.selected(id),
+      store,
+      auth,
+      graphs,
+      machines: integrations.machines,
+      authorizeMachine,
+      otherWorkActive: async (id) =>
+        (await accounts.otherWorkActive(id)) ||
+        (await investigations!.activeOnMachine(id)) ||
+        (await implementationMachines.activeOnMachine(id)),
+      assertReady: async (artifact) => {
+        await documentImplementationReady(store, artifact);
+        await investigations!.assertReady(artifact.id);
+      },
+      resolvePullRequest: (user, repository, url, signal) =>
+        resolveExistingPullRequest(
+          {
+            store,
+            settings,
+            ...(settings.repositoryIdentity
+              ? {
+                  repositoryRead: (user, repository, input, signal) =>
+                    identity.readRepository(user, repository, input, signal),
+                }
+              : {}),
+          },
+          user,
+          repository,
+          url,
+          signal,
+        ),
+      notify: (projectId, id) => {
+        const notify = () => collab.notify(projectId, id);
+        if (store.db.inTransaction()) store.db.afterCommit(notify);
+        else void notify().catch(() => {});
+      },
+    });
+    implementationMachines.dependencies.artifactWorkActive = (id) =>
+      rebuilds.activeOnArtifact(id);
+    integrations.machines.hooks.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id)) ||
+      (await implementationMachines.activeOnMachine(id)) ||
+      (await rebuilds.activeOnMachine(id));
+    investigations.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await implementationMachines.activeOnMachine(id)) ||
+      (await rebuilds.activeOnMachine(id));
+    implementationMachines.dependencies.otherWorkActive = async (id) =>
+      (await accounts.otherWorkActive(id)) ||
+      (await investigations!.activeOnMachine(id)) ||
+      (await rebuilds.activeOnMachine(id));
+    const connectorCandidates = [
+      resolve(import.meta.dirname, '../connector.mjs'),
+      resolve(import.meta.dirname, '../dist/connector.mjs'),
+    ];
+    registerConnectorDownload(app, {
+      file:
+        options.connectorFile ??
+        connectorCandidates.find((file) => existsSync(file)) ??
+        connectorCandidates[0]!,
+    });
+    const spikes = new SpeculativeSpikes({
+      store,
+      runtime,
+      investigations,
+      enabled: spikesEnabled,
+      decisions,
+    });
+    await spikes.initialize();
+    store.sourceObserver = async (user, previous, current) => {
+      if (current.kind === 'design' || current.kind === 'document') {
+        await collab.publishDocumentMetadata(current.projectId, current.id);
+        store.db.afterCommit(async () => {
+          void collab.refreshArtifact(current.id, user.id).catch(() => {});
+        });
+      }
+      await spikes.observe(user, previous, current);
+      await rebuilds.observe(user, previous, current);
+    };
+    const drafting = new ImplementationDrafting({
+      store,
+      runtime,
+      graphs,
+      provider: agent.profiles.catalog().some((harness) => harness.configured)
+        ? (input) => agent.generateImplementationGraph(input)
+        : undefined,
+      captureProfile: (user, id) => agent.captureProfile(user, id),
+      allowed: (user, id) => agent.canParticipate(user, id),
+      onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
+      assertReady: async (artifact) => {
+        await documentImplementationReady(store, artifact);
+        await investigations!.assertReady(artifact.id);
+      },
+      publish: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
+    });
+    await drafting.initialize();
+    registerImplementationDraftRoutes(app, auth, drafting);
+    // Project mutations and membership changes share this lock. Authorization is read again after waiting.
+    const projectWrite = async <T>(
+      request: FastifyRequest,
+      projectId: string,
+      action: 'write' | 'admin',
+      operation: () => Promise<T>,
+    ) =>
+      store.tx(async () => {
+        await store.lock('project:' + projectId);
+        const principal = await auth.user(request);
+        await store.lock('user:' + principal.id);
+        await auth.user(request);
+        await store.role(projectId, principal.id, action);
+        return operation();
+      });
+    await runtime.recover();
+    await runtime.flushOutbox();
+    app.get('/api/health', async () => {
+      await store.one('SELECT 1');
+      return { ok: true };
+    });
+    app.get('/api/capabilities', async (req) => {
+      await auth.user(req);
+      return {
+        agent: agent.profiles.catalog().some((harness) => harness.configured),
+        remotePlanner: !!remotePlanner,
+        runner: !!settings.runnerConfig,
+        oidc: !!settings.oidcIssuer,
+        github: true,
+        githubAuthenticated:
+          !!settings.githubToken && !!settings.githubRepositories?.length,
+        openDesign: !!settings.integrations?.openDesign,
+        research: true,
+        machines: true,
+        magnetar: false,
+      };
+    });
+    const previews = new Map<
+      string,
+      {
+        userId: string;
+        artifactId: string;
+        html: string;
+        expires: number;
+      }
+    >();
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/previews', async (req, reply) => {
+      const user = await auth.user(req),
+        artifact = await store.artifact(req.params.id, user.id);
       if (artifact.kind !== 'code')
         throw new HttpError(400, 'Code previews require a code artifact');
       const source = parse(
         z.union([
-          z.object({ html: z.string().max(2_000_000) }).strict(),
+          z.object({ html: z.string().max(2000000) }).strict(),
           z
             .object({
               files: z.record(z.string().max(200), z.string().max(500000)),
@@ -218,7 +736,7 @@ export async function createApp(
               .send({ error: error.message, diagnostics: error.diagnostics });
           throw error;
         }
-        store.artifact(artifact.id, user.id);
+        await store.artifact(artifact.id, user.id);
       }
       for (const [key, value] of previews)
         if (value.expires < Date.now()) previews.delete(key);
@@ -227,10 +745,7 @@ export async function createApp(
         if (value.userId === user.id && value.artifactId === artifact.id)
           previews.delete(key);
       if (previews.size >= 40)
-        throw new HttpError(
-          429,
-          'Too many live previews. Try again shortly.',
-        );
+        throw new HttpError(429, 'Too many live previews. Try again shortly.');
       const token = randomBytes(24).toString('base64url');
       previews.set(token, {
         userId: user.id,
@@ -238,15 +753,14 @@ export async function createApp(
         html,
         expires: Date.now() + 120000,
       });
-      return reply
-        .code(201)
-        .send({ url: '/api/previews/' + token, ...build });
-    },
-  );
-  app.get<{ Params: { token: string } }>(
-    '/api/previews/:token',
-    async (req, reply) => {
-      const user = auth.user(req),
+      return reply.code(201).send({ url: '/api/previews/' + token, ...build });
+    });
+    app.get<{
+      Params: {
+        token: string;
+      };
+    }>('/api/previews/:token', async (req, reply) => {
+      const user = await auth.user(req),
         preview = previews.get(req.params.token);
       if (
         !preview ||
@@ -257,7 +771,7 @@ export async function createApp(
           404,
           'Preview expired. Refresh the preview to continue.',
         );
-      store.artifact(preview.artifactId, user.id);
+      await store.artifact(preview.artifactId, user.id);
       return reply
         .type('text/html; charset=utf-8')
         .header(
@@ -266,69 +780,102 @@ export async function createApp(
         )
         .header('Cross-Origin-Resource-Policy', 'same-origin')
         .send(preview.html);
-    },
-  );
-  app.get('/api/projects', async (req) => store.projects(auth.user(req).id));
-  app.post('/api/projects', async (req, reply) => {
-    const b = parse(
-      z
-        .object({
-          title,
-          description: z.string().max(4000).default(''),
-          repository: repo.default(''),
-        })
-        .strict(),
-      req.body,
-    );
-    const project = store.createProject(
-      auth.user(req),
-      b.title,
-      b.description,
-      b.repository,
-    );
-    return reply.code(201).send(project);
-  });
-  app.patch<{ Params: { id: string } }>('/api/projects/:id', async (req) => {
-    const user = auth.user(req);
-    store.role(req.params.id, user.id, 'admin');
-    const b = parse(
-      z
-        .object({
-          title,
-          description: z.string().max(4000),
-          repository: repo,
-        })
-        .strict(),
-      req.body,
-    );
-    store.exec(
-      'UPDATE projects SET title=?,description=?,repository=?,updated_at=? WHERE id=?',
-      b.title,
-      b.description,
-      b.repository,
-      stamp(),
-      req.params.id,
-    );
-    store.audit(req.params.id, null, user.name, 'project.updated');
-    collab.notify(req.params.id);
-    return { ok: true };
-  });
-  app.get<{ Params: { id: string } }>(
-    '/api/projects/:id/members',
-    async (req) => {
-      const user = auth.user(req);
-      store.role(req.params.id, user.id);
-      return store.all(
+    });
+    app.get('/api/projects', async (req) => {
+      const user = await auth.user(req);
+      return settings.repositoryIdentity
+        ? identity.filteredProjects(user)
+        : store.projects(user.id);
+    });
+    app.post('/api/projects', async (req, reply) => {
+      const b = parse(
+        z
+          .object({
+            title,
+            description: z.string().max(4000).default(''),
+            repository: repo.default(''),
+          })
+          .strict(),
+        req.body,
+      );
+      const user = await auth.user(req);
+      if (b.repository && settings.repositoryIdentity)
+        await identity.assertRepository(user, b.repository, 'write');
+      const project = await store.createProject(
+        user,
+        b.title,
+        b.description,
+        b.repository,
+      );
+      return reply.code(201).send(project);
+    });
+    app.patch<{
+      Params: {
+        id: string;
+      };
+    }>('/api/projects/:id', async (req) => {
+      const user = await auth.user(req);
+      await store.role(req.params.id, user.id, 'admin');
+      const b = parse(
+        z
+          .object({
+            title,
+            description: z.string().max(4000),
+            repository: repo,
+          })
+          .strict(),
+        req.body,
+      );
+      if (b.repository && settings.repositoryIdentity)
+        await identity.assertRepository(user, b.repository, 'write');
+      await projectWrite(req, req.params.id, 'admin', async () => {
+        const currentProject = await store.one(
+          'SELECT repository FROM projects WHERE id=?',
+          req.params.id,
+        );
+        if (
+          currentProject.repository !== b.repository &&
+          store.artifactWriteGuard
+        )
+          for (const artifact of await store.artifacts(req.params.id, user.id))
+            await store.artifactWriteGuard(artifact, user.id);
+        if (b.repository && settings.repositoryIdentity) {
+          await store.lock('repository-identity:' + user.id);
+          if (!(await identity.checkLease(user.id, b.repository, 'write')))
+            throw new HttpError(403, 'Repository permission changed');
+        }
+        await store.exec(
+          'UPDATE projects SET title=?,description=?,repository=?,updated_at=? WHERE id=?',
+          b.title,
+          b.description,
+          b.repository,
+          stamp(),
+          req.params.id,
+        );
+        await store.audit(req.params.id, null, user.name, 'project.updated');
+      });
+      await collab.notify(req.params.id);
+      return { ok: true };
+    });
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>('/api/projects/:id/members', async (req) => {
+      const user = await auth.user(req);
+      await store.role(req.params.id, user.id);
+      return await store.all(
         'SELECT u.id,u.email,u.name,u.color,m.role FROM users u JOIN memberships m ON m.user_id=u.id WHERE m.project_id=? ORDER BY u.name',
         req.params.id,
       );
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/projects/:id/members',
-    async (req) => {
-      const owner = auth.user(req);
-      store.role(req.params.id, owner.id, 'admin');
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/projects/:id/members', async (req) => {
+      const owner = await auth.user(req);
+      await store.role(req.params.id, owner.id, 'admin');
       const b = parse(
         z
           .object({
@@ -339,34 +886,39 @@ export async function createApp(
           .strict(),
         req.body,
       );
-      let user = store.userByEmail(b.email);
+      let user = await store.userByEmail(b.email);
       let temporaryPassword: string | null = null;
       let encoded: string | null = null;
       if (!user && !settings.oidcIssuer) {
         temporaryPassword = randomBytes(18).toString('base64url');
         encoded = await passwordHash(temporaryPassword);
       }
-      store.tx(() => {
-        store.role(req.params.id, owner.id, 'admin');
-        if (!user) user = store.createUser(b.email, b.name, encoded);
-        const owners = store.one(
-          "SELECT count(*) AS n FROM memberships WHERE project_id=? AND role='owner'",
-          req.params.id,
+      await projectWrite(req, req.params.id, 'admin', async () => {
+        await store.lock('identity:email:' + b.email.toLowerCase());
+        user = await store.userByEmail(b.email);
+        if (user) temporaryPassword = null;
+        await store.role(req.params.id, owner.id, 'admin');
+        if (!user) user = await store.createUser(b.email, b.name, encoded);
+        const owners = (
+          await store.one(
+            "SELECT count(*) AS n FROM memberships WHERE project_id=? AND role='owner'",
+            req.params.id,
+          )
         ).n;
-        const old = store.one(
+        const old = await store.one(
           'SELECT role FROM memberships WHERE project_id=? AND user_id=?',
           req.params.id,
           user.id,
         );
         if (old?.role === 'owner' && owners === 1 && b.role !== 'owner')
           throw new HttpError(409, 'A project must keep at least one owner');
-        store.exec(
+        await store.exec(
           'INSERT INTO memberships VALUES(?,?,?) ON CONFLICT(project_id,user_id) DO UPDATE SET role=excluded.role',
           req.params.id,
           user.id,
           b.role,
         );
-        store.audit(
+        await store.audit(
           req.params.id,
           null,
           owner.name,
@@ -374,35 +926,39 @@ export async function createApp(
           `${b.email}: ${b.role}`,
         );
       });
-      collab.notify(req.params.id);
+      await collab.notify(req.params.id);
       return { ok: true, temporaryPassword };
-    },
-  );
-  app.delete<{ Params: { id: string; userId: string } }>(
-    '/api/projects/:id/members/:userId',
-    async (req) => {
-      const user = auth.user(req);
-      store.role(req.params.id, user.id, 'admin');
-      store.tx(() => {
-        const target = store.one(
+    });
+    app.delete<{
+      Params: {
+        id: string;
+        userId: string;
+      };
+    }>('/api/projects/:id/members/:userId', async (req) => {
+      const user = await auth.user(req);
+      await store.role(req.params.id, user.id, 'admin');
+      await projectWrite(req, req.params.id, 'admin', async () => {
+        const target = await store.one(
           'SELECT role FROM memberships WHERE project_id=? AND user_id=?',
           req.params.id,
           req.params.userId,
         );
         if (
           target?.role === 'owner' &&
-          store.one(
-            "SELECT count(*) AS n FROM memberships WHERE project_id=? AND role='owner'",
-            req.params.id,
+          (
+            await store.one(
+              "SELECT count(*) AS n FROM memberships WHERE project_id=? AND role='owner'",
+              req.params.id,
+            )
           ).n <= 1
         )
           throw new HttpError(409, 'A project must keep at least one owner');
-        store.exec(
+        await store.exec(
           'DELETE FROM memberships WHERE project_id=? AND user_id=?',
           req.params.id,
           req.params.userId,
         );
-        store.audit(
+        await store.audit(
           req.params.id,
           null,
           user.name,
@@ -410,61 +966,83 @@ export async function createApp(
           req.params.userId,
         );
       });
-      collab.notify(req.params.id);
+      await collab.notify(req.params.id);
       return { ok: true };
-    },
-  );
-  app.post('/api/me/password', async (req) => {
-    const user = auth.user(req);
-    const b = parse(
-      z
-        .object({
-          current: z.string().max(256),
-          password: z.string().min(16).max(256),
-        })
-        .strict(),
-      req.body,
+    });
+    app.post('/api/me/password', async (req) => {
+      const user = await auth.user(req);
+      const b = parse(
+        z
+          .object({
+            current: z.string().max(256),
+            password: z.string().min(16).max(256),
+          })
+          .strict(),
+        req.body,
+      );
+      const { passwordValid } = await import('./auth.ts');
+      const old = await store.userByEmail(user.email);
+      if (!old.password || !(await passwordValid(b.current, old.password)))
+        throw new HttpError(403, 'Current password is incorrect');
+      const encoded = await passwordHash(b.password);
+      await store.tx(async () => {
+        await store.lock('user:' + user.id);
+        await auth.user(req);
+        if ((await store.userByEmail(user.email))?.password !== old.password)
+          throw new HttpError(409, 'Account changed. Sign in again.');
+        await store.exec(
+          'UPDATE users SET password=? WHERE id=?',
+          encoded,
+          user.id,
+        );
+        await store.exec('DELETE FROM sessions WHERE user_id=?', user.id);
+      });
+      return { ok: true };
+    });
+    app.post('/api/tokens', async (req) => {
+      const user = await auth.user(req),
+        token = randomBytes(32).toString('base64url');
+      await store.tx(async () => {
+        await store.lock('user:' + user.id);
+        await auth.user(req);
+        await store.exec(
+          "INSERT INTO sessions VALUES(?,?,?,'api')",
+          hash(token),
+          user.id,
+          Date.now() + 30 * 86400000,
+        );
+      });
+      return {
+        token,
+        expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+      };
+    });
+    app.delete('/api/tokens', async (req) => {
+      const user = await auth.user(req);
+      await store.tx(async () => {
+        await store.lock('user:' + user.id);
+        await auth.user(req);
+        await store.exec(
+          "DELETE FROM sessions WHERE user_id=? AND kind='api'",
+          user.id,
+        );
+      });
+      return { ok: true };
+    });
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>(
+      '/api/projects/:id/artifacts',
+      async (req) =>
+        await store.artifacts(req.params.id, (await auth.user(req)).id),
     );
-    const { passwordValid } = await import('./auth.ts');
-    const old = store.userByEmail(user.email);
-    if (!old.password || !(await passwordValid(b.current, old.password)))
-      throw new HttpError(403, 'Current password is incorrect');
-    store.exec(
-      'UPDATE users SET password=? WHERE id=?',
-      await passwordHash(b.password),
-      user.id,
-    );
-    store.exec('DELETE FROM sessions WHERE user_id=?', user.id);
-    return { ok: true };
-  });
-  app.post('/api/tokens', async (req) => {
-    const user = auth.user(req),
-      token = randomBytes(32).toString('base64url');
-    store.exec(
-      "INSERT INTO sessions VALUES(?,?,?,'api')",
-      hash(token),
-      user.id,
-      Date.now() + 30 * 86400000,
-    );
-    return {
-      token,
-      expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
-    };
-  });
-  app.delete('/api/tokens', async (req) => {
-    store.exec(
-      "DELETE FROM sessions WHERE user_id=? AND kind='api'",
-      auth.user(req).id,
-    );
-    return { ok: true };
-  });
-  app.get<{ Params: { id: string } }>(
-    '/api/projects/:id/artifacts',
-    async (req) => store.artifacts(req.params.id, auth.user(req).id),
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/projects/:id/artifacts',
-    async (req, reply) => {
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/projects/:id/artifacts', async (req, reply) => {
       const b = parse(
         z
           .object({
@@ -475,138 +1053,188 @@ export async function createApp(
           .strict(),
         req.body,
       );
-      const a = store.createArtifact(
-        auth.user(req),
+      const a = await store.createArtifact(
+        await auth.user(req),
         req.params.id,
         b.kind,
         b.title,
         b.content,
       );
-      collab.notify(a.projectId, a.id);
+      await collab.notify(a.projectId, a.id);
       return reply.code(201).send(a);
-    },
-  );
-  app.get<{ Params: { id: string } }>('/api/artifacts/:id', async (req) => {
-    const a = store.artifact(req.params.id, auth.user(req).id);
-    return {
-      artifact: a,
-      threads: store.threads(a.id),
-      messages: store.messages(a.id),
-      decisions: store.decisions(a.id),
-      runs: store.runs(a.id),
-      links: store.all(
-        'SELECT id,label,url,kind,state,updated_at AS updatedAt FROM links WHERE artifact_id=?',
-        a.id,
-      ),
-      agentActive: agent.active.has(a.id),
-      runnerActive: runner.active.has(a.id),
-    };
-  });
-  app.patch<{ Params: { id: string } }>('/api/artifacts/:id', async (req) => {
-    const user = auth.user(req),
-      a = store.artifact(req.params.id, user.id, 'write');
-    const b = parse(
-      z
-        .object({
-          version: z.number().int().positive(),
-          title: title.optional(),
-          content: z.record(z.string(), z.json()),
-        })
-        .strict(),
-      req.body,
-    );
-    let result;
-    if (a.kind === 'design' || a.kind === 'document') {
-      if (b.title && b.title !== a.title)
-        throw new HttpError(
-          400,
-          'Use the title endpoint to rename a document',
-        );
-      result = collab.replace(a.id, user, b.content, b.version);
-    } else
-      result = store.updateArtifact(
-        user,
-        a.id,
-        b.version,
-        b.content,
-        b.title,
-      );
-    collab.notify(a.projectId, a.id);
-    return result;
-  });
-  app.patch<{ Params: { id: string } }>(
-    '/api/artifacts/:id/title',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
-        b = parse(z.object({ title }).strict(), req.body);
-      store.exec(
-        'UPDATE artifacts SET title=?,updated_at=? WHERE id=?',
-        b.title,
-        stamp(),
-        a.id,
-      );
-      store.audit(a.projectId, a.id, u.name, 'artifact.renamed', b.title);
-      collab.notify(a.projectId, a.id);
-      return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/archive',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'admin');
-      if (
-        store.one(
-          'SELECT main_artifact_id FROM projects WHERE id=?',
-          a.projectId,
-        ).main_artifact_id === a.id
-      )
-        throw new HttpError(
-          409,
-          'The main design document cannot be archived',
-        );
-      store.exec('UPDATE artifacts SET archived=1 WHERE id=?', a.id);
-      store.audit(a.projectId, a.id, u.name, 'artifact.archived');
-      collab.notify(a.projectId, a.id);
-      return { ok: true };
-    },
-  );
-  app.get<{ Params: { id: string } }>(
-    '/api/artifacts/:id/history',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id);
+    });
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id', async (req) => {
+      const a = await store.artifact(req.params.id, (await auth.user(req)).id);
       return {
-        revisions: store.all(
+        artifact: a,
+        threads: await store.threads(a.id),
+        messages: await store.messages(a.id),
+        decisions: await store.decisions(a.id),
+        runs: await store.runs(a.id),
+        links: await store.all(
+          'SELECT id,label,url,kind,state,updated_at AS updatedAt FROM links WHERE artifact_id=?',
+          a.id,
+        ),
+        agentActive: await agent.isActive(a.id),
+        agentAvailable: await agent.canParticipate(await auth.user(req), a.id),
+        agentProfile: await agent.profiles.view(await auth.user(req), a.id),
+        runnerActive: await runner.isActive(a.id),
+      };
+    });
+    app.patch<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id', async (req) => {
+      const user = await auth.user(req),
+        a = await store.artifact(req.params.id, user.id, 'write');
+      const b = parse(
+        z
+          .object({
+            version: z.number().int().positive(),
+            title: title.optional(),
+            content: z.record(z.string(), z.json()),
+          })
+          .strict(),
+        req.body,
+      );
+      let result;
+      if (a.kind === 'design' || a.kind === 'document') {
+        if (b.title && b.title !== a.title)
+          throw new HttpError(
+            400,
+            'Use the title endpoint to rename a document',
+          );
+        result = await collab.replace(a.id, user, b.content, b.version);
+      } else
+        result = await store.updateArtifact(
+          user,
+          a.id,
+          b.version,
+          b.content,
+          b.title,
+          b.title ? () => titles.markHuman(a.id) : undefined,
+        );
+      await collab.notify(a.projectId, a.id);
+      return result;
+    });
+    app.patch<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/title', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
+        b = parse(z.object({ title }).strict(), req.body);
+      await projectWrite(req, a.projectId, 'write', async () => {
+        await store.artifactWriteGuard?.(
+          await store.artifact(a.id, u.id, 'write'),
+          u.id,
+        );
+        await titles.markHuman(a.id);
+        await store.exec(
+          'UPDATE artifacts SET title=?,updated_at=? WHERE id=?',
+          b.title,
+          stamp(),
+          a.id,
+        );
+        await store.audit(
+          a.projectId,
+          a.id,
+          u.name,
+          'artifact.renamed',
+          b.title,
+        );
+      });
+      await collab.notify(a.projectId, a.id);
+      return { ok: true };
+    });
+    app.get<{ Params: { id: string } }>(
+      '/api/artifacts/:id/title-policy',
+      async (req) => titles.policy(await auth.user(req), req.params.id),
+    );
+    app.patch<{ Params: { id: string } }>(
+      '/api/artifacts/:id/title-policy',
+      async (req) =>
+        titles.policy(
+          await auth.user(req),
+          req.params.id,
+          parse(
+            z.object({ mode: z.enum(['human', 'automatic']) }).strict(),
+            req.body,
+          ).mode,
+        ),
+    );
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/archive', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'admin');
+      await projectWrite(req, a.projectId, 'admin', async () => {
+        if (
+          (
+            await store.one(
+              'SELECT main_artifact_id FROM projects WHERE id=?',
+              a.projectId,
+            )
+          ).main_artifact_id === a.id
+        )
+          throw new HttpError(
+            409,
+            'The main design document cannot be archived',
+          );
+        await store.exec('UPDATE artifacts SET archived=1 WHERE id=?', a.id);
+        await store.audit(a.projectId, a.id, u.name, 'artifact.archived');
+      });
+      await collab.notify(a.projectId, a.id);
+      return { ok: true };
+    });
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/history', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id);
+      return {
+        revisions: await store.all(
           'SELECT version,actor,created_at AS createdAt FROM revisions WHERE artifact_id=? ORDER BY version DESC LIMIT 200',
           a.id,
         ),
-        audit: store.all(
+        audit: await store.all(
           'SELECT id,artifact_id AS artifactId,actor,action,detail,created_at AS createdAt FROM audit WHERE artifact_id=? ORDER BY id DESC LIMIT 300',
           a.id,
         ),
       };
-    },
-  );
-  app.get<{ Params: { id: string; version: string } }>(
-    '/api/artifacts/:id/history/:version',
-    async (req) => {
-      store.artifact(req.params.id, auth.user(req).id);
-      const r = store.one(
+    });
+    app.get<{
+      Params: {
+        id: string;
+        version: string;
+      };
+    }>('/api/artifacts/:id/history/:version', async (req) => {
+      await store.artifact(req.params.id, (await auth.user(req)).id);
+      const r = await store.one(
         'SELECT version,content,actor,created_at AS createdAt FROM revisions WHERE artifact_id=? AND version=?',
         req.params.id,
         Number(req.params.version),
       );
       if (!r) throw new HttpError(404, 'Revision not found');
       return { ...r, content: JSON.parse(r.content) };
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/threads',
-    async (req, reply) => {
-      const user = auth.user(req),
-        a = store.artifact(req.params.id, user.id, 'write'),
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/threads', async (req, reply) => {
+      const user = await auth.user(req),
+        a = await store.artifact(req.params.id, user.id, 'write'),
         b = parse(
           z
             .object({
@@ -618,8 +1246,9 @@ export async function createApp(
           req.body,
         ),
         tid = randomUUID();
-      store.tx(() => {
-        store.exec(
+      await projectWrite(req, a.projectId, 'write', async () => {
+        await store.artifact(a.id, user.id, 'write');
+        await store.exec(
           'INSERT INTO threads(id,artifact_id,anchor,quote,created_at) VALUES(?,?,?,?,?)',
           tid,
           a.id,
@@ -627,8 +1256,9 @@ export async function createApp(
           b.quote,
           stamp(),
         );
-        store.message(user, a.id, tid, b.body);
-        store.audit(
+        await store.message(user, a.id, tid, b.body);
+        await conversation.observe(user, a.id, tid);
+        await store.audit(
           a.projectId,
           a.id,
           user.name,
@@ -636,41 +1266,48 @@ export async function createApp(
           b.quote.slice(0, 200),
         );
       });
-      collab.notify(a.projectId, a.id);
+      await collab.notify(a.projectId, a.id);
       return reply.code(201).send({ id: tid });
-    },
-  );
-  app.patch<{ Params: { id: string; threadId: string } }>(
-    '/api/artifacts/:id/threads/:threadId',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
+    });
+    app.patch<{
+      Params: {
+        id: string;
+        threadId: string;
+      };
+    }>('/api/artifacts/:id/threads/:threadId', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
         b = parse(z.object({ resolved: z.boolean() }).strict(), req.body);
-      if (
-        store.exec(
-          'UPDATE threads SET resolved=? WHERE id=? AND artifact_id=?',
-          b.resolved ? 1 : 0,
-          req.params.threadId,
+      await projectWrite(req, a.projectId, 'write', async () => {
+        if (
+          (
+            await store.exec(
+              'UPDATE threads SET resolved=? WHERE id=? AND artifact_id=?',
+              b.resolved ? 1 : 0,
+              req.params.threadId,
+              a.id,
+            )
+          ).changes !== 1
+        )
+          throw new HttpError(404, 'Discussion not found');
+        await store.audit(
+          a.projectId,
           a.id,
-        ).changes !== 1
-      )
-        throw new HttpError(404, 'Discussion not found');
-      store.audit(
-        a.projectId,
-        a.id,
-        u.name,
-        b.resolved ? 'comment.resolved' : 'comment.reopened',
-        req.params.threadId,
-      );
-      collab.notify(a.projectId, a.id);
+          u.name,
+          b.resolved ? 'comment.resolved' : 'comment.reopened',
+          req.params.threadId,
+        );
+      });
+      await collab.notify(a.projectId, a.id);
       return { ok: true };
-    },
-  );
-  app.get<{ Params: { id: string } }>(
-    '/api/artifacts/:id/messages',
-    async (req) => {
-      const user = auth.user(req),
-        artifact = store.artifact(req.params.id, user.id);
+    });
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/messages', async (req) => {
+      const user = await auth.user(req),
+        artifact = await store.artifact(req.params.id, user.id);
       const query = parse(
         z
           .object({
@@ -681,17 +1318,18 @@ export async function createApp(
           .strict(),
         req.query,
       );
-      return store.messagePage(artifact.id, query.threadId, {
+      return await store.messagePage(artifact.id, query.threadId, {
         limit: query.limit,
         before: query.before,
       });
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/messages',
-    async (req, reply) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/messages', async (req, reply) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
         b = parse(
           z
             .object({
@@ -701,16 +1339,22 @@ export async function createApp(
             .strict(),
           req.body,
         );
-      const m = store.message(u, a.id, b.threadId, b.body);
-      agent.observeMessage(u, a.id, b.threadId, b.body);
-      collab.notify(a.projectId, a.id);
+      const m = await projectWrite(req, a.projectId, 'write', async () => {
+        const saved = await store.message(u, a.id, b.threadId, b.body);
+        await conversation.observe(u, a.id, b.threadId);
+        return saved;
+      });
+      await runtime.flushOutbox();
+      await agent.observeMessage(u, a.id, b.threadId, b.body);
+      await collab.notify(a.projectId, a.id);
       return reply.code(201).send(m);
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/agent',
-    async (req) => {
-      const u = auth.user(req),
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/agent', async (req) => {
+      const u = await auth.user(req),
         b = parse(
           z
             .object({
@@ -721,25 +1365,27 @@ export async function createApp(
             .strict(),
           req.body,
         );
-      await agent.respond(u, req.params.id, b.threadId, b.intent, b.brief);
+      return agent.respond(u, req.params.id, b.threadId, b.intent, b.brief);
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/agent/cancel', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write');
+      await agent.cancel(u, a.id);
       return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/agent/cancel',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write');
-      agent.active.get(a.id)?.abort();
-      return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string; messageId: string } }>(
-    '/api/artifacts/:id/proposals/:messageId/apply',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
-        m = store.messageById(a.id, req.params.messageId);
+    });
+    app.post<{
+      Params: {
+        id: string;
+        messageId: string;
+      };
+    }>('/api/artifacts/:id/proposals/:messageId/apply', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
+        m = await store.messageById(a.id, req.params.messageId);
       if (!m?.proposal?.content)
         throw new HttpError(404, 'Edit proposal not found');
       if (a.kind === 'design' || a.kind === 'document')
@@ -747,31 +1393,61 @@ export async function createApp(
           400,
           'Document proposals use the dedicated document apply route',
         );
-      store.updateArtifact(u, a.id, m.proposal.version, m.proposal.content);
-      store.exec('UPDATE messages SET proposal=NULL WHERE id=?', m.id);
-      collab.notify(a.projectId, a.id);
+      await store.updateArtifact(
+        u,
+        a.id,
+        m.proposal.version,
+        m.proposal.content,
+        undefined,
+        async () => {
+          await store.exec(
+            'UPDATE messages SET proposal=NULL WHERE id=? AND artifact_id=?',
+            m.id,
+            a.id,
+          );
+        },
+      );
+      await collab.notify(a.projectId, a.id);
       return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string; messageId: string } }>(
-    '/api/artifacts/:id/proposals/:messageId/apply-document',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
-        m = store.messageById(a.id, req.params.messageId);
-      if (!m?.proposal?.content)
-        throw new HttpError(404, 'Edit proposal not found');
-      collab.replace(a.id, u, m.proposal.content, m.proposal.version);
-      store.exec('UPDATE messages SET proposal=NULL WHERE id=?', m.id);
-      collab.notify(a.projectId, a.id);
-      return { ok: true };
-    },
-  );
-  app.put<{ Params: { id: string; decisionId: string } }>(
-    '/api/artifacts/:id/decisions/:decisionId',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
+    });
+    app.post<{
+      Params: {
+        id: string;
+        messageId: string;
+      };
+    }>(
+      '/api/artifacts/:id/proposals/:messageId/apply-document',
+      async (req) => {
+        const u = await auth.user(req),
+          a = await store.artifact(req.params.id, u.id, 'write'),
+          m = await store.messageById(a.id, req.params.messageId);
+        if (!m?.proposal?.content)
+          throw new HttpError(404, 'Edit proposal not found');
+        await collab.replace(
+          a.id,
+          u,
+          m.proposal.content,
+          m.proposal.version,
+          async () => {
+            await store.exec(
+              'UPDATE messages SET proposal=NULL WHERE id=? AND artifact_id=?',
+              m.id,
+              a.id,
+            );
+          },
+        );
+        await collab.notify(a.projectId, a.id);
+        return { ok: true };
+      },
+    );
+    app.put<{
+      Params: {
+        id: string;
+        decisionId: string;
+      };
+    }>('/api/artifacts/:id/decisions/:decisionId', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
         b = parse(
           z
             .object({
@@ -785,44 +1461,53 @@ export async function createApp(
             .strict(),
           req.body,
         );
-      store.tx(() => {
-        const previous = store
-          .decisions(a.id)
-          .find((d) => d.id === req.params.decisionId);
+      await projectWrite(req, a.projectId, 'write', async () => {
+        await store.artifactWriteGuard?.(
+          await store.artifact(a.id, u.id, 'write'),
+          u.id,
+        );
+        const previous = (await store.decisions(a.id)).find(
+          (d) => d.id === req.params.decisionId,
+        );
         if (!previous) throw new HttpError(404, 'ADR not found');
         if (
-          store.exec(
-            'UPDATE decisions SET title=?,context=?,decision=?,consequences=?,status=?,version=version+1,author=?,updated_at=? WHERE id=? AND artifact_id=? AND version=?',
-            b.title,
-            b.context,
-            b.decision,
-            b.consequences,
-            b.status,
-            u.name,
-            stamp(),
-            req.params.decisionId,
-            a.id,
-            b.version,
+          (
+            await store.exec(
+              'UPDATE decisions SET title=?,context=?,decision=?,consequences=?,status=?,version=version+1,author=?,updated_at=? WHERE id=? AND artifact_id=? AND version=?',
+              b.title,
+              b.context,
+              b.decision,
+              b.consequences,
+              b.status,
+              u.name,
+              stamp(),
+              req.params.decisionId,
+              a.id,
+              b.version,
+            )
           ).changes !== 1
         )
           throw new HttpError(409, 'The ADR changed. Reload before saving.');
-        store.audit(
+        await store.audit(
           a.projectId,
           a.id,
           u.name,
           'decision.updated',
           JSON.stringify({ previous, next: b }),
         );
+        if (previous.status === 'accepted' || b.status === 'accepted')
+          await store.touchArtifactSource(u, a.id);
       });
-      collab.notify(a.projectId, a.id);
+      await collab.notify(a.projectId, a.id);
       return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/links',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/links', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
         b = parse(
           z
             .object({
@@ -836,27 +1521,31 @@ export async function createApp(
             .strict(),
           req.body,
         );
-      store.exec(
-        'INSERT INTO links VALUES(?,?,?,?,?,?,?)',
-        randomUUID(),
-        a.id,
-        b.label,
-        b.url,
-        b.kind,
-        'unknown',
-        stamp(),
-      );
-      store.audit(a.projectId, a.id, u.name, 'link.added', b.url);
-      collab.notify(a.projectId, a.id);
+      await projectWrite(req, a.projectId, 'write', async () => {
+        await store.exec(
+          'INSERT INTO links VALUES(?,?,?,?,?,?,?)',
+          randomUUID(),
+          a.id,
+          b.label,
+          b.url,
+          b.kind,
+          'unknown',
+          stamp(),
+        );
+        await store.audit(a.projectId, a.id, u.name, 'link.added', b.url);
+      });
+      await collab.notify(a.projectId, a.id);
       return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string; linkId: string } }>(
-    '/api/artifacts/:id/links/:linkId/refresh',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
-        link = store.one(
+    });
+    app.post<{
+      Params: {
+        id: string;
+        linkId: string;
+      };
+    }>('/api/artifacts/:id/links/:linkId/refresh', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
+        link = await store.one(
           'SELECT * FROM links WHERE id=? AND artifact_id=?',
           req.params.linkId,
           a.id,
@@ -869,138 +1558,179 @@ export async function createApp(
           400,
           'Only GitHub pull requests support automatic state refresh',
         );
-      const authenticated =
-        settings.githubToken &&
-        settings.githubRepositories?.includes(
-          `${m[1]}/${m[2]}`.toLowerCase(),
+      let pr: any;
+      if (settings.repositoryIdentity)
+        pr = await identity.readRepository(
+          u,
+          `https://github.com/${m[1]}/${m[2]}`,
+          { kind: 'pull_request', number: Number(m[3]) },
         );
-      const response = await fetch(
-        `https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,
-        {
-          headers: {
-            Accept: 'application/vnd.github+json',
-            'User-Agent': 'ai-bdd-studio',
-            ...(authenticated
-              ? { Authorization: `Bearer ${settings.githubToken}` }
-              : {}),
+      else {
+        const authenticated =
+          settings.githubToken &&
+          settings.githubRepositories?.includes(
+            `${m[1]}/${m[2]}`.toLowerCase(),
+          );
+        const response = await fetch(
+          `https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,
+          {
+            headers: {
+              Accept: 'application/vnd.github+json',
+              'User-Agent': 'ai-bdd-studio',
+              ...(authenticated
+                ? { Authorization: `Bearer ${settings.githubToken}` }
+                : {}),
+            },
+            signal: AbortSignal.timeout(10000),
+            redirect: 'error',
           },
-          signal: AbortSignal.timeout(10000),
-          redirect: 'error',
-        },
-      );
-      if (!response.ok)
-        throw new HttpError(
-          502,
-          'GitHub could not return this pull request. Use a public repository or an operator-allowlisted private repository.',
         );
-      const pr = (await response.json()) as any;
-      store.artifact(a.id, u.id, 'write');
-      store.exec(
-        'UPDATE links SET state=?,updated_at=? WHERE id=?',
-        pr.merged ? 'merged' : pr.state,
-        stamp(),
-        link.id,
-      );
-      store.audit(a.projectId, a.id, u.name, 'link.refreshed', link.url);
-      collab.notify(a.projectId, a.id);
+        if (!response.ok)
+          throw new HttpError(
+            502,
+            'GitHub could not return this pull request. Use a public repository or an operator-allowlisted private repository.',
+          );
+        pr = await response.json();
+      }
+      await projectWrite(req, a.projectId, 'write', async () => {
+        await store.artifact(a.id, u.id, 'write');
+        await store.exec(
+          'UPDATE links SET state=?,updated_at=? WHERE id=? AND artifact_id=? AND url=?',
+          pr.merged ? 'merged' : pr.state,
+          stamp(),
+          link.id,
+          a.id,
+          link.url,
+        );
+        await store.audit(
+          a.projectId,
+          a.id,
+          u.name,
+          'link.refreshed',
+          link.url,
+        );
+      });
+      await collab.notify(a.projectId, a.id);
       return { ok: true };
-    },
-  );
-  app.delete<{ Params: { id: string; linkId: string } }>(
-    '/api/artifacts/:id/links/:linkId',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write');
-      store.exec(
-        'DELETE FROM links WHERE id=? AND artifact_id=?',
-        req.params.linkId,
-        a.id,
-      );
-      collab.notify(a.projectId, a.id);
+    });
+    app.delete<{
+      Params: {
+        id: string;
+        linkId: string;
+      };
+    }>('/api/artifacts/:id/links/:linkId', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write');
+      await projectWrite(req, a.projectId, 'write', async () => {
+        await store.exec(
+          'DELETE FROM links WHERE id=? AND artifact_id=?',
+          req.params.linkId,
+          a.id,
+        );
+      });
+      await collab.notify(a.projectId, a.id);
       return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/files',
-    async (req, reply) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/files', async (req, reply) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
         part = await req.file();
       if (!part) throw new HttpError(400, 'Choose a file');
       const bytes = await part.toBuffer();
-      store.artifact(a.id, u.id, 'write');
+      await store.artifact(a.id, u.id, 'write');
       const mime = uploadedMediaType(bytes, part.filename, part.mimetype);
+      if (mime.startsWith('audio/') && mime !== 'audio/midi') {
+        const controller = new AbortController(),
+          abort = () =>
+            controller.abort(new Error('The upload request disconnected')),
+          close = () => {
+            if (!reply.raw.writableFinished) abort();
+          };
+        req.raw.once('aborted', abort);
+        reply.raw.once('close', close);
+        if (req.raw.aborted || reply.raw.destroyed) abort();
+        try {
+          await sourceProbe(bytes, { signal: controller.signal });
+        } finally {
+          req.raw.removeListener('aborted', abort);
+          reply.raw.removeListener('close', close);
+        }
+      }
+      const fid = randomUUID(),
+        sha256 = hash(bytes);
+      const storageKey = `studio/v1/files/${a.projectId}/${sha256}`;
+      await hosting.objects.put(storageKey, bytes, { contentType: mime });
+      await store.registerFile(u, a.id, {
+        id: fid,
+        name: part.filename.slice(0, 200),
+        mime,
+        sha256,
+        storageKey,
+        byteSize: bytes.length,
+      });
+      return reply
+        .code(201)
+        .send({ id: fid, url: `/api/files/${fid}`, mime, sha256 });
+    });
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>('/api/files/:id', async (req, reply) => {
+      const u = await auth.user(req),
+        file = await store.file(req.params.id, u.id);
+      const object = file.storageKey
+        ? await hosting.objects.get(file.storageKey, {
+            maxBytes: file.byteSize,
+            expectedSha256: file.sha256,
+          })
+        : null;
+      const bytes = object ? Buffer.from(object.bytes) : file.bytes;
       if (
-        store.one(
-          'SELECT coalesce(sum(length(bytes)),0) AS n FROM files WHERE project_id=?',
-          a.projectId,
-        ).n +
-          bytes.length >
-        512 * 1024 * 1024
+        !bytes ||
+        bytes.length !== file.byteSize ||
+        hash(bytes) !== file.sha256
       )
         throw new HttpError(
-          413,
-          'This project has reached its 512 MB upload quota',
+          409,
+          'File is missing or failed its integrity check',
         );
-      const fid = randomUUID();
-      store.exec(
-        'INSERT INTO files VALUES(?,?,?,?,?,?,?,?)',
-        fid,
-        a.projectId,
-        a.id,
-        part.filename.slice(0, 200),
-        mime,
-        hash(bytes),
-        bytes,
-        stamp(),
-      );
-      store.audit(
-        a.projectId,
-        a.id,
-        u.name,
-        'file.uploaded',
-        part.filename.slice(0, 200),
-      );
-      return reply.code(201).send({
-        id: fid,
-        url: `/api/files/${fid}`,
-        mime,
-        sha256: hash(bytes),
-      });
-    },
-  );
-  app.get<{ Params: { id: string } }>(
-    '/api/files/:id',
-    async (req, reply) => {
-      const u = auth.user(req),
-        file = store.one('SELECT * FROM files WHERE id=?', req.params.id);
-      if (!file) throw new HttpError(404, 'File not found');
-      store.role(file.project_id, u.id);
+      await auth.user(req);
+      await store.file(file.id, u.id);
       return reply
         .type(file.mime)
         .header('Content-Disposition', 'inline; filename="asset"')
         .header('X-Content-Type-Options', 'nosniff')
-        .send(Buffer.from(file.bytes));
-    },
-  );
-  app.get<{ Params: { id: string } }>(
-    '/api/artifacts/:id/export',
-    async (req, reply) => {
-      const user = auth.user(req),
-        a = store.artifact(req.params.id, user.id);
-      const bounds = store.exportBounds(a.id);
-      const checkAccess = () => {
-        auth.user(req);
-        store.role(a.projectId, user.id);
+        .send(Readable.from([bytes]));
+    });
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/export', async (req, reply) => {
+      const user = await auth.user(req),
+        a = await store.artifact(req.params.id, user.id);
+      const bounds = await store.exportBounds(a.id);
+      const checkAccess = async () => {
+        await auth.user(req);
+        await store.role(a.projectId, user.id);
       };
       async function* content() {
-        checkAccess();
+        await checkAccess();
         yield JSON.stringify({ schemaVersion: 1, artifact: a }).slice(0, -1);
         for (const table of [
           'decisions',
           'threads',
           'messages',
           'links',
+          'runs',
+          'revisions',
+          'audit',
+          'files',
         ] as const) {
           yield `,"${table}":[`;
           let first = true;
@@ -1022,16 +1752,50 @@ export async function createApp(
           index++
         ) {
           const table = documentReviewExportTables[index]!;
-          const cutoff = store.one(
-            `SELECT coalesce(max(rowid),0) AS last FROM ${table} WHERE artifact_id=?`,
-            a.id,
+          const cutoff = (
+            await store.one(
+              `SELECT coalesce(max(rowid),0) AS last FROM ${table} WHERE artifact_id=?`,
+              a.id,
+            )
           ).last;
           yield (index ? ',' : '') + JSON.stringify(table) + ':[';
           let cursor = 0,
             first = true;
           while (cursor < cutoff) {
-            checkAccess();
-            const page = documentReviewExportPage(
+            await checkAccess();
+            const page = await documentReviewExportPage(
+              store,
+              a.id,
+              table,
+              cursor,
+              100,
+            );
+            if (!page.rows.length) break;
+            for (const row of page.rows) {
+              if (row.sequence > cutoff) break;
+              yield (first ? '' : ',') + JSON.stringify(row);
+              first = false;
+              cursor = row.sequence;
+            }
+            if (page.nextCursor === null || cursor >= cutoff) break;
+          }
+          yield ']';
+        }
+        yield '},"conversation":{';
+        for (let index = 0; index < conversationExportTables.length; index++) {
+          const table = conversationExportTables[index]!,
+            cutoff = (
+              await store.one(
+                `SELECT coalesce(max(rowid),0) AS last FROM ${table} WHERE artifact_id=?`,
+                a.id,
+              )
+            ).last;
+          yield (index ? ',' : '') + JSON.stringify(table) + ':[';
+          let cursor = 0,
+            first = true;
+          while (cursor < cutoff) {
+            await checkAccess();
+            const page = await conversationExportPage(
               store,
               a.id,
               table,
@@ -1050,19 +1814,21 @@ export async function createApp(
           yield ']';
         }
         yield '},"videoRenders":[';
-        const renderCutoff = store.one(
-          'SELECT coalesce(max(rowid),0) AS last FROM video_render_jobs WHERE artifact_id=?',
-          a.id,
+        const renderCutoff = (
+          await store.one(
+            'SELECT coalesce(max(rowid),0) AS last FROM video_render_jobs WHERE artifact_id=?',
+            a.id,
+          )
         ).last;
         let renderCursor = 0,
           firstRender = true;
         while (renderCursor < renderCutoff) {
-          checkAccess();
-          const rows = store.all(
-            'SELECT rowid AS sequence,id,artifact_version AS artifactVersion,format,status,progress,file_id AS fileId,error,created_at AS createdAt,finished_at AS finishedAt FROM video_render_jobs WHERE artifact_id=? AND rowid>? AND rowid<=? ORDER BY rowid LIMIT 100',
+          await checkAccess();
+          const rows = await video.exportPage(
             a.id,
             renderCursor,
             renderCutoff,
+            25,
           );
           if (!rows.length) break;
           for (const row of rows) {
@@ -1071,10 +1837,81 @@ export async function createApp(
             renderCursor = row.sequence;
           }
         }
+        yield '],"audioRenders":[';
+        const audioCutoff = (
+          await store.one(
+            'SELECT coalesce(max(sequence),0) AS last FROM audio_render_jobs WHERE artifact_id=?',
+            a.id,
+          )
+        ).last;
+        let audioCursor = 0,
+          firstAudio = true;
+        while (audioCursor < audioCutoff) {
+          await checkAccess();
+          const rows = await audio.exportPage(
+            a.id,
+            audioCursor,
+            audioCutoff,
+            25,
+          );
+          if (!rows.length) break;
+          for (const row of rows) {
+            yield (firstAudio ? '' : ',') + JSON.stringify(row);
+            firstAudio = false;
+            audioCursor = row.sequence;
+          }
+        }
+        yield '],"decisionModels":[';
+        let firstDecision = true;
+        for await (const row of decisionExportRows(store, a.id, checkAccess)) {
+          yield (firstDecision ? '' : ',') + JSON.stringify(row);
+          firstDecision = false;
+        }
+        yield '],"implementation":{';
+        await checkAccess();
+        const implementationSnapshot = ['design', 'document'].includes(a.kind)
+          ? await graphs.read(user, a.id)
+          : null;
+        yield '"snapshot":' +
+          JSON.stringify(implementationSnapshot) +
+          ',"events":[';
+        let implementationBefore = Number.MAX_SAFE_INTEGER,
+          firstEvent = true;
+        while (implementationSnapshot) {
+          await checkAccess();
+          const events = await graphs.history(user, a.id, {
+            before: implementationBefore,
+            limit: 100,
+          });
+          if (!events.length) break;
+          for (const event of events) {
+            if (event.revision > implementationSnapshot.revision) continue;
+            yield (firstEvent ? '' : ',') + JSON.stringify(event);
+            firstEvent = false;
+          }
+          implementationBefore = events.at(-1)!.revision;
+          if (events.length < 100) break;
+        }
+        yield ']},"rebuilds":[';
+        let firstRebuild = true;
+        for await (const row of rebuildExportRows(store, a.id, checkAccess)) {
+          yield (firstRebuild ? '' : ',') + JSON.stringify(row);
+          firstRebuild = false;
+        }
+        yield '],"investigations":[';
+        let firstInvestigation = true;
+        for await (const row of investigationExportRows(
+          store,
+          a.id,
+          checkAccess,
+        )) {
+          yield (firstInvestigation ? '' : ',') + JSON.stringify(row);
+          firstInvestigation = false;
+        }
         yield '],"integrationHistory":[';
         let firstIntegration = true;
         for await (const row of integrationExportRows(store, user, a.id)) {
-          checkAccess();
+          await checkAccess();
           yield (firstIntegration ? '' : ',') + JSON.stringify(row);
           firstIntegration = false;
         }
@@ -1092,21 +1929,28 @@ export async function createApp(
             highWaterMark: 64 * 1024,
           }),
         );
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/compile',
-    async (req) => runner.compile(auth.user(req), req.params.id),
-  );
-  app.get<{ Params: { id: string } }>(
-    '/api/artifacts/:id/plans',
-    async (req) => runner.plans(auth.user(req), req.params.id),
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/review',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write'),
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/compile', async (req) =>
+      runner.compile(await auth.user(req), req.params.id),
+    );
+    app.get<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/plans', async (req) =>
+      runner.plans(await auth.user(req), req.params.id),
+    );
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/review', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write'),
         b = parse(
           z
             .object({
@@ -1117,63 +1961,120 @@ export async function createApp(
           req.body,
         );
       await runner.review(u, a.id, b.target, b.action);
-      store.audit(
+      await store.audit(
         a.projectId,
         a.id,
         u.name,
         'tests.reviewed',
         b.target + ': ' + b.action,
       );
-      collab.notify(a.projectId, a.id);
+      await collab.notify(a.projectId, a.id);
       return { ok: true };
-    },
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/runs',
-    async (req, reply) =>
-      reply.code(202).send(await runner.run(auth.user(req), req.params.id)),
-  );
-  app.post<{ Params: { id: string } }>(
-    '/api/artifacts/:id/runs/cancel',
-    async (req) => {
-      const u = auth.user(req),
-        a = store.artifact(req.params.id, u.id, 'write');
-      runner.active.get(a.id)?.abort();
-      return { ok: true };
-    },
-  );
-  app.get<{ Params: { id: string; runId: string; evidenceId: string } }>(
-    '/api/artifacts/:id/runs/:runId/evidence/:evidenceId',
-    async (req, reply) => {
-      const result = await runner.evidence(
-        auth.user(req),
-        req.params.id,
-        req.params.runId,
-        decodeURIComponent(req.params.evidenceId),
-      );
-      return reply
-        .type(result.mime)
-        .header('Content-Disposition', 'attachment; filename="evidence"')
-        .send(result.bytes);
-    },
-  );
-  collab.routes(app);
-  const clientDir =
-    options.clientDir ?? resolve(import.meta.dirname, '../client');
-  if (existsSync(resolve(clientDir, 'index.html'))) {
-    await app.register(fastifyStatic, { root: clientDir });
-    app.setNotFoundHandler((req, reply) =>
-      req.url.startsWith('/api/')
-        ? reply.code(404).send({ error: 'Route not found' })
-        : reply.sendFile('index.html'),
+    });
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/runs', async (req, reply) =>
+      reply
+        .code(202)
+        .send(await runner.run(await auth.user(req), req.params.id)),
     );
+    app.post<{
+      Params: {
+        id: string;
+      };
+    }>('/api/artifacts/:id/runs/cancel', async (req) => {
+      const u = await auth.user(req),
+        a = await store.artifact(req.params.id, u.id, 'write');
+      await runner.cancel(u, a.id);
+      return { ok: true };
+    });
+    app.get<{
+      Params: {
+        id: string;
+        runId: string;
+        evidenceId: string;
+      };
+    }>(
+      '/api/artifacts/:id/runs/:runId/evidence/:evidenceId',
+      async (req, reply) => {
+        const result = await runner.evidence(
+          await auth.user(req),
+          req.params.id,
+          req.params.runId,
+          decodeURIComponent(req.params.evidenceId),
+        );
+        return reply
+          .type(result.mime)
+          .header('Content-Disposition', 'attachment; filename="evidence"')
+          .send(result.bytes);
+      },
+    );
+    collab.routes(app);
+    const clientDir =
+      options.clientDir ?? resolve(import.meta.dirname, '../client');
+    if (existsSync(resolve(clientDir, 'index.html'))) {
+      await app.register(fastifyStatic, { root: clientDir });
+      app.setNotFoundHandler((req, reply) =>
+        req.url.startsWith('/api/')
+          ? reply.code(404).send({ error: 'Route not found' })
+          : reply.sendFile('index.html'),
+      );
+    }
+    app.addHook('onClose', async () => {
+      await remotePlanner?.close();
+      await runtime.close();
+      await agent.close();
+      await decisions.close();
+      await video.close();
+      await audio.close();
+      await runner.close();
+      await collab.close();
+      await localDispatcher?.close();
+      await store.close();
+    });
+    return {
+      app,
+      store,
+      auth,
+      collab,
+      runner,
+      agent,
+      video,
+      audio,
+      integrations,
+      identity,
+      decisions,
+      designReviews,
+      titles,
+      conversation,
+      graphs,
+      remotePlanner,
+      investigations,
+      implementationMachines,
+      accounts,
+      rebuilds,
+      maintenance: async () => {
+        await accounts.cleanupRevoked(5);
+        await investigations!.expire();
+        await implementationMachines.expire();
+        await audio.cleanupStaged(10);
+        await video.cleanupStaged(10);
+        await rebuilds.tick();
+      },
+      spikes,
+      drafting,
+      runtime,
+      hosting,
+    };
+  } catch (error) {
+    await app.close().catch(() => {});
+    for (const close of startupCleanup) {
+      try {
+        await close();
+      } catch {}
+    }
+    throw error;
   }
-  app.addHook('onClose', async () => {
-    await agent.close();
-    await video.close();
-    await runner.close();
-    collab.close();
-    store.close();
-  });
-  return { app, store, auth, collab, runner, agent, video, integrations };
 }

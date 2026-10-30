@@ -1,8 +1,6 @@
 # ai-bdd Studio
 
-Studio adds an artifact-centered collaborative workspace to the existing ai-bdd engine. A project starts with a design document. Each artifact has its own discussion, ADR, revisions, and linked evidence; changing the selected artifact changes that entire context together.
-
-This is a substantial first application implementation. The [readiness record](../../docs/studio-readiness.md) defines its actual release scope and the integrations requiring deployment credentials. It does **not** establish complete feature parity with Chopin, Google Docs, professional CAD tools, or HyperFrames Studio.
+Studio is an artifact-centered collaborative workspace built on the ai-bdd engine. Projects compose design documents, code, visual design, video, 3D, and exact CAD artifacts; each artifact keeps its own discussion, ADR, revisions, and linked evidence. The [current scope and readiness matrix](../../docs/studio-readiness.md) records implemented workflows, tested evidence, integration requirements, and the limits of verification.
 
 ## Development
 
@@ -48,16 +46,18 @@ The existing repository checks remain required. Studio's workflow adds API/secur
 
 ## Production deployment
 
-Build from the repository root:
+The default hosted composition is **Vercel Services + external PostgreSQL (Neon) + private Blob + Queues**, behind replaceable runtime adapters. Follow the [Vercel deployment and recovery runbook](../../docs/studio-vercel-deployment.md) for configuration, identity, large uploads, queue bootstrap, deployment checks, and restore. Runtime staging is disposable; SQL and private object references carry durable state. T3 is the default artifact harness and requires its actual runtime/provider registration. Vercel/fx is an explicitly selected alternative; unavailable T3 does not silently switch providers. Cloud service provisioning and live validation remain separate release evidence.
+
+For the local SQLite/disk adapter, build from the repository root:
 
 ```sh
-docker build -f packages/studio/Dockerfile -t ai-bdd-studio:local .
+docker build -f Dockerfile.studio -t ai-bdd-studio:local .
 ```
 
 In a managed build environment using a TLS proxy, supply its public CA through a BuildKit secret rather than copying it into an image:
 
 ```sh
-docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f packages/studio/Dockerfile -t ai-bdd-studio:local .
+docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f Dockerfile.studio -t ai-bdd-studio:local .
 ```
 
 Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN`, the bootstrap owner email, and a unique bootstrap password. OIDC, model keys, and the acceptance runner are optional capabilities, configured separately. No populated secret file belongs in a commit or image.
@@ -76,7 +76,7 @@ studio.example.com {
 
 Set `STUDIO_TRUSTED_PROXIES` to a comma-separated list of the **actual trusted proxy hop IPs/CIDRs** when forwarded client addresses are needed for login rate limits. It defaults to no trust. Use the proxy address seen inside the application network; a host reverse proxy connecting through Docker may appear as a bridge gateway rather than loopback. Do not set a universal Internet CIDR. General authenticated API limits use the account identity, and static assets are excluded from that budget.
 
-Run **one writer process per SQLite data directory**. Do not share that directory across replicas or perform overlapping rolling deployments. The image runs as the non-root `node` user. The compose service uses a read-only root filesystem, a temporary `/tmp`, a persistent `/data` volume, dropped capabilities, and a healthcheck. SQLite tables include uploaded asset bytes. Runner plans, recordings, and evidence live below `/data/workspaces`.
+For the SQLite adapter, run **one writer process per data directory**. The PostgreSQL/Blob/Queue composition uses database locks, durable receipts, and private workspace snapshots across instances; it does not share a SQLite file. Do not share that directory across replicas or perform overlapping rolling deployments. The image runs as the non-root `node` user. The compose service uses a read-only root filesystem, a temporary `/tmp`, a persistent `/data` volume, dropped capabilities, and a healthcheck. SQLite tables include uploaded asset bytes. Runner plans, recordings, and evidence live below `/data/workspaces`.
 
 Chromium's runtime configuration/cache directories are explicitly set to `/tmp/studio-config` and `/tmp/studio-cache` through the standard XDG variables. This lets crashpad initialize under a read-only root filesystem without changing the user's home or granting additional capabilities. Keep `/tmp` writable when running the packaged acceptance driver; the smoke gate checks these settings and launches the actual browser under the same restrictions.
 
@@ -102,7 +102,7 @@ The code editor's sandboxed preview does not require a live integration. It can 
 
 GitHub PR refresh can use the public API without a credential. A configured `STUDIO_GITHUB_TOKEN` is sent only for exact `owner/repo` entries in the comma-separated `STUDIO_GITHUB_REPOSITORIES` allowlist. Keep that token's scopes minimal and admit only repositories the deployment is allowed to expose. Do not infer private repository authorization from a pasted link.
 
-The application bounds each upload to 10 MB and cumulative uploaded asset storage to 512 MB per project. It also limits a project to 500 artifacts and an account to 100 projects. These are safety bounds rather than a capacity or performance guarantee. Generated content remains subject to its typed schema, document nesting, and payload limits.
+Local multipart uploads are bounded to 10 MB. The managed direct-upload adapter permits audio/video up to 100 MB and other supported media up to 10 MB, with a 512 MB project quota that includes pending reservations. It also limits a project to 500 artifacts and an account to 100 projects. These are safety bounds rather than a capacity or performance guarantee. Generated content remains subject to its typed schema, document nesting, and payload limits.
 
 Built browser assets carry third-party license notices at `/third-party-licenses.md`. Fonts and editor assets are served locally; `assetsInlineLimit:0` keeps module loading compatible with the application's content-security policy rather than depending on executable data URLs.
 
@@ -133,9 +133,11 @@ The layout model is shared with the application shell and follows the step-funct
 
 These checks do not prove text wrapping, browser rendering, all application state transitions, external-provider behavior, or the security of arbitrary generated code. Browser and API tests cover separate observations.
 
-Magnetar is an optional research boundary. No Magnetar prover or verifier is bundled. `STUDIO_REQUIRE_PROOF=1` makes the check fail unless a real operator-supplied verifier and bound program/input/output/proof files are present. See [verification/README.md](verification/README.md) for the adapter contract. A manifest digest is never presented as a cryptographic execution proof.
+The optional Magnetar research pipeline and external proof-verifier boundary are documented in [verification/README.md](verification/README.md). Their specific proof artifacts and admitted assumptions are separate from application and production certification. A manifest digest is never presented as a cryptographic execution proof.
 
 ## Backup and restore
+
+The [hosted runbook](../../docs/studio-vercel-deployment.md#backup-restore-rollback-and-replacement) covers PostgreSQL plus private object recovery. The following stopped-volume procedure applies to the SQLite/disk adapter.
 
 Stop incoming work and stop the application before snapshotting the complete data volume, including runner artifacts. The exclusive SQLite writer lock intentionally excludes external online backup access; no in-process online-backup adapter is supplied. Never copy only an actively written SQLite main file while ignoring its WAL.
 
@@ -149,4 +151,4 @@ docker compose -f docker-compose.studio.yml start studio
 
 Compose volume names depend on the compose project name; use `docker compose -f docker-compose.studio.yml config --volumes` and `docker volume ls` to identify the actual volume. Pre-create `backups` with permissions allowing UID 1000 to write. Encrypt backups outside the app and retain them according to the project policy.
 
-Restore into a **new empty** volume with the application stopped, extract the archive as UID 1000, and run `sqlite3 /data/studio.sqlite 'PRAGMA integrity_check;'`. Start a single instance against the restored volume, sign in, inspect representative artifacts/chats/ADRs, and download evidence before replacing the active deployment. Keep the prior volume until that verification is complete. A server restart marks unfinished runs interrupted; rerun them rather than interpreting interruption as success.
+Restore into a **new empty** volume with the application stopped, extract the archive as UID 1000, and run `sqlite3 /data/studio.sqlite 'PRAGMA integrity_check;'`. Start a single instance against the restored volume, sign in, inspect representative artifacts/chats/ADRs, and download evidence before replacing the active deployment. Keep the prior volume until that verification is complete. Inspect durable job state and recovery receipts after restarting; a failed or cancelled run is never evidence of success. Local external-agent side effects still require explicit reconciliation rather than automatic replay.

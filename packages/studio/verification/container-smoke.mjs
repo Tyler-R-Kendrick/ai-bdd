@@ -154,21 +154,31 @@ try {
     status: 'accepted',
     version: decision.version,
   });
+  const afterDecision = (await api(`/artifacts/${artifact.id}`)).artifact;
+  assert.equal(afterDecision.version, artifact.version + 1);
+  assert.deepEqual(afterDecision.content, artifact.content);
+  pass('accepted ADR advances semantic source version without rewriting code');
   const content = {
-    ...artifact.content,
+    ...afterDecision.content,
     files: {
-      ...artifact.content.files,
+      ...afterDecision.content.files,
       'index.html': '<h1>Persisted release fixture</h1>',
     },
   };
+  await api(
+    `/artifacts/${artifact.id}`,
+    'PATCH',
+    { version: artifact.version, content },
+    409,
+  );
   const updated = await api(`/artifacts/${artifact.id}`, 'PATCH', {
-    version: artifact.version,
+    version: afterDecision.version,
     content,
   });
   await api(
     `/artifacts/${artifact.id}`,
     'PATCH',
-    { version: artifact.version, content },
+    { version: afterDecision.version, content },
     409,
   );
   pass('artifact/chat/ADR creation is durable and stale writes fail');

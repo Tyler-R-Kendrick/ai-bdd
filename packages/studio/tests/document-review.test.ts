@@ -24,7 +24,7 @@ async function fixture() {
       url: '/api/artifacts/:id/document/review',
     })
   )
-    registerDocumentReview(context.app, context);
+    await registerDocumentReview(context.app, context);
   cleanup.push(() => context.app.close());
   const owner = await setup(context.app),
     request = client(context.app, owner.cookie),
@@ -54,8 +54,9 @@ async function fixture() {
       ],
     },
   };
-  const initial = (await request('GET', `/api/artifacts/${artifactId}`)).json()
-    .artifact;
+  const initial = (
+    await request('GET', `/api/artifacts/${artifactId}`)
+  ).json().artifact;
   const response = await request('PATCH', `/api/artifacts/${artifactId}`, {
     version: initial.version,
     content,
@@ -126,10 +127,12 @@ describe('attributed document review and questionnaire decisions', () => {
         )
       ).statusCode,
     ).toBe(404);
-    const rows = documentReviewExportPage(
-      f.store,
-      f.artifactId,
-      'document_suggestions',
+    const rows = (
+      await documentReviewExportPage(
+        f.store,
+        f.artifactId,
+        'document_suggestions',
+      )
     ).rows;
     expect(rows[0].status).toBe('accepted');
     expect(rows[0].block_snapshot).toContain('quick');
@@ -151,7 +154,7 @@ describe('attributed document review and questionnaire decisions', () => {
       ),
       suggestion = response.json();
     expect(response.statusCode, response.body).toBe(201);
-    f.store.db.exec(
+    await f.store.db.exec(
       `CREATE TRIGGER fail_review_resolution BEFORE UPDATE ON document_suggestions WHEN NEW.status='accepted' BEGIN SELECT RAISE(ABORT,'test-only simulated persistence failure'); END;`,
     );
     const failed = await f.request(
@@ -162,12 +165,14 @@ describe('attributed document review and questionnaire decisions', () => {
     expect(failed.statusCode).toBe(500);
     expect((await f.state()).version).toBe(before.version);
     expect(
-      f.store.one(
-        'SELECT status FROM document_suggestions WHERE id=?',
-        suggestion.id,
+      (
+        await f.store.one(
+          'SELECT status FROM document_suggestions WHERE id=?',
+          suggestion.id,
+        )
       ).status,
     ).toBe('pending');
-    f.store.db.exec('DROP TRIGGER fail_review_resolution');
+    await f.store.db.exec('DROP TRIGGER fail_review_resolution');
     const changed = structuredClone(before.content);
     changed.doc.content[1].content[0].text = 'Choose a measured approach.';
     expect(
@@ -214,6 +219,7 @@ describe('attributed document review and questionnaire decisions', () => {
       `/api/artifacts/${f.artifactId}/document/questionnaires/questionnaire/answers`,
       {
         ...input,
+        version: (await f.state()).version,
         optionId: 'b',
         answer: 'After review, the alternative has better evidence.',
       },
@@ -234,13 +240,13 @@ describe('attributed document review and questionnaire decisions', () => {
     const stale = await f.request(
       'POST',
       `/api/artifacts/${f.artifactId}/document/answers/${first.json().id}/accept-decision`,
-      { version: before.version },
+      { version: (await f.state()).version },
     );
     expect(stale.statusCode).toBe(409);
     const accepted = await f.request(
       'POST',
       `/api/artifacts/${f.artifactId}/document/answers/${second.json().id}/accept-decision`,
-      { version: before.version },
+      { version: (await f.state()).version },
     );
     expect(accepted.statusCode, accepted.body).toBe(201);
     const bundle = (
@@ -268,10 +274,12 @@ describe('attributed document review and questionnaire decisions', () => {
       )
     ).json();
     expect(older.answers[0].id).toBe(first.json().id);
-    const exported = documentReviewExportPage(
-      f.store,
-      f.artifactId,
-      'document_answers',
+    const exported = (
+      await documentReviewExportPage(
+        f.store,
+        f.artifactId,
+        'document_answers',
+      )
     ).rows;
     expect(exported).toHaveLength(2);
     expect(exported[1].decision_id).toBe(decision.id);
@@ -306,7 +314,7 @@ describe('attributed document review and questionnaire decisions', () => {
     expect(
       (
         await f.request('PATCH', `/api/artifacts/${f.artifactId}`, {
-          version: before.version,
+          version: (await f.state()).version,
           content: changed,
         })
       ).statusCode,
@@ -328,7 +336,7 @@ describe('attributed document review and questionnaire decisions', () => {
         })
       ).json(),
       old = randomUUID();
-    f.store.exec(
+    await f.store.exec(
       'INSERT INTO runs(id,artifact_id,artifact_version,status,result,created_at) VALUES(?,?,?,?,?,?)',
       old,
       source.id,
@@ -336,13 +344,17 @@ describe('attributed document review and questionnaire decisions', () => {
       'failed',
       JSON.stringify({
         scenarios: [
-          { scenarioId: 'fixture', title: 'Lookup fixture', status: 'failed' },
+          {
+            scenarioId: 'fixture',
+            title: 'Lookup fixture',
+            status: 'failed',
+          },
         ],
       }),
       '2020-01-01T00:00:00.000Z',
     );
     for (let index = 0; index < 101; index++)
-      f.store.exec(
+      await f.store.exec(
         'INSERT INTO runs(id,artifact_id,artifact_version,status,created_at) VALUES(?,?,?,?,?)',
         randomUUID(),
         source.id,
@@ -350,7 +362,9 @@ describe('attributed document review and questionnaire decisions', () => {
         'error',
         new Date().toISOString(),
       );
-    expect(f.store.runs(source.id).some((run) => run.id === old)).toBe(false);
+    expect(
+      (await f.store.runs(source.id)).some((run) => run.id === old),
+    ).toBe(false);
     const evidence = await f.request(
       'GET',
       `/api/artifacts/${f.artifactId}/document/evidence/${old}`,

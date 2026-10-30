@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { pathToFileURL } from 'node:url';
 import { kindSchema } from '../shared/domain.ts';
+import { registerImplementationMcp } from './integrations/implementation-mcp.ts';
 
 export type StudioMcpSettings = { origin: string; token: string };
 
@@ -484,6 +485,7 @@ export function createStudioMcpServer(
       ),
   );
 
+  registerImplementationMcp(server, call, result);
   return server;
 }
 
