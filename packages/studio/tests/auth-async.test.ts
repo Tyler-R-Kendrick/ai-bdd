@@ -3,7 +3,7 @@ import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/store.ts';
-import { Auth, type Settings } from '../server/auth.ts';
+import { settingsFromEnv, Auth, type Settings } from '../server/auth.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 const origin = 'http://127.0.0.1:8897',
   cleanup: (() => Promise<unknown>)[] = [];
@@ -118,3 +118,17 @@ describe.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
     });
   },
 );
+
+it('accepts Vercel ambient or linked OIDC for AI Gateway without requiring a long-lived key', () => {
+  const model = {
+    STUDIO_MODEL: 'example/model',
+    STUDIO_ORIGIN: 'http://localhost:8787',
+  };
+  expect(() => settingsFromEnv({ ...model, VERCEL: '1' })).not.toThrow();
+  expect(() =>
+    settingsFromEnv({ ...model, VERCEL_OIDC_TOKEN: 'synthetic-linked-token' }),
+  ).not.toThrow();
+  expect(() => settingsFromEnv(model)).toThrow(
+    'AI_GATEWAY_API_KEY or Vercel OIDC',
+  );
+});

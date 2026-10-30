@@ -44,7 +44,10 @@ async function fixture() {
   });
   await coordinator.ready;
   cleanup.push(() => coordinator.close());
-  const enqueue = (key = randomUUID(), overrides: Record<string, any> = {}) =>
+  const enqueue = (
+    key: string = randomUUID(),
+    overrides: Record<string, any> = {},
+  ) =>
     coordinator.enqueue({
       kind: 'fixture.work',
       projectId: project.id,
@@ -137,9 +140,7 @@ describe('durable fenced execution and publication', () => {
     expect((await w.coordinator.get(job.id))?.result).toEqual({
       published: true,
     });
-    expect((await w.store.artifact(w.artifact.id, w.user.id)).version).toBe(
-      2,
-    );
+    expect((await w.store.artifact(w.artifact.id, w.user.id)).version).toBe(2);
     expect(
       (
         await w.store.one(
@@ -222,9 +223,7 @@ describe('durable fenced execution and publication', () => {
       context.commit('done', async () => ({ done: true })),
     );
     const job = await w.enqueue();
-    w.dispatcher.publish.mockRejectedValueOnce(
-      new Error('Queue unavailable'),
-    );
+    w.dispatcher.publish.mockRejectedValueOnce(new Error('Queue unavailable'));
     await expect(w.coordinator.flushOutbox()).rejects.toThrow('pending');
     expect((await w.coordinator.get(job.id))?.status).toBe('queued');
     const firstIntent = (

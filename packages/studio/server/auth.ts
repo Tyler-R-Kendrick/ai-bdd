@@ -69,8 +69,15 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv): Settings {
     throw new Error(
       'OIDC requires STUDIO_OIDC_CLIENT_ID and STUDIO_OIDC_CLIENT_SECRET',
     );
-  if (env.STUDIO_MODEL && !env.AI_GATEWAY_API_KEY)
-    throw new Error('STUDIO_MODEL requires AI_GATEWAY_API_KEY');
+  if (
+    env.STUDIO_MODEL &&
+    !env.AI_GATEWAY_API_KEY &&
+    !env.VERCEL_OIDC_TOKEN &&
+    env.VERCEL !== '1'
+  )
+    throw new Error(
+      'STUDIO_MODEL requires AI_GATEWAY_API_KEY or Vercel OIDC authentication',
+    );
   if (production && env.STUDIO_OIDC_ALLOW_HTTP_LOOPBACK === '1')
     throw new Error('HTTP OIDC test issuers are restricted to development');
   const trustedProxies = env.STUDIO_TRUSTED_PROXIES?.split(',')
