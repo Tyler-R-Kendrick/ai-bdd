@@ -122,6 +122,9 @@ test('authors, renames, imports and exports a persistent real React/TypeScript p
   await expect(page.locator('.editor-statusbar')).toContainText(
     'Preview ready',
   );
+  // The initial draft debounce must not clear a loaded iframe without replacing it.
+  await page.waitForTimeout(600);
+  await expect(page.locator('.editor-statusbar')).toContainText('Preview ready');
   await capture(page, '17-react-typescript-project.png');
   await page
     .getByRole('button', { name: 'Installed packages', exact: true })
