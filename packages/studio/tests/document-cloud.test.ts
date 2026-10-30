@@ -217,6 +217,77 @@ for (const adapter of ['sqlite', 'postgres'] as const)
   describe.skipIf(adapter === 'postgres' && !postgresUrl)(
     `${adapter} asynchronous document transactions`,
     () => {
+      it('refuses a new answer at the real 5,000-row history cap while replaying an exact answer without another row', async () => {
+        const f = await fixture(adapter),
+          version = (await f.state()).version,
+          input = {
+            version,
+            questionId: 'approach',
+            optionId: 'a',
+            answer: 'Keep this exact attributed response after a lost reply.',
+          },
+          first = await f.request(
+            f.a,
+            'POST',
+            '/questionnaires/questionnaire/answers',
+            input,
+          );
+        expect(first.statusCode, first.body).toBe(201);
+        const answer = first.json();
+        // Retained historical questions consume the same artifact-wide quota as current answers.
+        // Use actual persisted rows rather than intercepting count(*) or changing the production limit.
+        await f.first.tx(async () => {
+          await f.first.db.lock('project:' + f.project.id);
+          await f.first.exec(
+            `WITH RECURSIVE quota_sequence(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM quota_sequence WHERE n<4999)
+             INSERT INTO document_answers(id,project_id,artifact_id,anchor,question_id,option_id,answer,question,option,question_snapshot,author_id,author,created_at)
+             SELECT ?||'-quota-'||n,project_id,artifact_id,anchor,'historical-'||n,option_id,answer,question,option,question_snapshot,author_id,author,created_at
+             FROM document_answers CROSS JOIN quota_sequence WHERE id=?`,
+            randomUUID(),
+            answer.id,
+          );
+        });
+        const count = async () =>
+          Number(
+            (
+              await f.second.one(
+                'SELECT count(*) AS count FROM document_answers WHERE artifact_id=?',
+                f.artifactId,
+              )
+            ).count,
+          );
+        expect(await count()).toBe(5000);
+        const duplicate = await f.request(
+          f.b,
+          'POST',
+          '/questionnaires/questionnaire/answers',
+          input,
+        );
+        expect(duplicate.statusCode, duplicate.body).toBe(200);
+        expect(duplicate.json()).toEqual(answer);
+        const denied = await f.request(
+          f.b,
+          'POST',
+          '/questionnaires/questionnaire/answers',
+          {
+            ...input,
+            optionId: 'b',
+            answer: 'A genuinely new response needs another history row.',
+          },
+        );
+        expect(denied.statusCode, denied.body).toBe(409);
+        expect(denied.json().error).toContain('5,000 review-record limit');
+        expect(await count()).toBe(5000);
+        expect(
+          await f.first.one(
+            'SELECT answer,option_id FROM document_answers WHERE id=?',
+            answer.id,
+          ),
+        ).toEqual({
+          answer: input.answer,
+          option_id: 'a',
+        });
+      });
       it('gives agent/MCP-authored blocks canonical IDs shared by source JSON and durable Yjs without a viewer rewrite', async () => {
         const f = await fixture(adapter),
           authored = await f.first.createArtifact(
