@@ -1,10 +1,11 @@
+import type { NativeT3GuardEvent, NativeT3GuardReason, NativeT3GuardStage } from '../integrations/t3-native.ts';
 /** Explicit operational vocabulary: never copy native messages, URLs, paths or credentials. */
 export type NativeT3Phase =
   | 'queue' | 'verify-tools' | 'acquire-lease' | 'restore-state'
   | 'native-start' | 'model-host' | 'opencode-launch' | 'opencode-readiness'
   | 't3-project-registration' | 't3-serve' | 't3-readiness' | 't3-oauth'
   | 't3-admission' | 'initial-checkpoint' | 'native-restart' | 'inference'
-  | 'local-inference' | 'final-checkpoint' | 'cleanup' | 'native-model-request';
+  | 'local-inference' | 'final-checkpoint' | 'cleanup' | 'native-model-request' | 't3-native-guard';
 type ErrorClass = 'http' | 'abort' | 'timeout' | 'local-model' | 'system' | 'other';
 const codes = new Set([
   'ENOENT', 'EACCES', 'EPERM', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT',
@@ -21,6 +22,8 @@ export type NativeT3Event = Readonly<{
   elapsedMs?: number;
   messages?: number;
   envelopeMatches?: number;
+  guardStage?: NativeT3GuardStage;
+  guardReason?: NativeT3GuardReason;
   contentKinds?: readonly ('parts' | 'text' | 'other')[];
 } & Partial<ErrorMetadata>>;
 export type NativeT3Observer = (event: NativeT3Event) => void | Promise<void>;
@@ -45,6 +48,7 @@ function failureMetadata(error: unknown): ErrorMetadata {
   } catch { return { errorClass: 'other' }; }
 }
 export class NativeT3Diagnostics {
+  private readonly observedGuards = new Set<string>();
   constructor(private readonly observer?: NativeT3Observer) {}
   private emit(event: NativeT3Event) {
     try { void Promise.resolve(this.observer?.(Object.freeze(event))).catch(() => {}); }
@@ -65,6 +69,12 @@ export class NativeT3Diagnostics {
   }
   exit(phase: NativeT3Phase, code: number | null, signal: string | null) {
     this.emit({ phase, state: 'exit', ...(Number.isInteger(code) && code! >= 0 && code! <= 255 ? { exitCode: code! } : {}), ...(signal && signals.has(signal) ? { signal } : {}) });
+  }
+  guard(event: NativeT3GuardEvent) {
+    const key = JSON.stringify([event.stage, event.state, event.reason, event.status]);
+    if (this.observedGuards.has(key)) return;
+    this.observedGuards.add(key);
+    this.emit({ phase: 't3-native-guard', state: event.state, guardStage: event.stage, ...(event.reason ? { guardReason: event.reason } : {}), ...(event.status ? { status: event.status } : {}) });
   }
   request(messages: unknown[], envelopeMatches?: number) {
     this.emit({ phase: 'native-model-request', state: 'request', messages: Math.min(100, messages.length),

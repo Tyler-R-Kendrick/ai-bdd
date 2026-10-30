@@ -266,7 +266,7 @@ class NativeSession {
     return this.diagnostics.run('t3-admission', async () => {
       for (let i = 0; i < 40; i++) {
         this.signal.throwIfAborted();
-        try { const admitted = await NativeT3.connect(nativeConfig, this.profile, this.signal); await admitted.close(); return nativeConfig; }
+        try { const admitted = await NativeT3.connect(nativeConfig, this.profile, this.signal, event => this.diagnostics.guard(event)); await admitted.close(); return nativeConfig; }
         catch (error) { if (i === 0) this.diagnostics.probe('t3-admission', undefined, error); this.signal.throwIfAborted(); await beforeAbort(new Promise(r => setTimeout(r, 500)), this.signal); }
       }
       throw unavailable();

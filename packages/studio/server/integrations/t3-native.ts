@@ -7,6 +7,15 @@ import { HttpError } from '../http-error.ts';
 import type { IntegrationSettings } from './settings.ts';
 
 type Config = NonNullable<IntegrationSettings['t3']>;
+export type NativeT3GuardStage = 'configuration' | 'mcp-transport' | 'mcp-connect' | 'tools-list' | 'launch-schema' | 'capabilities' | 'provider-selection' | 'project-list' | 'project-selection' | 'project-read';
+export type NativeT3GuardReason = 'auth-missing' | 'provider-unregistered' | 'origin-mismatch' | 'http-status' | 'response-budget' | 'operation-failed' | 'missing-tools' | 'launch-contract' | 'tool-request-failed' | 'tool-rejected' | 'response-schema' | 'caller-ceiling' | 'provider-missing' | 'model-missing' | 'provider-mode' | 'pagination-budget' | 'pagination-order' | 'project-missing' | 'project-ambiguous' | 'project-mismatch';
+export type NativeT3GuardEvent = Readonly<{ stage: NativeT3GuardStage; state: 'start' | 'complete' | 'failure'; reason?: NativeT3GuardReason; status?: number }>;
+export type NativeT3GuardObserver = (event: NativeT3GuardEvent) => void | Promise<void>;
+function observeGuard(observer: NativeT3GuardObserver | undefined, event: NativeT3GuardEvent) {
+  try { void Promise.resolve(observer?.(Object.freeze(event))).catch(() => {}); }
+  catch { /* Logging cannot change native permission admission. */ }
+}
+
 const id = z.string().min(1).max(200);
 const mode = 'approval-required';
 const modelSelection = z.object({ instanceId: id, model: id });
@@ -91,7 +100,7 @@ function permitsMode(schema: any, root: any, depth = 0): boolean {
   );
 }
 
-function transport(config: Config, signal: AbortSignal) {
+function transport(config: Config, signal: AbortSignal, observer?: NativeT3GuardObserver) {
   if (!config.mcp?.accessToken) throw missing();
   const endpoint = new URL(config.mcp.url);
   let bytes = 0;
@@ -103,7 +112,7 @@ function transport(config: Config, signal: AbortSignal) {
       const url = new URL(
         input instanceof Request ? input.url : input.toString(),
       );
-      if (url.origin !== endpoint.origin) throw incompatible();
+      if (url.origin !== endpoint.origin) { observeGuard(observer, { stage: 'mcp-transport', state: 'failure', reason: 'origin-mismatch' }); throw incompatible(); }
       const response = await fetch(input, {
         ...init,
         redirect: 'error',
@@ -112,6 +121,7 @@ function transport(config: Config, signal: AbortSignal) {
           ...(init?.signal ? [init.signal] : []),
         ]),
       });
+      if (!response.ok) observeGuard(observer, { stage: 'mcp-transport', state: 'failure', reason: 'http-status', status: response.status });
       if (!response.body) return response;
       let responseBytes = 0;
       const body = response.body.pipeThrough(
@@ -119,11 +129,13 @@ function transport(config: Config, signal: AbortSignal) {
           transform(chunk, controller) {
             bytes += chunk.byteLength;
             responseBytes += chunk.byteLength;
-            if (responseBytes > 2 * 1024 * 1024 || bytes > 32 * 1024 * 1024)
+            if (responseBytes > 2 * 1024 * 1024 || bytes > 32 * 1024 * 1024) {
+              observeGuard(observer, { stage: 'mcp-transport', state: 'failure', reason: 'response-budget' });
               throw new HttpError(
                 502,
                 'T3 exceeded its bounded native response budget',
               );
+            }
             controller.enqueue(chunk);
           },
         }),
@@ -149,20 +161,24 @@ export class NativeT3 {
     private readonly config: Config,
     private readonly profile: AgentProfile,
     private readonly signal: AbortSignal,
+    private readonly observer?: NativeT3GuardObserver,
   ) {}
   static async connect(
     config: Config,
     profile: AgentProfile,
     signal: AbortSignal,
+    observer?: NativeT3GuardObserver,
   ) {
-    if (!config.mcp?.accessToken) throw missing();
+    if (!config.mcp?.accessToken) { observeGuard(observer, { stage: 'configuration', state: 'failure', reason: 'auth-missing' }); throw missing(); }
     if (
       !config.providers.some(
         (p) => p.id === profile.provider && p.models.includes(profile.model),
       )
-    )
+    ) {
+      observeGuard(observer, { stage: 'configuration', state: 'failure', reason: 'provider-unregistered' });
       throw incompatible();
-    const native = new NativeT3(config, profile, signal);
+    }
+    const native = new NativeT3(config, profile, signal, observer);
     try {
       await native.initialize();
       return native;
@@ -173,11 +189,21 @@ export class NativeT3 {
         : incompatible();
     }
   }
+  private async guard<T>(stage: NativeT3GuardStage, work: () => Promise<T>): Promise<T> {
+    observeGuard(this.observer, { stage, state: 'start' });
+    try { const value = await work(); observeGuard(this.observer, { stage, state: 'complete' }); return value; }
+    catch (error) { observeGuard(this.observer, { stage, state: 'failure', reason: 'operation-failed' }); throw error; }
+  }
+  private reject(stage: NativeT3GuardStage, reason: NativeT3GuardReason): never {
+    observeGuard(this.observer, { stage, state: 'failure', reason });
+    throw incompatible();
+  }
   private async call<S extends z.ZodType>(
     name: string,
     args: Record<string, unknown>,
     schema: S,
     provenance = false,
+    admissionStage?: NativeT3GuardStage,
   ): Promise<z.infer<S>> {
     this.signal.throwIfAborted();
     if (++this.calls > 1500)
@@ -194,19 +220,23 @@ export class NativeT3 {
       );
     } catch (error) {
       if (this.signal.aborted) throw error;
+      if (admissionStage) this.reject(admissionStage, 'tool-request-failed');
       throw incompatible();
     }
-    if (result.isError) throw incompatible();
+    if (result.isError) { if (admissionStage) this.reject(admissionStage, 'tool-rejected'); throw incompatible(); }
     const parsed = schema.safeParse(result.structuredContent);
-    if (!parsed.success) throw provenance ? changed() : incompatible();
+    if (!parsed.success) {
+      if (admissionStage) this.reject(admissionStage, admissionStage === 'capabilities' && (result.structuredContent as any)?.runtimeMode !== mode ? 'caller-ceiling' : 'response-schema');
+      throw provenance ? changed() : incompatible();
+    }
     return parsed.data;
   }
   private async initialize() {
-    await this.client.connect(transport(this.config, this.signal));
-    const tools = await this.client.listTools(undefined, {
+    await this.guard('mcp-connect', () => this.client.connect(transport(this.config, this.signal, this.observer)));
+    const tools = await this.guard('tools-list', () => this.client.listTools(undefined, {
       signal: this.signal,
       timeout: 15000,
-    });
+    }));
     const required = [
       'orchestrator_capabilities',
       't3_project_list',
@@ -218,7 +248,7 @@ export class NativeT3 {
     if (
       !required.every((name) => tools.tools.some((tool) => tool.name === name))
     )
-      throw incompatible();
+      this.reject('tools-list', 'missing-tools');
     const schema = tools.tools.find(
       (tool) => tool.name === 't3_thread_launch',
     )!.inputSchema;
@@ -228,8 +258,8 @@ export class NativeT3 {
       !schema.properties?.modelSelection ||
       !permitsMode(schema.properties?.runtimeMode, schema)
     )
-      throw incompatible();
-    const capabilities = await this.call(
+      this.reject('launch-schema', 'launch-contract');
+    const capabilities = await this.guard('capabilities', () => this.call(
       'orchestrator_capabilities',
       { search: this.profile.model },
       z.object({
@@ -247,7 +277,9 @@ export class NativeT3 {
           )
           .max(100),
       }),
-    );
+      false,
+      'capabilities',
+    ));
     if (
       !capabilities.providers.some(
         (p) =>
@@ -255,17 +287,21 @@ export class NativeT3 {
           p.models.some((m) => m.id === this.profile.model) &&
           p.runtimeModes?.includes(mode),
       )
-    )
-      throw incompatible();
+    ) {
+      const registered = capabilities.providers.filter(p => p.providerInstanceId === this.profile.provider);
+      this.reject('provider-selection', !registered.length ? 'provider-missing' : !registered.some(p => p.models.some(m => m.id === this.profile.model)) ? 'model-missing' : 'provider-mode');
+    }
     let cursor: number | null = 0;
     const matches: z.infer<typeof project>[] = [];
     for (let page = 0; cursor !== null; page++) {
-      if (page === 100) throw incompatible();
-      const current: z.infer<typeof projectPage> = await this.call(
+      if (page === 100) this.reject('project-list', 'pagination-budget');
+      const current: z.infer<typeof projectPage> = await this.guard('project-list', () => this.call(
         't3_project_list',
         { cursor, limit: 100 },
         projectPage,
-      );
+        false,
+        'project-list',
+      ));
       matches.push(
         ...current.projects.filter(
           (p) =>
@@ -274,21 +310,23 @@ export class NativeT3 {
         ),
       );
       if (current.nextCursor !== null && current.nextCursor <= cursor)
-        throw incompatible();
+        this.reject('project-list', 'pagination-order');
       cursor = current.nextCursor;
     }
-    if (matches.length !== 1) throw incompatible();
-    const selected = await this.call(
+    if (matches.length !== 1) this.reject('project-selection', matches.length === 0 ? 'project-missing' : 'project-ambiguous');
+    const selected = await this.guard('project-read', () => this.call(
       't3_project_read',
       { projectId: matches[0]!.id },
       project,
-    );
+      false,
+      'project-read',
+    ));
     if (
       selected.id !== matches[0]!.id ||
       !isAbsolute(selected.workspaceRoot) ||
       normalize(selected.workspaceRoot) !== normalize(this.config.project)
     )
-      throw incompatible();
+      this.reject('project-read', 'project-mismatch');
     this.projectId = selected.id;
   }
   async launch(title: string, prompt: string, clientRequestId: string) {
