@@ -1,6 +1,6 @@
 # Production GitHub sign-in diagnosis
 
-Status: unresolved provider identity contract. This is a diagnosis and proposed connection plan, not a successful-login receipt.
+Status: the app imposed an email-based admission requirement that the user did not request. The selected remedy removes it and automatically provisions users from authenticated GitHub identities. Deployment and a real production login remain separate acceptance gates; this is not a successful-login receipt.
 
 The deployed implementation is `f7ce9aea561c4ddc16ac38be0127c3b55214b5c2`. Its production callback logs establish the following sequence without recording credentials or identity values:
 
@@ -35,57 +35,34 @@ The immediate failure is the mismatch between Connect's optional profile claims 
 
 Anonymous health, status, authorization-start checks, screenshots, and green fixture tests do not establish a working real-account callback.
 
-## Supported remedies
+## Selected remedy: trust the authenticated GitHub identity
 
-### Repair the existing managed connector
+GitHub does not require Studio to compare an owner email or pre-create local accounts. Those were application rules, not provider requirements. The user explicitly requested their removal. A successful code/PKCE exchange and authenticated qualified subject now suffice to create a passwordless internal user automatically, with no email claim or invitation prerequisite.
 
-Vercel Connect manages a GitHub App. Inspect the actual App's account-level **Email addresses: Read-only** permission, independently of repository permissions. If a permission changes, GitHub may require renewed authorization. Confirm that Connect then fetches an authenticated verified email and emits both a usable `email` and `email_verified: true` from userinfo.
+Keep the already-owned Vercel Connect GitHub connector. Use its fixed issuer, canonical connector and opaque subject as the exact identity key. Preserve existing bindings. For an unknown identity, create a fresh internal user and binding atomically; serialize concurrent first sign-ins. The historical email column receives a random internal `identity.invalid` identifier, not an invented verified/contact email. Neither a public email nor a matching private email can claim another existing account.
 
-Permission and mapping are separate requirements. An `openid email user:email` scope string does not grant GitHub App account permissions. A permission toggle is not a verified fix if the mapper still omits the claims. The public connector update tool does not expose a supported profile-mapping field; do not invent one.
+GitHub owns credentials and authentication. Studio retains the minimal user/project records needed for authorization and artifact ownership. New users can create projects, and existing project owners can add a signed-in teammate by Member ID. Automatic sign-in does not transfer anyone else's projects or grants.
 
-### Use standard GitHub OAuth hosted on Vercel
+The real provider's missing email is therefore acceptable. No new OAuth app registration, email permission, mapper repair, local signup, or one-time enrollment flow is needed for this policy. The earlier proposed invitation remedy remains unshipped and is not part of this release.
 
-This is the most direct fallback if the managed profile cannot meet the identity contract. Studio already has a direct GitHub OAuth adapter that exchanges the authorization code, calls authenticated `/user` and `/user/emails`, and admits only verified GitHub emails. It supports private and non-primary verified aliases without relying on a public profile email.
+## Other solutions assessed
 
-Register an owned GitHub OAuth application with:
+| Option | What it would solve | Decision |
+| --- | --- | --- |
+| Add GitHub App account Email addresses read permission and repair Connect's mapper | Could supply verified email if the app required it; permission and mapping are distinct | Unnecessary after removing the application email requirement |
+| Register a direct GitHub OAuth app on Vercel | Studio's direct adapter can authenticate a numeric GitHub ID using `/user` | Supported alternative, but requires an owned registered client and deployment bindings; the existing Connect connector already authenticates |
+| Replace the protocol adapter with Auth.js or another auth framework | Can simplify framework integration | Does not create OAuth credentials or make optional email claims mandatory; not needed for this failure |
+| Migrate to a different managed identity service | Moves identity hosting and introduces migration work | No benefit needed for the selected simple GitHub policy |
+| Require an explicit account-specific enrollment invitation | Separates local account authorization from email claims | Rejected as a login prerequisite by the user's clarified policy; not shipped |
+| Enable passwords, demo login, or a public first-caller claim on an existing account | Could conceal the GitHub failure or transfer privileges | Not used; GitHub authentication and existing project permissions remain enforced |
 
-- Homepage: `https://ai-bdd-studio.vercel.app`
-- Callback: `https://ai-bdd-studio.vercel.app/api/auth/github/callback`
-- Sign-in access: the verified-email access used by the adapter; no repository permission is needed for login.
-
-Bind its credentials in Vercel production as `STUDIO_GITHUB_SIGNIN_CLIENT_ID` and `STUDIO_GITHUB_SIGNIN_CLIENT_SECRET`. Those bindings are currently absent. Keep values out of source, PRs, and chat.
-
-Switch the production provider deliberately: the current `STUDIO_GITHUB_SIGNIN_CONNECTOR` selector takes precedence over direct credentials. Binding credentials alone will not switch providers. Remove that production selector, or introduce an explicit provider mode with unambiguous validation, only when the replacement credentials are present. Redeploy after changing bindings.
-
-Use separate registered clients or a deliberately designed, authenticated redirect proxy for distinct preview callback hosts. Do not assume a production OAuth client accepts arbitrary generated preview domains.
-
-Replacing the implementation with Auth.js can reduce custom protocol code, but does not create a GitHub OAuth client or supply missing GitHub App permissions. The existing direct adapter already performs the essential verified-email lookup.
-
-### Other managed authentication services
-
-A separate managed identity service is possible, but adds another service and migration. Checked production GitHub configurations require an owned client or appropriate account permissions; development shared keys are not a production remedy. No migration is justified merely to move the same missing-credential requirement elsewhere.
-
-### Explicit invitation enrollment with the existing connector
-
-An authenticated stable issuer/connector/subject can also identify a GitHub account without an email claim. Workspace authorization must then be established separately: an existing owner or deployment operator can issue a short-lived, account-specific enrollment invitation. The invitation must be bound to the browser's OAuth challenge and redeemed atomically only after a successful GitHub authorization-code flow and valid userinfo subject. It cannot authenticate someone by itself.
-
-This would preserve the existing managed connector and avoid depending on optional email claims. Future logins resolve the stored qualified principal. An unbound principal without either verified-email admission or an explicit valid invitation remains unauthorized; no first-caller ownership or public signup is introduced. Cross-provider and cross-principal account conflicts must still be refused.
-
-This is a proposed alternative requiring security review, implementation, replay/race tests, and a real enrollment check. It is not currently deployed or claimed to work. It must never be described as proof that Connect supplied a verified email.
-
-## Approaches excluded
-
-- Do not admit an unbound principal without verified-email matching or explicit owner-authorized enrollment, claim an opaque Connect subject is a numeric GitHub ID, or automatically grant ownership to the first subject.
-- Do not treat a Connect login bearer as a provider API token or a Passport subject-token credential. The earlier unsupported exchange failed before userinfo-based login was implemented.
-- Do not replace authorization-code proof with polling an anonymous integration grant; cross-browser consent can then be misattributed.
-- Do not ask someone to publish their private GitHub email as a workaround.
-- Do not enable password, setup, or demo login, or broaden Vercel deployment protection to conceal the application failure.
+The direct OAuth adapter remains available with `STUDIO_GITHUB_SIGNIN_CLIENT_ID` and `STUDIO_GITHUB_SIGNIN_CLIENT_SECRET` and the exact callback `https://ai-bdd-studio.vercel.app/api/auth/github/callback`. A configured `STUDIO_GITHUB_SIGNIN_CONNECTOR` takes precedence. No direct OAuth credentials are needed for the selected managed connector. Login credentials and repository authorization remain separate.
 
 ## Acceptance required before closing this issue
 
-Verify the selected provider's complete flow: authorization, callback challenge, code exchange, authenticated verified-email lookup, intended account admission, session creation, same-origin `/api/me`, and workspace access. Exercise private email, non-primary verified aliases where supported, rejected unverified identity, invitation failure, callback replay, restart, and genuinely cross-site browser navigation. Confirm password endpoints remain disabled.
+Verify authorization, browser-bound challenge, code/PKCE exchange, authenticated subject, first-use provisioning, session creation, same-origin `/api/me`, and workspace access. Verify normal re-login resolves the same user without an email claim. Exercise distinct identities sharing an email, concurrent first logins, existing binding continuity, callback replay, restart and cross-site navigation. Confirm password endpoints remain disabled and a new user cannot access another user's projects.
 
-Update the PR's screenshots and claims to match the exact successful flow. Until that receipt exists, keep real production login marked failing or unverified as appropriate.
+Update the PR's screenshots and claims to match the exact flow. Controlled providers and public route checks do not establish a successful real GitHub callback. Until that receipt exists, keep real production login marked failing or unverified as appropriate.
 
 ## Primary references
 

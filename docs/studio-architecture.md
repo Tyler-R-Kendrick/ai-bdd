@@ -92,19 +92,23 @@ SameSite; mutations check canonical origin. Hashed personal MCP tokens inherit
 current owner permissions. Source transactions recheck rights under the project
 lock after awaited work. Trusted proxy CIDRs are explicit.
 
-Browser sign-in uses GitHub with durable one-use state, browser-bound PKCE,
-verified email admission and a stable qualified identity. The preferred
-Vercel Connect adapter uses the official OAuth/PKCE contract through a fresh
-server-side identity scope. Its fixed authenticated userinfo endpoint supplies
-an opaque subject qualified by issuer and connector, plus a mandatory verified
-profile email. Any returned ID token still receives issuer, audience, timestamp
-and signature validation and must match userinfo. Direct GitHub OAuth retains
-numeric GitHub IDs and verified email aliases in a separate binding. Email
-matches cannot relink an account across identities or adapters. A direct GitHub
-OAuth adapter is an explicit alternative outside Connect. Password/setup/demo
-and generic organization OIDC sign-in are disabled; provider failure leaves a
-visible retry state. Historical browser sessions without GitHub provenance are
-rejected, while API bearer credentials retain their separate policy.
+Browser sign-in uses GitHub with durable one-use state, browser-bound PKCE
+and a stable qualified identity. A valid GitHub identity automatically receives
+a passwordless internal user record; no local signup, invitation, owner-email
+setting or email claim is required. The preferred Vercel Connect adapter uses
+the official OAuth/PKCE contract through a fresh server-side identity scope.
+Its fixed authenticated userinfo endpoint supplies an opaque subject qualified
+by issuer and canonical connector. Any returned ID token still receives issuer,
+audience, timestamp and signature validation and must match userinfo. Direct
+GitHub OAuth retains numeric GitHub IDs in a separate binding. Concurrent first
+sign-ins serialize identity lookup, user creation and binding; existing bindings
+retain their user IDs. Email never links or transfers an account. The historical
+email column uses a random internal identifier for newly provisioned users.
+Project membership still controls access to existing projects, and owners can
+add a signed-in teammate by Member ID. Password/setup/demo and generic
+organization OIDC sign-in are disabled; provider failure leaves a visible retry
+state. Historical browser sessions without GitHub provenance are rejected,
+while API bearer credentials retain their separate policy.
 
 Repository authorization is separate from sign-in. Per-user GitHub credentials
 use a stable-key encrypted vault. Refresh and permission leases
