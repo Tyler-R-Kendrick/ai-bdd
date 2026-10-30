@@ -78,6 +78,8 @@ export async function selectAgent(
     const entry = resolve(env.STUDIO_MACHINE_CWD ?? process.cwd(), args[0]);
     try {
       if ((await stat(entry)).isFile()) args[0] = await realpath(entry);
+      else if (/\.(?:[cm]?js|tsx?|py|rb)$/i.test(args[0]))
+        throw new Error('The selected entrypoint is not a regular file');
     } catch {
       if (/\.(?:[cm]?js|tsx?|py|rb)$/i.test(args[0]))
         throw new Error(

@@ -315,6 +315,7 @@ export class AcpClient {
     });
   }
   async run(work: unknown) {
+    this.permissions.reset();
     const initialization = await this.rpc('initialize', {
       protocolVersion: 1,
       clientCapabilities: {

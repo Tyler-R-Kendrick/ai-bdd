@@ -37,7 +37,7 @@ const request = (kind = 'execute') => ({
 });
 describe('Session-scoped ACP terminal permissions', () => {
   it('asks once/session explicitly, defaults to denial, sanitizes terminal text and never grants the external permanent option', async () => {
-    const io = terminal(['o', 's', '']);
+    const io = terminal(['o', 's', '', 'd']);
     const session = new TerminalPermissionSession(
       new AbortController().signal,
       io,
@@ -48,6 +48,9 @@ describe('Session-scoped ACP terminal permissions', () => {
     expect(await session.choose(request('delete'))).toBeUndefined();
     expect(io.observed().prompts).toBe(3);
     expect(io.observed().text).not.toContain('\x1b');
+    session.reset();
+    expect(await session.choose(request())).toBeUndefined();
+    expect(io.observed().prompts).toBe(4);
     expect(
       await session.choose({
         ...request(),

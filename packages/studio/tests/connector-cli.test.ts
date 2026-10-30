@@ -135,6 +135,14 @@ readline.createInterface({input:process.stdin}).on('line',line=>{const m=JSON.pa
       });
     const agentEntry = join(dir, 'agent.mjs');
     await writeFile(agentEntry, '// Explicit operator-selected entrypoint\n');
+    expect(
+      (
+        await selectAgent(
+          { custom: [process.execPath, 'agent.mjs'] },
+          { STUDIO_MACHINE_CWD: dir },
+        )
+      ).args,
+    ).toEqual([agentEntry]);
     await run([
       'connect',
       '--clone',

@@ -36,6 +36,9 @@ export class TerminalPermissionSession {
     readonly signal: AbortSignal,
     readonly terminal: PermissionTerminal = {},
   ) {}
+  reset() {
+    this.grants.clear();
+  }
   close() {
     this.grants.clear();
     this.closed.abort();
