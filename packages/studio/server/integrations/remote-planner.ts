@@ -254,6 +254,9 @@ export class RemotePlanner {
   ) {
     return this.activity.hasLiveActivity(artifactId, userId, scope);
   }
+  async hasLiveActivityForArtifact(artifactId: string) {
+    return this.activity.hasLiveActivityForArtifact(artifactId);
+  }
   async exportPage(
     artifactId: string,
     after: number,

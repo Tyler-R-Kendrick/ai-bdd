@@ -184,17 +184,33 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
     userId: string,
     scope?: { assignmentId: string; epoch: number },
   ) {
-    const rows = await this.store.all(
-      'SELECT r.id FROM studio_remote_requests r JOIN studio_remote_activity a ON a.request_id=r.id WHERE r.artifact_id=? AND r.user_id=?' +
-        (scope ? ' AND a.assignment_id=? AND a.assignment_epoch=?' : '') +
-        ' ORDER BY a.ordinal DESC LIMIT 20',
-      artifactId,
-      userId,
-      ...(scope ? [scope.assignmentId, scope.epoch] : []),
-    );
-    for (const value of rows) {
-      const row = await this.row(value.id);
-      if (this.live(row)) return true;
+    return this.findLiveActivity(artifactId, userId, scope);
+  }
+  async hasLiveActivityForArtifact(artifactId: string) {
+    return this.findLiveActivity(artifactId);
+  }
+  private async findLiveActivity(
+    artifactId: string,
+    userId?: string,
+    scope?: { assignmentId: string; epoch: number },
+  ) {
+    let cursor = 0;
+    while (true) {
+      const rows = await this.store.all(
+        "SELECT r.id,a.ordinal FROM studio_remote_requests r JOIN studio_remote_activity a ON a.request_id=r.id WHERE r.artifact_id=? AND r.status IN ('pending','completed') AND a.ordinal>?" +
+          (userId ? ' AND r.user_id=?' : '') +
+          (scope ? ' AND a.assignment_id=? AND a.assignment_epoch=?' : '') +
+          ' ORDER BY a.ordinal LIMIT 100',
+        artifactId,
+        cursor,
+        ...(userId ? [userId] : []),
+        ...(scope ? [scope.assignmentId, scope.epoch] : []),
+      );
+      for (const value of rows) {
+        if (this.live(await this.row(value.id))) return true;
+        cursor = Number(value.ordinal);
+      }
+      if (rows.length < 100) break;
     }
     return false;
   }

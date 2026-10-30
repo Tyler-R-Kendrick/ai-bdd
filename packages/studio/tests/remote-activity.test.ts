@@ -210,6 +210,7 @@ describe('durable remote stream/question/run actions over actual WS and HTTP', (
         epoch: 1,
       }),
     ).toBe(true);
+    expect(await w.remote.hasLiveActivityForArtifact(w.artifact.id)).toBe(true);
     expect(
       await w.remote.hasLiveActivity(w.artifact.id, w.user.id, {
         assignmentId,
@@ -219,6 +220,7 @@ describe('durable remote stream/question/run actions over actual WS and HTTP', (
     epoch = 2;
     await run.done;
     expect((await w.runtime.get(run.job.id))?.status).not.toBe('completed');
+    expect(await w.remote.hasLiveActivityForArtifact(w.artifact.id)).toBe(false);
     expect(
       await w.remote.hasLiveActivity(w.artifact.id, w.user.id, {
         assignmentId,
