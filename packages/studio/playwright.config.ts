@@ -32,6 +32,11 @@ export default defineConfig({
     timeout: 60000,
     env: {
       NODE_ENV: 'test',
+      // The API's local media renderer must decode the same real H.264 source
+      // as the MP4 UI lane. This does not change other tests' browser fixtures.
+      ...(process.env.STUDIO_MP4_CHROMIUM_PATH
+        ? { STUDIO_CHROMIUM_PATH: process.env.STUDIO_MP4_CHROMIUM_PATH }
+        : {}),
       STUDIO_DEMO: '1',
       STUDIO_PORT: '8877',
       STUDIO_ORIGIN: 'http://127.0.0.1:8877',

@@ -103,6 +103,8 @@ async function number(page: Page, name: string, value: string) {
 test('multi-track media, nonlinear keyframes, source trims, MP4 audio, and portable projects work end to end', async ({
   page,
 }) => {
+  // The real 96-frame encoder/download has its own 60s timeout below.
+  test.setTimeout(90_000);
   const folder = await mkdtemp(join(tmpdir(), 'studio-motion-browser-'));
   try {
     const { artifact, project } = await open(page);
