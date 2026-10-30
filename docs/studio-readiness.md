@@ -1,85 +1,41 @@
 # Studio release scope and evidence
 
-This record describes the first artifact-centered application added to ai-bdd. It must be read alongside actual command results and CI for the exact commit being reviewed. A feature being present in source does not mean its live provider or production deployment has been validated.
+Studio now includes shared artifact documents, dedicated media editors, exact-solid CAD, reviewed implementation graphs, connected machines, and durable PostgreSQL/object-storage/job adapters. **Full requested parity and live production readiness have not yet been established.** The [requested-scope matrix](studio-scope-matrix.md) maps requirements to implementation, evidence and remaining work. See also the [architecture](studio-architecture.md) and [deployment runbook](studio-vercel-deployment.md).
 
-## Implemented scope
+A component test, a screenshot, a provisioned database and a deployed production workflow establish different facts. Later source changes need checks on their own release commit.
 
-| Area | Implementation | Validation boundary |
-| --- | --- | --- |
-| Project composition | Main design artifact and typed child artifacts; project canvas and navigation | API/browser scenarios cover the supplied workflows; arbitrary project scale is not certified |
-| Artifact identity | Artifact-bound main chat, paginated older discussion context, anchored threads, dedicated ADR, revisions, audit trail, streamed complete export | Transaction/isolation/conflict/cursor tests; host administrator can still alter database files |
-| Rich documents | TipTap tables, lists, code, links, math, images, inline test/research components | Restricted schema; no arbitrary executable MDX or complete Word/Docs compatibility |
-| Collaboration | Yjs document merging, awareness/presence, authenticated WebSockets, durable server state | Concurrent-client/restart/permission tests; one application writer process |
-| Agent work | Configured AI Gateway chat, edit proposals, bounded research-note generation, cancellation | Provider calls need real credentials; research is explicit about missing live search |
-| Test workflow | Existing ai-bdd compilation, grounded plan review, strict frozen run queue, status and evidence | Operator-trusted config required; no default fabricated passing results |
-| Test provenance | Artifact-version association, stale evidence display, hash/path-checked evidence download | Engine and API tests; actual target/model execution requires a configured deployment |
-| Code | Source editor and sandboxed HTML/CSS/JS preview with declared boundary fixtures | Browser isolation/preview tests; no arbitrary server execution or universal package bundler |
-| Generated UI | Actual JSON-render and OpenUI runtimes with application-owned catalogs | Catalog/source validation tests; a generated UI is not automatically behaviorally correct |
-| Images and branding | Editable vector/text layers, properties, ordering, export | Browser-supported formats and fonts; no complete raster editing/font-authoring suite |
-| Video | Timeline-based layered composition, playback/seeking, browser-native WebM export | Browser API availability applies; no HyperFrames project interchange or full audio/video production suite |
-| 3D/CAD | Parametric primitives, transforms, unit-aware properties, solid operations and export within the supplied editor | Browser/kernel checks; no complete exact BREP CAD feature parity |
-| Links | Artifact references and GitHub pull-request state refresh; private credentials restricted to an explicit owner/repo allowlist | Provider availability and deployment repository admission still apply; enterprise-host integration is not certified |
-| Identity/access | Password sessions, OIDC implementation, project roles, hashed API tokens, origin checks, account-based API limits, explicit trusted-proxy IP/CIDR handling | Local security/integration tests; real organization OIDC must be tested against its issuer |
-| MCP | Stdio tools through the same API/permissions, versioned writes, chat/ADR/test/history operations | Protocol tests; external-client registration and real deployed credentials are separate |
-| Deployment | Non-root container, durable SQLite volume, healthcheck, graceful shutdown/recovery, backup procedure | Container startup/restart tests and CI; no multi-instance/HA support |
-| Mathematical verification | Exact interval certificate for shell geometry and exhaustive production role predicate | Explicit small proof scope; not a whole-system correctness or security proof |
-| General-purpose proof gate | Strict digest-bound external verifier adapter | Fail-closed boundary tests; no bundled Magnetar runtime or generated proof |
+## Current evidence
 
-## Required release evidence
+Published commit `5220dfe144f5d844d57abaf9fbc9967267047495` passed hosted `ci`, `studio-api`, `studio-ui` and `studio` workflows. Its Studio job recorded **127 unit tests in 26 files and 16 real Chromium browser cases**. Its image job exercised production startup, durable artifact context, browser availability and demo refusal. These receipts predate subsequent cloud, lifecycle, decision-model, device and audio/MIDI additions; they do not certify those additions.
 
-For an exact release commit, the following gates must pass without weakening the existing engine checks:
+Subsequent component suites exercise actual SQLite and PostgreSQL 17 transactions, two-instance permission races, process-death recovery, source/version fences, immutable object snapshots, real Chromium testing and media rendering, and native provider HTTP protocols. The matrix names those checks instead of adding overlapping counts into a final total. The assembled release needs fresh complete CI and reviewed captures on its exact published head.
 
-1. Existing repository build, typecheck, lint, tests, and structural checks appropriate to the changed files.
-2. Studio typecheck and built client/server output.
-3. Studio API and authorization tests, persistent collaboration tests, Pact consumer/provider verification, MCP protocol tests, and verifier tamper tests.
-4. Real Chromium acceptance tests including save/reload, artifact-context isolation, and preview isolation. Desktop/mobile captures are visual evidence only for their captured states.
-5. The exact interval/permission checker, whose JSON report states its proof scope and external-proof status.
-6. A real container build and production-mode health/restart/demo-refusal checks.
+Screenshots establish only their captured state. Saved/reloaded artifacts, unsaved font drafts, isolated harnesses and application test targets must be labelled accordingly. The runner's Acme billing capture is a **test target**, not Studio UI. Older reports and captures under `docs/studio-evidence` remain historical receipts; their former counts and limits are not current final-head evidence.
 
-The workflow in `.github/workflows/studio.yml` runs the application checks and container checks. It does not contain deployment credentials or silently substitute a fake live service. Test fixtures and protocol doubles are testing infrastructure, not application modes or live-provider evidence.
+## Deployment state
 
-## Observed validation on 2026-10-29
+The replaceable production composition uses PostgreSQL for canonical state and fences, private object storage for assets/evidence/workspaces, and durable job/outbox/queue/scheduler ports. SQLite and disk remain documented local single-writer adapters. PostgreSQL multi-instance tests do not establish production capacity, high availability, multi-region operation or a restore rehearsal.
 
-The local implementation checks below passed while assembling the review stack. Skips remain visible; they are not counted as passes. The foundation head `0b85719` passed its hosted API matrix and existing repository CI. The workspace head `94504f6` passed hosted API, UI, and existing repository CI. The release-layer workflow must also pass on its own published head; these earlier results do not certify an uncompleted newer run.
+The Vercel project `ai-bdd-studio` is linked to `Tyler-R-Kendrick/ai-bdd` and configured for Node 24. An isolated Neon production database has been created and queried on PostgreSQL 17.11. At this update, Vercel authorization for private Blob creation and production environment bindings is pending actual user consent. **No production Studio deployment, bound Blob store, deployed queue execution or live model turn has been verified.** Credentials are not recorded here.
 
-| Check | Observed result | Scope |
-| --- | --- | --- |
-| Studio Vitest | 85 passed in 17 files | API/access/storage, authorization revocation across awaited work, OAuth request-log redaction, collaboration, real Chromium runner fixture, Pact, media helpers, MCP, and verifier boundaries |
-| Combined Studio browser cases | 16 passed | Implemented editor and artifact workflows in real Chromium |
-| Curated capture rerun | 1 passed | Screenshot evidence refresh with no application-source change |
-| Visual review | SHIP for 14 captured PNG states, with recorded limits | The captured desktop/mobile/editor states, not live integrations or all application executions |
-| Exact interface checker | Six rational interval certificates and all nine role/action predicate cases passed | Real viewport widths 320–4096; general-purpose execution proof explicitly remains unverified |
-| Production container | Clean image build and all seven smoke checks passed | Non-root/read-only startup, demo refusal, secure login cookies, durable artifact/chat/ADR context, stale-write rejection, real restart, and packaged Chromium |
-| Existing root unit suite | 4,868 passed; 163 skipped | Local baseline environment |
-| Existing acceptance suite | 102 passed; 16 skipped | Local baseline environment |
-| Existing adversarial suite | 289 passed; 24 skipped | Local baseline environment |
-| Existing fuzz suite | 178 passed | Local baseline environment |
-| Existing chaos suite | 176 passed; six skipped | Local baseline environment |
-| Repository script suite | 117 passed | Repository checks and tooling behavior |
+The hosted composition is a stateless container with external durable state. Trusted deployment metadata supplies preview origins; production requires an exact canonical origin. Queue/cron bridges authenticate internal requests; SQL intents preserve recovery across process loss. A dispatch acknowledgement is not completion, and external provider/coding effects are not claimed to execute exactly once.
 
-The final tested container image is `sha256:3b410b07899c039fd360cb1848086474299b2b4542b08e823de8a81dba13a1dc`. It includes the authorization-revocation guard changes published as `6efb78c`, request-log redaction, and the writable Chromium XDG paths added in `03dc822`. The smoke report records that immutable ID rather than relying only on a mutable tag. Test accounts and artifact contents were synthetic fixtures and were removed with their temporary container/volume. The exact-check report, container report, build log, and a scoped verification screenshot accompany the review evidence.
+T3 is the default generative harness. Without an operator-registered trusted binary, project and authenticated provider, it reports unavailable. Vercel/fx requires explicit selection and configuration. Decision models have a separate profile and provider boundary. Local HTTP fixtures and actual T3 version/help checks do not establish successful paid-provider inference.
 
-The first hosted image run at `9dadf4c` built successfully but exposed Chromium crashpad initialization against a read-only home directory. The fix sets `XDG_CONFIG_HOME` and `XDG_CACHE_HOME` beneath writable `/tmp`; the smoke also asserts those values before launching the actual packaged browser. The corrected full local image passed all seven smoke checks without relaxing the non-root user, read-only filesystem, or dropped capabilities. Hosted results for subsequent heads belong to their own CI runs.
+## Mathematical and execution-proof scope
 
-The container smoke specifically verified that a login session, saved code artifact, artifact-bound chat, and accepted ADR survive a real process restart; it also launched the image's own Chromium under the read-only filesystem and dropped-capability restrictions. The clean-image build caught and fixed a build-order requirement for the development-only `@ai-bdd/testing` type fixture. CI installs Chromium before the Vitest stage because the runner tests use a real browser. The deterministic runner fixture explicitly enables its temporary writable recording store; production CI recording defaults remain read-only. All 85 Studio checks also passed locally with `CI=1` after this fixture correction.
+The release gate includes six exact rational certificates for shell allocation over every real width from 320 to 4096 pixels and nine production role/action cases. An actual Handwired operation graph is checked with Z3 on a 1/64-pixel lattice and 483,330 exhaustive FP32 tensor-equivalence cases. These small properties exclude text measurement, asynchronous behavior, WebGL and general application correctness.
 
-## Live capabilities requiring deployment validation
+The optional Magnetar experiment now generates real proofs using independent `Lulzx/open-magnetar` commit `febfc0e66f5809e034dd1afac78202bd4882de27`. The [report](studio-evidence/continuation/magnetar/report.json) records eight public layout-guest executions, digest bindings and tampered proof/input/output rejection. This is a non-audited independent implementation, not Microsoft's official implementation or a production certification. It proves those executions; the all-real-width result comes from the separate rational checker. Confidential witnesses and whole-application proofs are not established.
 
-| Capability | Why it cannot be inferred from local checks | Required evidence |
-| --- | --- | --- |
-| Organization OIDC | A concrete issuer/client registration and admission policy are external | Successful allowed-user login, rejected unadmitted user, issuer/token errors, and session expiry against that issuer |
-| AI chat/edit/research | No provider key or model entitlement is assumed | Successful bounded call, cancellation, provider failure, proposal review, and privacy/retention review for the selected provider |
-| Real target testing | Local runner tests use a real browser with deterministic model fixtures; production runner config still selects a real target, model, driver, secrets, and navigation policy | Reviewed grounded plan, first model-backed characterization, independent confirmation, deterministic replay, failing run, and downloaded evidence integrity against that deployment |
-| Open Design integration | The independently installed local Open Design service is not available by default in a server deployment | A real installed/authenticated service and its documented workflow; Studio reports the capability unavailable until integrated |
-| Magnetar | A paper and digest manifest are not an installed prover/verifier | Real cryptographic proof generation and verification bound to the program/input/output; the gate must stay unverified until then |
-| Public production operation | DNS, TLS, backups, monitoring, and real user traffic belong to a concrete deployment | HTTPS access, restore rehearsal, monitoring/alert checks, capacity/load testing, and operator sign-off for that environment |
+## Required release gates
 
-## Deliberate limits
+1. Run the repository checks and complete assembled Studio typecheck, build, lint, API, SQLite, **mandatory actual PostgreSQL**, native protocol and browser suites on the release commit. Skipped PostgreSQL checks are not passing PostgreSQL checks.
+2. Complete the new audio/MIDI editors with save/reload, permissions, bounded decoding, render/export and actual browser evidence. Boundary guards alone are not complete editors.
+3. Complete the living-document delivered-baseline and existing-PR rebuild workflow. Drafting a new graph is not rebuilding an existing PR. Automatic mode needs explicit machine/repository consent, source settle handling, fresh permissions, scoped reports and safe retries. Completeness advice cannot veto Build.
+4. Finish independent decision-profile consumer wiring and its provenance, refusal/abstention, snapshot and PostgreSQL recovery acceptance. Evaluate classifier accuracy separately from transport correctness. Models must not authorize access, approve builds, accept ADRs or claim formal verification.
+5. Refresh assembled desktop/mobile captures, self-review every PR against its claims and retain exact commit/command/capture provenance. Close an explicit Chopin reference inventory before claiming complete parity.
+6. Complete authorized platform bindings and deploy the reviewed source. Verify HTTPS, sessions, live identity/provider behavior, object/evidence integrity, actual queue recovery, cancellation and drain/restart in that environment.
+7. Rehearse database/object restoration and verify monitoring, alert delivery, limits, load/capacity, retention and operator recovery. A clean image or provisioned database does not complete these gates.
 
-Complete feature parity with the five referenced products is **not established** by this implementation. Those products include evolving or proprietary workflows well beyond the implemented surface: rich MDX component catalogs and repository identity rules, Google Docs import/export and review machinery, advanced image editing, full video pipelines, exact CAD modeling, font generation, and broad external-provider integrations.
-
-SQLite is a single-writer deployment choice. There is no multi-region replication, zero-downtime overlapping rollout, or guarantee of high availability. Long-running jobs are cancelled on graceful shutdown and marked interrupted after a restart; they are not silently resumed as successful.
-
-The exact layout proof excludes text measurement, browser floating-point rendering, WebGL, and asynchronous application behavior. API/browser tests add evidence for specified examples, not a proof of all possible executions. The optional external verifier is trusted operator code and must actually verify a cryptographic proof.
-
-These boundaries should remain visible in release descriptions. A green local suite supports the tested implementation; it does not justify the statement “all requested parity and live integrations are production verified with no remaining issues.”
+Open gates are remaining requested work, not approved exclusions. The evidence supports specific documented workflows, not a claim of complete reference parity and issue-free production operation.
