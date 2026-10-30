@@ -101,7 +101,7 @@ import { existsSync } from 'node:fs';
 import { Readable } from 'node:stream';
 import { z, ZodError } from 'zod';
 import { Store, HttpError, hash } from './store.ts';
-import { Auth, passwordHash, type Settings } from './auth.ts';
+import { Auth, type Settings } from './auth.ts';
 import { Collaboration } from './collaboration.ts';
 import { Runner } from './runner.ts';
 import { Agent } from './agent.ts';
@@ -813,7 +813,8 @@ export async function createApp(
         agent: agent.profiles.catalog().some((harness) => harness.configured),
         remotePlanner: !!settings.integrations?.remotePlanner,
         runner: !!settings.runnerConfig,
-        oidc: !!settings.oidcIssuer,
+        oidc: false,
+        githubSignIn: !!auth.github,
         github: true,
         githubAuthenticated:
           !!settings.githubToken && !!settings.githubRepositories?.length,
@@ -1026,18 +1027,11 @@ export async function createApp(
         req.body,
       );
       let user = await store.userByEmail(b.email);
-      let temporaryPassword: string | null = null;
-      let encoded: string | null = null;
-      if (!user && !settings.oidcIssuer) {
-        temporaryPassword = randomBytes(18).toString('base64url');
-        encoded = await passwordHash(temporaryPassword);
-      }
       await projectWrite(req, req.params.id, 'admin', async () => {
         await store.lock('identity:email:' + b.email.toLowerCase());
         user = await store.userByEmail(b.email);
-        if (user) temporaryPassword = null;
         await store.role(req.params.id, owner.id, 'admin');
-        if (!user) user = await store.createUser(b.email, b.name, encoded);
+        if (!user) user = await store.createUser(b.email, b.name, null);
         const owners = (
           await store.one(
             "SELECT count(*) AS n FROM memberships WHERE project_id=? AND role='owner'",
@@ -1066,7 +1060,7 @@ export async function createApp(
         );
       });
       await collab.notify(req.params.id);
-      return { ok: true, temporaryPassword };
+      return { ok: true };
     });
     app.delete<{
       Params: {
@@ -1108,35 +1102,8 @@ export async function createApp(
       await collab.notify(req.params.id);
       return { ok: true };
     });
-    app.post('/api/me/password', async (req) => {
-      const user = await auth.user(req);
-      const b = parse(
-        z
-          .object({
-            current: z.string().max(256),
-            password: z.string().min(16).max(256),
-          })
-          .strict(),
-        req.body,
-      );
-      const { passwordValid } = await import('./auth.ts');
-      const old = await store.userByEmail(user.email);
-      if (!old.password || !(await passwordValid(b.current, old.password)))
-        throw new HttpError(403, 'Current password is incorrect');
-      const encoded = await passwordHash(b.password);
-      await store.tx(async () => {
-        await store.lock('user:' + user.id);
-        await auth.user(req);
-        if ((await store.userByEmail(user.email))?.password !== old.password)
-          throw new HttpError(409, 'Account changed. Sign in again.');
-        await store.exec(
-          'UPDATE users SET password=? WHERE id=?',
-          encoded,
-          user.id,
-        );
-        await store.exec('DELETE FROM sessions WHERE user_id=?', user.id);
-      });
-      return { ok: true };
+    app.post('/api/me/password', async () => {
+      throw new HttpError(403, 'Passwords are disabled. Continue with GitHub.');
     });
     app.post('/api/tokens', async (req) => {
       const user = await auth.user(req),
