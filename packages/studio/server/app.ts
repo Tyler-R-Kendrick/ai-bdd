@@ -745,8 +745,10 @@ export async function createApp(
       });
     let startupDispatchPending = false;
     try {
-      await runtime.recover();
-      await runtime.flushOutbox();
+      // Startup must not drain an outage backlog before manual authoring opens.
+      // Maintenance retains the broader durable recovery/dispatch budgets.
+      await runtime.recover({ dispatchLimit: 2 });
+      await runtime.flushOutbox(2);
     } catch (error) {
       if (!(error instanceof OutboxDispatchPendingError)) throw error;
       // Only external publication degradation with a persisted retry can leave
