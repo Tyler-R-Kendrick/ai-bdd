@@ -111,6 +111,22 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(w.provider).toHaveBeenCalledTimes(1);
         expect((await w.runtime.get(first.id))?.status).toBe('completed');
       });
+      it('uses the harness, provider and model captured at admission after the preference changes', async () => {
+        const w = await fixture();
+        const frozen = {
+          harness: 'vercel-fx' as const,
+          provider: 'gateway',
+          model: 'provider/frozen-model',
+        };
+        let selected = frozen;
+        w.service.options.captureProfile = async () => selected;
+        const job = await w.service.start(w.user, w.artifact.id);
+        selected = { ...frozen, model: 'provider/new-model' };
+        await w.execute(job.id);
+        expect(w.provider).toHaveBeenCalledWith(
+          expect.objectContaining({ profile: frozen }),
+        );
+      });
       it('does not overwrite a newer human graph while the model is running', async () => {
         let release!: (value: ImplementationDefinition) => void,
           entered!: () => void;

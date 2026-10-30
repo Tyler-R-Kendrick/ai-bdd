@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import type { AgentProfile } from '../../shared/agent-profile.ts';
 import type { Auth } from '../auth.ts';
 import { HttpError, type Store } from '../store.ts';
 import type { Artifact, User } from '../../shared/domain.ts';
@@ -22,6 +23,7 @@ type Snapshot = {
   artifact: Artifact;
   text: string;
   expected: ImplementationPointer | null;
+  profile?: AgentProfile;
 };
 type Options = {
   store: Store;
@@ -32,9 +34,11 @@ type Options = {
     text: string;
     signal: AbortSignal;
     idempotencyKey: string;
+    profile?: AgentProfile;
   }) => Promise<ImplementationDefinition>;
   allowed: (user: User, id: string) => Promise<boolean>;
   onAdmit: (user: User, id: string) => Promise<void>;
+  captureProfile?: (user: User, id: string) => Promise<AgentProfile>;
   assertReady?: (artifact: Artifact) => Promise<void>;
   publish?: (projectId: string, artifactId: string) => Promise<void>;
 };
@@ -109,6 +113,7 @@ export class ImplementationDrafting {
         throw new HttpError(400, 'Implementation tasks require a document');
       await assertReady?.(artifact);
       await onAdmit(user, id);
+      const profile = await this.options.captureProfile?.(user, id);
       const text = docText(artifact.content.doc);
       if (!text.trim())
         throw new HttpError(
@@ -125,6 +130,7 @@ export class ImplementationDrafting {
           ? implementationPointer(current.graph)
           : null;
       const snapshot: Snapshot = {
+        ...(profile ? { profile } : {}),
         user,
         artifact: { ...artifact, content: {} },
         text,
@@ -167,6 +173,7 @@ export class ImplementationDrafting {
             text: s.text,
             signal: ctx.signal,
             idempotencyKey,
+            profile: s.profile,
           }),
         ),
     );

@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import {
+  agentProfileSchema,
+  type AgentProfile,
+} from '../../shared/agent-profile.ts';
 import type { Artifact, User } from '../../shared/domain.ts';
 import { HttpError, type Store } from '../store.ts';
 import type {
@@ -17,6 +21,7 @@ const snapshotSchema = z.object({
   threadId: z.string(),
   latestId: z.string(),
   epoch: z.number().int(),
+  profile: agentProfileSchema.optional(),
   title: z.string(),
   messages: z
     .array(z.object({ author: z.string(), body: z.string() }))
@@ -27,6 +32,7 @@ export type TitleProvider = (input: {
   messages: { author: string; body: string }[];
   signal: AbortSignal;
   idempotencyKey: string;
+  profile?: AgentProfile;
 }) => Promise<string>;
 
 /** Human titles are protected by default. Background naming is explicit and durable. */
@@ -38,6 +44,10 @@ export class ArtifactTitles {
       provider?: TitleProvider;
       allowed?: (user: User, artifactId: string) => Promise<boolean>;
       onAdmit?: (user: User, artifactId: string) => Promise<void>;
+      captureProfile?: (
+        user: User,
+        artifactId: string,
+      ) => Promise<AgentProfile>;
       notify?: (projectId: string, artifactId: string) => Promise<void>;
       quietMs?: number;
     },
@@ -123,7 +133,9 @@ export class ArtifactTitles {
       const latest = messages.at(-1);
       if (!latest) return null;
       await this.options.onAdmit?.(user, id);
+      const profile = await this.options.captureProfile?.(user, id);
       const snapshot = {
+        ...(profile ? { profile } : {}),
         user,
         threadId,
         latestId: latest.id,
@@ -191,6 +203,7 @@ export class ArtifactTitles {
           messages: s.messages,
           signal: ctx.signal,
           idempotencyKey,
+          profile: s.profile,
         })
       ).trim();
       if (!value || value.length > 180 || /[\u0000-\u001f]/.test(value))

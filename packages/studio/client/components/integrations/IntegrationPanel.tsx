@@ -35,6 +35,7 @@ import {
   Textarea,
 } from '../ui.tsx';
 import './integrations.css';
+import { AgentProfile } from './AgentProfile.tsx';
 
 type Context = {
   capabilities: IntegrationCapabilities;
@@ -422,6 +423,12 @@ export function IntegrationPanel({
         className="integration-section"
         aria-labelledby={`agent-participation-${artifact.id}`}
       >
+        <AgentProfile
+          key={artifact.id}
+          artifactId={artifact.id}
+          readOnly={readOnly}
+          onChanged={onRefresh}
+        />
         <div className="integration-row">
           <h4 id={`agent-participation-${artifact.id}`}>
             Agent participation
