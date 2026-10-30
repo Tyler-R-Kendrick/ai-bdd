@@ -145,10 +145,17 @@ await inspect(context);
 if (byteSize > 32 * 1024 * 1024)
   throw new Error('Whitelisted worker image context exceeds32MiB');
 const worker = await readFile(join(context, 'worker.mjs'));
-const sourceBuild={schemaVersion:1,workerSha256:createHash('sha256').update(worker).digest('hex'),playwrightCore:pkg.version,sourceRevision:process.env.STUDIO_SOURCE_REVISION??null};
-const sourceBytes=Buffer.from(JSON.stringify(sourceBuild,null,2));
-await writeFile(join(context,'source-build.json'),sourceBytes);
-byteSize+=sourceBytes.length;files++;
-if(byteSize>32*1024*1024)throw new Error('Whitelisted worker image context exceeds32MiB');
-const receipt={...sourceBuild,context,files,byteSize};
+const sourceBuild = {
+  schemaVersion: 1,
+  workerSha256: createHash('sha256').update(worker).digest('hex'),
+  playwrightCore: pkg.version,
+  sourceRevision: process.env.STUDIO_SOURCE_REVISION ?? null,
+};
+const sourceBytes = Buffer.from(JSON.stringify(sourceBuild, null, 2));
+await writeFile(join(context, 'source-build.json'), sourceBytes);
+byteSize += sourceBytes.length;
+files++;
+if (byteSize > 32 * 1024 * 1024)
+  throw new Error('Whitelisted worker image context exceeds32MiB');
+const receipt = { ...sourceBuild, context, files, byteSize };
 console.log(JSON.stringify(receipt));

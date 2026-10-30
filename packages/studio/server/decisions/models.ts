@@ -668,6 +668,12 @@ export class DecisionModels {
       // Repository entitlement renewal may call the provider. Do it before
       // entering the transaction; the locked check still fences revocation.
       await this.store.artifact(input.artifactId, input.user.id, 'write');
+      if (this.closing)
+        throw new HttpError(
+          503,
+          'Decision models are shutting down; the queued intent can be resumed',
+        );
+      overall.throwIfAborted();
       const claimed = await this.locked(row.id, async (current) => {
         await this.store.artifact(input.artifactId, input.user.id, 'write');
         if (terminal(current.status))
@@ -713,6 +719,10 @@ export class DecisionModels {
       }
       const controller = new AbortController();
       this.controllers.add(controller);
+      if (this.closing)
+        controller.abort(
+          new Error('Decision model service is shutting down'),
+        );
       const signal = AbortSignal.any([overall, controller.signal]);
       let heartbeat: Promise<void> | undefined, heartbeatError: unknown;
       const timer = setInterval(
