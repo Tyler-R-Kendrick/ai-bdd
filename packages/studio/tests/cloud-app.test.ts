@@ -1,3 +1,4 @@
+import { artifactKinds } from '../shared/domain.ts';
 import { cpuAudioRenderDriver, probeAudio } from '../server/audio-renderer.ts';
 import { initialAudioContent } from '../shared/audio.ts';
 import { createServer } from 'node:http';
@@ -19,6 +20,32 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
 describe('assembled cloud domain guards', () => {
+  it('exports each media artifact without querying a document-only implementation graph', async () => {
+    const studio = await createApp(testSettings('/tmp/studio-media-export'), {
+      db: ':memory:',
+    });
+    cleanup.push(() => studio.app.close());
+    const { user, cookie } = await setup(studio.app),
+      request = client(studio.app, cookie),
+      project = await studio.store.createProject(user, 'All media history', '');
+    for (const kind of artifactKinds.filter(
+      (kind) => kind !== 'design' && kind !== 'document',
+    )) {
+      const artifact = await studio.store.createArtifact(
+          user,
+          project.id,
+          kind,
+          'Export ' + kind,
+        ),
+        response = await request('GET', `/api/artifacts/${artifact.id}/export`);
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json().artifact.kind).toBe(kind);
+      expect(response.json().implementation).toEqual({
+        snapshot: null,
+        events: [],
+      });
+    }
+  });
   it('composes the audio worker and verified source probe ports with authenticated output and complete export', async () => {
     let renders = 0,
       probes = 0;
