@@ -471,6 +471,77 @@ export class AccountMachines {
     await this.heartbeat(principal);
     return { assignments, blocked };
   }
+  /** An opt-in connector catalogue: no paths, credentials or executable input. */
+  async repositories(principal: AccountPrincipal) {
+    await this.ready;
+    await this.fresh(principal);
+    const projects = await this.store.projects(principal.user_id);
+    if (projects.length > 100)
+      throw new HttpError(
+        409,
+        'Choose explicit clone URLs when more than 100 projects are attached',
+      );
+    const repositories = new Set<string>();
+    for (const project of projects) {
+      if (
+        !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/.test(
+          project.repository,
+        )
+      )
+        continue;
+      try {
+        await this.store.role(project.id, principal.user_id, 'write');
+      } catch (error) {
+        if (![403, 404].includes((error as HttpError).statusCode))
+          throw new HttpError(
+            503,
+            'Attached repository authorization is unavailable; no clone catalogue was returned',
+          );
+        continue;
+      }
+      const repository = await this.store.tx(async () => {
+        await this.store.db.lock('project:' + project.id);
+        await this.store.db.lock('account-machine:' + principal.id);
+        await this.fresh(principal);
+        try {
+          await this.store.role(project.id, principal.user_id, 'write');
+        } catch (error) {
+          if (![403, 404].includes((error as HttpError).statusCode))
+            throw new HttpError(
+              503,
+              'Attached repository authorization is unavailable; no clone catalogue was returned',
+            );
+          return null;
+        }
+        const current = await this.store.one(
+          'SELECT repository FROM projects WHERE id=?',
+          project.id,
+        );
+        if (!current || !sameRepo(current.repository, project.repository))
+          return null;
+        const binding = await this.store.one(
+          'SELECT b.status,m.id AS child_id FROM studio_account_machine_bindings b LEFT JOIN studio_machines m ON m.id=b.child_machine_id WHERE b.account_machine_id=? AND b.project_id=?',
+          principal.id,
+          project.id,
+        );
+        if (binding && (binding.status === 'revoked' || !binding.child_id))
+          return null;
+        return current.repository
+          .replace(/\.git\/?$/i, '')
+          .replace(/\/$/, '')
+          .toLowerCase();
+      });
+      if (repository) repositories.add(repository);
+      if (repositories.size > 16)
+        throw new HttpError(
+          409,
+          'Choose explicit clone URLs when more than sixteen repositories are attached',
+        );
+    }
+    // Revocation while authorizing any repository fences the whole response.
+    await this.fresh(principal);
+    return { repositories: [...repositories].sort() };
+  }
   async heartbeat(principal: AccountPrincipal) {
     await this.ready;
     return this.store.tx(async () => {
@@ -518,7 +589,9 @@ export class AccountMachines {
     if (await this.table('studio_rebuild_runs'))
       await this.store.exec(
         `UPDATE studio_rebuild_runs SET status='failed',generation=generation+1,lease_hash=NULL,verifier_hash=NULL,error=?,updated_at=? WHERE machine_id IN (${marks}) AND status IN ('queued','running')`,
-        reason,now(),...children,
+        reason,
+        now(),
+        ...children,
       );
     if (await this.table('studio_investigations'))
       await this.store.exec(
@@ -657,10 +730,17 @@ export async function registerAccountMachineRoutes(
         await service.authenticate(request, request.params.id),
         z
           .object({
-            checkouts: z.array(checkoutRegistrationSchema).min(1).max(16),
+            checkouts: z.array(checkoutRegistrationSchema).max(16),
           })
           .strict()
           .parse(request.body).checkouts,
+      ),
+  );
+  app.get<{ Params: { id: string } }>(
+    '/api/account-machines/:id/repositories',
+    async (request) =>
+      service.repositories(
+        await service.authenticate(request, request.params.id),
       ),
   );
   app.post<{ Params: { id: string } }>(

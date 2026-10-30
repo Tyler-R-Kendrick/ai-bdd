@@ -331,9 +331,10 @@ export async function machineApi(
   token?: string,
   body?: unknown,
   signal?: AbortSignal,
+  method: 'POST' | 'GET' = 'POST',
 ) {
   const response = await fetch(new URL('/api' + path, base), {
-    method: 'POST',
+    method,
     redirect: 'error',
     signal: signal
       ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
