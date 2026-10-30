@@ -27,6 +27,7 @@ export async function registerInternalRoutes(
     uploads?: UploadAdmission;
     requestSeconds: number;
     deploymentId: string;
+    maintenance?: () => Promise<void>;
   },
 ) {
   // Separate content parser preserves the exact signed bytes. Domain routes keep their normal JSON parser.
@@ -95,6 +96,7 @@ export async function registerInternalRoutes(
     scope.post('/internal/maintenance/execute', async (req) => {
       const tick = maintenanceEnvelope.parse(JSON.parse(req.body as string));
       await options.scheduler.execute(tick, async () => {
+        await options.maintenance?.();
         await options.runtime.recover({ dispatchLimit: 5 });
         await options.uploads?.cleanup(2);
       });

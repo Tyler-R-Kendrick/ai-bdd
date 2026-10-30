@@ -102,6 +102,7 @@ export async function createHostingApplication(
         runtime,
         scheduler,
         uploads: hosting.uploads,
+        maintenance: result.maintenance,
         requestSeconds: config.maxRequestSeconds,
         deploymentId: env.VERCEL_DEPLOYMENT_ID,
       });

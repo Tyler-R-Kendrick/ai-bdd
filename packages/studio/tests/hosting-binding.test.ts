@@ -86,7 +86,8 @@ describe('native queue to private container binding', () => {
     cleanup.push(() => app.close());
     const executeJob = vi.fn(async () => {}),
       recover = vi.fn(async () => {}),
-      flushOutbox = vi.fn(async () => {});
+      flushOutbox = vi.fn(async () => {}),
+      maintenance = vi.fn(async () => {});
     const runtime = {
       executeJob,
       recover,
@@ -105,6 +106,7 @@ describe('native queue to private container binding', () => {
       scheduler,
       requestSeconds: 30,
       deploymentId: 'dpl_active',
+      maintenance,
     });
     const path = '/internal/jobs/execute',
       body = JSON.stringify({
@@ -167,6 +169,7 @@ describe('native queue to private container binding', () => {
         })
       ).statusCode,
     ).toBe(200);
+    expect(maintenance).toHaveBeenCalledOnce();
     expect(recover).toHaveBeenCalledOnce();
     expect(recover).toHaveBeenCalledWith({ dispatchLimit: 5 });
     expect(flushOutbox).not.toHaveBeenCalled();
