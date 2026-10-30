@@ -1053,6 +1053,7 @@ CREATE INDEX IF NOT EXISTS studio_remote_questions_open ON studio_remote_questio
       let cursor: number | null = null;
       for (const row of rows.slice(0, 8)) {
         const value = await this.snapshot(user, row.request_id);
+          value.historyOrdinal = Number(row.ordinal);
         value.stream.blocks = value.stream.blocks.map((block) => ({
           ...block,
           text: block.text.slice(0, 20000),

@@ -442,6 +442,7 @@ export function remoteQuestionValue(question: RemoteQuestion): unknown {
 }
 export type RemoteActivity = {
   id: string;
+  historyOrdinal?: number;
   jobId: string;
   threadId: string;
   artifactVersion: number;
