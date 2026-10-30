@@ -196,6 +196,16 @@ export function DecisionProfile({
               </Badge>
             </p>
           )}
+          {provider?.maxInputBytes !== undefined && (
+            <p className="integration-note">
+              Provider context: {provider.maxInputBytes.toLocaleString()} UTF-8
+              bytes for source and questions
+              {provider.maxQuestions !== undefined
+                ? `; up to ${provider.maxQuestions} questions`
+                : ''}
+              .
+            </p>
+          )}
           {provider?.reason && (
             <p
               className={
