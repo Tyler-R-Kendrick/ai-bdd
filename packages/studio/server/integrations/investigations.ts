@@ -57,6 +57,28 @@ const repositorySchema = z
   .string()
   .regex(/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/);
 const secret = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+const semanticSourceHash = (content: any): string => {
+  const withoutCards = (value: any): any =>
+    Array.isArray(value)
+      ? value
+          .filter((item) => item?.type !== 'investigationCard')
+          .map(withoutCards)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [
+              key,
+              withoutCards(item),
+            ]),
+          )
+        : value;
+  return hash(JSON.stringify(withoutCards(content)));
+};
+const sourceMatches = (row: any, content: any) => {
+  const snapshot = JSON.parse(row.snapshot_json);
+  return snapshot.sealed.meaningfulSourceHash
+    ? snapshot.sealed.meaningfulSourceHash === semanticSourceHash(content)
+    : snapshot.sealed.sourceHash === hash(JSON.stringify(content));
+};
 const normalizeRepository = (value: string) =>
   value
     .replace(/\.git$/, '')
@@ -278,6 +300,11 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         input.branch,
         Date.now(),
       );
+      await this.store.exec(
+        'UPDATE studio_machines SET last_seen=? WHERE id=?',
+        Date.now(),
+        machine.id,
+      );
       return { ok: true };
     });
   }
@@ -330,6 +357,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         artifactId,
         artifactVersion: artifact.version,
         sourceHash: hash(source),
+        meaningfulSourceHash: semanticSourceHash(artifact.content),
         sourceCommit: commit,
         repository,
       };
@@ -363,6 +391,38 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         time,
         time,
       );
+      const withCard = await this.store.updateArtifact(
+        user,
+        artifact.id,
+        artifact.version,
+        {
+          ...artifact.content,
+          doc: {
+            ...artifact.content.doc,
+            content: [
+              ...(artifact.content.doc.content ?? []),
+              {
+                type: 'investigationCard',
+                attrs: { data: { investigationId: id } },
+              },
+            ],
+          },
+        },
+      );
+      const finalSealed = {
+        ...sealed,
+        artifactVersion: withCard.version,
+        sourceHash: hash(JSON.stringify(withCard.content)),
+        meaningfulSourceHash: semanticSourceHash(withCard.content),
+      };
+      await this.store.exec(
+        'UPDATE studio_investigations SET artifact_version=?,brief_hash=?,snapshot_json=? WHERE id=?',
+        withCard.version,
+        hash(JSON.stringify(finalSealed)),
+        JSON.stringify({ sealed: finalSealed, content: withCard.content }),
+        id,
+      );
+      this.emit({ project_id: artifact.projectId, artifact_id: artifactId });
       await this.store.audit(
         artifact.projectId,
         artifactId,
@@ -383,7 +443,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
           'Only the investigation owner can run work on their machine',
         );
       const artifact = await this.unlocked(row.artifact_id, user.id);
-      if (artifact.version !== row.artifact_version)
+      if (!sourceMatches(row, artifact.content))
         throw new HttpError(
           409,
           'The sealed document revision changed; propose a new investigation',
@@ -500,7 +560,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       if (!row) return { work: null };
       try {
         const artifact = await this.unlocked(row.artifact_id, machine.user_id);
-        if (artifact.version !== row.artifact_version)
+        if (!sourceMatches(row, artifact.content))
           throw new HttpError(
             409,
             'The sealed document revision changed before claim',
@@ -585,7 +645,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
         'This investigation exceeded its 20 minute execution limit',
       );
     const artifact = await this.unlocked(row.artifact_id, machine.user_id);
-    if (artifact.version !== row.artifact_version)
+    if (!sourceMatches(row, artifact.content))
       throw new HttpError(
         409,
         'The sealed document revision changed during execution',

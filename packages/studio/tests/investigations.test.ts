@@ -244,6 +244,11 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
     );
     expect(JSON.stringify(child.content)).toContain(sourceCommit);
     expect(
+      JSON.stringify(
+        (await c.store.artifact(c.artifact.id, c.user.id)).content,
+      ),
+    ).toContain('investigationCard');
+    expect(
       (
         await c.store.one(
           'SELECT count(*) AS n FROM artifacts WHERE project_id=?',
@@ -341,18 +346,23 @@ describe(`typed local investigations (${url ? 'PostgreSQL' : 'SQLite'})`, () => 
     await expect(c.proposal()).rejects.toThrow('locked');
     c.setLocked(false);
     const { record, input } = await running(c);
-    await c.store.updateArtifact(c.user, c.artifact.id, c.artifact.version, {
-      ...c.artifact.content,
-      doc: {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [{ type: 'text', text: 'Changed source' }],
-          },
-        ],
+    await c.store.updateArtifact(
+      c.user,
+      c.artifact.id,
+      (await c.store.artifact(c.artifact.id, c.user.id)).version,
+      {
+        ...c.artifact.content,
+        doc: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Changed source' }],
+            },
+          ],
+        },
       },
-    });
+    );
     await expect(
       c.service.complete(c.machine, record.id, input),
     ).rejects.toThrow('revision changed');

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, date } from '../../lib.ts';
 import {
   emptySelection,
@@ -33,10 +33,34 @@ export function InvestigationView({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [conclusion, setConclusion] = useState(''),
-    [rationale, setRationale] = useState('');
+    [rationale, setRationale] = useState(''),
+    [draftRevision, setDraftRevision] = useState(saved?.revision ?? 1);
+  const previous = useRef({
+    key: investigation.id + ':' + viewId,
+    revision: saved?.revision,
+    selection: saved?.selection ?? emptySelection(),
+  });
   useEffect(() => {
-    setSelection(saved?.selection ?? emptySelection());
-  }, [saved?.revision, viewId]);
+    const key = investigation.id + ':' + viewId;
+    if (
+      previous.current.key !== key ||
+      JSON.stringify(selection) ===
+        JSON.stringify(previous.current.selection) ||
+      JSON.stringify(selection) === JSON.stringify(saved?.selection)
+    ) {
+      setSelection(saved?.selection ?? emptySelection());
+      setDraftRevision(saved?.revision ?? 1);
+    } else if (previous.current.revision !== saved?.revision) {
+      setError(
+        'A collaborator changed the shared evidence selection. Your draft is preserved; reset it to review their selection.',
+      );
+    }
+    previous.current = {
+      key,
+      revision: saved?.revision,
+      selection: saved?.selection ?? emptySelection(),
+    };
+  }, [saved?.revision, viewId, investigation.id]);
   if (!view || !dataset || !saved)
     return (
       <p role="status">This view is unavailable in the published evidence.</p>
@@ -50,7 +74,7 @@ export function InvestigationView({
       await api(
         `/investigations/${investigation.id}/views/${viewId}/selection`,
         'PUT',
-        { revision: saved.revision, selection },
+        { revision: draftRevision, selection },
       );
       await onRefresh();
     } catch (e) {
@@ -165,7 +189,14 @@ export function InvestigationView({
           </button>
         )}
         {dirty && (
-          <button onClick={() => setSelection(saved.selection)} disabled={busy}>
+          <button
+            onClick={() => {
+              setSelection(saved.selection);
+              setDraftRevision(saved.revision);
+              setError('');
+            }}
+            disabled={busy}
+          >
             Reset changes
           </button>
         )}
