@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { createApp } from '../server/app.ts';
 import {
   registerDocumentReview,
@@ -53,9 +54,8 @@ async function fixture() {
       ],
     },
   };
-  const initial = (
-    await request('GET', `/api/artifacts/${artifactId}`)
-  ).json().artifact;
+  const initial = (await request('GET', `/api/artifacts/${artifactId}`)).json()
+    .artifact;
   const response = await request('PATCH', `/api/artifacts/${artifactId}`, {
     version: initial.version,
     content,
@@ -220,6 +220,17 @@ describe('attributed document review and questionnaire decisions', () => {
     );
     expect(second.statusCode).toBe(201);
     expect(second.json().supersedesId).toBe(first.json().id);
+    const duplicate = await f.request(
+      'POST',
+      `/api/artifacts/${f.artifactId}/document/questionnaires/questionnaire/answers`,
+      {
+        ...input,
+        optionId: 'b',
+        answer: 'After review, the alternative has better evidence.',
+      },
+    );
+    expect(duplicate.statusCode).toBe(200);
+    expect(duplicate.json().id).toBe(second.json().id);
     const stale = await f.request(
       'POST',
       `/api/artifacts/${f.artifactId}/document/answers/${first.json().id}/accept-decision`,
@@ -307,5 +318,54 @@ describe('attributed document review and questionnaire decisions', () => {
     );
     expect(result.statusCode).toBe(409);
     expect(result.body).toContain('question changed');
+  });
+  it('looks up retained evidence by its exact run identity beyond the recent-run window and enforces project scope', async () => {
+    const f = await fixture(),
+      source = (
+        await f.request('POST', `/api/projects/${f.workspace.id}/artifacts`, {
+          kind: 'code',
+          title: 'Evidence source',
+        })
+      ).json(),
+      old = randomUUID();
+    f.store.exec(
+      'INSERT INTO runs(id,artifact_id,artifact_version,status,result,created_at) VALUES(?,?,?,?,?,?)',
+      old,
+      source.id,
+      1,
+      'failed',
+      JSON.stringify({
+        scenarios: [
+          { scenarioId: 'fixture', title: 'Lookup fixture', status: 'failed' },
+        ],
+      }),
+      '2020-01-01T00:00:00.000Z',
+    );
+    for (let index = 0; index < 101; index++)
+      f.store.exec(
+        'INSERT INTO runs(id,artifact_id,artifact_version,status,created_at) VALUES(?,?,?,?,?)',
+        randomUUID(),
+        source.id,
+        1,
+        'error',
+        new Date().toISOString(),
+      );
+    expect(f.store.runs(source.id).some((run) => run.id === old)).toBe(false);
+    const evidence = await f.request(
+      'GET',
+      `/api/artifacts/${f.artifactId}/document/evidence/${old}`,
+    );
+    expect(evidence.statusCode).toBe(200);
+    expect(evidence.json().run.id).toBe(old);
+    expect(evidence.json().artifact.id).toBe(source.id);
+    const other = await project(f.request, 'Another project');
+    expect(
+      (
+        await f.request(
+          'GET',
+          `/api/artifacts/${other.mainArtifactId}/document/evidence/${old}`,
+        )
+      ).statusCode,
+    ).toBe(404);
   });
 });

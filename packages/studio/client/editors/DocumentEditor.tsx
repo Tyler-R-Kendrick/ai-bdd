@@ -13,6 +13,8 @@ import { WebsocketProvider } from 'y-websocket';
 import {
   Bold,
   Italic,
+  Underline,
+  Strikethrough,
   List,
   ListOrdered,
   Quote,
@@ -39,16 +41,25 @@ import {
   ChartBlock,
   DiagramBlock,
   TabsBlock,
+  ResearchBlock,
+  DocumentBlocks,
 } from '../../shared/editor.ts';
 import {
   richVisualDefaults,
   type RichVisualKind,
 } from '../../shared/rich-blocks.ts';
 import { RichVisualView, RichVisualProvider } from './rich/Blocks.tsx';
-import { docText, type Artifact, type User } from '../../shared/domain.ts';
+import { type Artifact, type User } from '../../shared/domain.ts';
 import { IconButton, Badge, Spinner } from '../components/ui.tsx';
 import { api, download } from '../lib.ts';
 import { inlineTestStatus } from './test-status.ts';
+import { DocumentWorkspaceProvider } from './document/Workspace.tsx';
+import { DocumentBlockView, ResearchView } from './document/Blocks.tsx';
+import { DocumentTools, DocumentReviewPane } from './document/Tools.tsx';
+import { exportMarkdown } from '../../shared/document-interchange.ts';
+import { isDocumentBlockKind } from '../../shared/document-blocks.ts';
+import './document/document.css';
+import { DocumentSearch } from './document/Search.tsx';
 const TestContext = createContext<{
   runs: any[];
   version: number;
@@ -127,6 +138,18 @@ const LiveDiagram = DiagramBlock.extend({
     return ReactNodeViewRenderer(RichVisualView);
   },
 });
+const LiveDocumentBlocks = DocumentBlocks.map((block) =>
+  block.extend({
+    addNodeView() {
+      return ReactNodeViewRenderer(DocumentBlockView);
+    },
+  }),
+);
+const LiveResearch = ResearchBlock.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(ResearchView);
+  },
+});
 const LiveTabs = TabsBlock.extend({
   addNodeView() {
     return ReactNodeViewRenderer(RichVisualView);
@@ -138,6 +161,7 @@ export function DocumentEditor(props: {
   readOnly: boolean;
   runs: any[];
   onTests: () => void;
+  onDecisions?: () => void;
   onComment: (id: string, quote: string) => void;
   onError: (message: string) => void;
 }) {
@@ -245,6 +269,7 @@ function EditorSession({
   readOnly,
   runs,
   onTests,
+  onDecisions,
   onComment,
   onError,
   doc,
@@ -255,6 +280,7 @@ function EditorSession({
   readOnly: boolean;
   runs: any[];
   onTests: () => void;
+  onDecisions?: () => void;
   onComment: (id: string, quote: string) => void;
   onError: (m: string) => void;
   doc: Y.Doc;
@@ -266,7 +292,9 @@ function EditorSession({
         ...baseExtensions()
           .filter(
             (e) =>
+              !isDocumentBlockKind(e.name) &&
               ![
+                'researchBlock',
                 'testBlock',
                 'chartBlock',
                 'diagramBlock',
@@ -282,6 +310,9 @@ function EditorSession({
         LiveChart,
         LiveDiagram,
         LiveTabs,
+        DocumentSearch,
+        LiveResearch,
+        ...LiveDocumentBlocks,
         Collaboration.configure({ document: doc }),
         CollaborationCaret.configure({
           provider,
@@ -322,243 +353,276 @@ function EditorSession({
       value={{ runs, version: artifact.version, readOnly, onTests }}
     >
       <RichVisualProvider readOnly={readOnly}>
-        <div
-          className="document-toolbar"
-          role="toolbar"
-          aria-label="Document formatting"
+        <DocumentWorkspaceProvider
+          key={artifact.id}
+          artifact={artifact}
+          user={user}
+          readOnly={readOnly}
+          runs={runs}
+          editor={editor}
+          onError={onError}
+          onTests={onTests}
+          onDecisions={onDecisions}
+          onComment={onComment}
         >
-          <select
-            aria-label="Paragraph style"
-            disabled={readOnly || !editor}
-            onChange={(e) =>
-              action(() => {
-                if (e.target.value === 'paragraph')
-                  editor?.chain().focus().setParagraph().run();
-                else
-                  editor
-                    ?.chain()
-                    .focus()
-                    .toggleHeading({
-                      level: Number(e.target.value) as 1 | 2 | 3,
-                    })
-                    .run();
-              })
-            }
-            defaultValue="paragraph"
+          <div
+            className="document-toolbar"
+            role="toolbar"
+            aria-label="Document formatting"
           >
-            <option value="paragraph">Normal text</option>
-            <option value="1">Heading 1</option>
-            <option value="2">Heading 2</option>
-            <option value="3">Heading 3</option>
-          </select>
-          <span className="toolbar-divider" />
-          <IconButton
-            label="Bold"
-            aria-pressed={editor?.isActive('bold')}
-            disabled={readOnly}
-            onClick={() => editor?.chain().focus().toggleBold().run()}
-          >
-            <Bold />
-          </IconButton>
-          <IconButton
-            label="Italic"
-            aria-pressed={editor?.isActive('italic')}
-            disabled={readOnly}
-            onClick={() => editor?.chain().focus().toggleItalic().run()}
-          >
-            <Italic />
-          </IconButton>
-          <IconButton
-            label="Add link"
-            disabled={readOnly}
-            onClick={() => {
-              const href = window.prompt('Link URL · https://');
-              if (href?.startsWith('https://'))
-                editor?.chain().focus().setLink({ href }).run();
-            }}
-          >
-            <Link2 />
-          </IconButton>
-          <span className="toolbar-divider" />
-          <IconButton
-            label="Bullet list"
-            disabled={readOnly}
-            onClick={() => editor?.chain().focus().toggleBulletList().run()}
-          >
-            <List />
-          </IconButton>
-          <IconButton
-            label="Numbered list"
-            disabled={readOnly}
-            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-          >
-            <ListOrdered />
-          </IconButton>
-          <IconButton
-            label="Quote"
-            disabled={readOnly}
-            onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-          >
-            <Quote />
-          </IconButton>
-          <IconButton
-            label="Code block"
-            disabled={readOnly}
-            onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-          >
-            <Code2 />
-          </IconButton>
-          <IconButton
-            label="Insert table"
-            disabled={readOnly}
-            onClick={() =>
-              editor
-                ?.chain()
-                .focus()
-                .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-                .run()
-            }
-          >
-            <Table2 />
-          </IconButton>
-          <IconButton
-            label="Insert math"
-            disabled={readOnly}
-            onClick={() => {
-              const latex = window.prompt('LaTeX formula', 'E = mc^2');
-              if (latex)
-                editor?.chain().focus().insertInlineMath({ latex }).run();
-            }}
-          >
-            <Sigma />
-          </IconButton>
-          <IconButton
-            label="Insert image"
-            disabled={readOnly}
-            onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/png,image/jpeg,image/webp';
-              input.onchange = async () => {
-                const file = input.files?.[0];
-                if (!file) return;
-                try {
-                  const form = new FormData();
-                  form.append('file', file);
-                  const r = await api(
-                    `/artifacts/${artifact.id}/files`,
-                    'POST',
-                    form,
-                  );
-                  editor
-                    ?.chain()
-                    .focus()
-                    .setImage({ src: r.url, alt: file.name })
-                    .run();
-                } catch (e) {
-                  onError((e as Error).message);
-                }
-              };
-              input.click();
-            }}
-          >
-            <ImagePlus />
-          </IconButton>
-          <span className="toolbar-divider" />
-          <IconButton
-            label="Insert chart"
-            disabled={readOnly}
-            onClick={() => insertVisual('chartBlock')}
-          >
-            <ChartColumn />
-          </IconButton>
-          <IconButton
-            label="Insert diagram"
-            disabled={readOnly}
-            onClick={() => insertVisual('diagramBlock')}
-          >
-            <GitBranch />
-          </IconButton>
-          <IconButton
-            label="Insert tabs"
-            disabled={readOnly}
-            onClick={() => insertVisual('tabsBlock')}
-          >
-            <LayoutPanelTop />
-          </IconButton>
-          <IconButton
-            label="Insert acceptance test"
-            disabled={readOnly}
-            onClick={() => {
-              const label = window.prompt(
-                'Acceptance test name',
-                'Expected behavior',
-              );
-              if (label)
+            <select
+              aria-label="Paragraph style"
+              disabled={readOnly || !editor}
+              onChange={(e) =>
+                action(() => {
+                  if (e.target.value === 'paragraph')
+                    editor?.chain().focus().setParagraph().run();
+                  else
+                    editor
+                      ?.chain()
+                      .focus()
+                      .toggleHeading({
+                        level: Number(e.target.value) as 1 | 2 | 3,
+                      })
+                      .run();
+                })
+              }
+              defaultValue="paragraph"
+            >
+              <option value="paragraph">Normal text</option>
+              <option value="1">Heading 1</option>
+              <option value="2">Heading 2</option>
+              <option value="3">Heading 3</option>
+            </select>
+            <span className="toolbar-divider" />
+            <IconButton
+              label="Bold"
+              aria-pressed={editor?.isActive('bold')}
+              disabled={readOnly}
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+            >
+              <Bold />
+            </IconButton>
+            <IconButton
+              label="Italic"
+              aria-pressed={editor?.isActive('italic')}
+              disabled={readOnly}
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+            >
+              <Italic />
+            </IconButton>
+            <IconButton
+              label="Underline"
+              disabled={readOnly}
+              aria-pressed={editor?.isActive('underline')}
+              onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            >
+              <Underline />
+            </IconButton>
+            <IconButton
+              label="Strikethrough"
+              disabled={readOnly}
+              aria-pressed={editor?.isActive('strike')}
+              onClick={() => editor?.chain().focus().toggleStrike().run()}
+            >
+              <Strikethrough />
+            </IconButton>
+            <IconButton
+              label="Add link"
+              disabled={readOnly}
+              onClick={() => {
+                const href = window.prompt('Link URL · https://');
+                if (href?.startsWith('https://'))
+                  editor?.chain().focus().setLink({ href }).run();
+              }}
+            >
+              <Link2 />
+            </IconButton>
+            <span className="toolbar-divider" />
+            <IconButton
+              label="Bullet list"
+              disabled={readOnly}
+              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            >
+              <List />
+            </IconButton>
+            <IconButton
+              label="Numbered list"
+              disabled={readOnly}
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            >
+              <ListOrdered />
+            </IconButton>
+            <IconButton
+              label="Quote"
+              disabled={readOnly}
+              onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+            >
+              <Quote />
+            </IconButton>
+            <IconButton
+              label="Code block"
+              disabled={readOnly}
+              onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+            >
+              <Code2 />
+            </IconButton>
+            <IconButton
+              label="Insert table"
+              disabled={readOnly}
+              onClick={() =>
                 editor
                   ?.chain()
                   .focus()
-                  .insertContent({
-                    type: 'testBlock',
-                    attrs: { label, scenarioId: '' },
-                  })
-                  .run();
-            }}
-          >
-            <FlaskConical />
-          </IconButton>
-          <IconButton
-            label="Comment on selection"
-            disabled={readOnly}
-            onClick={() => {
-              if (!editor) return;
-              const { from, to, $from } = editor.state.selection;
-              const anchor = String($from.parent.attrs.id ?? 'document');
-              onComment(anchor, editor.state.doc.textBetween(from, to, ' '));
-            }}
-          >
-            <MessageSquarePlus />
-          </IconButton>
-          <div className="toolbar-spacer" />
-          <IconButton
-            label="Undo"
-            disabled={readOnly}
-            onClick={() => editor?.commands.undo()}
-          >
-            <Undo2 />
-          </IconButton>
-          <IconButton
-            label="Redo"
-            disabled={readOnly}
-            onClick={() => editor?.commands.redo()}
-          >
-            <Redo2 />
-          </IconButton>
-          <IconButton
-            label="Download Markdown"
-            onClick={() =>
-              editor &&
-              download(
-                artifact.title + '.md',
-                docText(editor.getJSON() as any),
-                'text/markdown',
-              )
-            }
-          >
-            <Download />
-          </IconButton>
-        </div>
-        <div className="document-scroll">
-          <EditorContent editor={editor} />
-          <div className="document-footnote">
-            <span>
-              {artifact.kind === 'design'
-                ? 'A living specification · keep intent, tests, and evidence together.'
-                : 'A shared document · changes are saved as you write.'}
-            </span>
-            <span>v{artifact.version}</span>
+                  .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                  .run()
+              }
+            >
+              <Table2 />
+            </IconButton>
+            <IconButton
+              label="Insert math"
+              disabled={readOnly}
+              onClick={() => {
+                const latex = window.prompt('LaTeX formula', 'E = mc^2');
+                if (latex)
+                  editor?.chain().focus().insertInlineMath({ latex }).run();
+              }}
+            >
+              <Sigma />
+            </IconButton>
+            <IconButton
+              label="Insert image"
+              disabled={readOnly}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/png,image/jpeg,image/webp';
+                input.onchange = async () => {
+                  const file = input.files?.[0];
+                  if (!file) return;
+                  try {
+                    const form = new FormData();
+                    form.append('file', file);
+                    const r = await api(
+                      `/artifacts/${artifact.id}/files`,
+                      'POST',
+                      form,
+                    );
+                    editor
+                      ?.chain()
+                      .focus()
+                      .setImage({ src: r.url, alt: file.name })
+                      .run();
+                  } catch (e) {
+                    onError((e as Error).message);
+                  }
+                };
+                input.click();
+              }}
+            >
+              <ImagePlus />
+            </IconButton>
+            <span className="toolbar-divider" />
+            <IconButton
+              label="Insert chart"
+              disabled={readOnly}
+              onClick={() => insertVisual('chartBlock')}
+            >
+              <ChartColumn />
+            </IconButton>
+            <IconButton
+              label="Insert diagram"
+              disabled={readOnly}
+              onClick={() => insertVisual('diagramBlock')}
+            >
+              <GitBranch />
+            </IconButton>
+            <IconButton
+              label="Insert tabs"
+              disabled={readOnly}
+              onClick={() => insertVisual('tabsBlock')}
+            >
+              <LayoutPanelTop />
+            </IconButton>
+            <IconButton
+              label="Insert acceptance test"
+              disabled={readOnly}
+              onClick={() => {
+                const label = window.prompt(
+                  'Acceptance test name',
+                  'Expected behavior',
+                );
+                if (label)
+                  editor
+                    ?.chain()
+                    .focus()
+                    .insertContent({
+                      type: 'testBlock',
+                      attrs: { label, scenarioId: '' },
+                    })
+                    .run();
+              }}
+            >
+              <FlaskConical />
+            </IconButton>
+            <IconButton
+              label="Comment on selection"
+              disabled={readOnly}
+              onClick={() => {
+                if (!editor) return;
+                const { from, to, $from } = editor.state.selection;
+                const anchor = String($from.parent.attrs.id ?? 'document');
+                onComment(anchor, editor.state.doc.textBetween(from, to, ' '));
+              }}
+            >
+              <MessageSquarePlus />
+            </IconButton>
+            <div className="toolbar-spacer" />
+            <IconButton
+              label="Undo"
+              disabled={readOnly}
+              onClick={() => editor?.commands.undo()}
+            >
+              <Undo2 />
+            </IconButton>
+            <IconButton
+              label="Redo"
+              disabled={readOnly}
+              onClick={() => editor?.commands.redo()}
+            >
+              <Redo2 />
+            </IconButton>
+            <IconButton
+              label="Download Markdown"
+              onClick={() =>
+                editor &&
+                download(
+                  artifact.title + '.md',
+                  exportMarkdown(editor.getJSON() as any),
+                  'text/markdown',
+                )
+              }
+            >
+              <Download />
+            </IconButton>
           </div>
-        </div>
+          <DocumentTools />
+          <div className="document-working-area">
+            <div className="document-scroll">
+              <EditorContent editor={editor} />
+              <div className="document-footnote">
+                <span>
+                  {artifact.kind === 'design'
+                    ? 'A living specification · keep intent, tests, and evidence together.'
+                    : 'A shared document · changes are saved as you write.'}
+                </span>
+                <span>v{artifact.version}</span>
+              </div>
+            </div>
+            <DocumentReviewPane />
+          </div>
+        </DocumentWorkspaceProvider>
       </RichVisualProvider>
     </TestContext.Provider>
   );
