@@ -14,7 +14,21 @@ const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanups.splice(0).reverse()) await close();
 });
-export async function remoteFixture() {
+export async function remoteFixture(
+  options: {
+    configure?: (context: {
+      app: ReturnType<typeof Fastify>;
+      store: Store;
+      agent: Agent;
+      remote: RemotePlanner;
+      user: Awaited<ReturnType<Store['publicUser']>>;
+      project: NonNullable<Awaited<ReturnType<Store['createProject']>>>;
+      artifact: Awaited<ReturnType<Store['artifact']>>;
+      settings: any;
+      runtime: DurableJobCoordinator;
+    }) => Promise<void>;
+  } = {},
+) {
   const postgres = process.env.STUDIO_REMOTE_TEST_POSTGRES_URL;
   const schema = 'remote_' + crypto.randomUUID().replaceAll('-', '');
   const store = await Store.open(
@@ -98,6 +112,17 @@ export async function remoteFixture() {
   );
   await app.register(websocket);
   remote.register(app);
+  await options.configure?.({
+    app,
+    store,
+    agent,
+    remote,
+    user,
+    project,
+    artifact,
+    settings,
+    runtime,
+  });
   await app.listen({ port: 0, host: '127.0.0.1' });
   cleanups.push(() => app.close());
   settings.origin = app.listeningOrigin;
