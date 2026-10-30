@@ -123,7 +123,11 @@
   "boundedConnectorObservations": {
     "maximumOutstandingMcpReads": 3,
     "databaseQueryConcurrencyMeasured": false,
-    "roundTripMs": [3325, 6493, 10110],
+    "roundTripMs": [
+      3325,
+      6493,
+      10110
+    ],
     "batchWallMs": 10110,
     "postSuspendResumeReadMs": 3753,
     "postResetReadMs": 3977,
@@ -135,16 +139,23 @@
     "minCu": 0.25,
     "maxCu": 0.25,
     "intervalOverride": "HTTP 412 denied by account policy",
-    "sourceFinalState": "idle",
-    "restoreFinalState": "idle"
+    "sourceFinalState": "deleted",
+    "restoreFinalState": "deleted"
   },
   "cleanup": {
     "localTestSchemaDeleted": true,
-    "remoteBranchesDeleted": false,
-    "reason": "Automatic approval review rejected irreversible deletion because trusted user messages did not explicitly authorize the exact branch deletion.",
-    "pendingExactApproval": [
+    "remoteBranchesDeleted": true,
+    "deletedInOrder": [
       "br-square-bread-b8co5ej3",
       "br-hidden-dust-b8ilegv9"
+    ],
+    "authorization": "Exact user approval for these two named disposable branches",
+    "priorAutomaticReviewRejection": "Irreversible branch deletion required exact trusted user approval; both computes were suspended while awaiting it.",
+    "remainingBranches": [
+      {
+        "id": "br-shiny-fire-b8tn4wiv",
+        "name": "production"
+      }
     ],
     "productionRetained": true
   }

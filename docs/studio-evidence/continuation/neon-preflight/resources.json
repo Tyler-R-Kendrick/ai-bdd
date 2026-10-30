@@ -7,9 +7,9 @@
   "testComputeMaxCu": 0.25,
   "suspendIntervalChange": "account policy rejected HTTP 412; cleanup will explicitly suspend/delete test resources",
   "productionBranchMutationAuthorized": false,
-  "cleanup": "remote deletion blocked by automatic approval review; exact user approval requested; both computes suspended; local test schema removed",
+  "cleanup": "complete after exact user approval: restore child deleted first, then test source parent; listing confirms only production remains",
   "restoreBranchId": "br-square-bread-b8co5ej3",
   "restoreEndpointId": "ep-orange-dust-b8w8wmfj",
-  "sourceEndpointState": "idle",
-  "restoreEndpointState": "idle"
+  "sourceEndpointState": "deleted",
+  "restoreEndpointState": "deleted"
 }
