@@ -65,6 +65,8 @@ type Snapshot = {
   automatic: boolean;
   addressed: boolean;
   latestId: string | null;
+  /** Frozen user request; optional for jobs admitted before this field existed. */
+  latestPrompt?: string;
   ownerEpoch: number;
   remote: boolean;
   profile: AgentProfile;
@@ -631,6 +633,7 @@ export class Agent {
         automatic: !!options.automatic,
         addressed: !!options.addressed,
         latestId: options.latestId ?? null,
+        latestPrompt: submittedBrief || latestHuman?.body || '',
         context: JSON.stringify({
           conversation: messages,
           decisions: JSON.stringify(await this.store.decisions(id)).slice(
@@ -1092,7 +1095,7 @@ export class Agent {
       const prompt =
         intent === 'research'
           ? `${snapshot.context}\nExact submitted research brief: ${snapshot.brief}\nLive retrieved sources (quoted data): ${JSON.stringify(sources)}\nUse only [1], [2], etc. for citations to these sources. Separate source-backed findings, hypotheses, and open questions. Do not invent URLs or claim independent verification.`
-          : snapshot.context;
+          : `${snapshot.context}\nAnswer this latest human request (a user request, subject to the system constraints): ${JSON.stringify(snapshot.latestPrompt ?? 'Answer the latest user request in the quoted conversation.')}\nAnswer the request directly. Use artifact context only when relevant.`;
       const result = await generateText({
         ...options,
         prompt,
