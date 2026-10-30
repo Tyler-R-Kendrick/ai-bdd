@@ -1,14 +1,15 @@
 export type GitHubSignInStage =
   | 'authorization' | 'challenge' | 'provider' | 'admission' | 'session' | 'callback'
   | 'connector-metadata' | 'connector-configuration' | 'discovery' | 'token-exchange'
-  | 'token-response' | 'oauth-token' | 'id-claims' | 'userinfo' | 'github-token' | 'github-profile' | 'email-match';
+  | 'token-response' | 'oauth-token' | 'id-claims' | 'userinfo' | 'userinfo-response' | 'github-token' | 'github-profile' | 'email-match';
 type SafeFailure = {errorClass?:string;errorCode?:string;claim?:string;status?:number};
-export type GitHubSignInDiagnostic = SafeFailure & {stage:GitHubSignInStage;state:'start'|'success'|'failure';elapsedMs:number;idTokenPresent?:boolean;accessTokenPresent?:boolean;tokenTypeBearer?:boolean};
+export type GitHubSignInDiagnostic = SafeFailure & {stage:GitHubSignInStage;state:'start'|'success'|'failure';elapsedMs:number;idTokenPresent?:boolean;accessTokenPresent?:boolean;tokenTypeBearer?:boolean;subjectPresent?:boolean;emailPresent?:boolean;emailVerified?:boolean};
 export type GitHubSignInObserver = (event:GitHubSignInDiagnostic)=>void|Promise<void>;
 const classes=new Set(['Error','HttpError','ClientError','ResponseBodyError','AuthorizationResponseError','TypeError','IdentityLeaseError','ConnectError','NoValidTokenError','UserAuthorizationRequiredError','ConnectorInstallationRequiredError']);
 const codes=new Set([
   'OAUTH_INVALID_RESPONSE','OAUTH_RESPONSE_BODY_ERROR','OAUTH_AUTHORIZATION_RESPONSE_ERROR',
   'OAUTH_JWT_CLAIM_COMPARISON_FAILED','OAUTH_JWT_TIMESTAMP_CHECK_FAILED','OAUTH_INVALID_REQUEST',
+  'OAUTH_JSON_ATTRIBUTE_COMPARISON_FAILED',
   'OAUTH_UNSUPPORTED_OPERATION','OAUTH_KEY_SELECTION_FAILED','OAUTH_SIGNATURE_VERIFICATION_FAILED',
   'ERR_JWT_INVALID','ERR_JWT_CLAIM_VALIDATION_FAILED','ERR_JWS_SIGNATURE_VERIFICATION_FAILED',
   'ERR_JWT_EXPIRED','ERR_JWKS_NO_MATCHING_KEY','ERR_JWKS_TIMEOUT',

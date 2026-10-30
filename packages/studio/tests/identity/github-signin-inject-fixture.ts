@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { GitHubSignInIdentity, GitHubSignInProvider, GitHubSignInAuthorization } from '../../server/github-signin.ts';
+import type { ConnectGitHubSignInIdentity, DirectGitHubSignInIdentity, GitHubSignInIdentity, GitHubSignInProvider, GitHubSignInAuthorization } from '../../server/github-signin.ts';
+type FixtureIdentity=Partial<DirectGitHubSignInIdentity>|ConnectGitHubSignInIdentity;
 
 /** Owned test issuer. Production entrypoints never import or select this adapter. */
 class InjectGitHubSignInFixture implements GitHubSignInProvider {
@@ -12,13 +13,14 @@ class InjectGitHubSignInFixture implements GitHubSignInProvider {
     url.search = new URLSearchParams({ state: input.state, code_challenge: input.codeChallenge, redirect_uri: input.redirectUri }).toString();
     return url.href;
   }
-  issue(location: string, email: string, override: Partial<GitHubSignInIdentity> = {}) {
+  issue(location: string, email: string, override: FixtureIdentity = {}) {
     const url = new URL(location), state = url.searchParams.get('state')!;
     const start = this.starts.get(state);
     if (!start || url.origin !== 'https://github.fixture.invalid') throw new Error('Unknown owned authorization request');
     this.starts.delete(state);
     const digest = createHash('sha256').update(email.toLowerCase()).digest('hex');
-    const identity: GitHubSignInIdentity = {
+    const identity: GitHubSignInIdentity = override.kind==='vercel-connect'?override:{
+      kind:'github',
       id: (BigInt('0x' + digest.slice(0, 12)) + 1n).toString(),
       login: 'fixture-' + digest.slice(0, 12),
       name: email === 'owner@example.test' ? 'Test owner' : 'Test ' + email.split('@')[0],
@@ -40,7 +42,7 @@ export const injectedGitHub = new InjectGitHubSignInFixture();
 export async function githubSignInResponse(
   app: FastifyInstance,
   email = 'owner@example.test',
-  identity: Partial<GitHubSignInIdentity> = {},
+  identity: FixtureIdentity = {},
 ) {
   const start = await app.inject('/api/auth/github');
   if (start.statusCode !== 302) throw new Error(start.body);
@@ -52,7 +54,7 @@ export async function githubSignInResponse(
     headers: { cookie: 'studio_github_signin=' + binding },
   });
 }
-export async function githubSignIn(app: FastifyInstance, email = 'owner@example.test', identity: Partial<GitHubSignInIdentity> = {}) {
+export async function githubSignIn(app: FastifyInstance, email = 'owner@example.test', identity: FixtureIdentity = {}) {
   const response = await githubSignInResponse(app, email, identity);
   if (response.statusCode !== 302 || response.headers.location !== '/') throw new Error('Owned GitHub sign-in was refused');
   const cookie = response.cookies.find(cookie => cookie.name === 'studio_session')?.value;

@@ -8,6 +8,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { GitHubSignInProvider } from '../../server/github-signin.ts';
 
 type Account = {
+  kind: 'github';
   id: string;
   login: string;
   name: string;
@@ -26,6 +27,7 @@ export async function githubSignInFixture() {
     let value = accounts.get(normalized);
     if (!value) {
       value = {
+        kind:'github',
         id: (BigInt('0x' + createHash('sha256').update(normalized).digest('hex').slice(0, 12)) + 1n).toString(),
         login: 'fixture-' + createHash('sha256').update(normalized).digest('hex').slice(0, 12),
         name: 'GitHub acceptance actor',

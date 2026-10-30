@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { exportJWK, generateKeyPair, jwtVerify, SignJWT } from 'jose';
 import { getVercelOidcTokenSync } from '@vercel/oidc';
-import { getTokenResponse } from '@vercel/connect';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import { Auth, settingsFromEnv } from '../server/auth.ts';
@@ -37,7 +36,7 @@ afterEach(async()=>{
   vi.useRealTimers();
 });
 const scope:IdentityScope={ownerId:'team_Fixture',ownerSlug:'fixture-team',projectId:'prj_Fixture',projectName:'fixture-project',environment:'preview',deploymentId:'dpl_Fixture',issuer:'https://oidc.vercel.com/fixture-team',audience:'https://vercel.com/fixture-team'};
-type Fault='id-token'|'signature'|'issuer'|'audience'|'expired'|'nonce'|'missing-access-token'|'short-access-token'|'dpop-token'|'unverified-github-email'|'invalid-github-id'|'different-github-email'|'different-connector'|'invalid-subject-token'|'foreign-discovery'|'oversized-token'|'wrong-service'|'provider-error';
+type Fault='id-token'|'signature'|'issuer'|'audience'|'expired'|'nonce'|'missing-access-token'|'short-access-token'|'dpop-token'|'unverified'|'missing-email'|'malformed-email'|'missing-sub'|'oversized-sub'|'userinfo-sub'|'different-email'|'foreign-discovery'|'oversized-token'|'oversized-userinfo'|'wrong-service'|'provider-error'|'userinfo-error';
 async function fixture(fault?:Fault){
   let leaseCalls=0, expectedChallenge=githubCodeChallenge('v'.repeat(43)), tokenRequests=0, providerTokenRequests=0, githubRequests=0, userinfoRequests=0;
   const nativeTokenIds:string[]=[], protectedTokenIds:string[]=[], requests:{url:string;options:RequestInit}[]=[];
@@ -91,24 +90,27 @@ async function fixture(fault?:Fault){
       if(fault==='signature'){
         const parts=jwt.split('.');parts[2]=(parts[2]![0]==='A'?'B':'A')+parts[2]!.slice(1);jwt=parts.join('.');
       }
-      return Response.json({...(fault==='missing-access-token'?{}:{access_token:fault==='short-access-token'?'short':'connect-oauth-session-token'}),token_type:fault==='dpop-token'?'DPoP':'Bearer',expires_in:120,...(['id-token','signature','issuer','audience','expired','nonce'].includes(fault??'')?{id_token:jwt}:{})});
+      return Response.json({...(fault==='missing-access-token'?{}:{access_token:fault==='short-access-token'?'short':'connect-oauth-session-token'}),token_type:fault==='dpop-token'?'DPoP':'Bearer',expires_in:120,...(['id-token','signature','issuer','audience','expired','nonce','userinfo-sub'].includes(fault??'')?{id_token:jwt}:{})});
     }
     if(url===issuer+'/oauth/userinfo'){
       userinfoRequests++;
-      throw new Error('Connect userinfo is not an identity authority for GitHub sign-in');
+      expect(headers.get('authorization')).toBe('Bearer connect-oauth-session-token');
+      expect(options.redirect).toBe('error');
+      if(fault==='oversized-userinfo')return new Response('x'.repeat(65537));
+      if(fault==='userinfo-error')return Response.json({error:'secret-provider-description'},{status:401});
+      return Response.json({...(fault==='missing-sub'?{}:{sub:fault==='oversized-sub'?'😀'.repeat(300):fault==='userinfo-sub'?'another-opaque-subject':'opaque-connect-subject'}),
+        ...(fault==='missing-email'?{}:{email:fault==='malformed-email'?'owner\n@example.test':fault==='different-email'?'different@example.test':'owner@example.test'}),
+        email_verified:fault!=='unverified',name:'Connect account'});
     }
     if(url==='https://api.vercel.com/v1/connect/token/'+encodeURIComponent(connector)){
-      providerTokenRequests++;await assertProjectCredential(headers.get('authorization')!);
-      expect(JSON.parse(String(options.body))).toEqual({subject:{type:'token',token:'connect-oauth-session-token'},scopes:['user:email']});
-      if(fault==='invalid-subject-token')return Response.json({error:{code:'invalid_token',message:'secret-provider-description',vendor:{credential:'secret-provider-credential'}}},{status:401});
-      return Response.json({token:'github-user-token-fixture',expiresAt:Date.now()+120000,connector:{id:fault==='different-connector'?'scl_Another':connectorId,uid:connector,type:'github'}});
+      providerTokenRequests++;
+      throw new Error('Provider token API must not be used for Connect sign-in');
     }
     if(url==='https://api.github.com/user'){
-      githubRequests++;expect(headers.get('authorization')).toBe('Bearer github-user-token-fixture');
-      return Response.json({id:fault==='invalid-github-id'?'caller-selected-id':12345,login:'owned-github',name:'Actual GitHub name'});
+      githubRequests++;throw new Error('Native GitHub API must not be used for managed Connect sign-in');
     }
     if(url==='https://api.github.com/user/emails?per_page=100'){
-      githubRequests++;return Response.json([{email:fault==='different-github-email'?'different@example.test':'owner@example.test',verified:fault!=='unverified-github-email',primary:false},{email:'not-verified@example.test',verified:false,primary:true}]);
+      githubRequests++;throw new Error('Native GitHub email API must not be used for managed Connect sign-in');
     }
     throw new Error('Unexpected owned fixture URL');
   }));
@@ -120,49 +122,47 @@ async function fixture(fault?:Fault){
     authenticate:(onDiagnostic?:GitHubSignInObserver)=>provider.authenticate({code:'owned-code',state:input.state,nonce:input.nonce,verifier:'v'.repeat(43),redirectUri:input.redirectUri,onDiagnostic})};
 }
 describe('official Vercel Connect GitHub sign-in adapter',()=>{
-  it.each(['nonce','signature','unverified-github-email','different-connector','short-access-token','invalid-subject-token','provider-error'] as Fault[])('diagnoses %s using finite stages and token shape without identity, token or provider text',async fault=>{
+  it.each(['nonce','signature','unverified','missing-email','oversized-sub','short-access-token','userinfo-error','provider-error'] as Fault[])('diagnoses %s using finite stages and token shape without identity, token or provider text',async fault=>{
     const f=await fixture(fault),events:GitHubSignInDiagnostic[]=[];
     await expect(f.authenticate(event=>{events.push(event);})).rejects.toThrow();
     const token=events.find(event=>event.stage==='token-response');
     expect(token).toMatchObject({stage:'token-response',idTokenPresent:['nonce','signature'].includes(fault),accessTokenPresent:true,tokenTypeBearer:fault!=='provider-error'});
-    const stage=fault==='unverified-github-email'?'github-profile':['different-connector','invalid-subject-token'].includes(fault)?'github-token':fault==='short-access-token'?'oauth-token':'token-exchange';
+    const stage=['unverified','missing-email','oversized-sub','userinfo-error'].includes(fault)?'userinfo':fault==='short-access-token'?'oauth-token':'token-exchange';
     expect(events.some(event=>event.stage===stage&&event.state==='failure')).toBe(true);
     if(fault==='nonce')expect(events.find(event=>event.stage==='token-exchange'&&event.state==='failure')).toMatchObject({errorCode:'OAUTH_JWT_CLAIM_COMPARISON_FAILED',claim:'nonce'});
-    if(fault==='invalid-subject-token')expect(events.find(event=>event.stage==='github-token'&&event.state==='failure')).toMatchObject({errorClass:'ConnectError',errorCode:'invalid_token',status:401});
+    if(['unverified','missing-email','oversized-sub'].includes(fault))expect(events.find(event=>event.stage==='userinfo-response')).toMatchObject({subjectPresent:true,emailPresent:fault!=='missing-email',emailVerified:fault!=='unverified'});
     const json=JSON.stringify(events);
     for(const value of ['connect-oauth-session-token','secret-provider-description','secret-provider-credential','owned-code','opaque-connect-subject','owner@example.test','github-user-token-fixture',f.input.state,f.input.nonce,'eyJ'])expect(json).not.toContain(value);
     expect(events.every(event=>event.elapsedMs>=0&&event.elapsedMs<=2147483647)).toBe(true);
-    if(!['different-connector','unverified-github-email','invalid-subject-token'].includes(fault))expect(f.counts().providerTokenRequests).toBe(0);
-    if(fault==='invalid-subject-token')expect(f.counts().githubRequests).toBe(0);
+    expect(f.counts().providerTokenRequests).toBe(0);expect(f.counts().githubRequests).toBe(0);
   });
-  it('uses profile-free project-scoped SDK OAuth and returns actual numeric GitHub identity without an ID token or static app secret',async()=>{
+  it('uses the documented project-scoped OAuth userinfo contract and returns an opaque namespaced identity without a provider token',async()=>{
     const f=await fixture(),url=new URL(await f.provider.authorizationUrl(f.input));
     expect(url.origin+url.pathname).toBe(issuer+'/oauth/authorize');
     expect(url.searchParams.get('client_id')).toBe(connector);
     expect(url.searchParams.get('state')).toBe(f.input.state);expect(url.searchParams.has('nonce')).toBe(false);
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
-    expect(url.searchParams.get('scope')).toBe('user:email offline_access');
+    expect(url.searchParams.get('scope')).toBe('openid profile email user:email offline_access');
     expect(url.searchParams.get('teamId')).toBe(scope.ownerId);expect(url.searchParams.get('projectId')).toBe(scope.projectId);
     expect(url.searchParams.get('environment')).toBe('preview');
     expect(url.href).not.toContain('eyJ');
-    expect(await f.authenticate()).toEqual({id:'12345',login:'owned-github',name:'Actual GitHub name',verifiedEmails:['owner@example.test']});
-    expect(f.counts()).toMatchObject({tokenRequests:1,providerTokenRequests:1,githubRequests:2,userinfoRequests:0});
+    expect(await f.authenticate()).toEqual({kind:'vercel-connect',issuer,connectorId,subject:'opaque-connect-subject',name:'Connect account',verifiedEmails:['owner@example.test']});
+    expect(f.counts()).toMatchObject({tokenRequests:1,providerTokenRequests:0,githubRequests:0,userinfoRequests:1});
     expect(new Set(f.protectedTokenIds).size).toBe(f.protectedTokenIds.length);
     expect(f.counts().leaseCalls).toBeGreaterThan(f.protectedTokenIds.length);
     expect(()=>getVercelOidcTokenSync()).toThrow();
-    await expect(getTokenResponse(connector,{subject:{type:'token',token:'connect-oauth-session-token'},scopes:['user:email']})).rejects.toThrow();
   });
-  it('verifies an optional signed ID token without using its opaque subject as a GitHub identity',async()=>{
+  it('verifies an optional signed ID token and compares its subject with authenticated userinfo',async()=>{
     const f=await fixture('id-token');
-    expect(await f.authenticate()).toMatchObject({id:'12345',verifiedEmails:['owner@example.test']});
-    expect(f.counts()).toMatchObject({providerTokenRequests:1,githubRequests:2,userinfoRequests:0});
+    expect(await f.authenticate()).toMatchObject({kind:'vercel-connect',connectorId,subject:'opaque-connect-subject',verifiedEmails:['owner@example.test']});
+    expect(f.counts()).toMatchObject({providerTokenRequests:0,githubRequests:0,userinfoRequests:1});
     expect(f.requests.some(request=>String(request.options.body).includes('opaque-connect-subject'))).toBe(false);
   });
-  it.each(['signature','issuer','audience','expired','nonce','missing-access-token','short-access-token','dpop-token','unverified-github-email','invalid-github-id','different-connector','oversized-token','provider-error'] as Fault[])('rejects %s without publishing a Studio session or provider error',async fault=>{
+  it.each(['signature','issuer','audience','expired','nonce','missing-access-token','short-access-token','dpop-token','unverified','missing-email','malformed-email','missing-sub','oversized-sub','userinfo-sub','oversized-token','oversized-userinfo','userinfo-error','provider-error'] as Fault[])('rejects %s without publishing a Studio session or provider error',async fault=>{
     const f=await fixture(fault);
     await f.provider.authorizationUrl(f.input);
     await expect(f.authenticate()).rejects.not.toThrow('secret-provider-description');
-    if(['signature','issuer','audience','expired','nonce','missing-access-token','short-access-token','dpop-token','oversized-token','provider-error'].includes(fault))expect(f.counts().providerTokenRequests).toBe(0);
+    expect(f.counts().providerTokenRequests).toBe(0);expect(f.counts().githubRequests).toBe(0);
     expect(()=>getVercelOidcTokenSync()).toThrow();
   });
   it.each(['wrong-service','foreign-discovery'] as Fault[])('refuses %s before returning a browser authorization URL',async fault=>{
@@ -182,28 +182,27 @@ describe('official Vercel Connect GitHub sign-in adapter',()=>{
     await expect(provider.authorizationUrl(f.input)).rejects.toMatchObject({statusCode:503});
     expect(f.requests).toHaveLength(0);
   });
-  it('discards a late SDK result after its deadline and evicts the resulting temporary credential cache',async()=>{
+  it('refuses a late metadata result after its deadline without continuing the OAuth flow',async()=>{
     const f=await fixture(), original=globalThis.fetch;
     let release!:()=>void, entered!:()=>void;
     const gate=new Promise<void>(resolve=>{release=resolve;}), ready=new Promise<void>(resolve=>{entered=resolve;});
     vi.stubGlobal('fetch',async(input:string|URL|Request,options?:RequestInit)=>{
       const response=await original(input,options);
-      if(String(input)==='https://api.vercel.com/v1/connect/token/'+encodeURIComponent(connector)){
+      if(String(input)==='https://api.vercel.com/v1/connect/connectors/'+encodeURIComponent(connector)){
         entered();await gate;
       }
       return response;
     });
     vi.useFakeTimers();
-    const pending=f.authenticate(), refused=expect(pending).rejects.toMatchObject({statusCode:503});
+    const pending=f.provider.authorizationUrl(f.input), refused=expect(pending).rejects.toMatchObject({statusCode:503});
     await ready;
     await vi.advanceTimersByTimeAsync(15001);
     await refused;
     expect(()=>getVercelOidcTokenSync()).toThrow();
     release();await vi.runAllTimersAsync();
-    expect(f.counts().githubRequests).toBe(0);
-    await expect(getTokenResponse(connector,{subject:{type:'token',token:'connect-oauth-session-token'},scopes:['user:email']})).rejects.toThrow();
+    expect(f.counts()).toMatchObject({tokenRequests:0,providerTokenRequests:0,githubRequests:0,userinfoRequests:0});
   });
-  it.each([undefined,'different-github-email'] as const)('preserves SQL state, PKCE, native verified email admission and GitHub session provenance (%s)',async fault=>{
+  it.each([undefined,'different-email'] as const)('preserves SQL state, PKCE, verified profile admission and GitHub session provenance (%s)',async fault=>{
     const logs:string[]=[],f=await fixture(fault),store=await Store.open(':memory:'),app=Fastify({logger:{redact:['req.url'],stream:{write:(line:string)=>{logs.push(line);}}}});
     await app.register(cookie);
     const auth=new Auth(store,{production:true,origin:'https://studio.fixture.test',dataDir:'/tmp/studio-connect-auth',demo:false,adminEmail:'owner@example.test',githubSignInConnector:connector},f.context);
@@ -213,7 +212,7 @@ describe('official Vercel Connect GitHub sign-in adapter',()=>{
     const binding=start.cookies.find(value=>value.name==='studio_github_signin')!.value;
     const callback={url:'/api/auth/github/callback?'+new URLSearchParams({state:url.searchParams.get('state')!,code:'opaque.code~with+symbols'}),headers:{cookie:'studio_github_signin='+binding}};
     const response=await app.inject(callback);
-    if(fault==='different-github-email'){
+    if(fault==='different-email'){
       expect(response.headers.location).toBe('/?signin=failed');
       expect(response.cookies.some(value=>value.name==='studio_session')).toBe(false);
       expect((await store.one('SELECT COUNT(*) AS n FROM github_signin_sessions')).n).toBe(0);
@@ -229,6 +228,7 @@ describe('official Vercel Connect GitHub sign-in adapter',()=>{
     expect((await app.inject({url:'/api/me',headers:{cookie:'studio_session='+session}})).statusCode).toBe(200);
     expect((await app.inject(callback)).headers.location).toBe('/?signin=failed');
     expect((await store.one('SELECT COUNT(*) AS n FROM github_signin_sessions')).n).toBe(1);
-    expect((await store.one('SELECT github_id FROM github_signin_identities')).github_id).toBe('12345');
+    expect((await store.one('SELECT subject FROM github_connect_signin_identities')).subject).toBe('opaque-connect-subject');
+    expect((await store.one('SELECT COUNT(*) AS n FROM github_signin_identities')).n).toBe(0);
   });
 });

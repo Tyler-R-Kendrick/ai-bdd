@@ -8,7 +8,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { hash, HttpError, type Store } from './store.ts';
 import type { User } from '../shared/domain.ts';
 import {
-  GitHubOAuthSignInProvider, githubCodeChallenge, githubSignInSettingsFromEnv,
+  GitHubOAuthSignInProvider, githubCodeChallenge, githubSignInSettingsFromEnv,validConnectGitHubSubject,
   type GitHubSignInProvider, type GitHubSignInSettings, type GitHubSignInIdentity,
 } from './github-signin.ts';
 import { VercelConnectGitHubSignInProvider, githubSignInConnectorFromEnv } from './github-connect-signin.ts';
@@ -99,6 +99,7 @@ export class Auth {
       await this.store.db.lock('schema:studio.identity');
       await this.challenges.initialize();
       await this.store.exec('CREATE TABLE IF NOT EXISTS github_signin_identities(github_id TEXT PRIMARY KEY,user_id TEXT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at BIGINT NOT NULL)');
+      await this.store.exec('CREATE TABLE IF NOT EXISTS github_connect_signin_identities(issuer TEXT NOT NULL,connector_id TEXT NOT NULL,subject TEXT NOT NULL,user_id TEXT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at BIGINT NOT NULL,PRIMARY KEY(issuer,connector_id,subject))');
       // Additive provenance avoids changing legacy sessions or trusting password-created cookies.
       await this.store.exec('CREATE TABLE IF NOT EXISTS github_signin_sessions(token TEXT PRIMARY KEY REFERENCES sessions(token) ON DELETE CASCADE)');
       await this.store.exec('DELETE FROM sessions WHERE expires<?', Date.now());
@@ -125,7 +126,8 @@ export class Auth {
     const token = randomBytes(32).toString('base64url');
     await this.store.tx(async () => {
       await this.store.db.lock('user:' + user.id);
-      if (!(await this.store.one('SELECT user_id FROM github_signin_identities WHERE user_id=?', user.id)))
+      if (!(await this.store.one('SELECT user_id FROM github_signin_identities WHERE user_id=?', user.id)) &&
+          !(await this.store.one('SELECT user_id FROM github_connect_signin_identities WHERE user_id=?', user.id)))
         throw new HttpError(401, 'A verified GitHub sign-in is required');
       await this.store.exec("INSERT INTO sessions(token,user_id,expires,kind) VALUES(?,?,?,'session')", hash(token), user.id, Date.now() + 7 * 86400000);
       await this.store.exec('INSERT INTO github_signin_sessions(token) VALUES(?)', hash(token));
@@ -136,13 +138,19 @@ export class Auth {
     });
   }
   private async admit(identity: GitHubSignInIdentity) {
-    if (!/^[1-9][0-9]{0,19}$/.test(identity.id) || !Array.isArray(identity.verifiedEmails) || identity.verifiedEmails.length > 100)
+    const managed=identity.kind==='vercel-connect';
+    if ((managed ? identity.issuer!=='https://connect.vercel.com' || !/^scl_[A-Za-z0-9]{1,100}$/.test(identity.connectorId) ||
+      !validConnectGitHubSubject(identity.subject)
+      : identity.kind!=='github' || !/^[1-9][0-9]{0,19}$/.test(identity.id)) ||
+      !Array.isArray(identity.verifiedEmails) || identity.verifiedEmails.length > (managed?1:100))
       throw new HttpError(403, 'GitHub returned an invalid account identity');
     const emails = [...new Set(identity.verifiedEmails.filter(email => typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)).map(email => email.toLowerCase()))];
     if (!emails.length) throw new HttpError(403, 'A verified GitHub email is required');
     return this.store.tx(async () => {
       await this.store.db.lock('identity:admission');
-      const linked = await this.store.one('SELECT user_id FROM github_signin_identities WHERE github_id=?', identity.id);
+      const linked = managed
+        ? await this.store.one('SELECT user_id FROM github_connect_signin_identities WHERE issuer=? AND connector_id=? AND subject=?',identity.issuer,identity.connectorId,identity.subject)
+        : await this.store.one('SELECT user_id FROM github_signin_identities WHERE github_id=?', identity.id);
       if (linked) return this.store.publicUser(linked.user_id);
       const matches = [];
       for (const email of emails) {
@@ -153,11 +161,13 @@ export class Auth {
       let user = matches[0];
       const ownerEmail = this.settings.adminEmail?.toLowerCase();
       if (!user && ownerEmail && emails.includes(ownerEmail) && !(await this.store.one('SELECT id FROM users LIMIT 1')))
-        user = await this.store.createUser(ownerEmail, String(identity.name || identity.login).slice(0, 100), null);
+        user = await this.store.createUser(ownerEmail, String(identity.name || (managed?'GitHub user':identity.login)).slice(0, 100), null);
       if (!user) throw new HttpError(403, 'Ask a workspace owner to invite your verified GitHub email');
       const previous = await this.store.one('SELECT github_id FROM github_signin_identities WHERE user_id=?', user.id);
-      if (previous) throw new HttpError(403, 'This workspace account is already connected to another GitHub account');
-      await this.store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)', identity.id, user.id, Date.now());
+      const previousManaged = await this.store.one('SELECT user_id FROM github_connect_signin_identities WHERE user_id=?', user.id);
+      if (previous || previousManaged) throw new HttpError(403, 'This workspace account is already connected to another GitHub identity');
+      if(managed)await this.store.exec('INSERT INTO github_connect_signin_identities(issuer,connector_id,subject,user_id,created_at) VALUES(?,?,?,?,?)',identity.issuer,identity.connectorId,identity.subject,user.id,Date.now());
+      else await this.store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)', identity.id, user.id, Date.now());
       return this.store.publicUser(user.id);
     });
   }

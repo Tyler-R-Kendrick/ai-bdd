@@ -93,12 +93,14 @@ current owner permissions. Source transactions recheck rights under the project
 lock after awaited work. Trusted proxy CIDRs are explicit.
 
 Browser sign-in uses GitHub with durable one-use state, browser-bound PKCE,
-verified email admission and a stable numeric GitHub identity. The preferred
+verified email admission and a stable qualified identity. The preferred
 Vercel Connect adapter uses the official OAuth/PKCE contract through a fresh
-server-side identity scope. Only its server-exchanged, token-bound GitHub
-credential supplies the numeric identity and verified emails; optional Connect
-profile claims do not admit users. Any returned ID token still receives issuer,
-audience, timestamp and signature validation. A direct GitHub
+server-side identity scope. Its fixed authenticated userinfo endpoint supplies
+an opaque subject qualified by issuer and connector, plus a mandatory verified
+profile email. Any returned ID token still receives issuer, audience, timestamp
+and signature validation and must match userinfo. Direct GitHub OAuth retains
+numeric GitHub IDs and verified email aliases in a separate binding. Email
+matches cannot relink an account across identities or adapters. A direct GitHub
 OAuth adapter is an explicit alternative outside Connect. Password/setup/demo
 and generic organization OIDC sign-in are disabled; provider failure leaves a
 visible retry state. Historical browser sessions without GitHub provenance are

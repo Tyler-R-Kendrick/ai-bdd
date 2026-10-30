@@ -1,9 +1,9 @@
 import { customFetch as authJsCustomFetch } from '@auth/core';
 import { connect } from '@vercel/connect/authjs';
-import { deleteTokenCacheEntry, getConnectorMetadata, getTokenResponse, type ConnectorMetadata } from '@vercel/connect';
+import { getConnectorMetadata, type ConnectorMetadata } from '@vercel/connect';
 import * as oidc from 'openid-client';
 import { HttpError } from './store.ts';
-import { githubSignInIdentityFromToken, type GitHubSignInAuthorization, type GitHubSignInProvider } from './github-signin.ts';
+import { validConnectGitHubSubject,type ConnectGitHubSignInIdentity, type GitHubSignInAuthorization, type GitHubSignInProvider } from './github-signin.ts';
 import { runWithIdentity, type IdentityExecutionContext } from './hosting/identity-context.ts';
 import { emitGitHubSignIn, githubSignInFailure, observeGitHubSignIn, retainGitHubSignInFailure, type GitHubSignInObserver } from './github-signin-diagnostics.ts';
 
@@ -79,10 +79,7 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
     // This helper reads the current validated native OIDC context. It keeps no JWT.
     const provider = await observeGitHubSignIn(observer,'connector-configuration',()=>this.scoped(async()=>connect({
       id:'github',name:'GitHub',connector:this.connector,
-      // This is the SDK's OAuth + PKCE contract. GitHub's own authenticated
-      // profile and verified email API, rather than optional Connect OIDC
-      // profile claims, determine the Studio identity.
-      scopes:['user:email'],
+      scopes:['openid','profile','email','user:email'],
     })));
     const sdkFetch = provider[authJsCustomFetch];
     if (!sdkFetch || provider.clientId !== this.connector)
@@ -95,13 +92,16 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
         signal:AbortSignal.any([AbortSignal.timeout(12000),...(init?.signal?[init.signal]:[])]),
       } as RequestInit);
       const bounded=await boundedResponse(response);
-      if(url===endpoints.token_endpoint){
+      if(url===endpoints.token_endpoint||url===endpoints.userinfo_endpoint){
         let shape:Record<string,unknown>={};
         try{const value:unknown=await bounded.clone().json();if(value&&typeof value==='object'&&!Array.isArray(value))shape=value as Record<string,unknown>;}catch{}
-        emitGitHubSignIn(observer,{stage:'token-response',state:bounded.ok?'success':'failure',elapsedMs:0,status:bounded.status,
+        if(url===endpoints.token_endpoint)emitGitHubSignIn(observer,{stage:'token-response',state:bounded.ok?'success':'failure',elapsedMs:0,status:bounded.status,
           idTokenPresent:typeof shape.id_token==='string',accessTokenPresent:typeof shape.access_token==='string',
           tokenTypeBearer:typeof shape.token_type==='string'&&shape.token_type.toLowerCase()==='bearer',
           ...githubSignInFailure({code:shape.error}),
+        });
+        else emitGitHubSignIn(observer,{stage:'userinfo-response',state:bounded.ok?'success':'failure',elapsedMs:0,status:bounded.status,
+          subjectPresent:typeof shape.sub==='string',emailPresent:typeof shape.email==='string',emailVerified:shape.email_verified===true,
         });
       }
       return bounded;
@@ -131,7 +131,7 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
     });
     return url.href;
   }
-  async authenticate(input:{code:string;verifier:string;redirectUri:string;state?:string;nonce?:string;onDiagnostic?:GitHubSignInObserver}) {
+  async authenticate(input:{code:string;verifier:string;redirectUri:string;state?:string;nonce?:string;onDiagnostic?:GitHubSignInObserver}):Promise<ConnectGitHubSignInIdentity> {
     if (!input.state) throw new HttpError(401,'A fresh GitHub sign-in challenge is required');
     const observer=input.onDiagnostic;
     const metadata = await this.metadata(observer), {configuration} = await this.configuration(observer);
@@ -145,25 +145,20 @@ export class VercelConnectGitHubSignInProvider implements GitHubSignInProvider {
         typeof tokens.token_type!=='string' || tokens.token_type.toLowerCase()!=='bearer')
         throw new HttpError(401,'Vercel Connect did not return a usable GitHub sign-in token');
     });
-    // The SDK's OAuth provider does not require an ID token or verified Connect
-    // email claims. openid-client still verifies issuer/audience/time, nonce
-    // absence and the RS256 signature of any optional ID token it receives.
-    // Do not consume its subject or userinfo as a Studio identity authority.
-    // Exchange the server-obtained OAuth session token. No app grant, caller
-    // subject ID, inferred subject format or project-wide user impersonation.
-    const parameters = {subject:{type:'token' as const,token:tokens.access_token},scopes:['user:email']};
-    try {
-      const result = await observeGitHubSignIn(observer,'github-token',async()=>{
-        const result=await this.scoped(()=>getTokenResponse(this.connector,parameters,{forceRefresh:true})
-          .finally(()=>deleteTokenCacheEntry(this.connector,parameters)));
-        if (!result?.connector || result.connector.id!==metadata.id || result.connector.uid!==metadata.uid || typeof result.token!=='string')
-          throw new HttpError(401,'Vercel Connect returned an unexpected GitHub credential');
-        return result;
-      });
-      const identity = await observeGitHubSignIn(observer,'github-profile',()=>githubSignInIdentityFromToken(result.token));
-      return identity;
-    } finally {
-      deleteTokenCacheEntry(this.connector,parameters);
-    }
+    // This is the official OAuth sign-in profile contract. The access token is
+    // valid for Connect userinfo; it is not a provider API token or a Passport
+    // subject-token credential. No provider token, app grant or inferred user
+    // subject is requested. Optional ID tokens retain full library validation.
+    const claims=tokens.claims();
+    const profile=await observeGitHubSignIn(observer,'userinfo',async()=>{
+      const profile=await oidc.fetchUserInfo(configuration,tokens.access_token,claims?.sub??oidc.skipSubjectCheck);
+      if(!validConnectGitHubSubject(profile.sub) ||
+        profile.email_verified!==true || typeof profile.email!=='string' || profile.email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email))
+        throw new HttpError(403,'A verified GitHub sign-in profile is required');
+      return {...profile,email:profile.email};
+    });
+    return {kind:'vercel-connect',issuer,connectorId:metadata.id,subject:profile.sub,
+      name:typeof profile.name==='string'&&profile.name.trim()?profile.name.trim().slice(0,100):'GitHub user',
+      verifiedEmails:[profile.email.toLowerCase()]};
   }
 }

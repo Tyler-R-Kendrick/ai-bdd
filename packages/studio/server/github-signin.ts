@@ -2,12 +2,25 @@ import { createHash } from 'node:crypto';
 import { HttpError } from './store.ts';
 import type { GitHubSignInObserver } from './github-signin-diagnostics.ts';
 
-export type GitHubSignInIdentity = {
+export type DirectGitHubSignInIdentity = {
+  kind: 'github';
   id: string;
   login: string;
   name: string;
   verifiedEmails: string[];
 };
+export type ConnectGitHubSignInIdentity = {
+  kind: 'vercel-connect';
+  issuer: 'https://connect.vercel.com';
+  connectorId: string;
+  subject: string;
+  name: string;
+  verifiedEmails: string[];
+};
+export type GitHubSignInIdentity = DirectGitHubSignInIdentity | ConnectGitHubSignInIdentity;
+export const validConnectGitHubSubject=(subject:unknown):subject is string=>
+  typeof subject==='string'&&!!subject.trim()&&Buffer.byteLength(subject,'utf8')<=1024&&
+  ![...subject].some(character=>character.charCodeAt(0)<32||character.charCodeAt(0)===127);
 export type GitHubSignInAuthorization = {
   state: string;
   codeChallenge: string;
@@ -130,7 +143,7 @@ async function githubSignInRequest(url: string, options: RequestInit, maximum: n
   }
 
 /** Resolve the actual numeric GitHub account and verified emails from a server-obtained user token. */
-export async function githubSignInIdentityFromToken(accessToken: string): Promise<GitHubSignInIdentity> {
+export async function githubSignInIdentityFromToken(accessToken: string): Promise<DirectGitHubSignInIdentity> {
   if (typeof accessToken !== 'string' || accessToken.length < 10 || accessToken.length > 4096 || /[\r\n]/.test(accessToken)) throw new HttpError(401, 'GitHub could not complete sign-in. Start again.');
     const headers = { Authorization: 'Bearer ' + accessToken };
     const profile = await githubSignInRequest('https://api.github.com/user', { headers }, 65536);
@@ -146,6 +159,7 @@ export async function githubSignInIdentityFromToken(accessToken: string): Promis
     ).map(value => value.email.toLowerCase() as string))];
     if (!verifiedEmails.length) throw new HttpError(403, 'A verified GitHub email is required');
     return {
+      kind: 'github',
       id: String(profile.id), login: profile.login,
       name: typeof profile.name === 'string' && profile.name.trim()
         ? profile.name.trim().slice(0, 100) : profile.login,

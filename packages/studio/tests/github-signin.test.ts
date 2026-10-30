@@ -161,7 +161,7 @@ describe('fixed GitHub sign-in provider transport',()=>{
       if(url==='https://api.github.com/user')return Response.json({id:123,login:'owned-github',name:'Actual name',email:'untrusted-profile@example.test'});
       return Response.json([{email:'unverified@example.test',verified:false,primary:true},{email:'verified@example.test',verified:true,primary:false}]);
     }));
-    expect(await provider.authenticate({code:'code',verifier,redirectUri})).toEqual({id:'123',login:'owned-github',name:'Actual name',verifiedEmails:['verified@example.test']});
+    expect(await provider.authenticate({code:'code',verifier,redirectUri})).toEqual({kind:'github',id:'123',login:'owned-github',name:'Actual name',verifiedEmails:['verified@example.test']});
     expect(calls).toHaveLength(3);
     for(const call of calls)expect(call.options.redirect).toBe('error');
     const payload=new URLSearchParams(String(calls[0]!.options.body));
