@@ -674,6 +674,50 @@ export class Store {
       return current;
     });
   }
+  /** Advance semantic plan source without rewriting the canonical document or its Yjs identity. */
+  async touchArtifactSource(user: User, id: string): Promise<Artifact> {
+    const initial = await this.artifact(id, user.id, 'write');
+    return this.tx(async () => {
+      await this.db.lock('project:' + initial.projectId);
+      const previous = await this.artifact(id, user.id, 'write');
+      await this.artifactWriteGuard?.(previous, user.id);
+      const time = now();
+      const changed = await this.exec(
+        'UPDATE artifacts SET version=version+1,updated_at=? WHERE id=? AND version=?',
+        time,
+        id,
+        previous.version,
+      );
+      if (changed.changes !== 1)
+        throw new HttpError(
+          409,
+          'The plan source changed; review the latest version.',
+        );
+      await this.exec(
+        'INSERT INTO revisions(artifact_id,version,content,actor,created_at) VALUES(?,?,?,?,?)',
+        id,
+        previous.version + 1,
+        JSON.stringify(previous.content),
+        user.name,
+        time,
+      );
+      await this.exec(
+        'UPDATE projects SET updated_at=? WHERE id=?',
+        time,
+        previous.projectId,
+      );
+      await this.audit(
+        previous.projectId,
+        id,
+        user.name,
+        'artifact.plan-source.updated',
+        `version ${previous.version + 1}`,
+      );
+      const current = await this.artifact(id, user.id);
+      await this.sourceObserver?.(user, previous, current);
+      return current;
+    });
+  }
   async state(id: string): Promise<Uint8Array | null> {
     return (
       (await this.one('SELECT ystate FROM artifacts WHERE id=?', id))?.ystate ??
