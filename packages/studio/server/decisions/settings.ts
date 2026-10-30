@@ -32,7 +32,31 @@ export function decisionSettingsFromEnv(
     throw new Error(
       'Decision provider timeout must be between 100 and 60000 milliseconds',
     );
+  const bounded = (key: string, fallback: number, max: number) => {
+    const value = Number(env[key] ?? fallback);
+    if (!Number.isInteger(value) || value < 1 || value > max)
+      throw new Error(key + ' must be a positive bounded integer');
+    return value;
+  };
   return {
+    budget: {
+      principalPerHour: bounded(
+        'STUDIO_DECISION_PRINCIPAL_HOURLY',
+        120,
+        10000,
+      ),
+      projectPerHour: bounded('STUDIO_DECISION_PROJECT_HOURLY', 600, 50000),
+      principalConcurrent: bounded(
+        'STUDIO_DECISION_PRINCIPAL_CONCURRENT',
+        4,
+        100,
+      ),
+      projectConcurrent: bounded(
+        'STUDIO_DECISION_PROJECT_CONCURRENT',
+        8,
+        200,
+      ),
+    },
     configRevision: env.STUDIO_DECISION_CONFIG_REVISION ?? 'v1',
     production,
     timeoutMs,

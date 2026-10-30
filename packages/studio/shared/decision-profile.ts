@@ -125,7 +125,8 @@ export type DecisionAnswer = {
     | 'provider-error'
     | 'invalid-response'
     | 'cancelled'
-    | 'access-revoked';
+    | 'access-revoked'
+    | 'budget-exhausted';
 };
 export type DecisionEvaluation = {
   id: string;
@@ -170,6 +171,8 @@ export type DecisionProfileView = {
   providers: {
     id: DecisionProfile['provider'];
     label: string;
+    maxInputBytes?: number;
+    maxQuestions?: number;
     configured: boolean;
     reason: string | null;
     models: string[];

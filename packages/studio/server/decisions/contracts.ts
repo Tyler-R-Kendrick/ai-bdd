@@ -11,6 +11,13 @@ export type DecisionSettings = {
   timeoutMs: number;
   leaseMs?: number;
   configRevision?: string;
+  /** Every actual vendor attempt consumes one admission; cached receipts do not. */
+  budget?: {
+    principalPerHour: number;
+    projectPerHour: number;
+    principalConcurrent: number;
+    projectConcurrent: number;
+  };
   defaultProfile: DecisionProfile;
   openai?: { baseUrl: string; apiKey: string; models: string[] };
   jev?: { baseUrl: string; apiKey: string; models: string[] };

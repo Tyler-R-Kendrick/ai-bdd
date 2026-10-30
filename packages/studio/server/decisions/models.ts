@@ -75,10 +75,106 @@ export class DecisionModels {
       await this.store.db.lock('schema:studio.decision-models');
       await this.store.db.exec(`
    CREATE TABLE IF NOT EXISTS studio_decision_profiles(artifact_id TEXT PRIMARY KEY REFERENCES artifacts(id) ON DELETE CASCADE,profile_json TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_by TEXT NOT NULL REFERENCES users(id),updated_at TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS studio_decision_calls(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),artifact_version INTEGER NOT NULL,purpose TEXT NOT NULL,input_hash TEXT NOT NULL,request_hash TEXT NOT NULL,idempotency_key TEXT UNIQUE NOT NULL,profile_json TEXT NOT NULL,request_json TEXT NOT NULL,status TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,fence BIGINT NOT NULL DEFAULT 0,lease_owner TEXT,lease_expires BIGINT,result_json TEXT,error_code TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS studio_decision_calls(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),artifact_version INTEGER NOT NULL,purpose TEXT NOT NULL,input_hash TEXT NOT NULL,request_hash TEXT NOT NULL,idempotency_key TEXT UNIQUE NOT NULL,profile_json TEXT NOT NULL,request_json TEXT NOT NULL,status TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,fence BIGINT NOT NULL DEFAULT 0,lease_owner TEXT,lease_expires BIGINT,result_json TEXT,result_sha256 TEXT,error_code TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS studio_decision_admissions(call_id TEXT NOT NULL REFERENCES studio_decision_calls(id) ON DELETE CASCADE,fence BIGINT NOT NULL,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),admitted_at BIGINT NOT NULL,PRIMARY KEY(call_id,fence));
+   CREATE INDEX IF NOT EXISTS studio_decision_admission_project ON studio_decision_admissions(project_id,admitted_at);
+   CREATE INDEX IF NOT EXISTS studio_decision_admission_user ON studio_decision_admissions(user_id,admitted_at);
+   CREATE INDEX IF NOT EXISTS studio_decision_active ON studio_decision_calls(status,lease_expires,user_id,project_id);
    CREATE INDEX IF NOT EXISTS studio_decision_cache ON studio_decision_calls(project_id,artifact_id,user_id,request_hash,status,created_at);
   `);
+      if (this.store.db.dialect === 'sqlite') {
+        const columns = await this.store.all(
+          'PRAGMA table_info(studio_decision_calls)',
+        );
+        if (!columns.some((column) => column.name === 'result_sha256'))
+          await this.store.exec(
+            'ALTER TABLE studio_decision_calls ADD COLUMN result_sha256 TEXT',
+          );
+      } else {
+        await this.store.exec(
+          'ALTER TABLE studio_decision_calls ADD COLUMN IF NOT EXISTS result_sha256 TEXT',
+        );
+      }
+      // Legacy receipts predate integrity metadata. Establish their upgrade baseline once.
+      for (const row of await this.store.all(
+        'SELECT id,result_json FROM studio_decision_calls WHERE result_json IS NOT NULL AND result_sha256 IS NULL',
+      ))
+        await this.store.exec(
+          'UPDATE studio_decision_calls SET result_sha256=? WHERE id=?',
+          hash(row.result_json),
+          row.id,
+        );
     });
+  }
+  private receipt(row: any): DecisionEvaluation | null {
+    if (!row.result_json) return null;
+    if (hash(row.result_json) !== row.result_sha256)
+      throw new HttpError(
+        409,
+        'The stored decision receipt failed integrity verification',
+      );
+    const value = JSON.parse(row.result_json) as DecisionEvaluation;
+    if (
+      value.id !== row.id ||
+      value.provenance?.requestHash !== row.request_hash ||
+      value.provenance?.inputHash !== row.input_hash ||
+      value.provenance?.artifactVersion !== Number(row.artifact_version)
+    )
+      throw new HttpError(
+        409,
+        'The stored decision receipt does not match its immutable request',
+      );
+    return value;
+  }
+  private budget() {
+    return (
+      this.options.settings.budget ?? {
+        principalPerHour: 120,
+        projectPerHour: 600,
+        principalConcurrent: 4,
+        projectConcurrent: 8,
+      }
+    );
+  }
+  private async admit(row: any): Promise<boolean> {
+    // Project is already locked; this lock also serializes one principal across projects.
+    await this.store.db.lock('decision-budget:' + row.user_id);
+    const cutoff = Date.now() - 3600000,
+      limits = this.budget();
+    const count = async (sql: string, ...args: any[]) =>
+      Number((await this.store.one(sql, ...args))?.n ?? 0);
+    if (
+      (await count(
+        'SELECT COUNT(*) AS n FROM studio_decision_admissions WHERE user_id=? AND admitted_at>=?',
+        row.user_id,
+        cutoff,
+      )) >= limits.principalPerHour ||
+      (await count(
+        'SELECT COUNT(*) AS n FROM studio_decision_admissions WHERE project_id=? AND admitted_at>=?',
+        row.project_id,
+        cutoff,
+      )) >= limits.projectPerHour ||
+      (await count(
+        "SELECT COUNT(*) AS n FROM studio_decision_calls WHERE user_id=? AND status='running' AND lease_expires>?",
+        row.user_id,
+        Date.now(),
+      )) >= limits.principalConcurrent ||
+      (await count(
+        "SELECT COUNT(*) AS n FROM studio_decision_calls WHERE project_id=? AND status='running' AND lease_expires>?",
+        row.project_id,
+        Date.now(),
+      )) >= limits.projectConcurrent
+    )
+      return false;
+    await this.store.exec(
+      'INSERT INTO studio_decision_admissions(call_id,fence,project_id,user_id,admitted_at) VALUES(?,?,?,?,?)',
+      row.id,
+      Number(row.fence) + 1,
+      row.project_id,
+      row.user_id,
+      Date.now(),
+    );
+    return true;
   }
   private registration(profile: Pick<DecisionProfile, 'provider'>) {
     const settings = this.options.settings;
@@ -114,6 +210,8 @@ export class DecisionModels {
     return [
       {
         id: 'openai-decisions',
+        maxInputBytes: 120000,
+        maxQuestions: 64,
         label: 'OpenAI Decisions API',
         configured: !!settings.openai,
         reason: settings.openai
@@ -124,6 +222,8 @@ export class DecisionModels {
       },
       {
         id: 'jev',
+        maxInputBytes: 32000,
+        maxQuestions: 64,
         label: 'Jev / TypeSafe',
         configured: !!settings.jev,
         reason: settings.jev
@@ -134,6 +234,8 @@ export class DecisionModels {
       },
       {
         id: 'vercel-structured',
+        maxInputBytes: 120000,
+        maxQuestions: 64,
         label: 'Vercel AI SDK structured generation',
         configured: !!settings.structured,
         reason: settings.structured
@@ -223,21 +325,21 @@ export class DecisionModels {
   ): Promise<DecisionEvaluation | null> {
     await this.ready;
     const row = await this.store.one(
-      'SELECT artifact_id,result_json FROM studio_decision_calls WHERE id=?',
+      'SELECT * FROM studio_decision_calls WHERE id=?',
       id,
     );
     if (!row) throw new HttpError(404, 'Decision evaluation not found');
     await this.store.artifact(row.artifact_id, user.id);
-    return row.result_json ? JSON.parse(row.result_json) : null;
+    return this.receipt(row);
   }
   async history(user: User, id: string): Promise<DecisionEvaluation[]> {
     await this.ready;
     await this.store.artifact(id, user.id);
     const rows = await this.store.all(
-      'SELECT result_json FROM studio_decision_calls WHERE artifact_id=? AND result_json IS NOT NULL ORDER BY created_at DESC,id DESC LIMIT 100',
+      'SELECT * FROM studio_decision_calls WHERE artifact_id=? AND result_json IS NOT NULL ORDER BY created_at DESC,id DESC LIMIT 100',
       id,
     );
-    return rows.map((row) => JSON.parse(row.result_json));
+    return rows.map((row) => this.receipt(row)!);
   }
   private async locked<T>(id: string, operation: (row: any) => Promise<T>) {
     const scope = await this.store.one(
@@ -346,7 +448,7 @@ export class DecisionModels {
     );
     const statuses = new Set(answers.map((answer) => answer.status));
     const status: DecisionEvaluation['status'] =
-      error === 'cancelled'
+      error === 'cancelled' || error === 'access-revoked'
         ? 'cancelled'
         : statuses.size > 1
           ? 'partial'
@@ -509,7 +611,7 @@ export class DecisionModels {
         at = stamp();
       let result: string | null = null;
       if (cached?.result_json) {
-        const reuse = JSON.parse(cached.result_json) as DecisionEvaluation;
+        const reuse = this.receipt(cached)!;
         result = JSON.stringify({
           ...reuse,
           id,
@@ -528,7 +630,7 @@ export class DecisionModels {
         });
       }
       await this.store.exec(
-        'INSERT INTO studio_decision_calls(id,project_id,artifact_id,user_id,artifact_version,purpose,input_hash,request_hash,idempotency_key,profile_json,request_json,status,result_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO studio_decision_calls(id,project_id,artifact_id,user_id,artifact_version,purpose,input_hash,request_hash,idempotency_key,profile_json,request_json,status,result_json,result_sha256,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         id,
         artifact.projectId,
         input.artifactId,
@@ -547,6 +649,7 @@ export class DecisionModels {
         }),
         result ? 'completed' : 'queued',
         result,
+        result ? hash(result) : null,
         at,
         at,
       );
@@ -555,7 +658,7 @@ export class DecisionModels {
         id,
       );
     });
-    if (row.result_json) return JSON.parse(row.result_json);
+    if (row.result_json) return this.receipt(row)!;
     const overall = AbortSignal.any([
       ...(input.signal ? [input.signal] : []),
       AbortSignal.timeout(this.options.settings.timeoutMs),
@@ -565,23 +668,26 @@ export class DecisionModels {
       const claimed = await this.locked(row.id, async (current) => {
         await this.store.artifact(input.artifactId, input.user.id, 'write');
         if (terminal(current.status))
-          return { result: JSON.parse(current.result_json) };
+          return { result: this.receipt(current)! };
         if (
           current.status === 'running' &&
           Number(current.lease_expires) > Date.now()
         )
           return null;
-        if (Number(current.attempts) >= 3) {
+        const exhausted = Number(current.attempts) >= 3;
+        if (exhausted || !(await this.admit(current))) {
           const failed = this.normalize(
             current.id,
             input,
             undefined,
             current.created_at,
-            'provider-error',
+            exhausted ? 'provider-error' : 'budget-exhausted',
           );
           await this.store.exec(
-            "UPDATE studio_decision_calls SET status='error',result_json=?,lease_owner=NULL,lease_expires=NULL,error_code='provider-error',updated_at=? WHERE id=?",
+            "UPDATE studio_decision_calls SET status='error',result_json=?,result_sha256=?,lease_owner=NULL,lease_expires=NULL,error_code=?,updated_at=? WHERE id=?",
             JSON.stringify(failed),
+            hash(JSON.stringify(failed)),
+            exhausted ? 'provider-error' : 'budget-exhausted',
             stamp(),
             current.id,
           );
@@ -597,7 +703,7 @@ export class DecisionModels {
         );
         return { fence: Number(current.fence) + 1 };
       });
-      if (claimed && 'result' in claimed) return claimed.result;
+      if (claimed && 'result' in claimed) return claimed.result!;
       if (!claimed) {
         await delay(25, undefined, { signal: overall });
         continue;
@@ -674,7 +780,31 @@ export class DecisionModels {
       );
       const published = await this.locked(row.id, async (current) => {
         this.assertLease(current, claimed.fence!);
-        await this.store.artifact(input.artifactId, input.user.id, 'write');
+        try {
+          await this.store.artifact(input.artifactId, input.user.id, 'write');
+        } catch (denied) {
+          if (
+            !(denied instanceof HttpError) ||
+            ![401, 403, 404].includes(denied.statusCode)
+          )
+            throw denied;
+          const cancelled = this.normalize(
+            row.id,
+            input,
+            undefined,
+            started,
+            'access-revoked',
+          );
+          await this.store.exec(
+            "UPDATE studio_decision_calls SET status='cancelled',result_json=?,result_sha256=?,lease_owner=NULL,lease_expires=NULL,error_code='access-revoked',updated_at=? WHERE id=? AND fence=?",
+            JSON.stringify(cancelled),
+            hash(JSON.stringify(cancelled)),
+            stamp(),
+            row.id,
+            claimed.fence!,
+          );
+          return { denied };
+        }
         if (retry && Number(current.attempts) < 3) {
           await this.store.exec(
             "UPDATE studio_decision_calls SET status='queued',lease_owner=NULL,lease_expires=NULL,error_code='provider-error',updated_at=? WHERE id=? AND fence=?",
@@ -685,13 +815,14 @@ export class DecisionModels {
           return false;
         }
         await this.store.exec(
-          'UPDATE studio_decision_calls SET status=?,result_json=?,lease_owner=NULL,lease_expires=NULL,error_code=?,updated_at=? WHERE id=? AND fence=?',
+          'UPDATE studio_decision_calls SET status=?,result_json=?,result_sha256=?,lease_owner=NULL,lease_expires=NULL,error_code=?,updated_at=? WHERE id=? AND fence=?',
           evaluation.status === 'error'
             ? 'error'
             : evaluation.status === 'cancelled'
               ? 'cancelled'
               : 'completed',
           JSON.stringify(evaluation),
+          hash(JSON.stringify(evaluation)),
           errorCode ?? null,
           stamp(),
           row.id,
@@ -699,6 +830,7 @@ export class DecisionModels {
         );
         return true;
       });
+      if (published && typeof published === 'object') throw published.denied;
       if (published) {
         await this.options
           .notify?.(artifact.projectId, input.artifactId)

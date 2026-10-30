@@ -696,3 +696,132 @@ describe('independent typed decision models over actual native HTTP contracts', 
     });
   });
 });
+
+describe('shared decision admission and receipt integrity', () => {
+  it('charges actual attempts once, keeps cache and idempotent reads free, and shares the project budget across principals', async () => {
+    const api = await http((body, res) =>
+      res.end(JSON.stringify(answer(body))),
+    );
+    const w = await workspace(
+      native(api.url, {
+        budget: {
+          principalPerHour: 1,
+          projectPerHour: 1,
+          principalConcurrent: 1,
+          projectConcurrent: 1,
+        },
+      }),
+    );
+    const request = w.request();
+    const first = await w.models.decide(request);
+    expect((await w.models.decide(request)).id).toBe(first.id);
+    const cached = await w.models.decide({
+      ...request,
+      idempotencyKey: randomUUID(),
+    });
+    expect(cached.provenance.cachedFrom).toBe(first.id);
+    const limited = await w.models.decide(
+      w.request({ input: 'A different unresolved boundary needs a choice.' }),
+    );
+    expect(limited.answers[0]).toMatchObject({
+      status: 'error',
+      error: 'budget-exhausted',
+      value: null,
+    });
+    const member = await w.store.createUser(
+      randomUUID() + '@test.invalid',
+      'Another writer',
+      null,
+    );
+    await w.store.exec(
+      'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
+      w.project.id,
+      member.id,
+      'editor',
+    );
+    const other = await w.models.decide(
+      w.request({ user: member, input: 'Another writer needs a decision.' }),
+    );
+    expect(other.answers[0]?.error).toBe('budget-exhausted');
+    expect(api.requests).toHaveLength(1);
+    expect(
+      Number(
+        (
+          await w.store.one(
+            'SELECT COUNT(*) AS n FROM studio_decision_admissions',
+          )
+        )?.n,
+      ),
+    ).toBe(1);
+  });
+  it('rejects changed stored receipts on direct reads, idempotent replay and cache reuse', async () => {
+    const api = await http((body, res) =>
+      res.end(JSON.stringify(answer(body))),
+    );
+    const w = await workspace(native(api.url));
+    const request = w.request(),
+      result = await w.models.decide(request);
+    await w.store.exec(
+      'UPDATE studio_decision_calls SET result_json=? WHERE id=?',
+      JSON.stringify({ ...result, status: 'refused' }),
+      result.id,
+    );
+    await expect(
+      w.models.readEvaluation(w.user, result.id),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    await expect(w.models.decide(request)).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    await expect(
+      w.models.decide({ ...request, idempotencyKey: randomUUID() }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(api.requests).toHaveLength(1);
+  });
+  it('fences a revoked in-flight actor and records cancellation without retaining the provider answer', async () => {
+    let release!: () => void, arrived!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve)),
+      incoming = new Promise<void>((resolve) => (arrived = resolve));
+    const api = await http(async (body, res) => {
+      arrived();
+      await gate;
+      res.end(JSON.stringify(answer(body)));
+    });
+    const w = await workspace(native(api.url, { leaseMs: 600 }));
+    const member = await w.store.createUser(
+      randomUUID() + '@test.invalid',
+      'Revoked writer',
+      null,
+    );
+    await w.store.exec(
+      'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
+      w.project.id,
+      member.id,
+      'editor',
+    );
+    const running = w.models.decide(w.request({ user: member }));
+    const observed = running.catch((error) => error);
+    await incoming;
+    await w.store.tx(async () => {
+      await w.store.db.lock('project:' + w.project.id);
+      await w.store.exec(
+        'DELETE FROM memberships WHERE project_id=? AND user_id=?',
+        w.project.id,
+        member.id,
+      );
+    });
+    release();
+    expect(await observed).toMatchObject({ statusCode: 404 });
+    const row = await w.store.one(
+      'SELECT * FROM studio_decision_calls WHERE user_id=?',
+      member.id,
+    );
+    expect(row.status).toBe('cancelled');
+    expect(row.error_code).toBe('access-revoked');
+    expect(JSON.parse(row.result_json).answers[0]).toMatchObject({
+      value: null,
+      candidate: null,
+      probability: null,
+      error: 'access-revoked',
+    });
+  });
+});
