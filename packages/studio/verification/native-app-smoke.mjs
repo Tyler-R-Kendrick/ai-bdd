@@ -45,7 +45,7 @@ const childEnv = {
   SCARF_NO_ANALYTICS: 'true',
 };
 // No process.env spread, provider API keys, platform credentials, or pre-existing user homes.
-let child,
+let child, principal,
   cookie = '';
 const pauses = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function api(path, method = 'GET', body, expected = 200) {
@@ -75,7 +75,10 @@ async function api(path, method = 'GET', body, expected = 200) {
 async function start() {
   // The real OAuth Auth callback issues a session in this disposable SQL store.
   // Only the explicit verification helper selects a controlled identity provider.
-  cookie = (await prepareGitHubSession({ dataDirectory: data, email })).cookie;
+  const fixture = await prepareGitHubSession({ dataDirectory: data, email });
+  if (principal) assert.equal(fixture.user.id, principal.id, 'A fresh process preserves the exact GitHub account binding');
+  principal = fixture.user;
+  cookie = fixture.cookie;
   child = spawn(
     process.execPath,
     [new URL('./main.js', import.meta.url).pathname],
@@ -113,7 +116,9 @@ async function stop() {
 }
 async function login() {
   await api('/api/auth/login', 'POST', { email, password: 'legacy-password-must-fail' }, 403);
-  assert.equal((await api('/api/me')).email, email);
+  const me = await api('/api/me');
+  assert.equal(me.id, principal.id);
+  assert.match(me.email, /^[0-9a-f-]+@identity\.invalid$/);
   const challenge = await fetch(base + '/api/auth/github', { redirect: 'manual', signal: AbortSignal.timeout(10000) });
   assert.equal(challenge.status, 302);
   assert.match(challenge.headers.get('location'), /^https:\/\/github\.com\/login\/oauth\/authorize\?/);

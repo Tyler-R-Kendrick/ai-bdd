@@ -13,7 +13,7 @@ import type {
 } from '../../server/identity/ports.ts';
 import type { User, Project } from '../../shared/domain.ts';
 import { githubFixture } from './github-fixture.ts';
-import { githubSignIn, injectedGitHub } from './github-signin-inject-fixture.ts';
+import { githubSignIn, injectedGitHub, fixtureGitHubIdentity } from './github-signin-inject-fixture.ts';
 export async function identityHarness() {
   const db = new DatabaseSync(':memory:');
   db.exec(
@@ -162,9 +162,6 @@ export async function identityHarness() {
   const signInStore = {
     ...store,
     db: { lock: async () => {} },
-    userByEmail: (email: string) => store.one(
-      'SELECT * FROM users WHERE lower(email)=lower(?)', email,
-    ),
   } as unknown as Store;
   const signInAuth = new Auth(signInStore, {
     production: false, origin, dataDir: '/tmp/owned-repository-identity-fixture',
@@ -176,15 +173,24 @@ export async function identityHarness() {
   await signInAuth.routes(signInApp);
   await signInApp.ready();
   const signedInCookies = new Map<string, string>();
+  async function bindFixtureUser(user: User) {
+    const principal = fixtureGitHubIdentity(user.email);
+    if (principal.kind !== 'github') throw new Error('Repository permission fixtures require an explicit numeric GitHub actor');
+    await store.tx(async () => {
+      const existing = await store.one('SELECT id FROM users WHERE id=?', user.id);
+      if (!existing) await store.exec('INSERT INTO users VALUES(?,?,?,?)', user.id, user.email, user.name, user.color);
+      const bound = await store.one('SELECT user_id FROM github_signin_identities WHERE github_id=?', principal.id);
+      const previous = await store.one('SELECT github_id FROM github_signin_identities WHERE user_id=?', user.id);
+      if ((bound && bound.user_id !== user.id) || (previous && previous.github_id !== principal.id))
+        throw new Error('Owned fixture numeric GitHub binding changed');
+      if (!bound) await store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)', principal.id, user.id, Date.now());
+    });
+  }
+  // This deliberately small permission fixture retains fixed user IDs. These
+  // trusted setup bindings are explicit; production never links by email.
+  for (const user of users) await bindFixtureUser(user);
   async function signIn(user: User) {
-    const existing = await store.one('SELECT email FROM users WHERE id=?', user.id);
-    if (existing && existing.email.toLowerCase() !== user.email.toLowerCase())
-      throw new Error('Owned fixture account identity changed');
-    if (!existing)
-      await store.exec(
-        'INSERT INTO users VALUES(?,?,?,?)',
-        user.id, user.email, user.name, user.color,
-      );
+    await bindFixtureUser(user);
     const signedIn = await githubSignIn(signInApp, user.email);
     if (signedIn.user.id !== user.id)
       throw new Error('Owned sign-in did not retain the requested fixture account');

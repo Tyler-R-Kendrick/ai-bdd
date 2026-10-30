@@ -11,7 +11,7 @@ import cookie from '@fastify/cookie';
 import { Auth } from '../server/auth.ts';
 import { Store } from '../server/store.ts';
 import { openDatabase } from '../server/persistence/index.ts';
-import { injectedGitHub, githubSignIn } from '../tests/identity/github-signin-inject-fixture.ts';
+import { injectedGitHub, githubSignIn, fixtureGitHubIdentity } from '../tests/identity/github-signin-inject-fixture.ts';
 
 export async function prepareGitHubSession(input: {
   dataDirectory: string;
@@ -39,7 +39,6 @@ export async function prepareGitHubSession(input: {
       production: true,
       dataDir: input.dataDirectory,
       demo: false,
-      adminEmail: input.email,
       githubSignInProvider: injectedGitHub,
     });
     await auth.initialize();
@@ -49,7 +48,15 @@ export async function prepareGitHubSession(input: {
     assert(session);
     assert.equal(session.secure, true);
     assert.equal(session.httpOnly, true);
-    assert.equal(user.email, input.email);
+    const principal = fixtureGitHubIdentity(input.email);
+    assert(principal.kind === 'github');
+    assert.match(user.email, /^[0-9a-f-]+@identity\.invalid$/);
+    assert.notEqual(user.email, input.email);
+    assert.equal((await store.one('SELECT password FROM users WHERE id=?', user.id)).password, null);
+    assert.equal((await store.one('SELECT user_id FROM github_signin_identities WHERE github_id=?', principal.id)).user_id, user.id);
+    const repeated = await githubSignIn(app, input.email);
+    assert.equal(repeated.user.id, user.id);
+    assert.equal(repeated.user.email, user.email);
     assert.equal((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: input.email, password: 'rejected-fixture-password' } })).statusCode, 403);
     return { cookie: 'studio_session=' + token, user, controlledOAuthProvider: true as const };
   } finally {

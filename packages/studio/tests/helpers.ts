@@ -49,11 +49,11 @@ export async function member(
   role: 'editor' | 'viewer' | 'owner',
   email = `${role}@example.test`,
 ) {
+  const signedIn = await githubSignIn(app, email);
   const response = await request('POST', `/api/projects/${projectId}/members`, {
-    email,
-    name: `Test ${role}`,
+    userId: signedIn.user.id,
     role,
   });
   if (response.statusCode !== 200) throw new Error(response.body);
-  return githubSignIn(app, email);
+  return signedIn;
 }

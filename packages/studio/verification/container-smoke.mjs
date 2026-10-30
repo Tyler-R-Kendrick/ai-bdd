@@ -84,7 +84,7 @@ try {
     '--security-opt', 'no-new-privileges:true',
     '-v', `${identifier}:/data`, image,
     'node', '--input-type=module', '-e',
-    "import{prepareGitHubSession}from'./dist/server/studio-github-session-fixture.mjs';const fixture=await prepareGitHubSession({dataDirectory:'/data',email:'owner@example.test'});process.stdout.write(JSON.stringify({cookie:fixture.cookie,controlledOAuthProvider:fixture.controlledOAuthProvider}))",
+    "import{prepareGitHubSession}from'./dist/server/studio-github-session-fixture.mjs';const fixture=await prepareGitHubSession({dataDirectory:'/data',email:'owner@example.test'});process.stdout.write(JSON.stringify({cookie:fixture.cookie,userId:fixture.user.id,controlledOAuthProvider:fixture.controlledOAuthProvider}))",
   ]);
   const controlled = JSON.parse(seeded.stdout);
   assert.equal(controlled.controlledOAuthProvider, true);
@@ -200,7 +200,9 @@ try {
   assert.match(challenge.headers.get('location'), /^https:\/\/github\.com\/login\/oauth\/authorize\?/);
   pass('shipping command refuses password/setup and offers GitHub OAuth only');
   cookie = controlled.cookie;
-  assert.equal((await api('/me')).email, 'owner@example.test');
+  const me = await api('/me');
+  assert.equal(me.id, controlled.userId);
+  assert.match(me.email, /^[0-9a-f-]+@identity\.invalid$/);
   pass('controlled GitHub OAuth callback issues a persisted Secure HttpOnly session used by the unmodified shipping command');
   const project = await api(
     '/projects',
