@@ -31,6 +31,60 @@ const complete = (ws: any, id: string) =>
     }),
   );
 describe('durable remote stream/question/run actions over actual WS and HTTP', () => {
+  it('aborts the actual selected-user repository read when its durable remote turn is stopped', async () => {
+    const w = await remoteFixture();
+    await w.store.exec(
+      'UPDATE projects SET repository=? WHERE id=?',
+      'https://github.com/example/remote-fixture',
+      w.project.id,
+    );
+    w.agent.options.repositoryRead = async () => [{ sha: 'a'.repeat(40) }];
+    let entered = false,
+      aborted = false;
+    w.remote.options.repositoryRead = async (user, _repo, input, signal) => {
+      expect(user.id).toBe(w.user.id);
+      expect(input).toMatchObject({
+        kind: 'file',
+        ref: 'a'.repeat(40),
+        path: 'README.md',
+      });
+      entered = true;
+      await new Promise<void>((resolve) => {
+        if (signal?.aborted) resolve();
+        else signal?.addEventListener('abort', () => resolve(), { once: true });
+      });
+      aborted = true;
+      throw new Error('The selected-user read was aborted');
+    };
+    const client = await w.connect(),
+      run = await turn(w, client);
+    client.ws.send(
+      JSON.stringify({
+        type: 'tool',
+        requestId: run.requestId,
+        callId: 'actual-aborted-read',
+        name: 'repository_file',
+        input: { path: 'README.md' },
+      }),
+    );
+    await until(() => entered);
+    expect(
+      (
+        await w.request(path(w, run.requestId) + '/control', {
+          idempotencyKey: crypto.randomUUID(),
+          action: 'stop',
+        })
+      ).status,
+    ).toBe(200);
+    await until(() => aborted);
+    await run.done;
+    expect((await w.runtime.get(run.job.id))?.status).toBe('cancelled');
+    expect(
+      (await w.store.messages(w.artifact.id)).filter(
+        (m) => m.role === 'assistant',
+      ),
+    ).toHaveLength(0);
+  });
   it('returns an unavailable repository tool as a bounded error without failing a valid remote turn', async () => {
     const w = await remoteFixture(),
       client = await w.connect(),
