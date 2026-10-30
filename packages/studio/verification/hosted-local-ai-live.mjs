@@ -233,7 +233,7 @@ try {
     goalExpectedCandidate: true, actualGoalCandidate: goal.candidate, actualGoalValue: goal.value, goalStatus: goal.status, goalCandidateMatched: goal.candidate === true,
     harnessExpectedCandidate: 'keep_current', actualHarnessCandidate: harness.candidate, actualHarnessValue: harness.value, harnessStatus: harness.status, harnessCandidateMatched: harness.candidate === 'keep_current',
     abstainedQuestionIds: evaluation.answers.filter(answer => answer.status === 'abstained').map(answer => answer.questionId),
-    humanApprovalOrReadinessChangedByThisScript: false,
+    humanApprovalRequestedOrSynthesized: false, modelAdviceChangesSource: false,
   };
   const { value: storedEvaluation } = await request('read-retained-evaluation', `/api/artifacts/${id}/decision/evaluations/${evaluation.id}`, { cookie: owner });
   assert.deepEqual(storedEvaluation, evaluation);
