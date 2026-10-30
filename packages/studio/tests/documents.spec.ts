@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { signInAcceptanceActor } from './browser-auth.ts';
 import { unzipSync, strFromU8 } from 'fflate';
 import { documentBlockDefaults } from '../shared/document-blocks.ts';
 const p = (text: string, id?: string) => ({
@@ -22,7 +23,8 @@ async function fixture(page: Page, content?: any[]) {
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  const user = await call('/auth/demo'),
+  await signInAcceptanceActor(page);
+  const user = await call('/me', 'GET'),
     project = await call('/projects', 'POST', {
       title: 'Document review ' + randomUUID().slice(0, 8),
       description: 'Synthetic acceptance review content',
