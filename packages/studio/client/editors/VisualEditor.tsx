@@ -22,9 +22,17 @@ import {
   Upload,
   Video,
   X,
+  PenLine,
+  FileJson,
 } from 'lucide-react';
 import type { MediaProps } from '../App.tsx';
-import type { Layer } from '../../shared/domain.ts';
+import type { Layer } from './visual/render.ts';
+import { defaultFilters, iconPaths } from '../../shared/visual-design.ts';
+import { createFontDesign } from './visual/typeface.ts';
+import { removeEdgeColor } from './visual/raster.ts';
+import LayerShape from './visual/LayerShape.tsx';
+import PathDesigner from './visual/PathDesigner.tsx';
+import FontDesigner from './visual/FontDesigner.tsx';
 import { validateContent } from '../../shared/domain.ts';
 import {
   Badge,
@@ -40,7 +48,6 @@ import {
   clamp,
   drawFrame,
   layerFont,
-  layerLines,
   newLayer,
   resized,
   svgSource,
@@ -85,6 +92,11 @@ export default function VisualEditor({
   const [progress, setProgress] = useState(0);
   const [layersOpen, setLayersOpen] = useState(true);
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+  const [workspaceTool, setWorkspaceTool] = useState<
+    'canvas' | 'outline' | 'font'
+  >('canvas');
+  const [matteTolerance, setMatteTolerance] = useState(24);
+  const projectInput = useRef<HTMLInputElement>(null);
   const [past, setPast] = useState<VisualContent[]>([]);
   const [future, setFuture] = useState<VisualContent[]>([]);
   const svg = useRef<SVGSVGElement>(null);
@@ -131,9 +143,17 @@ export default function VisualEditor({
         cancelAnimationFrame(playbackRef.current);
     };
   }, []);
-  const assetKey = draft.layers
-    .map((layer) => (layer.src ?? '') + '|' + (layer.fontUrl ?? ''))
-    .join(';');
+  const assetKey =
+    draft.layers
+      .map(
+        (layer) =>
+          (layer.src ?? '') +
+          '|' +
+          (layer.fontUrl ?? '') +
+          '|' +
+          layer.fontFamily,
+      )
+      .join(';') + JSON.stringify(draft.fontDesign ?? null);
   useEffect(() => {
     let active = true;
     void loadAssets(draft)
@@ -202,6 +222,7 @@ export default function VisualEditor({
     const layer = newLayer(type, draft);
     change((current) => ({ ...current, layers: [...current.layers, layer] }));
     setSelectedId(layer.id);
+    setWorkspaceTool('canvas');
   };
   const remove = () => {
     if (!selected || locked) return;
@@ -309,6 +330,8 @@ export default function VisualEditor({
     try {
       const content = validateContent(artifact.kind, draft);
       await onSave(content, version);
+      // Validation canonicalizes optional fields; keep the draft and saved snapshot in the same order.
+      setDraft(structuredClone(content) as VisualContent);
       setSaved(JSON.stringify(content));
       setVersion(version + 1);
     } catch (error) {
@@ -609,6 +632,177 @@ export default function VisualEditor({
     }
   }
 
+  function addPath(name = 'Spark') {
+    if (locked || draft.layers.length >= 200) return;
+    const layer = {
+      ...newLayer('path', draft),
+      text: name,
+      path: structuredClone(iconPaths[name] ?? iconPaths.Spark!),
+    };
+    change((current) => ({ ...current, layers: [...current.layers, layer] }));
+    setSelectedId(layer.id);
+    setWorkspaceTool('outline');
+  }
+  async function exportProject() {
+    try {
+      const assets = await loadAssets(draft),
+        pack = {
+          format: 'studio-visual',
+          version: 1,
+          content: draft,
+          assets: [...assets.dataUrls]
+            .filter(([key]) => key.startsWith('/api/files/'))
+            .map(([key, data]) => ({ key, data })),
+        };
+      const source = JSON.stringify(pack, null, 2);
+      if (source.length > 40 * 1024 * 1024)
+        throw new Error(
+          'Portable projects are limited to 40 MB. Resize large image assets before exporting.',
+        );
+      download(
+        `${artifact.title}.studio-design.json`,
+        source,
+        'application/json',
+      );
+    } catch (error) {
+      onError((error as Error).message);
+    }
+  }
+  async function importProject(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file || locked) return;
+    if (file.size > 40 * 1024 * 1024) {
+      onError('Portable projects are limited to 40 MB.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const pack = JSON.parse(await file.text());
+      if (
+        pack?.format !== 'studio-visual' ||
+        pack.version !== 1 ||
+        !Array.isArray(pack.assets) ||
+        pack.assets.length > 200
+      )
+        throw new Error(
+          'Choose a Studio visual project exported by this editor.',
+        );
+      const content = validateContent(
+        artifact.kind,
+        pack.content,
+      ) as VisualContent;
+      const references = new Set(
+        content.layers.flatMap((layer) =>
+          [layer.src, layer.fontUrl].filter((url): url is string => !!url),
+        ),
+      );
+      const remapped = new Map<string, string>();
+      for (const key of references) {
+        const asset = pack.assets.find(
+          (entry: unknown) =>
+            typeof entry === 'object' &&
+            entry !== null &&
+            (entry as { key?: unknown }).key === key,
+        );
+        if (
+          !asset ||
+          typeof asset.data !== 'string' ||
+          asset.data.length > 14 * 1024 * 1024 ||
+          !/^data:(image\/(png|jpeg|webp)|font\/woff2);base64,[A-Za-z0-9+/]*={0,2}$/.test(
+            asset.data,
+          )
+        )
+          throw new Error(
+            'A required project image or font is missing or malformed.',
+          );
+        const [header, encoded] = asset.data.split(','),
+          mime = header.slice(5, header.indexOf(';')),
+          bytes = Uint8Array.from(atob(encoded), (c: string) =>
+            c.charCodeAt(0),
+          );
+        if (bytes.byteLength > 10 * 1024 * 1024)
+          throw new Error('Project assets must be 10 MB or smaller.');
+        const form = new FormData();
+        form.append(
+          'file',
+          new Blob([bytes], { type: mime }),
+          mime === 'font/woff2' ? 'font.woff2' : `image.${mime.split('/')[1]}`,
+        );
+        const uploaded = await api<{ url: string }>(
+          `/artifacts/${artifact.id}/files`,
+          'POST',
+          form,
+        );
+        remapped.set(key, uploaded.url);
+      }
+      content.layers = content.layers.map((layer) => ({
+        ...layer,
+        ...(layer.src ? { src: remapped.get(layer.src)! } : {}),
+        ...(layer.fontUrl ? { fontUrl: remapped.get(layer.fontUrl)! } : {}),
+      }));
+      await loadAssets(content);
+      record();
+      setDraft(content);
+      setSelectedId(null);
+      setWorkspaceTool('canvas');
+    } catch (error) {
+      onError((error as Error).message);
+    } finally {
+      if (mounted.current) setImporting(false);
+    }
+  }
+  async function removeRasterBackground() {
+    if (locked || selected?.type !== 'image' || !selected.src) return;
+    const target = selected.id;
+    setImporting(true);
+    try {
+      const assets = await loadAssets(draft),
+        image = assets.images.get(selected.src) as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx)
+        throw new Error('Raster editing is unavailable in this browser.');
+      if (canvas.width * canvas.height > 16_000_000)
+        throw new Error('Raster editing supports images up to 16 megapixels.');
+      ctx.drawImage(image, 0, 0);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      data.data.set(
+        removeEdgeColor(data.data, canvas.width, canvas.height, matteTolerance),
+      );
+      ctx.putImageData(data, 0, 0);
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(
+          (value) =>
+            value
+              ? resolve(value)
+              : reject(new Error('Raster encoding failed.')),
+          'image/png',
+        ),
+      );
+      const form = new FormData();
+      form.append('file', blob, 'edge-matte.png');
+      const uploaded = await api<{ url: string }>(
+        `/artifacts/${artifact.id}/files`,
+        'POST',
+        form,
+      );
+      record();
+      setDraft((current) => ({
+        ...current,
+        layers: current.layers.map((layer) =>
+          layer.id === target ? { ...layer, src: uploaded.url } : layer,
+        ),
+      }));
+    } catch (error) {
+      onError((error as Error).message);
+    } finally {
+      if (mounted.current) setImporting(false);
+    }
+  }
+
   return (
     <div
       className={
@@ -617,6 +811,14 @@ export default function VisualEditor({
         (brand ? 'visual-brand' : '')
       }
     >
+      <input
+        ref={projectInput}
+        type="file"
+        accept=".json,application/json"
+        aria-label="Import visual project file"
+        hidden
+        onChange={importProject}
+      />
       <input
         ref={imageInput}
         type="file"
@@ -667,6 +869,60 @@ export default function VisualEditor({
           >
             {importing ? <LoaderCircle className="spin" /> : <ImagePlus />}
           </IconButton>
+          {!video && (
+            <>
+              <IconButton
+                label="Add vector path"
+                disabled={locked || draft.layers.length >= 200}
+                onClick={() => addPath()}
+              >
+                <PenLine />
+              </IconButton>
+              <select
+                aria-label="Add icon shape"
+                value=""
+                disabled={locked || draft.layers.length >= 200}
+                onChange={(e) => addPath(e.target.value)}
+              >
+                <option value="" disabled>
+                  Icons
+                </option>
+                {Object.keys(iconPaths).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          {brand && (
+            <Button
+              size="sm"
+              variant={workspaceTool === 'font' ? 'secondary' : 'ghost'}
+              onClick={() => {
+                if (!draft.fontDesign && !locked)
+                  change((current) => ({
+                    ...current,
+                    fontDesign: createFontDesign(),
+                  }));
+                if (draft.fontDesign || !locked)
+                  setWorkspaceTool(
+                    workspaceTool === 'font' ? 'canvas' : 'font',
+                  );
+              }}
+            >
+              Design typeface
+            </Button>
+          )}
+          {workspaceTool !== 'canvas' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setWorkspaceTool('canvas')}
+            >
+              Back to canvas
+            </Button>
+          )}
           {brand && (
             <Button
               size="sm"
@@ -708,6 +964,20 @@ export default function VisualEditor({
           >
             <SlidersHorizontal />
           </IconButton>
+          {!video && (
+            <>
+              <IconButton label="Export visual project" onClick={exportProject}>
+                <FileJson />
+              </IconButton>
+              <IconButton
+                label="Import visual project"
+                disabled={locked}
+                onClick={() => projectInput.current?.click()}
+              >
+                <Upload />
+              </IconButton>
+            </>
+          )}
           <Button size="sm" variant="outline" onClick={exportSvg}>
             <Download size={14} />
             SVG
@@ -833,7 +1103,9 @@ export default function VisualEditor({
                         ? layer.text.slice(0, 28) || 'Empty text'
                         : layer.type === 'image'
                           ? layer.text.slice(0, 28) || 'Image'
-                          : `${layer.type === 'rect' ? 'Rectangle' : 'Ellipse'} ${draft.layers.length - index}`}
+                          : layer.type === 'path'
+                            ? layer.text || 'Vector path'
+                            : `${layer.type === 'rect' ? 'Rectangle' : 'Ellipse'} ${draft.layers.length - index}`}
                     </span>
                     {video && !visibleAt(layer, time) && (
                       <span
@@ -889,164 +1161,153 @@ export default function VisualEditor({
           className="visual-stage"
           aria-label={video ? 'Video composition' : 'Design canvas'}
         >
-          <div className="visual-artboard-wrap">
-            <svg
-              ref={svg}
-              className="visual-artboard"
-              viewBox={`0 0 ${draft.width} ${draft.height}`}
-              width={draft.width}
-              height={draft.height}
-              role="img"
-              aria-label="Editable artifact composition"
-              tabIndex={0}
-              onPointerDown={(event) => {
-                if (
-                  event.target === event.currentTarget ||
-                  (event.target as Element).getAttribute('data-background') ===
-                    'true'
-                )
-                  setSelectedId(null);
-              }}
-              onPointerMove={moveGesture}
-              onPointerUp={endGesture}
-              onPointerCancel={endGesture}
-              onKeyDown={(event) => {
-                if (locked || !selected) return;
-                if (event.key === 'Delete' || event.key === 'Backspace') {
-                  event.preventDefault();
-                  remove();
+          {workspaceTool === 'font' && draft.fontDesign ? (
+            <FontDesigner
+              design={draft.fontDesign}
+              readOnly={locked}
+              onError={onError}
+              onChange={(fontDesign) =>
+                change((current) => ({ ...current, fontDesign }))
+              }
+              canApply={selected?.type === 'text'}
+              onApply={() => {
+                if (selected?.type !== 'text') {
+                  onError(
+                    'Select a text layer to apply the designed typeface.',
+                  );
+                  return;
                 }
-                if (
-                  ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
-                    event.key,
-                  )
-                ) {
-                  event.preventDefault();
-                  const delta = event.shiftKey ? 10 : 1;
-                  layerChange({
-                    x:
-                      selected.x +
-                      (event.key === 'ArrowLeft'
-                        ? -delta
-                        : event.key === 'ArrowRight'
-                          ? delta
-                          : 0),
-                    y:
-                      selected.y +
-                      (event.key === 'ArrowUp'
-                        ? -delta
-                        : event.key === 'ArrowDown'
-                          ? delta
-                          : 0),
-                  });
-                }
+                layerChange({ fontFamily: 'Generated' });
+                setWorkspaceTool('canvas');
               }}
-            >
-              <title>{artifact.title}</title>
-              <rect
-                data-background="true"
+            />
+          ) : workspaceTool === 'outline' && selected?.path ? (
+            <PathDesigner
+              label={
+                selected.type === 'image'
+                  ? 'Image mask outline'
+                  : 'Vector outline'
+              }
+              value={selected.path}
+              fill={selected.fill}
+              readOnly={locked}
+              onChange={(path) => layerChange({ path })}
+            />
+          ) : (
+            <div className="visual-artboard-wrap">
+              <svg
+                ref={svg}
+                className="visual-artboard"
+                viewBox={`0 0 ${draft.width} ${draft.height}`}
                 width={draft.width}
                 height={draft.height}
-                fill={draft.background}
-              />
-              {draft.layers
-                .filter((layer) => !video || visibleAt(layer, time))
-                .map((layer) => (
+                role="img"
+                aria-label="Editable artifact composition"
+                tabIndex={0}
+                onPointerDown={(event) => {
+                  if (
+                    event.target === event.currentTarget ||
+                    (event.target as Element).getAttribute(
+                      'data-background',
+                    ) === 'true'
+                  )
+                    setSelectedId(null);
+                }}
+                onPointerMove={moveGesture}
+                onPointerUp={endGesture}
+                onPointerCancel={endGesture}
+                onKeyDown={(event) => {
+                  if (locked || !selected) return;
+                  if (event.key === 'Delete' || event.key === 'Backspace') {
+                    event.preventDefault();
+                    remove();
+                  }
+                  if (
+                    [
+                      'ArrowLeft',
+                      'ArrowRight',
+                      'ArrowUp',
+                      'ArrowDown',
+                    ].includes(event.key)
+                  ) {
+                    event.preventDefault();
+                    const delta = event.shiftKey ? 10 : 1;
+                    layerChange({
+                      x:
+                        selected.x +
+                        (event.key === 'ArrowLeft'
+                          ? -delta
+                          : event.key === 'ArrowRight'
+                            ? delta
+                            : 0),
+                      y:
+                        selected.y +
+                        (event.key === 'ArrowUp'
+                          ? -delta
+                          : event.key === 'ArrowDown'
+                            ? delta
+                            : 0),
+                    });
+                  }
+                }}
+              >
+                <title>{artifact.title}</title>
+                <rect
+                  data-background="true"
+                  width={draft.width}
+                  height={draft.height}
+                  fill={draft.background}
+                />
+                {draft.layers
+                  .filter((layer) => !video || visibleAt(layer, time))
+                  .map((layer) => (
+                    <g
+                      key={layer.id}
+                      transform={`translate(${layer.x} ${layer.y}) rotate(${layer.rotation} ${layer.width / 2} ${layer.height / 2})`}
+                      className={readOnly ? '' : 'visual-object'}
+                      onPointerDown={(event) =>
+                        startGesture(event, layer, 'move')
+                      }
+                    >
+                      <LayerShape layer={layer} measure={measure} />
+                    </g>
+                  ))}
+                {selected && (!video || visibleAt(selected, time)) && (
                   <g
-                    key={layer.id}
-                    transform={`translate(${layer.x} ${layer.y}) rotate(${layer.rotation} ${layer.width / 2} ${layer.height / 2})`}
-                    className={readOnly ? '' : 'visual-object'}
-                    onPointerDown={(event) =>
-                      startGesture(event, layer, 'move')
-                    }
+                    className="visual-selection"
+                    pointerEvents="none"
+                    transform={`translate(${selected.x} ${selected.y}) rotate(${selected.rotation} ${selected.width / 2} ${selected.height / 2})`}
                   >
-                    {layer.type === 'image' ? (
-                      <image
-                        href={layer.src}
-                        width={layer.width}
-                        height={layer.height}
-                        preserveAspectRatio="none"
-                      />
-                    ) : layer.type === 'rect' ? (
+                    <rect
+                      width={selected.width}
+                      height={selected.height}
+                      fill="none"
+                      stroke="#5967c9"
+                      strokeWidth={1.5}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {!locked && (
                       <rect
-                        width={layer.width}
-                        height={layer.height}
-                        fill={layer.fill}
+                        pointerEvents="all"
+                        x={selected.width - 6}
+                        y={selected.height - 6}
+                        width={12}
+                        height={12}
+                        fill="white"
+                        stroke="#5967c9"
+                        strokeWidth={1.5}
+                        vectorEffect="non-scaling-stroke"
+                        className="visual-resize-handle"
+                        onPointerDown={(event) =>
+                          startGesture(event, selected, 'resize')
+                        }
                       />
-                    ) : layer.type === 'ellipse' ? (
-                      <ellipse
-                        cx={layer.width / 2}
-                        cy={layer.height / 2}
-                        rx={layer.width / 2}
-                        ry={layer.height / 2}
-                        fill={layer.fill}
-                      />
-                    ) : (
-                      <>
-                        <defs>
-                          <clipPath id={'editor-clip-' + layer.id}>
-                            <rect width={layer.width} height={layer.height} />
-                          </clipPath>
-                        </defs>
-                        <rect
-                          width={layer.width}
-                          height={layer.height}
-                          fill="transparent"
-                        />
-                        <text
-                          fontFamily={layerFont(layer)}
-                          fontSize={layer.fontSize}
-                          fill={layer.fill}
-                          clipPath={`url(#editor-clip-${layer.id})`}
-                          style={{ userSelect: 'none' }}
-                        >
-                          {layerLines(layer, (text) =>
-                            measure(layer, text),
-                          ).map((line, index) => (
-                            <tspan
-                              key={index}
-                              x={0}
-                              y={layer.fontSize * (0.85 + index * 1.2)}
-                            >
-                              {line}
-                            </tspan>
-                          ))}
-                        </text>
-                      </>
-                    )}
-                    {selectedId === layer.id && (
-                      <g className="visual-selection" pointerEvents="none">
-                        <rect
-                          width={layer.width}
-                          height={layer.height}
-                          fill="none"
-                          stroke="#5967c9"
-                          strokeWidth={1.5}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                        {!locked && (
-                          <rect
-                            pointerEvents="all"
-                            x={layer.width - 6}
-                            y={layer.height - 6}
-                            width={12}
-                            height={12}
-                            fill="white"
-                            stroke="#5967c9"
-                            strokeWidth={1.5}
-                            vectorEffect="non-scaling-stroke"
-                            className="visual-resize-handle"
-                            onPointerDown={(event) =>
-                              startGesture(event, layer, 'resize')
-                            }
-                          />
-                        )}
-                      </g>
                     )}
                   </g>
-                ))}
-            </svg>
-          </div>
+                )}
+              </svg>
+            </div>
+          )}
           <div className="visual-stage-caption">
             <span>
               {draft.width} × {draft.height} px
@@ -1054,9 +1315,13 @@ export default function VisualEditor({
             <span>
               {readOnly
                 ? 'View only'
-                : selected
-                  ? 'Drag to move · corner to resize · arrows to nudge'
-                  : 'Select a layer to edit'}
+                : workspaceTool === 'font'
+                  ? 'Edit glyph outlines and spacing · export TTF'
+                  : workspaceTool === 'outline'
+                    ? 'Drag points · draw contours · arrows to nudge'
+                    : selected
+                      ? 'Drag to move · corner to resize · arrows to nudge'
+                      : 'Select a layer to edit'}
             </span>
           </div>
         </section>
@@ -1112,6 +1377,170 @@ export default function VisualEditor({
                   max={360}
                   onChange={(rotation) => layerChange({ rotation })}
                 />
+                <Numeric
+                  label="Opacity · percent"
+                  value={(selected.opacity ?? 1) * 100}
+                  min={0}
+                  max={100}
+                  onChange={(value) => layerChange({ opacity: value / 100 })}
+                />
+                {selected.type === 'path' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setWorkspaceTool('outline')}
+                  >
+                    <PenLine size={13} />
+                    Edit vector points
+                  </Button>
+                )}
+                {selected.type !== 'image' && (
+                  <>
+                    <Numeric
+                      label="Stroke width"
+                      value={selected.strokeWidth ?? 0}
+                      min={0}
+                      max={100}
+                      onChange={(strokeWidth) => layerChange({ strokeWidth })}
+                    />
+                    <Field label="Stroke color">
+                      <input
+                        type="color"
+                        aria-label="Layer stroke"
+                        value={selected.stroke ?? selected.fill}
+                        onChange={(e) =>
+                          layerChange({ stroke: e.target.value })
+                        }
+                      />
+                    </Field>
+                  </>
+                )}
+                {selected.type === 'image' && (
+                  <>
+                    <h4>Crop and mask</h4>
+                    <div className="visual-property-grid">
+                      {(['x', 'y', 'width', 'height'] as const).map((key) => (
+                        <Numeric
+                          key={key}
+                          label={`Crop ${key} · percent`}
+                          value={
+                            (selected.crop ?? {
+                              x: 0,
+                              y: 0,
+                              width: 1,
+                              height: 1,
+                            })[key] * 100
+                          }
+                          min={key === 'width' || key === 'height' ? 1 : 0}
+                          max={100}
+                          onChange={(value) => {
+                            const crop = {
+                              ...(selected.crop ?? {
+                                x: 0,
+                                y: 0,
+                                width: 1,
+                                height: 1,
+                              }),
+                              [key]: value / 100,
+                            };
+                            if (key === 'x')
+                              crop.width = Math.min(crop.width, 1 - crop.x);
+                            if (key === 'y')
+                              crop.height = Math.min(crop.height, 1 - crop.y);
+                            if (key === 'width')
+                              crop.x = Math.min(crop.x, 1 - crop.width);
+                            if (key === 'height')
+                              crop.y = Math.min(crop.y, 1 - crop.height);
+                            crop.width = Math.max(0.01, crop.width);
+                            crop.height = Math.max(0.01, crop.height);
+                            crop.x = Math.min(crop.x, 1 - crop.width);
+                            crop.y = Math.min(crop.y, 1 - crop.height);
+                            layerChange({ crop });
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <Field label="Image mask">
+                      <Select
+                        aria-label="Image mask"
+                        value={selected.mask ?? 'none'}
+                        onChange={(e) => {
+                          const mask = e.target.value as Layer['mask'];
+                          layerChange({
+                            mask,
+                            ...(mask === 'path' && !selected.path
+                              ? { path: structuredClone(iconPaths.Leaf!) }
+                              : {}),
+                          });
+                        }}
+                      >
+                        <option value="none">None</option>
+                        <option value="ellipse">Ellipse</option>
+                        <option value="path">Editable outline</option>
+                      </Select>
+                    </Field>
+                    {selected.mask === 'path' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setWorkspaceTool('outline')}
+                      >
+                        Edit mask outline
+                      </Button>
+                    )}
+                    <h4>Image adjustments</h4>
+                    {(
+                      [
+                        'brightness',
+                        'contrast',
+                        'saturation',
+                        'grayscale',
+                        'blur',
+                      ] as const
+                    ).map((key) => (
+                      <Numeric
+                        key={key}
+                        label={
+                          key === 'blur'
+                            ? 'Blur · px'
+                            : key[0]!.toUpperCase() + key.slice(1)
+                        }
+                        value={(selected.filters ?? defaultFilters)[key]}
+                        min={0}
+                        max={key === 'blur' ? 30 : key === 'grayscale' ? 1 : 2}
+                        step={key === 'blur' ? 1 : 0.05}
+                        onChange={(value) =>
+                          layerChange({
+                            filters: {
+                              ...(selected.filters ?? defaultFilters),
+                              [key]: value,
+                            },
+                          })
+                        }
+                      />
+                    ))}
+                    <h4>Background matte</h4>
+                    <p className="visual-hint">
+                      Remove edge pixels matching the top-left pixel. This
+                      color-based matte keeps enclosed areas intact.
+                    </p>
+                    <Numeric
+                      label="Matte color tolerance"
+                      value={matteTolerance}
+                      min={0}
+                      max={128}
+                      onChange={setMatteTolerance}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={locked}
+                      onClick={removeRasterBackground}
+                    >
+                      Remove edge color
+                    </Button>
+                  </>
+                )}
                 {selected.type !== 'image' && (
                   <Field label="Fill">
                     <input
@@ -1146,6 +1575,9 @@ export default function VisualEditor({
                         <option value="Inter">Inter</option>
                         <option value="Georgia">Georgia</option>
                         <option value="monospace">Monospace</option>
+                        {draft.fontDesign && (
+                          <option value="Generated">Designed typeface</option>
+                        )}
                         {selected.fontUrl && (
                           <option value="Custom">Uploaded WOFF2</option>
                         )}

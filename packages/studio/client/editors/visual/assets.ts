@@ -1,4 +1,5 @@
 import type { RenderAssets, VisualContent } from './render.ts';
+import { buildTrueType } from './typeface.ts';
 import interUrl from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 
 const assetPath = /^\/api\/files\/[0-9a-f-]{36}$/i;
@@ -113,6 +114,33 @@ export async function loadAssets(
   signal?: AbortSignal,
 ): Promise<RenderAssets> {
   const assets: RenderAssets = { images: new Map(), dataUrls: new Map() };
+  if (
+    content.fontDesign &&
+    content.layers.some((l) => l.fontFamily === 'Generated')
+  ) {
+    const bytes = buildTrueType(content.fontDesign);
+    const font = new FontFace(
+      'ArtifactGenerated',
+      new Uint8Array(bytes).buffer,
+    );
+    await font.load();
+    if (signal?.aborted)
+      throw new DOMException('Export cancelled', 'AbortError');
+    for (const loaded of loadedFonts)
+      if (loaded.family === 'ArtifactGenerated') {
+        document.fonts.delete(loaded);
+        loadedFonts.delete(loaded);
+      }
+    document.fonts.add(font);
+    loadedFonts.add(font);
+    assets.dataUrls.set(
+      'font:Generated',
+      await dataUrl(
+        new Blob([new Uint8Array(bytes).buffer], { type: 'font/ttf' }),
+      ),
+    );
+  }
+
   const requests = new Map<string, 'image' | 'font'>();
   for (const layer of content.layers) {
     if (layer.type === 'image' && layer.src) requests.set(layer.src, 'image');
