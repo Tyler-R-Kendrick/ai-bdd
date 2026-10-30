@@ -50,3 +50,15 @@ The permitted public read-only probe used no Vercel credentials/cookies, followe
 All three responses had `Cache-Control: no-store, max-age=0` and a 263-byte body. Deployment protection remained active; those redirects did not reach application health handlers or verify the root UI. Secret query parameters, cookies and share URLs were not printed or included here.
 
 Consequently, application health, runtime environment bindings, root-page rendering and production readiness remain **unverified** by these protected probes. No application-generated 401/403/500/503 is inferred from the helper failure. Live model/Sandbox execution and private media image registration were not attempted as part of this verification.
+
+## Refreshed PR #24 preview observation
+
+The connected GitHub integration subsequently built source `fd915f387609acb39fd0b00b28764d7391487c98` from `codex/studio-11-chopin-parity`. A fresh exact-team deployment read reported **READY**, platform ready timestamp `2026-10-30T04:45:14.247Z`:
+
+- Deployment: `dpl_CQ3LR6jfZYLCgn2uTgQtHU1BqwxS`
+- Preview: <https://ai-bdd-studio-fsz9d8xac-tyler-r-kendricks-projects.vercel.app/>
+- Dashboard: <https://vercel.com/tyler-r-kendricks-projects/ai-bdd-studio/CQ3LR6jfZYLCgn2uTgQtHU1BqwxS>
+
+This source includes the later remote write-authority display correction and passage-dialog layout. The read establishes a newer successful preview build; it does not supply a new backend registry digest or certify the application runtime. Fresh ordinary GETs to `/`, `/api/health` and `/api/hosting/readiness` all returned **302 to vercel.com** without following the redirect.
+
+A separate read-only project-environment listing with decryption explicitly disabled returned provider **403**, “You don't have permission to list the project environment variable.” No variable values were requested or printed. This is a fresh account-access observation, in addition to the earlier denied production writes/private Blob creation. No public share link was requested in this refresh, no access settings were changed, and live production acceptance remains unverified.
