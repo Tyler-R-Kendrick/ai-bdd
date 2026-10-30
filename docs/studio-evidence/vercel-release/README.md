@@ -1,0 +1,15 @@
+These screenshots show the actual deployed production Studio at `https://ai-bdd-studio.vercel.app`, using source `52a6c61897ebf23452dbf4365b4da6aeebd7dc65`. The reviewed capture ran on 30 October 2026, 15:03:29–15:03:50 UTC with Chromium 154.0.8037.57 and Playwright 1.64.0.
+
+The application was opened explicitly at `/index.html`. At capture time, the public `/` route returned Vercel `NOT_FOUND` (404); these images do **not** demonstrate that route working. The release coordinator owns its separate routing fix. A protected preview also redirected native WebSocket handshakes with status 302, so the successful authoring and captures used production authentication without an OIDC bypass header.
+
+A single clearly named production acceptance project was created through the actual UI. Its design document was edited, a team message was posted, and a selected-paragraph discussion was added. Reloading `/index.html?project=…&artifact=…` restored the edited document, both conversations, and the artifact's dedicated ADR. The fixture remains available at project `ea75ddea-717c-4273-ba94-4dc2ad47af8b`, artifact `62842027-5680-442b-9889-ee842779bfc4`. No other projects were edited or deleted.
+
+The authoring receipt is [authoring-probe.json](authoring-probe.json). Its seven authoring/readback checks completed before a screenshot-helper race during responsive panel setup. The final, read-only capture is [probe.json](probe.json): seven checks passed on that same persisted fixture, with no additional document or message writes. The capture waited for the real stored comment message and for the mobile navigation transition to finish. Earlier loading/transition images were discarded.
+
+- [Desktop, 1600 × 1000](desktop.png): live design document and the persisted paragraph-linked discussion.
+- [Mobile document, 390 × 844](mobile.png): document controls and content after navigation has moved offscreen; page and viewport widths both measured 390px.
+- [Mobile discussion, 390 × 844](mobile-chat.png): the same selected-paragraph quote and attributed comment in the artifact panel.
+
+Both the project-events channel and document collaboration channel returned native HTTP 101 handshakes, recorded through Chrome DevTools Protocol without recording handshake headers or frame content. The successful capture recorded zero uncaught page errors, request failures, route failures, external requests, or WebSocket errors. Its one HTTP 401 and console error came from the expected anonymous `/api/me` check before sign-in. The capture's own session was logged out successfully afterward.
+
+Cloud readiness reported PostgreSQL verified and Blob, Queue, and the isolated media adapter configured. No AI generation, test execution, queue job, or media render was requested. The screenshots truthfully show “Not linked” for the illustrative acceptance block and “AI is not configured”; they do not establish live model, runner, media-worker, or external-provider execution. TLS verification stayed enabled using the managed environment's public proxy CA. No passwords, cookies, OIDC tokens, or private request headers are included in these files.
