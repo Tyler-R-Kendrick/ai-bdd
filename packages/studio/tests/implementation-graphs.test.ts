@@ -296,6 +296,7 @@ for (const provider of ['sqlite', 'postgres'] as const)
           branch: request.branch,
           commit: request.commit,
         });
+
         await expect(
           f.first.tx(async () => {
             await f.first.lock('project:' + f.project.id);
@@ -310,6 +311,54 @@ for (const provider of ['sqlite', 'postgres'] as const)
           }),
         ).rejects.toThrow('implementation-locked');
         expect(state.runs).toHaveLength(1);
+      });
+      it('publishes a model draft and job receipt in one transaction, rolls back together, and leaves notification to the caller', async () => {
+        const f = await fixture(provider);
+        await f.first.db.exec(
+          'CREATE TABLE implementation_test_receipts(id TEXT PRIMARY KEY)',
+        );
+        const input = { expected: null, planRevision: 1, definition };
+        await expect(
+          f.graph.editInTransaction(f.builder, f.id, input),
+        ).rejects.toThrow('existing project transaction');
+        await expect(
+          f.first.tx(async () => {
+            await f.first.lock('project:' + f.project.id);
+            await f.graph.editInTransaction(f.builder, f.id, input);
+            await f.first.exec(
+              'INSERT INTO implementation_test_receipts(id) VALUES(?)',
+              'rollback',
+            );
+            throw new Error('receipt rollback');
+          }),
+        ).rejects.toThrow('receipt rollback');
+        expect((await f.graph.read(f.owner, f.id)).graph).toBeNull();
+        expect(
+          await f.first.one(
+            'SELECT id FROM implementation_test_receipts WHERE id=?',
+            'rollback',
+          ),
+        ).toBeUndefined();
+        expect(f.notifications).toHaveLength(0);
+        await f.first.tx(async () => {
+          await f.first.lock('project:' + f.project.id);
+          await f.graph.editInTransaction(f.builder, f.id, input);
+          await f.first.exec(
+            'INSERT INTO implementation_test_receipts(id) VALUES(?)',
+            'committed',
+          );
+        });
+        expect((await f.other.read(f.owner, f.id)).graph?.definition).toEqual(
+          definition,
+        );
+        expect(
+          await f.second.one(
+            'SELECT id FROM implementation_test_receipts WHERE id=?',
+            'committed',
+          ),
+        ).toBeTruthy();
+        expect(await f.graph.history(f.owner, f.id)).toHaveLength(1);
+        expect(f.notifications).toHaveLength(0);
       });
       it('requires dependency-ready starts, keeps early blockers, persists no-change evidence and deduplicates reports', async () => {
         const f = await fixture(provider),

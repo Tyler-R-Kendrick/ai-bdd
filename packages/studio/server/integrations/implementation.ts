@@ -350,39 +350,68 @@ export class ImplementationGraphs {
   ): Promise<ImplementationGraph> {
     const request = implementationEditSchema.parse(input);
     return this.mutate(actor, id, false, async (artifact, who) => {
-      await this.assertPlanEditable(id);
-      const latest = await this.latest(id);
-      checkPointer(latest, request.expected);
-      if (artifact.version !== request.planRevision)
-        fail(
-          'plan-conflict',
-          'Draft against the current canonical plan revision',
-        );
-      const at = timestamp();
-      const graph: ImplementationGraph = {
-        ...request,
-        artifactId: id,
-        graphVersion: latest
-          ? latest.status === 'draft'
-            ? latest.graphVersion
-            : latest.graphVersion + 1
-          : 1,
-        draftRevision:
-          latest?.status === 'draft' ? latest.draftRevision + 1 : 1,
-        status: 'draft',
-        authoredBy: who,
-        createdAt: latest?.status === 'draft' ? latest.createdAt : at,
-        updatedAt: at,
-      };
-      // The expected pointer is concurrency input, never part of the persisted graph.
-      delete (graph as ImplementationGraph & { expected?: unknown }).expected;
-      await this.saveGraph(graph);
-      await this.event(artifact, who, 'draft_edited', {
-        pointer: implementationPointer(graph),
-        definition: graph.definition,
-      });
-      return graph;
+      return this.editDraft(artifact, who, request);
     });
+  }
+  /** Atomic publication from a DurableJobContext.commit transaction. Caller owns outbox notification. */
+  async editInTransaction(
+    actor: ImplementationActor,
+    id: string,
+    input: unknown,
+  ): Promise<ImplementationGraph> {
+    if (!this.store.db.inTransaction())
+      throw new Error(
+        'Atomic graph publication requires an existing project transaction',
+      );
+    const request = implementationEditSchema.parse(input),
+      who = attribution(actor);
+    const initial = await this.context(actor.user, id, true);
+    await this.store.lock('project:' + initial.projectId);
+    const artifact = await this.context(actor.user, id, true);
+    await this.store.lock('implementation:' + id);
+    await this.store.exec(
+      'INSERT INTO implementation_heads(artifact_id,revision) VALUES(?,0) ON CONFLICT(artifact_id) DO NOTHING',
+      id,
+    );
+    return this.editDraft(artifact, who, request);
+  }
+  private async editDraft(
+    artifact: Artifact,
+    who: ImplementationAttribution,
+    request: ReturnType<typeof implementationEditSchema.parse>,
+  ): Promise<ImplementationGraph> {
+    const id = artifact.id;
+    await this.assertPlanEditable(id);
+    const latest = await this.latest(id);
+    checkPointer(latest, request.expected);
+    if (artifact.version !== request.planRevision)
+      fail(
+        'plan-conflict',
+        'Draft against the current canonical plan revision',
+      );
+    const at = timestamp();
+    const graph: ImplementationGraph = {
+      ...request,
+      artifactId: id,
+      graphVersion: latest
+        ? latest.status === 'draft'
+          ? latest.graphVersion
+          : latest.graphVersion + 1
+        : 1,
+      draftRevision: latest?.status === 'draft' ? latest.draftRevision + 1 : 1,
+      status: 'draft',
+      authoredBy: who,
+      createdAt: latest?.status === 'draft' ? latest.createdAt : at,
+      updatedAt: at,
+    };
+    // The expected pointer is concurrency input, never part of the persisted graph.
+    delete (graph as ImplementationGraph & { expected?: unknown }).expected;
+    await this.saveGraph(graph);
+    await this.event(artifact, who, 'draft_edited', {
+      pointer: implementationPointer(graph),
+      definition: graph.definition,
+    });
+    return graph;
   }
   async approve(
     actor: ImplementationActor,
@@ -693,6 +722,8 @@ export class ImplementationGraphs {
     }
     const task = run.tasks.find((item) => item.taskId === command.taskId);
     if (!task) throw new HttpError(404, 'Implementation task not found');
+    if (command.kind === 'report_pr' && task.noChange)
+      fail('no-change', 'A no-change completion cannot acquire a pull request');
     if (command.kind === 'report_pr' && terminalPrUpdate) {
       if (!task.pullRequest || task.pullRequest.url !== command.pullRequest.url)
         fail(
@@ -720,8 +751,6 @@ export class ImplementationGraphs {
           : 'implemented';
       return;
     }
-    if (command.kind === 'report_pr' && task.noChange)
-      fail('no-change', 'A no-change completion cannot acquire a pull request');
     if (task.status === 'complete' && command.kind !== 'report_pr')
       fail(
         'already-complete',
@@ -753,11 +782,6 @@ export class ImplementationGraphs {
       return;
     }
     if (command.kind === 'report_pr') {
-      if (task.noChange)
-        fail(
-          'no-change',
-          'A no-change completion cannot acquire a pull request',
-        );
       if (!task.startedAt)
         fail(
           'task-not-started',
