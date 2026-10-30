@@ -957,6 +957,28 @@ export class Agent {
             inputSchema: z.object({ path: z.string().max(500) }).strict(),
             execute: ({ path }) => reader.file(path),
           }),
+          repository_search: tool({
+            description:
+              'Search a bounded literal phrase only in this repository’s GitHub indexed default branch. Snippets are hints; use repository_file at this turn’s pinned revision to verify exact source.',
+            inputSchema: z
+              .object({
+                query: z.string().trim().min(1).max(200),
+                limit: z.number().int().min(1).max(20).optional(),
+              })
+              .strict(),
+            execute: ({ query, limit }) => reader.search(query, limit),
+          }),
+          repository_history: tool({
+            description:
+              'Read up to 20 commits ending at this turn’s pinned repository revision, optionally restricted to one repository-relative file path.',
+            inputSchema: z
+              .object({
+                path: z.string().min(1).max(500).optional(),
+                limit: z.number().int().min(1).max(20).optional(),
+              })
+              .strict(),
+            execute: (input) => reader.history(input),
+          }),
           repository_pull_request: tool({
             description:
               'Read a pull request. No repository write operation exists.',

@@ -1,14 +1,20 @@
+import {
+  repositoryReadSchema,
+  repositoryPathSchema,
+  repositorySearchQuerySchema,
+  type RepositoryRead,
+} from '../../shared/identity.ts';
+import {
+  repositoryRequestPath,
+  checkedRepositorySearch,
+} from './repository-query.ts';
 import { Buffer } from 'node:buffer';
 import type { Settings } from '../auth.ts';
 import { HttpError } from '../store.ts';
 import { boundedJson } from './http.ts';
 import type { User } from '../../shared/domain.ts';
 
-export type RepositoryReadRequest =
-  | { kind: 'commits'; limit: number }
-  | { kind: 'tree'; ref: string }
-  | { kind: 'file'; path: string; ref: string }
-  | { kind: 'pull_request'; number: number };
+export type RepositoryReadRequest = RepositoryRead;
 export type RepositoryReadPort = (
   user: User,
   repository: string,
@@ -40,7 +46,7 @@ export class RepositoryReader {
       );
     this.repository = `${match[1]}/${match[2]}`;
   }
-  private async get(path: string, input: RepositoryReadRequest) {
+  private async get(_path: string, input: RepositoryReadRequest) {
     await this.authorize();
     this.signal.throwIfAborted();
     if (
@@ -62,12 +68,15 @@ export class RepositoryReader {
       this.settings.githubToken &&
       this.settings.githubRepositories?.includes(this.repository.toLowerCase());
     const response = await this.request(
-      `https://api.github.com/repos/${this.repository}${path}`,
+      `https://api.github.com${repositoryRequestPath(this.repository, input)}`,
       {
         redirect: 'error',
         signal: this.signal,
         headers: {
-          Accept: 'application/vnd.github+json',
+          Accept:
+            input.kind === 'search'
+              ? 'application/vnd.github.text-match+json'
+              : 'application/vnd.github+json',
           'User-Agent': 'ai-bdd-studio',
           ...(authenticated
             ? { Authorization: `Bearer ${this.settings.githubToken}` }
@@ -149,6 +158,79 @@ export class RepositoryReader {
       path,
       text: bytes.toString('utf8'),
       url: `https://github.com/${this.repository}/blob/${sha}/${path.split('/').map(encodeURIComponent).join('/')}`,
+    };
+  }
+  async history(options: { path?: string; limit?: number } = {}) {
+    const limit = options.limit ?? 10;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 20)
+      throw new HttpError(400, 'History is limited to between 1 and 20 commits');
+    const revision = await this.revision(),
+      input = repositoryReadSchema.parse({
+        kind: 'commits',
+        limit,
+        ref: revision,
+        ...(options.path !== undefined
+          ? { path: repositoryPathSchema.parse(options.path) }
+          : {}),
+      });
+    if (input.kind !== 'commits') throw new Error('Expected commit history');
+    const data = await this.get('', input);
+    if (!Array.isArray(data))
+      throw new HttpError(502, 'GitHub returned invalid commit history');
+    const commits = data.slice(0, input.limit).map((entry: any) => {
+      if (
+        !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(entry?.sha) ||
+        typeof entry?.commit?.message !== 'string'
+      )
+        throw new HttpError(502, 'GitHub returned an invalid history entry');
+      return {
+        sha: entry.sha.toLowerCase(),
+        message: entry.commit.message.slice(0, 4000),
+        messageTruncated: entry.commit.message.length > 4000,
+        author: String(entry.commit.author?.name ?? '').slice(0, 200),
+        date:
+          typeof entry.commit.author?.date === 'string'
+            ? entry.commit.author.date.slice(0, 100)
+            : null,
+        url: `https://github.com/${this.repository}/commit/${entry.sha.toLowerCase()}`,
+      };
+    });
+    return {
+      repository: this.repository,
+      revision,
+      path: options.path ?? null,
+      limit: input.limit,
+      limitReached: data.length >= input.limit,
+      commits,
+    };
+  }
+  async search(query: string, limit = 10) {
+    const phrase = repositorySearchQuerySchema.parse(query),
+      input = repositoryReadSchema.parse({
+        kind: 'search',
+        query: phrase,
+        limit,
+      }),
+      revision = await this.revision();
+    const raw = await this.get('', input),
+      data = checkedRepositorySearch(raw, this.repository, limit);
+    return {
+      repository: this.repository,
+      query: phrase,
+      scope: 'github-indexed-default-branch' as const,
+      pinnedRevision: revision,
+      totalCount: data.total_count,
+      incomplete: data.incomplete_results,
+      limitReached: data.total_count > data.items.length,
+      sourceNote:
+        'Search snippets are indexed default-branch hints, not evidence at the pinned turn revision. Read the pinned file to verify exact source.',
+      matches: data.items.map((item) => ({
+        path: item.path,
+        indexedBlobSha: item.sha,
+        indexedSnippets: item.text_matches.map((match) => match.fragment),
+        snippetsTruncated: item.snippet_truncated,
+        pinnedFileUrl: `https://github.com/${this.repository}/blob/${revision}/${item.path.split('/').map(encodeURIComponent).join('/')}`,
+      })),
     };
   }
   async pullRequest(number: number) {

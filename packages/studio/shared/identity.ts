@@ -1,5 +1,37 @@
 import { z } from 'zod';
 export const repositoryActions = ['read', 'write'] as const;
+export const repositoryCommitRefSchema = z
+  .string()
+  .regex(/^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/)
+  .transform((value) => value.toLowerCase());
+export const repositoryPathSchema = z
+  .string()
+  .min(1)
+  .max(500)
+  .refine(
+    (path) =>
+      !path.startsWith('/') &&
+      !path.includes('\\') &&
+      !path.split('/').some((part) => !part || part === '.' || part === '..') &&
+      ![...path].some(
+        (character) =>
+          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      ),
+    'Use a bounded repository-relative path',
+  );
+export const repositorySearchQuerySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .refine(
+    (value) =>
+      ![...value].some(
+        (character) =>
+          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      ),
+    'Use a bounded literal search phrase',
+  );
 export type RepositoryAction = (typeof repositoryActions)[number];
 export const repositoryReadSchema = z.discriminatedUnion('kind', [
   z
@@ -46,6 +78,15 @@ export const repositoryReadSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('commits'),
       limit: z.number().int().min(1).max(30).default(10),
+      ref: repositoryCommitRefSchema.optional(),
+      path: repositoryPathSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('search'),
+      query: repositorySearchQuerySchema,
+      limit: z.number().int().min(1).max(20).default(10),
     })
     .strict(),
 ]);

@@ -1,4 +1,8 @@
 import {
+  repositoryRequestPath,
+  checkedRepositorySearch,
+} from '../integrations/repository-query.ts';
+import {
   createHash,
   createHmac,
   randomBytes,
@@ -695,21 +699,15 @@ export class RepositoryIdentity {
     const row = await this.active(user.id),
       { vault } = this.requireConfigured();
     signal?.throwIfAborted();
-    const path =
-      read.kind === 'tree'
-        ? `/git/trees/${read.ref}?recursive=1`
-        : read.kind === 'pull_request'
-          ? `/pulls/${read.number}`
-          : read.kind === 'issue'
-            ? `/issues/${read.number}`
-            : read.kind === 'commits'
-              ? `/commits?per_page=${read.limit}`
-              : `/contents/${read.path.split('/').map(encodeURIComponent).join('/')}?${new URLSearchParams(read.ref ? { ref: read.ref } : {})}`;
+    const path = repositoryRequestPath(key, read);
     let result: any;
     try {
-      result = await this.provider(this.apiBaseUrl + '/repos/' + key + path, {
+      result = await this.provider(this.apiBaseUrl + path, {
         signal,
         headers: {
+          ...(read.kind === 'search'
+            ? { Accept: 'application/vnd.github.text-match+json' }
+            : {}),
           Authorization:
             'Bearer ' + vault.open(row.access_cipher, user.id, 'access'),
         },
@@ -738,6 +736,8 @@ export class RepositoryIdentity {
       result.size > 512000
     )
       throw new HttpError(413, 'Repository file reads are limited to 500 KB');
+    if (read.kind === 'search')
+      return checkedRepositorySearch(result, key, read.limit);
     if (read.kind === 'tree') {
       const schema = z
         .object({
