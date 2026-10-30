@@ -56,7 +56,7 @@ export function changedDocumentBlocks(
     new Map(
       blocks(content).map((node, index) => [
         typeof node.attrs?.id === 'string' ? node.attrs.id : '#' + index,
-        JSON.stringify([index,node]),
+        JSON.stringify([index, node]),
       ]),
     );
   const a = map(before),

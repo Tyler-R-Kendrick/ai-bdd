@@ -311,6 +311,14 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       );
     return machine;
   }
+  private async resolvePR(user:User,repository:string,url:string,signal:AbortSignal){
+    try{
+      signal.throwIfAborted();
+      const result=await this.dependencies.resolvePullRequest(user,repository,url,signal);
+      signal.throwIfAborted();
+      return z.object({url:z.string().url().max(500),repository:z.string().url().max(300),state:z.enum(['open','closed','merged']),branch:implementationClaimSchema.shape.branch,commit:implementationClaimSchema.shape.commit}).parse(result);
+    }catch(error){if(error instanceof HttpError)throw error;throw new HttpError(502,'The existing PR could not be verified; retry after repository access is restored');}
+  }
   private async automaticConsent(
     machineId: string,
     userId: string,
@@ -461,7 +469,7 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
     const signal = AbortSignal.timeout(15000),
       prs: RebuildPullRequest[] = [];
     for (const url of JSON.parse(prepared.baseline.prs_json) as string[]) {
-      const pr = await this.dependencies.resolvePullRequest(
+      const pr = await this.resolvePR(
         user,
         prepared.baseline.repository,
         url,
@@ -518,6 +526,18 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
         throw new HttpError(
           429,
           'This project reached its hourly rebuild limit',
+        );
+      // Leave room for the bounded implementation receipt inside the portable 2 MiB transport.
+      const transportSnapshot = JSON.stringify({
+        before: JSON.parse(baseline.source_json),
+        after: current.content,
+        reviewedGraph: JSON.parse(baseline.graph_json),
+        pullRequests: prs,
+      });
+      if (Buffer.byteLength(transportSnapshot) > 1536 * 1024)
+        throw new HttpError(
+          413,
+          'The combined rebuild sources and reviewed graph exceed the 1.5 MiB scoped transport budget',
         );
       // Bound retained source history independently from provider call rate.
       const historical = await this.store.all(
@@ -705,7 +725,7 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
     const user = await this.store.publicUser(principal.user_id),
       signal = AbortSignal.timeout(15000);
     for (const pr of expected) {
-      const current = await this.dependencies.resolvePullRequest(
+      const current = await this.resolvePR(
         user,
         sealed.repository,
         pr.url,
@@ -877,7 +897,7 @@ CREATE INDEX IF NOT EXISTS studio_rebuild_machine ON studio_rebuild_runs(machine
       const signal = AbortSignal.timeout(15000);
       if (sealed.status !== 'completed')
         for (const pr of report.pullRequests) {
-          const current = await this.dependencies.resolvePullRequest(
+          const current = await this.resolvePR(
             await this.store.publicUser(principal.user_id),
             sealed.repository,
             pr.url,
