@@ -98,6 +98,23 @@ const frontend = resolved.services.find(
 );
 assert.equal(frontend.builder.use, '@vercel/static-build');
 assert.equal(frontend.functions, undefined);
+const identity = resolved.services.find((service) => service.name === 'identity');
+assert.ok(identity, 'Missing private native identity service');
+assert.equal(identity.runtime, 'node');
+assert.equal(identity.builder.use, '@vercel/backends');
+assert.equal(identity.builder.src, 'packages/studio/api/studio-identity.ts');
+assert.equal(identity.buildCommand, 'node --check api/studio-identity.ts');
+assert.equal(identity.functions['api/studio-identity.ts'].maxDuration, 30);
+assert.equal(identity.bindings, undefined);
+assert.ok(!config.rewrites.some((rule) => rule.destination?.service === 'identity'));
+assert.deepEqual(config.services.backend.bindings, [
+  {
+    type: 'service',
+    service: 'identity',
+    format: 'url',
+    env: 'STUDIO_IDENTITY_URL',
+  },
+]);
 
 // Reproduce why a functions map on the previous static-only service was insufficient.
 const previous = structuredClone(config.services.frontend);
@@ -107,8 +124,10 @@ previous.functions = Object.fromEntries(
     config.services[name].functions[entries[i]],
   ]),
 );
+const previousBackend = structuredClone(config.services.backend);
+delete previousBackend.bindings;
 const old = await resolveAllConfiguredServicesV2(
-  { frontend: previous, backend: config.services.backend },
+  { frontend: previous, backend: previousBackend },
   fs,
 );
 assert.deepEqual(old.errors, []);
@@ -122,7 +141,7 @@ assert.equal(
   resolved.services.filter(
     (service) => service.builder.use === '@vercel/backends',
   ).length,
-  3,
+  4,
 );
 console.log(
   JSON.stringify(
@@ -131,8 +150,18 @@ console.log(
       cli: cli.version,
       networkCalls: 0,
       oldNativeBuilders: 0,
-      newNativeBuilders: 3,
-      services: native,
+      newNativeBuilders: 4,
+      services: [
+        ...native,
+        {
+          name: 'identity',
+          entrypoint: identity.entrypoint,
+          builder: identity.builder.use,
+          maxDuration: 30,
+          publicRoute: null,
+          authenticatedCaller: 'backend generated binding and expiring HMAC',
+        },
+      ],
     },
     null,
     2,

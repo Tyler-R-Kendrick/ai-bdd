@@ -81,6 +81,7 @@ import {
   OutboxDispatchPendingError,
 } from './runtime/jobs.ts';
 import type { HostingServices } from './hosting/ports.ts';
+import type { IdentityExecutionContext } from './hosting/identity-context.ts';
 import { DiskObjectStore } from './hosting/disk-objects.ts';
 import { ObjectWorkspaceStore } from './hosting/workspaces.ts';
 import { LocalJobDispatcher } from './hosting/local-queue.ts';
@@ -122,6 +123,7 @@ export async function createApp(
     store?: Store;
     runtime?: DurableJobRuntime;
     hosting?: HostingServices;
+    identityExecutionContext?: IdentityExecutionContext;
     logger?: boolean;
     clientDir?: string;
     connectorFile?: string;
@@ -186,6 +188,7 @@ export async function createApp(
     await collab.initialize();
     const decisions = new DecisionModels({
       store,
+      identityExecutionContext: options.identityExecutionContext,
       settings:
         options.decisionSettings ??
         decisionSettingsFromEnv(process.env, settings.production),
@@ -210,6 +213,7 @@ export async function createApp(
       agent = new Agent(store, settings, collab, {
         runtime,
         decisions,
+        identityExecutionContext: options.identityExecutionContext,
         implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       });
     await agent.initialize();

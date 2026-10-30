@@ -91,7 +91,27 @@
       "root": ".",
       "runtime": "container",
       "entrypoint": "Dockerfile.studio",
-      "command": ["node", "dist/server/vercel-main.js"]
+      "command": ["node", "dist/server/vercel-main.js"],
+      "bindings": [
+        {
+          "type": "service",
+          "service": "identity",
+          "format": "url",
+          "env": "STUDIO_IDENTITY_URL"
+        }
+      ]
+    },
+    "identity": {
+      "root": "packages/studio",
+      "runtime": "node",
+      "entrypoint": "api/studio-identity.ts",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "buildCommand": "node --check api/studio-identity.ts",
+      "functions": {
+        "api/studio-identity.ts": {
+          "maxDuration": 30
+        }
+      }
     },
     "jobs": {
       "root": "packages/studio",
