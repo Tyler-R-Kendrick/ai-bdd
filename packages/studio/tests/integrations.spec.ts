@@ -223,6 +223,9 @@ test('shows shared connections to a fresh viewer without exposing write or pairi
     );
     expect(denied.status()).toBe(403);
     await mkdir(resolve('../../work/review'), { recursive: true });
+    await panel
+      .getByRole('combobox', { name: 'Participation mode', exact: true })
+      .scrollIntoViewIfNeeded();
     await viewer.screenshot({
       path: resolve('../../work/review/studio-connections-viewer-mobile.png'),
       animations: 'disabled',
