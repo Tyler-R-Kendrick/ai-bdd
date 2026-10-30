@@ -18,6 +18,8 @@ import {
   documentBlockText,
 } from './document-blocks.ts';
 import { videoContentSchema } from './video.ts';
+import { audioContentSchema, initialAudioContent } from './audio.ts';
+import { midiContentSchema, initialMidiContent } from './midi.ts';
 import {
   richVisualSchemas,
   richVisualText,
@@ -30,6 +32,8 @@ export const artifactKinds = [
   'code',
   'image',
   'video',
+  'audio',
+  'midi',
   'scene',
   'cad',
   'brand',
@@ -43,6 +47,8 @@ export const kindLabels: Record<ArtifactKind, string> = {
   code: 'Code',
   image: 'Image',
   video: 'Video',
+  audio: 'Audio',
+  midi: 'MIDI',
   scene: '3D scene',
   cad: 'CAD model',
   brand: 'Brand design',
@@ -114,7 +120,13 @@ export type Run = {
   id: string;
   artifactId: string;
   artifactVersion: number;
-  status: 'queued' | 'running' | 'passed' | 'failed' | 'error' | 'interrupted';
+  status:
+    | 'queued'
+    | 'running'
+    | 'passed'
+    | 'failed'
+    | 'error'
+    | 'interrupted';
   result: Record<string, any> | null;
   error: string | null;
   createdAt: string;
@@ -303,7 +315,11 @@ export const solidSchema = z
     shape: z.enum(['box', 'sphere', 'cylinder']),
     position: vec,
     rotation: vec,
-    dimensions: z.tuple([finite.min(0.01), finite.min(0.01), finite.min(0.01)]),
+    dimensions: z.tuple([
+      finite.min(0.01),
+      finite.min(0.01),
+      finite.min(0.01),
+    ]),
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     operation: z.enum(['union', 'subtract', 'intersect']).optional(),
     name: z.string().max(120).optional(),
@@ -340,6 +356,8 @@ export function contentSchema(kind: ArtifactKind) {
       })
       .strict();
   if (kind === 'video') return videoContentSchema;
+  if (kind === 'audio') return audioContentSchema;
+  if (kind === 'midi') return midiContentSchema;
   if (kind === 'image' || kind === 'brand')
     return z
       .object({
@@ -383,7 +401,8 @@ export function validateContent(
   let maxDepth = 0;
   // Bound nesting before recursive parsing. Quotes and escaped braces are excluded by JSON tokenization.
   for (const token of serialized.match(/"(?:\\.|[^"\\])*"|[[\]{}]/g) ?? []) {
-    if (token === '{' || token === '[') maxDepth = Math.max(maxDepth, ++depth);
+    if (token === '{' || token === '[')
+      maxDepth = Math.max(maxDepth, ++depth);
     if (token === '}' || token === ']') depth--;
   }
   if (maxDepth > 40) throw new Error('Artifact exceeds the nesting limit');
@@ -402,6 +421,8 @@ export function initialContent(
   kind: ArtifactKind,
   title: string,
 ): Record<string, any> {
+  if (kind === 'audio') return initialAudioContent();
+  if (kind === 'midi') return initialMidiContent();
   if (kind === 'design')
     return {
       doc: {
