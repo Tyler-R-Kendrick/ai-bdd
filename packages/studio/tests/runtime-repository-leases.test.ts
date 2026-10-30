@@ -199,9 +199,21 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         'UPDATE repository_identity_leases SET expires_at=?',
         Date.now() - 1,
       );
+      await w.store.exec(
+        'UPDATE studio_durable_jobs SET input_json=? WHERE id=?',
+        JSON.stringify({ damaged: 'explicit corruption fixture' }),
+        job.id,
+      );
       const before = w.calls();
       await w.runtime.cancel(job.id, caller.user);
-      expect((await w.runtime.get(job.id))?.status).toBe('cancelled');
+      expect(
+        (
+          await w.store.one(
+            'SELECT status FROM studio_durable_jobs WHERE id=?',
+            job.id,
+          )
+        ).status,
+      ).toBe('cancelled');
       expect(w.calls()).toBe(before + 1);
       expect(
         w.github.requests

@@ -742,10 +742,13 @@ export class DurableJobCoordinator implements DurableJobRuntime {
   }
   async cancel(id: string, user: User) {
     await this.ready;
-    const job = await this.get(id);
-    if (!job) throw new HttpError(404, 'Durable job not found');
-    // Cancellation renews the caller's capability, never the job principal's revoked grant.
-    await this.store.artifact(job.artifactId, user.id, 'write');
+    const scope = await this.store.one(
+      'SELECT artifact_id FROM studio_durable_jobs WHERE id=?',
+      id,
+    );
+    if (!scope) throw new HttpError(404, 'Durable job not found');
+    // Cancellation renews the caller's capability, never the job principal's revoked grant or a possibly corrupt input snapshot.
+    await this.store.artifact(scope.artifact_id, user.id, 'write');
     await this.locked(id, async (row) => {
       await this.store.artifact(row.artifact_id, user.id, 'write');
       if (terminal(row.status)) return;
