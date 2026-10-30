@@ -1,3 +1,7 @@
+import {
+  documentImplementationReadiness,
+  documentImplementationReady,
+} from '../server/document-readiness.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import Fastify from 'fastify';
 import { Pool } from 'pg';
@@ -582,6 +586,116 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           ),
         ).toBe(0);
         expect((await f.request(f.a, 'GET', '/review')).statusCode).toBe(200);
+      });
+      it('requires the exact current questionnaire answer and accepted anchor while exposing concrete review blockers', async () => {
+        const f = await fixture(adapter),
+          state = await f.state();
+        const readiness = () =>
+          f.first.tx(async () => {
+            await f.first.db.lock('project:' + f.project.id);
+            return documentImplementationReadiness(f.first, await f.state());
+          });
+        expect((await readiness()).blockers[0]).toMatchObject({
+          kind: 'questionnaire',
+          anchor: 'questionnaire',
+          questionId: 'approach',
+        });
+        const answer = await f.request(
+          f.a,
+          'POST',
+          '/questionnaires/questionnaire/answers',
+          {
+            version: state.version,
+            questionId: 'approach',
+            optionId: 'a',
+            answer: 'Use a contract fixture.',
+          },
+        );
+        expect((await readiness()).ready).toBe(false);
+        const accepted = await f.request(
+          f.a,
+          'POST',
+          '/answers/' + answer.json().id + '/accept-decision',
+          { version: state.version },
+        );
+        expect(accepted.statusCode, accepted.body).toBe(201);
+        expect((await readiness()).ready).toBe(true);
+        const pending = await f.request(f.a, 'POST', '/suggestions', {
+          version: state.version,
+          anchor: 'passage',
+          from: 11,
+          to: 16,
+          before: 'quick',
+          after: 'safer',
+        });
+        expect((await readiness()).blockers).toContainEqual(
+          expect.objectContaining({
+            kind: 'suggestion',
+            id: pending.json().id,
+          }),
+        );
+        await f.request(
+          f.a,
+          'POST',
+          '/suggestions/' + pending.json().id + '/resolve',
+          { version: state.version, action: 'reject' },
+        );
+        await f.first.exec(
+          'INSERT INTO threads(id,artifact_id,anchor,quote,resolved,created_at) VALUES(?,?,?,?,0,?)',
+          'blocking-discussion',
+          f.artifactId,
+          'passage',
+          'Review this wording',
+          new Date().toISOString(),
+        );
+        expect((await readiness()).blockers).toContainEqual(
+          expect.objectContaining({
+            kind: 'discussion',
+            id: 'blocking-discussion',
+          }),
+        );
+        await f.first.exec(
+          'UPDATE threads SET resolved=1 WHERE id=?',
+          'blocking-discussion',
+        );
+        expect((await readiness()).ready).toBe(true);
+        const newer = await f.request(
+          f.a,
+          'POST',
+          '/questionnaires/questionnaire/answers',
+          {
+            version: state.version,
+            questionId: 'approach',
+            optionId: 'b',
+            answer: 'Changed recommendation.',
+          },
+        );
+        expect(newer.statusCode).toBe(201);
+        expect((await readiness()).ready).toBe(false);
+        await f.request(
+          f.a,
+          'POST',
+          '/answers/' + newer.json().id + '/accept-decision',
+          { version: state.version },
+        );
+        expect((await readiness()).ready).toBe(true);
+        const changed = structuredClone(state.content);
+        changed.doc.content[1].attrs.data.questions[0].question =
+          'Which boundary is appropriate now?';
+        await f.a.collab.replace(f.artifactId, f.user, changed, state.version);
+        expect((await readiness()).blockers[0]).toMatchObject({
+          kind: 'questionnaire',
+          question: 'Which boundary is appropriate now?',
+        });
+        await expect(
+          f.first.tx(async () => {
+            await f.first.db.lock('project:' + f.project.id);
+            await documentImplementationReady(f.first, await f.state());
+          }),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          blockers: expect.any(Array),
+        });
       });
       it('rechecks the locked source question before accepting a concurrent answer as an ADR', async () => {
         const f = await fixture(adapter),
