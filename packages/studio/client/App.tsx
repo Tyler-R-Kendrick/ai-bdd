@@ -213,6 +213,16 @@ export function App() {
   const report = useCallback((message: string) => setError(message), []);
   const navigate = useCallback(
     (project: string, artifact = '', canvas = false) => {
+      const current = currentSelection.current;
+      if (
+        current.project === project &&
+        current.artifact === artifact &&
+        current.canvas === canvas
+      ) {
+        setSideOpen(false);
+        setAnchor(null);
+        return;
+      }
       if (
         dirty &&
         !window.confirm('You have unsaved changes. Leave this artifact?')
