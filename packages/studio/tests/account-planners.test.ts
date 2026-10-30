@@ -534,6 +534,37 @@ for (const adapter of ['sqlite', 'postgres'] as const)
           Date.parse(started.idleExpiresAt) - Date.parse(started.expiresAt),
         ).toBe(plannerIdleMs - plannerLeaseMs);
       });
+      it('normalizes valid trailing-slash project repositories before excluding concurrent device work', async () => {
+        const c = await fixture();
+        await c.store.exec(
+          'UPDATE projects SET repository=? WHERE id=?',
+          c.checkout.repository + '/',
+          c.project.id,
+        );
+        const { assignment } = await c.claim();
+        expect(assignment.repository).toBe(c.checkout.repository);
+        expect(
+          (
+            await c.store.one(
+              'SELECT repository FROM studio_account_planner_assignments WHERE id=?',
+              assignment.id,
+            )
+          ).repository,
+        ).toBe(c.checkout.repository);
+        const child = c.registered.assignments[0]!.credential;
+        const machine = await c.machines.authenticate(
+          { headers: { authorization: 'Bearer ' + child.token } } as any,
+          child.id,
+        );
+        await c.machines.queue(c.user, c.artifact.id, {
+          version: c.artifact.version,
+          kind: 'investigation',
+          brief: 'A separately approved task must wait for this Planner device',
+        });
+        expect(await c.service.activeOnDevice(c.device.id)).toBe(true);
+        expect(await c.accounts.otherWorkActive(machine.id)).toBe(true);
+        expect(await c.machines.claim(machine)).toEqual({ work: null });
+      });
       it('extends idle only for exact assignment-bound real activity, and connection-only renewals eventually return idle', async () => {
         const c = await fixture(),
           first = await c.claim();

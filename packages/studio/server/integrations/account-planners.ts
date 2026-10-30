@@ -123,7 +123,7 @@ export class AccountPlanners {
       deviceId: row.device_id,
       artifactId: row.artifact_id,
       projectId: row.project_id,
-      repository: row.repository,
+      repository: row.repository.replace(/\/$/, ''),
       checkoutKey: row.checkout_key,
       epoch: Number(row.epoch),
       status: row.status,
@@ -311,7 +311,8 @@ export class AccountPlanners {
       AND d.user_id=a.user_id AND t.version=a.artifact_version AND t.archived=0
       AND m.role IN ('owner','editor') AND b.status='active'
       AND b.checkout_key=a.checkout_key AND c.source_commit=a.checkout_commit
-      AND lower(p.repository)=lower(a.repository) AND lower(b.repository)=lower(a.repository)
+      AND lower(rtrim(p.repository,'/'))=lower(rtrim(a.repository,'/'))
+      AND lower(rtrim(b.repository,'/'))=lower(rtrim(a.repository,'/'))
       AND f.harness='remote-planner' AND a.profile_json=? LIMIT 1`,
       deviceId,
       this.clock(),
@@ -573,7 +574,7 @@ export class AccountPlanners {
         project_id: current.projectId,
         user_id: user.id,
         device_id: device.id,
-        repository: project.repository,
+        repository: binding.repository,
         checkout_key: binding.checkout_key,
         checkout_commit: binding.source_commit,
         artifact_version: current.version,
