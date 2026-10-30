@@ -11,6 +11,7 @@ export type LiveConfig = {
   timeoutMs: number;
   responseBytes: number;
   email?: string;
+  githubUserId?: string;
   githubSessionsFile?: string;
   oidc?: { host: string; token: string };
 };
@@ -98,24 +99,25 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv): LiveConfig {
   );
   requireValue(env.STUDIO_LIVE_PASSWORD === undefined, 'password-authentication-disabled');
   const email = env.STUDIO_LIVE_EMAIL,
+    githubUserId = env.STUDIO_LIVE_GITHUB_USER_ID,
     githubSessionsFile = env.STUDIO_LIVE_GITHUB_SESSIONS_FILE;
+  requireValue(!(email !== undefined && githubUserId !== undefined), 'choose-one-github-identity-reference');
   requireValue(
-    (email === undefined) === (githubSessionsFile === undefined),
-    'github-session-reference-and-email-required',
+    (email === undefined && githubUserId === undefined) === (githubSessionsFile === undefined),
+    'github-session-reference-and-identity-required',
   );
-  if (email !== undefined || githubSessionsFile !== undefined)
+  if (email !== undefined || githubUserId !== undefined || githubSessionsFile !== undefined)
     requireValue(
-      email &&
-        /^\S+@\S+\.\S+$/.test(email) &&
-        email.length <= 254 &&
+      (githubUserId !== undefined
+        ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(githubUserId)
+        : email && /^\S+@\S+\.\S+$/.test(email) && email.length <= 254 && !/[\r\n]/.test(email)) &&
         githubSessionsFile && isAbsolute(githubSessionsFile) &&
-        githubSessionsFile.length <= 4096 && !/[\r\n\0]/.test(githubSessionsFile) &&
-        !/[\r\n]/.test(email),
+        githubSessionsFile.length <= 4096 && !/[\r\n\0]/.test(githubSessionsFile),
       'invalid-github-session-reference',
     );
   const allowWrites = env.STUDIO_LIVE_ALLOW_WRITES === '1';
   requireValue(
-    !allowWrites || (email && githubSessionsFile),
+    !allowWrites || ((email || githubUserId) && githubSessionsFile),
     'write-gate-requires-github-sessions',
   );
   const token = env.STUDIO_LIVE_OIDC_TOKEN,
@@ -137,6 +139,7 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv): LiveConfig {
     allowWrites,
     devLoopback,
     email,
+    githubUserId,
     githubSessionsFile,
     timeoutMs: boundedInteger(env.STUDIO_LIVE_TIMEOUT_MS, 15000, 100, 30000),
     responseBytes: boundedInteger(
@@ -337,6 +340,7 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
     STUDIO_LIVE_TIMEOUT_MS: String(config.timeoutMs),
     STUDIO_LIVE_RESPONSE_BYTES: String(config.responseBytes),
     STUDIO_LIVE_EMAIL: config.email,
+    STUDIO_LIVE_GITHUB_USER_ID: config.githubUserId,
     STUDIO_LIVE_GITHUB_SESSIONS_FILE: config.githubSessionsFile,
     STUDIO_LIVE_OIDC_HOST: config.oidc?.host,
     STUDIO_LIVE_OIDC_TOKEN: config.oidc?.token,
@@ -625,7 +629,9 @@ export async function runVercelLive(config: LiveConfig): Promise<LiveReport> {
       requireValue(me.response.status === 200, 'github-session-not-authenticated');
       const user = object(me.json());
       safeId(user.id);
-      requireValue(typeof user.email === 'string' && user.email.toLowerCase() === config.email!.toLowerCase(), 'github-session-identity-mismatch');
+      requireValue(config.githubUserId
+        ? user.id === config.githubUserId
+        : typeof user.email === 'string' && user.email.toLowerCase() === config.email!.toLowerCase(), 'github-session-identity-mismatch');
       requireValue(me.response.headers.get('cache-control')?.includes('no-store'), 'session-cache-not-private');
       return { cookie, userId: user.id as string };
     }

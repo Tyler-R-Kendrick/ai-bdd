@@ -168,6 +168,12 @@ async function writeSessions(origin: string, cookies = ['A'.repeat(43), 'B'.repe
   return path;
 }
 describe('hosted acceptance exact-origin and credential boundary', () => {
+  it('accepts a member ID without an email and rejects ambiguous or malformed identity selectors', () => {
+    const input = { STUDIO_LIVE_ORIGIN: 'https://studio.example.test', STUDIO_LIVE_ALLOW_WRITES: '1', STUDIO_LIVE_GITHUB_USER_ID: '5cda2294-c21d-4694-951b-49b6ddc68d4d', STUDIO_LIVE_GITHUB_SESSIONS_FILE: '/private/selected-sessions.json' };
+    expect(liveConfigFromEnv(input)).toMatchObject({ githubUserId: input.STUDIO_LIVE_GITHUB_USER_ID, email: undefined, allowWrites: true });
+    for (const extra of [{ STUDIO_LIVE_EMAIL: 'legacy@example.test' }, { STUDIO_LIVE_GITHUB_USER_ID: 'not-a-member-id' }, { STUDIO_LIVE_GITHUB_SESSIONS_FILE: undefined }])
+      expect(() => liveConfigFromEnv({ ...input, ...extra })).toThrow();
+  });
   it('defaults to GET-only and separates configured services from verified operations', async () => {
     const x = await fixture();
     const report = await runVercelLive(
@@ -405,7 +411,7 @@ describe('hosted acceptance exact-origin and credential boundary', () => {
     const report = await runVercelLive(
       config(origin, {
         STUDIO_LIVE_ALLOW_WRITES: '1',
-        STUDIO_LIVE_EMAIL: settings.adminEmail,
+        STUDIO_LIVE_GITHUB_USER_ID: first.user.id,
         STUDIO_LIVE_GITHUB_SESSIONS_FILE: file,
       }),
     );
