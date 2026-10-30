@@ -37,6 +37,7 @@ export class ArtifactTitles {
       runtime: DurableJobRuntime;
       provider?: TitleProvider;
       allowed?: (user: User, artifactId: string) => Promise<boolean>;
+      onAdmit?: (user: User, artifactId: string) => Promise<void>;
       notify?: (projectId: string, artifactId: string) => Promise<void>;
       quietMs?: number;
     },
@@ -121,6 +122,7 @@ export class ArtifactTitles {
       ).messages.filter((m) => m.role === 'user');
       const latest = messages.at(-1);
       if (!latest) return null;
+      await this.options.onAdmit?.(user, id);
       const snapshot = {
         user,
         threadId,
