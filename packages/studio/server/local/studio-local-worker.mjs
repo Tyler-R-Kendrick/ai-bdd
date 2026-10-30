@@ -60,7 +60,8 @@ async function load() {
     gpu: false,
     build: 'never',
     skipDownload: true,
-    maxThreads: 2,
+    // Never oversubscribe a single-affinity host: native prefill can otherwise exhaust its deadline.
+    maxThreads: Math.min(2, availableParallelism()),
     progressLogs: false,
     logLevel: 'error',
     logger: () => {},
@@ -108,7 +109,7 @@ process.on('message', async (request) => {
     phase('context-create');
     context = await model.createContext({
       contextSize: 4096,
-      threads: 2,
+      threads: Math.min(2, availableParallelism()),
       batchSize: 128,
       flashAttention: false,
     });

@@ -1,4 +1,5 @@
 /** Offline finite-option likelihoods on the SAME immutable model as generation. */
+import { availableParallelism } from 'node:os';
 import { resolveChatWrapper } from 'node-llama-cpp';
 const sampler = { temperature: 1, topK: 0, topP: 1, minP: 0 };
 const system =
@@ -37,7 +38,7 @@ export async function evaluateLocalDecisions({ model, input, onPhase = () => {} 
     phase('context-create');
     context = await model.createContext({
       contextSize: 4096,
-      threads: 2,
+      threads: Math.min(2, availableParallelism()),
       batchSize: 128,
       flashAttention: false,
     });
