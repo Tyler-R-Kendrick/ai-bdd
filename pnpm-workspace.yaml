@@ -4,3 +4,8 @@ overrides:
   qs: ">=6.16.0"
   "@vercel/queue@0.10.0>@vercel/oidc": "4.0.5"
   "@ai-sdk/gateway@4.0.110>@vercel/oidc": "4.0.5"
+# CPU-only local inference: do not fetch optional GPU runtime bundles.
+ignoredOptionalDependencies:
+  - '@node-llama-cpp/linux-x64-cuda'
+  - '@node-llama-cpp/linux-x64-cuda-ext'
+  - '@node-llama-cpp/linux-x64-vulkan'

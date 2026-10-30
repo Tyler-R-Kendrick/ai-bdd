@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch server/main.ts",
     "dev:ui": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts server/planner-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server && esbuild server/hosting/vercel-main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/vercel-main.js && node scripts/build-connector.mjs",
+    "build": "tsc --noEmit && vite build && esbuild server/main.ts server/mcp.ts server/machine-worker.ts server/planner-worker.ts --bundle --platform=node --format=esm --packages=external --outdir=dist/server && esbuild server/hosting/vercel-main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/vercel-main.js && node scripts/build-local-model-worker.mjs && node scripts/build-connector.mjs",
     "start": "node dist/server/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
@@ -18,7 +18,8 @@
     "mcp:dev": "tsx server/mcp.ts",
     "machine:connect": "node dist/server/machine-worker.js",
     "verify:live": "tsx server/integrations/live-check.ts",
-    "planner:connect": "node dist/server/planner-worker.js"
+    "planner:connect": "node dist/server/planner-worker.js",
+    "model:download": "node scripts/download-local-model.mjs"
   },
   "dependencies": {
     "@ai-bdd/driver-playwright": "workspace:*",
@@ -86,7 +87,9 @@
     "y-protocols": "^1.0.7",
     "y-websocket": "^3.1.0",
     "yjs": "^13.6.33",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "node-llama-cpp": "3.22.2",
+    "ajv": "8.20.0"
   },
   "devDependencies": {
     "@ai-bdd/testing": "workspace:*",
