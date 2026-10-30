@@ -1,7 +1,7 @@
 import type { LanguageModel } from 'ai';
 import { createHash, randomBytes } from 'node:crypto';
 import { lstatSync, createReadStream } from 'node:fs';
-import { lstat, mkdir, readFile, writeFile, rm, realpath } from 'node:fs/promises';
+import { lstat, mkdir, readFile, writeFile, rm, realpath, rename } from 'node:fs/promises';
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createServer, type Server } from 'node:http';
@@ -123,6 +123,9 @@ class NativeSession {
   readonly base: string; readonly workspace: string;
   readonly children = new Set<ChildProcess>();
   modelServer?: Server;
+  providerError?: HttpError;
+  sessionRenewed = false;
+  namespaceGeneration = 0;
   nativeOrigin = ''; openOrigin = ''; modelOrigin = '';
   readonly modelToken = randomBytes(32).toString('base64url');
   readonly openPassword = randomBytes(24).toString('base64url');
@@ -201,7 +204,18 @@ class NativeSession {
           res.write('data: ' + JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { role: 'assistant', content }, finish_reason: null }] }) + '\n\n');
           res.write('data: ' + JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: finish }], usage }) + '\n\n'); res.end('data: [DONE]\n\n');
         } else { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ id, object: 'chat.completion', created, model, choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: finish }], usage })); }
-      } catch { if (!res.headersSent) res.writeHead(503, { 'content-type': 'application/json' }); if (!res.writableEnded) res.end(JSON.stringify({ error: { message: 'Bounded local CPU inference failed', type: 'local_inference_error' } })); }
+      } catch (error: any) {
+        const failures: Record<string, [number, string]> = {
+          context: [413, 'This request exceeds the local CPU model context; shorten the selected source or conversation'],
+          assets: [503, 'The pinned local CPU model is missing or failed checksum verification'],
+          schema: [503, 'The local CPU model could not satisfy the requested structured response'],
+          busy: [429, 'The local CPU model queue is full'],
+          deadline: [503, 'The local CPU model exceeded its bounded inference deadline'],
+        };
+        if (error?.name === 'LocalModelError' && failures[error.code]) this.providerError = new HttpError(...failures[error.code]!);
+        if (!res.headersSent) res.writeHead(503, { 'content-type': 'application/json' });
+        if (!res.writableEnded) res.end(JSON.stringify({ error: { message: 'Bounded local CPU inference failed', type: 'local_inference_error' } }));
+      }
       finally { req.off('aborted', disconnected); res.off('close', disconnected); }
     });
     this.modelServer.listen(0, '127.0.0.1'); await once(this.modelServer, 'listening');
@@ -224,15 +238,23 @@ class NativeSession {
     try { prior = JSON.parse(await readFile(join(this.base, 'userdata/settings.json'), 'utf8')); } catch {}
     await writeFile(join(this.base, 'userdata/settings.json'), JSON.stringify({ ...(prior ?? {}), providerInstances: {
       codex: { driver: 'codex', enabled: false }, claudeAgent: { driver: 'claudeAgent', enabled: false },
-      studioLocal: { driver: 'opencode', enabled: true, displayName: 'Local CPU through native T3', config: { enabled: true, binaryPath: join(this.options.toolsDirectory, 'opencode/bin/opencode'), serverUrl: this.openOrigin, serverPassword: this.openPassword }, environment: Object.entries({ ...this.environment(), OPENCODE_CONFIG_CONTENT: openConfig }).filter(([name]) => name.startsWith('XDG_') || name.startsWith('OPENCODE_')).map(([name, value]) => ({ name, value, sensitive: false })) },
+      studioLocal: { driver: 'opencode', enabled: true, displayName: 'Local CPU through native T3', config: { enabled: true, binaryPath: join(this.options.toolsDirectory, 'opencode/bin/opencode'), serverUrl: this.openOrigin, serverPassword: this.openPassword }, environment: Object.entries({ ...this.environment(), OPENCODE_CONFIG_CONTENT: openConfig }).filter(([name]) => name.startsWith('XDG_') || name.startsWith('OPENCODE_')).map(([name, value]) => ({ name, value, sensitive: name === 'OPENCODE_CONFIG_CONTENT' })) },
     } }), { mode: 0o600 });
     const fresh = !await lstat(join(this.root, 'session.json')).catch(() => null);
     if (fresh) await this.cli(['project', 'add', this.workspace, '--title', 'Studio managed local generation']);
     this.launch(join(this.options.toolsDirectory, 't3/t3'), ['serve', '--base-dir', this.base, '--host', '127.0.0.1', '--port', new URL(this.nativeOrigin).port]);
     await this.wait(this.nativeOrigin + '/.well-known/oauth-authorization-server');
     if (fresh) await this.enroll();
-    const session = JSON.parse(await readFile(join(this.root, 'session.json'), 'utf8'));
-    if (session.version !== 1 || typeof session.token !== 'string' || session.token.length < 16 || session.token.length > 8192 || session.expiresAt <= Date.now() + 300000) throw unavailable();
+    let session = JSON.parse(await readFile(join(this.root, 'session.json'), 'utf8'));
+    if (session.version !== 1 || typeof session.token !== 'string' || session.token.length < 16 || session.token.length > 8192 || !Number.isFinite(session.expiresAt)) throw unavailable();
+    if (session.expiresAt <= Date.now() + 300000) {
+      // Native OAuth exposes no refresh grant. Keep the owned native DB/history, grant a new explicitly
+      // Supervised session through the same public approval flow, and checkpoint it before inference.
+      await this.enroll(session);
+      session = JSON.parse(await readFile(join(this.root, 'session.json'), 'utf8'));
+      this.sessionRenewed = true;
+    }
+    this.namespaceGeneration = session.namespaceGeneration ?? 0;
     const nativeConfig = { args: [], project: this.workspace, providers: [{ id: 'studioLocal', label: 'Local CPU through native T3', models: [this.profile.model] }], mcp: { url: this.nativeOrigin + '/mcp', accessToken: session.token } };
     // Native provider inventory warms asynchronously. Admission remains the same exact Supervised check.
     for (let i = 0; i < 40; i++) {
@@ -242,12 +264,13 @@ class NativeSession {
     }
     throw unavailable();
   }
-  async enroll() {
+  async enroll(previous?: { sessionId?: string; namespaceGeneration?: number; expiresAt: number }) {
     const post = async (path: string, value: any) => {
       const form = path.endsWith('/token');
       const response = await fetch(this.nativeOrigin + path, { method: 'POST', redirect: 'error', headers: { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json' }, body: form ? new URLSearchParams(value) : JSON.stringify(value), signal: this.signal });
       if (!response.ok) throw unavailable(); return await response.json() as any;
     };
+    const beforeSessions = new Set((JSON.parse(await this.cli(['auth', 'session', 'list', '--json'])) as any[]).map(session => session.sessionId));
     const pairing = JSON.parse(await this.cli(['auth', 'pairing', 'create', '--scope', 'orchestration:read', '--scope', 'orchestration:operate', '--ttl', '5m', '--json']));
     const redirect = 'http://127.0.0.1:49157/studio-native-callback';
     const registration = await post('/oauth/mcp/register', { client_name: 'Studio managed native T3', redirect_uris: [redirect], token_endpoint_auth_method: 'none' });
@@ -258,7 +281,16 @@ class NativeSession {
     if (callback.origin !== 'http://127.0.0.1:49157' || callback.pathname !== '/studio-native-callback' || callback.searchParams.get('state') !== authorization.state || !callback.searchParams.get('code')) throw unavailable();
     const token = await post('/oauth/mcp/token', { grant_type: 'authorization_code', code: callback.searchParams.get('code'), redirect_uri: redirect, client_id: registration.client_id, code_verifier: verifier, resource: this.nativeOrigin + '/mcp' });
     if (token.token_type !== 'Bearer' || token.scope !== 'orchestration:read orchestration:operate' || typeof token.access_token !== 'string' || typeof token.expires_in !== 'number') throw unavailable();
-    await writeFile(join(this.root, 'session.json'), JSON.stringify({ version: 1, token: token.access_token, expiresAt: Date.now() + token.expires_in * 1000 }), { mode: 0o600, flag: 'wx' });
+    const created = (JSON.parse(await this.cli(['auth', 'session', 'list', '--json'])) as any[]).filter(session => !beforeSessions.has(session.sessionId) && session.subject === 'mcp-client' && session.client?.label === 'Studio managed native T3');
+    if (created.length !== 1 || typeof created[0].sessionId !== 'string') throw unavailable();
+    const value = JSON.stringify({ version: 1, token: token.access_token, sessionId: created[0].sessionId, expiresAt: Date.now() + token.expires_in * 1000, namespaceGeneration: previous ? (previous.namespaceGeneration ?? 0) + 1 : 0 });
+    const target = join(this.root, 'session.json');
+    if (!previous) await writeFile(target, value, { mode: 0o600, flag: 'wx' });
+    else {
+      const temporary = target + '.renewal';
+      await writeFile(temporary, value, { mode: 0o600, flag: 'wx' }); await rename(temporary, target);
+      if (previous.sessionId) await this.cli(['auth', 'session', 'revoke', previous.sessionId]);
+    }
   }
   async stop() { await Promise.all([...this.children].map(terminate)); this.children.clear(); }
   async close() { await this.stop(); await closeServer(this.modelServer); this.modelServer = undefined; }
@@ -266,7 +298,7 @@ class NativeSession {
 
 /** Genuine T3 owns every turn. Local CPU is only its text provider; native effect tools are never emitted. */
 export function managedT3LanguageModel(options: ManagedT3Options, profile: AgentProfile, idempotencyKey: string): NativeModel {
-  if (options.key.length !== 32 || !isAbsolute(options.toolsDirectory) || (options.stateDirectory && !isAbsolute(options.stateDirectory)) || profile.harness !== 't3-code' || profile.provider !== 'studioLocal' || profile.model !== 'studio-local/' + options.localModel.modelId) throw unavailable();
+  if (options.key.length !== 32 || typeof options.artifactId !== 'string' || !options.artifactId || options.artifactId.length > 200 || !isAbsolute(options.toolsDirectory) || (options.stateDirectory && !isAbsolute(options.stateDirectory)) || profile.harness !== 't3-code' || profile.provider !== 'studioLocal' || profile.model !== 'studio-local/' + options.localModel.modelId) throw unavailable();
   return {
     specificationVersion: 'v3', provider: 't3-code:studioLocal', modelId: profile.model, supportedUrls: {},
     async doGenerate(call) {
@@ -308,10 +340,12 @@ export function managedT3LanguageModel(options: ManagedT3Options, profile: Agent
           await beforeAbort(lease.checkpoint(root), signal); // Same native MCP session is durable before any model inference.
           const config = await beforeAbort(native.start(), signal);
           const model = t3LanguageModel(config, profile, idempotencyKey);
-          const result = await beforeAbort(model.doGenerate({ ...call, abortSignal: signal }), signal);
+          let result;
+          try { result = await beforeAbort(model.doGenerate({ ...call, abortSignal: signal }), signal); }
+          catch (error: any) { if (native.providerError && error?.message === 'The selected T3 Code run ended without a completed response') throw native.providerError; throw error; }
           await native.stop();
           await beforeAbort(lease.checkpoint(root), signal);
-          return result;
+          return { ...result, providerMetadata: { ...result.providerMetadata, managedT3: { sessionRenewed: native.sessionRenewed, namespaceGeneration: native.namespaceGeneration, nativeTools: 'disabled', localModel: options.localModel.modelId } } };
         } finally { signal.removeEventListener('abort', onAbort); }
       } finally {
         if (timer) clearInterval(timer);

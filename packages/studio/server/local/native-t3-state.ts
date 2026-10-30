@@ -22,7 +22,7 @@ export async function packNativeState(root: string) {
   async function visit(relative: string) {
     for (const entry of await readdir(join(root, relative), { withFileTypes: true })) {
       const path = posix.join(relative, entry.name);
-      if (path === 'cache' || path === 'workspace' || path === 'native/caches' || path === 'native/userdata/logs' || path === 'native/userdata/browser-artifacts') continue;
+      if (path === 'cache' || path === 'workspace' || path === 'native/caches' || path === 'native/userdata/logs' || path === 'native/userdata/browser-artifacts' || path === 'data/opencode/log' || path === 'data/opencode/logs') continue;
       if (entry.isSymbolicLink()) throw invalid();
       if (entry.isDirectory()) { await visit(path); continue; }
       if (!entry.isFile() || !allowed.test(path)) continue;
@@ -155,6 +155,7 @@ export class NativeT3StateLease {
       await this.store.exec('INSERT INTO studio_native_t3_cleanup(object_key,not_before) VALUES(?,?)', objectKey, new Date(Date.now() + 600000).toISOString());
     });
     const object = await this.objects.put(objectKey, bytes, { contentType: 'application/octet-stream' });
+    if (object.key !== objectKey || object.sha256 !== digest(bytes) || object.byteSize !== bytes.length || object.contentType !== 'application/octet-stream') throw invalid();
     await this.store.tx(async () => {
       await this.fence?.();
       await this.scope();

@@ -24,7 +24,7 @@ State is limited to 1,000 files and 48 MiB uncompressed bytes. The actual small 
 
 The retained SQL ledger has artifact/project scope without cascading foreign keys. This preserves the encrypted object pointer after artifact deletion. Minute maintenance must call `cleanupManagedT3Checkpoints(store, objects, limit)`: missing-artifact state and state idle for seven days retire under fencing; Blob deletion succeeds before the pointer is removed. Failed Blob cleanup retains its retryable ledger. Staged or superseded objects have separate durable cleanup intents. This hook requires no decryption key.
 
-Native OAuth sessions last 30 days and have no public refresh grant. Restored credentials with fewer than five minutes remaining fail closed. They are not silently re-enrolled into another native namespace; a newly admitted request key creates a new native state. Queue retention is one day, below the native credential and checkpoint windows.
+Native OAuth sessions last 30 days and have no public refresh grant. When restored owned metadata has fewer than five minutes remaining, the runtime retains its native databases/history, obtains a fresh explicitly Supervised session through native pairing approval and PKCE, revokes the known previous owned session, and durably checkpoints before inference. The new native request namespace can recompute read-only inference; SDK metadata reports `sessionRenewed` and `namespaceGeneration` and does not call that same-session replay. Invalid or revoked unexpired sessions fail closed rather than overriding a permission decision. Queue retention is one day, below the native credential and checkpoint windows.
 
 ## Actual verification
 
