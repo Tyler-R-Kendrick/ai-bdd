@@ -181,5 +181,25 @@ describe.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL)(
       ).toHaveLength(1);
       expect(calls).toBe(1);
     });
+    it('lets editors pair and revoke their own machine while protecting another owner credential', async () => {
+      const { owner, editor, project, services } = await fixture(),
+        service = services[0]!;
+      const own = await service.pair(
+          (await service.pairing(editor, project.id, 'Editor device')).code,
+        ),
+        other = await service.pair(
+          (await service.pairing(owner, project.id, 'Owner device')).code,
+        );
+      await expect(
+        service.revoke(editor, project.id, other.id),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      await service.revoke(editor, project.id, own.id);
+      await expect(
+        service.authenticate(
+          { headers: { authorization: 'Bearer ' + own.token } } as any,
+          own.id,
+        ),
+      ).rejects.toMatchObject({ statusCode: 401 });
+    });
   },
 );

@@ -1,8 +1,9 @@
+import { yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Store } from '../server/store.ts';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../server/app.ts';
 import { implementationPointer } from '../shared/implementation.ts';
 import { client, setup, testSettings } from './helpers.ts';
@@ -189,5 +190,48 @@ describe('assembled cloud domain guards', () => {
     expect(exported.statusCode, exported.body).toBe(200);
     expect(exported.json().implementation.snapshot.editingLock).toBeTruthy();
     expect(exported.json().implementation.events.length).toBeGreaterThan(0);
+  });
+  it('refreshes an already-open local Yjs room after a transactional investigation card write without reload', async () => {
+    const studio = await createApp(
+      testSettings('/tmp/studio-live-investigation'),
+      { db: ':memory:' },
+    );
+    cleanup.push(() => studio.app.close());
+    const { user } = await setup(studio.app),
+      project = (await studio.store.createProject(
+        user,
+        'Live source',
+        '',
+        'https://github.com/example/live-source',
+      ))!,
+      room = await studio.collab.room(project.mainArtifactId, user.id);
+    const investigation = await studio.investigations!.propose(
+      user,
+      project.mainArtifactId,
+      {
+        version: 1,
+        brief: 'Measure the actual boundary behavior',
+        sourceCommit: 'a'.repeat(40),
+      },
+    );
+    await vi.waitFor(
+      () => {
+        const source = yXmlFragmentToProsemirrorJSON(
+          room.doc.getXmlFragment('default'),
+        );
+        expect(JSON.stringify(source)).toContain(investigation.id);
+      },
+      { timeout: 3000 },
+    );
+    const artifact = await studio.store.artifact(
+      project.mainArtifactId,
+      user.id,
+    );
+    await studio.collab.replace(
+      artifact.id,
+      user,
+      artifact.content,
+      artifact.version,
+    );
   });
 });

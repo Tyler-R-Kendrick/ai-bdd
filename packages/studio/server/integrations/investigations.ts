@@ -40,7 +40,7 @@ export type InvestigationDependencies = {
   };
   objects: ObjectStore;
   implementationLocked?: (artifactId: string) => Promise<boolean>;
-  notify?: (projectId: string, artifactId: string) => void;
+  notify?: (projectId: string, artifactId: string) => void | Promise<void>;
   nativeDocumentBlocks?: boolean;
   spikes?: {
     enabled: boolean;
@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
   }
   private async atomic<T>(projectId: string, callback: () => Promise<T>) {
     await this.ready;
+    const nested = this.store.db.inTransaction();
     const existing = this.publications.getStore();
     const work = () =>
       this.store.tx(async () => {
@@ -123,8 +124,13 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       { projectId: string; artifactId: string }
     >();
     const result = await this.publications.run(pending, work);
-    for (const item of pending.values())
-      this.dependencies.notify?.(item.projectId, item.artifactId);
+    for (const item of pending.values()) {
+      const publish = async () => {
+        await this.dependencies.notify?.(item.projectId, item.artifactId);
+      };
+      if (nested) this.store.db.afterCommit(publish);
+      else await publish();
+    }
     return result;
   }
   private async fresh(machine: MachinePrincipal) {
@@ -1142,14 +1148,14 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       return this.get(user, id);
     });
   }
-  /** Called only after a persisted writer edit; disabled unless an operator supplies both consented spikes and a judge. */
-  async considerSpike(
+  /** SQL-only preflight; exact source and personal consent are checked again before admission. */
+  async spikeContext(
     user: User,
     artifactId: string,
     input: { version: number; blockIndex: number; digest: string },
   ) {
-    const config = this.dependencies.spikes;
-    if (!config?.enabled || !config.judge) return null;
+    if (!this.dependencies.spikes?.enabled || !this.dependencies.spikes.judge)
+      return null;
     await this.ready;
     const initial = await this.unlocked(artifactId, user.id),
       block = initial.content.doc?.content?.[input.blockIndex] as
@@ -1180,11 +1186,31 @@ CREATE TABLE IF NOT EXISTS studio_investigation_passages(artifact_id TEXT NOT NU
       )
     )
       return null;
-    const judgment = await config.judge({
+    return {
+      initial,
+      block,
       passage: docText(block).slice(0, 12000),
       context: docText(initial.content.doc).slice(0, 30000),
-      signal: AbortSignal.timeout(15000),
-    });
+    };
+  }
+  /** A durable classifier may supply its already validated receipt; direct explicit requests still use the configured judge. */
+  async considerSpike(
+    user: User,
+    artifactId: string,
+    input: { version: number; blockIndex: number; digest: string },
+    judged?: { useful: boolean; brief: string; reason: string },
+  ) {
+    const candidate = await this.spikeContext(user, artifactId, input);
+    if (!candidate) return null;
+    const { initial, block } = candidate,
+      config = this.dependencies.spikes!;
+    const judgment =
+      judged ??
+      (await config.judge!({
+        passage: docText(block).slice(0, 12000),
+        context: docText(initial.content.doc).slice(0, 30000),
+        signal: AbortSignal.timeout(15000),
+      }));
     const checked = z
       .object({
         useful: z.boolean(),

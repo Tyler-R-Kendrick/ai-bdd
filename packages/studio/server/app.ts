@@ -1,3 +1,8 @@
+import { SpeculativeSpikes, createSpikeJudge } from './integrations/spikes.ts';
+import {
+  ImplementationDrafting,
+  registerImplementationDraftRoutes,
+} from './integrations/implementation-drafting.ts';
 import {
   registerInvestigationRoutes,
   type InvestigationService,
@@ -271,6 +276,17 @@ export async function createApp(
       auth,
       settings,
     });
+    if (settings.repositoryIdentity) {
+      agent.options.repositoryRead = (user, repository, input, signal) =>
+        identity.readRepository(user, repository, input, signal);
+      if (remotePlanner)
+        remotePlanner.options.repositoryRead = (
+          user,
+          repository,
+          input,
+          signal,
+        ) => identity.readRepository(user, repository, input, signal);
+    }
     if (settings.repositoryIdentity)
       store.repositoryAuthorizer = async (
         projectId,
@@ -315,7 +331,25 @@ export async function createApp(
         return store.tx(async () => {
           await store.lock('project:' + artifact.projectId);
           const current = await store.artifact(artifact.id, user.id);
-          return documentImplementationReadiness(store, current);
+          const readiness = await documentImplementationReadiness(
+              store,
+              current,
+            ),
+            required = await investigations!.required(current.id);
+          return {
+            ready: readiness.ready && required.length === 0,
+            blockers: [
+              ...readiness.blockers,
+              ...required.map((row) => ({
+                kind: 'investigation',
+                id: row.id,
+                message:
+                  'Incorporate required investigation findings: ' + row.brief,
+                reason: row.reason,
+                status: row.status,
+              })),
+            ],
+          };
         });
       },
     );
@@ -342,11 +376,14 @@ export async function createApp(
       agent,
       settings,
     });
+    const spikeJudge = createSpikeJudge(settings),
+      spikesEnabled = process.env.STUDIO_SPECULATIVE_SPIKES === '1';
     investigations = await registerInvestigationRoutes(app, {
       store,
       auth,
       machines: integrations.machines,
       objects: hosting.objects,
+      spikes: { enabled: spikesEnabled, judge: spikeJudge },
       implementationLocked: async (id) => !!(await graphs.editingLock(id)),
       notify: (projectId, id) => {
         void collab.notify(projectId, id).catch(() => {});
@@ -356,6 +393,40 @@ export async function createApp(
       investigations!.activeOnMachine(id);
     store.contentReferenceValidator = (input) =>
       validateInvestigationReferences(store, input);
+    const spikes = new SpeculativeSpikes({
+      store,
+      runtime,
+      investigations,
+      enabled: spikesEnabled,
+      judge: spikeJudge,
+    });
+    await spikes.initialize();
+    store.sourceObserver = async (user, previous, current) => {
+      if (current.kind === 'design' || current.kind === 'document') {
+        await collab.publishDocumentMetadata(current.projectId, current.id);
+        store.db.afterCommit(async () => {
+          void collab.refreshArtifact(current.id, user.id).catch(() => {});
+        });
+      }
+      await spikes.observe(user, previous, current);
+    };
+    const drafting = new ImplementationDrafting({
+      store,
+      runtime,
+      graphs,
+      provider: settings.model
+        ? (input) => agent.generateImplementationGraph(input)
+        : undefined,
+      allowed: (user, id) => agent.canParticipate(user, id),
+      onAdmit: (user, id) => agent.claimBackgroundOwnership(user, id),
+      assertReady: async (artifact) => {
+        await documentImplementationReady(store, artifact);
+        await investigations!.assertReady(artifact.id);
+      },
+      publish: (projectId, id) => collab.publishDocumentMetadata(projectId, id),
+    });
+    await drafting.initialize();
+    registerImplementationDraftRoutes(app, auth, drafting);
     // Project mutations and membership changes share this lock. Authorization is read again after waiting.
     const projectWrite = async <T>(
       request: FastifyRequest,
@@ -1262,29 +1333,40 @@ export async function createApp(
           400,
           'Only GitHub pull requests support automatic state refresh',
         );
-      const authenticated =
-        settings.githubToken &&
-        settings.githubRepositories?.includes(`${m[1]}/${m[2]}`.toLowerCase());
-      const response = await fetch(
-        `https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,
-        {
-          headers: {
-            Accept: 'application/vnd.github+json',
-            'User-Agent': 'ai-bdd-studio',
-            ...(authenticated
-              ? { Authorization: `Bearer ${settings.githubToken}` }
-              : {}),
-          },
-          signal: AbortSignal.timeout(10000),
-          redirect: 'error',
-        },
-      );
-      if (!response.ok)
-        throw new HttpError(
-          502,
-          'GitHub could not return this pull request. Use a public repository or an operator-allowlisted private repository.',
+      let pr: any;
+      if (settings.repositoryIdentity)
+        pr = await identity.readRepository(
+          u,
+          `https://github.com/${m[1]}/${m[2]}`,
+          { kind: 'pull_request', number: Number(m[3]) },
         );
-      const pr = (await response.json()) as any;
+      else {
+        const authenticated =
+          settings.githubToken &&
+          settings.githubRepositories?.includes(
+            `${m[1]}/${m[2]}`.toLowerCase(),
+          );
+        const response = await fetch(
+          `https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,
+          {
+            headers: {
+              Accept: 'application/vnd.github+json',
+              'User-Agent': 'ai-bdd-studio',
+              ...(authenticated
+                ? { Authorization: `Bearer ${settings.githubToken}` }
+                : {}),
+            },
+            signal: AbortSignal.timeout(10000),
+            redirect: 'error',
+          },
+        );
+        if (!response.ok)
+          throw new HttpError(
+            502,
+            'GitHub could not return this pull request. Use a public repository or an operator-allowlisted private repository.',
+          );
+        pr = await response.json();
+      }
       await projectWrite(req, a.projectId, 'write', async () => {
         await store.artifact(a.id, u.id, 'write');
         await store.exec(
@@ -1675,6 +1757,8 @@ export async function createApp(
       graphs,
       remotePlanner,
       investigations,
+      spikes,
+      drafting,
       runtime,
       hosting,
     };

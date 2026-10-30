@@ -89,8 +89,8 @@ export class MachineService {
     });
   }
   async pairing(user: User, projectId: string, label: string) {
-    await this.store.role(projectId, user.id, 'admin');
-    return this.asUser(user, projectId, 'admin', async () => {
+    await this.store.role(projectId, user.id, 'write');
+    return this.asUser(user, projectId, 'write', async () => {
       if (
         (
           await this.store.one(
@@ -135,7 +135,7 @@ export class MachineService {
         'Pairing code is invalid, expired, or already used',
       );
     const user = await this.store.publicUser(initial.user_id);
-    return this.asUser(user, initial.project_id, 'admin', async () => {
+    return this.asUser(user, initial.project_id, 'write', async () => {
       const pairing = await this.store.one(
         'SELECT * FROM studio_machine_pairing WHERE code_hash=? AND expires>?',
         hash(code),
@@ -146,7 +146,7 @@ export class MachineService {
           401,
           'Pairing code is invalid, expired, or already used',
         );
-      await this.store.role(pairing.project_id, pairing.user_id, 'admin');
+      await this.store.role(pairing.project_id, pairing.user_id, 'write');
       if (
         Number(
           (
@@ -222,8 +222,16 @@ export class MachineService {
     }));
   }
   async revoke(user: User, projectId: string, id: string) {
-    await this.store.role(projectId, user.id, 'admin');
-    await this.asUser(user, projectId, 'admin', async () => {
+    await this.store.role(projectId, user.id, 'write');
+    await this.asUser(user, projectId, 'write', async () => {
+      const target = await this.store.one(
+        'SELECT user_id FROM studio_machines WHERE id=? AND project_id=?',
+        id,
+        projectId,
+      );
+      if (!target) throw new HttpError(404, 'Connected machine not found');
+      if (target.user_id !== user.id)
+        await this.store.role(projectId, user.id, 'admin');
       await this.store.exec(
         "UPDATE studio_machine_work SET status='interrupted',error='The connected machine was revoked',lease_hash=NULL,updated_at=? WHERE machine_id=? AND project_id=? AND status='running'",
         now(),
