@@ -28,6 +28,7 @@ export type AccountMachineDependencies = {
   graphs?: ImplementationGraphs;
   notify?: (projectId: string, artifactId?: string) => void;
   plannerAssignments?: boolean;
+  plannerWorkActive?: (accountId: string) => Promise<boolean>;
 };
 export class AccountMachines {
   readonly ready: Promise<void>;
@@ -230,13 +231,21 @@ export class AccountMachines {
         'The account machine or this project assignment was revoked',
       );
   }
-  async otherWorkActive(machineId: string) {
+  async otherWorkActive(
+    machineId: string,
+    options: { excludePlanner?: boolean } = {},
+  ) {
     await this.ready;
     const binding = await this.store.one(
       "SELECT account_machine_id FROM studio_account_machine_bindings WHERE child_machine_id=? AND status='active'",
       machineId,
     );
     if (!binding) return false;
+    if (
+      !options.excludePlanner &&
+      (await this.dependencies.plannerWorkActive?.(binding.account_machine_id))
+    )
+      return true;
     const children = (
       await this.store.all(
         "SELECT child_machine_id FROM studio_account_machine_bindings WHERE account_machine_id=? AND status='active'",

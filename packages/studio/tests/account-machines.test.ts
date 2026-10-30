@@ -185,6 +185,33 @@ async function fixture() {
   };
 }
 describe(`account-wide machine delegation (${url ? 'PostgreSQL' : 'SQLite'})`, () => {
+  it('blocks ordinary device claims while a scoped Planner reservation owns that account machine', async () => {
+    const c = await fixture();
+    const assignment = (await c.assignments()).assignments[0]!;
+    const project = c.projects.find(
+      (project) => project.id === assignment.projectId,
+    )!;
+    c.accounts.dependencies.plannerWorkActive = async (id) =>
+      id === c.credentials.id;
+    expect(await c.accounts.otherWorkActive(assignment.credentials.id)).toBe(
+      true,
+    );
+    expect(
+      await c.accounts.otherWorkActive(assignment.credentials.id, {
+        excludePlanner: true,
+      }),
+    ).toBe(false);
+    await c.machines.queue(c.user, project.mainArtifactId, {
+      version: 1,
+      kind: 'investigation',
+      brief: 'Explicit ordinary work must wait for the active Planner',
+    });
+    const principal = await c.store.one(
+      'SELECT * FROM studio_machines WHERE id=?',
+      assignment.credentials.id,
+    );
+    expect(await c.machines.claim(principal)).toEqual({ work: null });
+  });
   it('discovers only currently authorized attached repositories and fences revoked or unavailable authority before cloning', async () => {
     const c = await fixture();
     const viewerProject = (await c.store.createProject(
