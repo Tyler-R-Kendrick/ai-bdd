@@ -1,0 +1,82 @@
+{
+  "sourceProvidedByOperator": "ff297243772cb39ad46169b86be4d3289955433c",
+  "deploymentIdProvidedByOperator": "dpl_2bdNaQWRyA7UiHmA7fT24AbmjMGR",
+  "verifiedAt": "2026-10-30T15:07:23.290Z",
+  "report": {
+    "schemaVersion": 1,
+    "target": "https://ai-bdd-studio.vercel.app",
+    "mode": "hosted-https",
+    "scope": "authenticated-persistence",
+    "status": "passed",
+    "counts": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "checks": [
+      {
+        "id": "root-spa",
+        "status": "passed"
+      },
+      {
+        "id": "spa-assets",
+        "status": "passed"
+      },
+      {
+        "id": "health",
+        "status": "passed"
+      },
+      {
+        "id": "vercel-sql-readiness",
+        "status": "passed"
+      },
+      {
+        "id": "setup-disabled-demo-off",
+        "status": "passed"
+      },
+      {
+        "id": "unauthenticated-api-denied",
+        "status": "passed"
+      },
+      {
+        "id": "setup-demo-route-denials",
+        "status": "passed"
+      },
+      {
+        "id": "secure-owner-login",
+        "status": "passed"
+      },
+      {
+        "id": "persisted-document-fresh-session",
+        "status": "passed"
+      },
+      {
+        "id": "session-cleanup",
+        "status": "passed"
+      }
+    ],
+    "services": {
+      "database": {
+        "reportedState": "verified",
+        "sqlProbeObserved": true
+      },
+      "objects": {
+        "reportedState": "configured",
+        "operationsVerified": false
+      },
+      "jobs": {
+        "reportedState": "configured",
+        "deliveryVerified": false
+      },
+      "media": {
+        "reportedState": "configured",
+        "executionVerified": false
+      }
+    },
+    "synthetic": {
+      "projectId": "8f6f2736-e11a-4335-9e09-ecb0994ec7c8",
+      "artifactId": "2c890dac-7f4b-4058-9ac3-126d2d0f4f72",
+      "retained": true
+    }
+  }
+}
