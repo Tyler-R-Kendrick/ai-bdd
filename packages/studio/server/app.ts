@@ -1,3 +1,4 @@
+import { investigationExportRows } from './integrations/investigation-export.ts';
 import { registerAgentProfileRoutes } from './integrations/agent-profiles.ts';
 import { registerImplementationMachineRoutes } from './integrations/implementation-machines.ts';
 import { SpeculativeSpikes, createSpikeJudge } from './integrations/spikes.ts';
@@ -250,7 +251,7 @@ export async function createApp(
           ? { blockers: (error as any).blockers.slice(0, 200) }
           : {}),
         error:
-          status < 500
+          status < 500 || (error instanceof HttpError && status === 503)
             ? (error as Error).message
             : 'The server could not complete this request',
       });
@@ -1649,7 +1650,17 @@ export async function createApp(
           implementationBefore = events.at(-1)!.revision;
           if (events.length < 100) break;
         }
-        yield ']},"integrationHistory":[';
+        yield ']},"investigations":[';
+        let firstInvestigation = true;
+        for await (const row of investigationExportRows(
+          store,
+          a.id,
+          checkAccess,
+        )) {
+          yield (firstInvestigation ? '' : ',') + JSON.stringify(row);
+          firstInvestigation = false;
+        }
+        yield '],"integrationHistory":[';
         let firstIntegration = true;
         for await (const row of integrationExportRows(store, user, a.id)) {
           await checkAccess();

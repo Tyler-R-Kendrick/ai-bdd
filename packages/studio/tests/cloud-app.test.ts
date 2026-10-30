@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { openDatabase } from '../server/persistence/index.ts';
 import { yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -188,10 +190,18 @@ describe('assembled cloud domain guards', () => {
   it('refreshes an already-open local Yjs room after a transactional investigation card write without reload', async () => {
     const studio = await createApp(
       testSettings('/tmp/studio-live-investigation'),
-      { db: ':memory:' },
+      process.env.STUDIO_TEST_POSTGRES_URL
+        ? {
+            database: await openDatabase({
+              adapter: 'postgres',
+              url: process.env.STUDIO_TEST_POSTGRES_URL,
+              schema: 'app_export_' + randomUUID().replaceAll('-', ''),
+            }),
+          }
+        : { db: ':memory:' },
     );
     cleanup.push(() => studio.app.close());
-    const { user } = await setup(studio.app),
+    const { user, cookie } = await setup(studio.app),
       project = (await studio.store.createProject(
         user,
         'Live source',
@@ -227,6 +237,18 @@ describe('assembled cloud domain guards', () => {
       artifact.content,
       artifact.version,
     );
+    const exported = await client(studio.app, cookie)(
+      'GET',
+      `/api/artifacts/${artifact.id}/export`,
+    );
+    expect(exported.statusCode, exported.body).toBe(200);
+    const history = exported.json().investigations;
+    expect(
+      history.find((row: any) => row.kind === 'investigation').value.id,
+    ).toBe(investigation.id);
+    expect(JSON.stringify(history)).not.toMatch(
+      /lease_hash|token_hash|leaseToken/,
+    );
   });
   it('exposes the selected default T3 availability and requires an explicit configured FX selection', async () => {
     const studio = await createApp(
@@ -248,6 +270,19 @@ describe('assembled cloud domain guards', () => {
     expect(
       (await request('GET', `/api/artifacts/${id}`)).json().agentAvailable,
     ).toBe(false);
+    const thread = (await studio.store.threads(id))[0]!;
+    const offline = await request('POST', `/api/artifacts/${id}/agent`, {
+      threadId: thread.id,
+      intent: 'chat',
+    });
+    expect(offline.statusCode, offline.body).toBe(503);
+    expect(offline.json().error).toContain('T3');
+    expect(
+      await studio.store.all(
+        'SELECT id FROM studio_durable_jobs WHERE artifact_id=?',
+        id,
+      ),
+    ).toHaveLength(0);
     const saved = await request('PUT', `/api/artifacts/${id}/agent/profile`, {
       harness: 'vercel-fx',
       provider: 'ai-gateway',
