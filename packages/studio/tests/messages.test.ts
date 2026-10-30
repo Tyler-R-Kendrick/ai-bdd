@@ -1,9 +1,9 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../server/app.ts';
-import { hash } from '../server/store.ts';
 import {
   client,
+  githubSignIn,
   member,
   project,
   setup,
@@ -194,16 +194,9 @@ describe('Artifact discussion pagination and complete streamed exports', () => {
         'outsider@example.test',
         'Outsider',
         null,
-      ),
-      token = randomUUID();
-    await instance.store.exec(
-      'INSERT INTO sessions VALUES(?,?,?,?)',
-      hash(token),
-      outsider.id,
-      Date.now() + 10000,
-      'session',
-    );
-    const denied = client(instance.app, token);
+      );
+    const signedIn = await githubSignIn(instance.app, outsider.email);
+    const denied = client(instance.app, signedIn.cookie);
     expect(
       (await denied('GET', pageUrl(p.mainArtifactId, thread.id))).statusCode,
     ).toBe(404);

@@ -3,7 +3,8 @@ import cookie from '@fastify/cookie';
 import { DatabaseSync } from 'node:sqlite';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
-import { HttpError, hash } from '../../server/store.ts';
+import { HttpError, hash, type Store } from '../../server/store.ts';
+import { Auth } from '../../server/auth.ts';
 import { registerRepositoryIdentity } from '../../server/identity/github.ts';
 import type {
   IdentityStore,
@@ -12,6 +13,7 @@ import type {
 } from '../../server/identity/ports.ts';
 import type { User, Project } from '../../shared/domain.ts';
 import { githubFixture } from './github-fixture.ts';
+import { githubSignIn, injectedGitHub } from './github-signin-inject-fixture.ts';
 export async function identityHarness() {
   const db = new DatabaseSync(':memory:');
   db.exec(
@@ -155,7 +157,42 @@ export async function identityHarness() {
     settings,
   });
   await app.ready();
-  const cookieFor = (user: User) => 'studio_session=' + user.id + '-session';
+  // Extra users in cross-Store lease cases complete the actual sign-in callback.
+  // The standalone repository fixture retains its intentionally small SQL schema.
+  const signInStore = {
+    ...store,
+    db: { lock: async () => {} },
+    userByEmail: (email: string) => store.one(
+      'SELECT * FROM users WHERE lower(email)=lower(?)', email,
+    ),
+  } as unknown as Store;
+  const signInAuth = new Auth(signInStore, {
+    production: false, origin, dataDir: '/tmp/owned-repository-identity-fixture',
+    demo: false, githubSignInProvider: injectedGitHub,
+  });
+  await signInAuth.initialize();
+  const signInApp = Fastify();
+  await signInApp.register(cookie);
+  await signInAuth.routes(signInApp);
+  await signInApp.ready();
+  const signedInCookies = new Map<string, string>();
+  async function signIn(user: User) {
+    const existing = await store.one('SELECT email FROM users WHERE id=?', user.id);
+    if (existing && existing.email.toLowerCase() !== user.email.toLowerCase())
+      throw new Error('Owned fixture account identity changed');
+    if (!existing)
+      await store.exec(
+        'INSERT INTO users VALUES(?,?,?,?)',
+        user.id, user.email, user.name, user.color,
+      );
+    const signedIn = await githubSignIn(signInApp, user.email);
+    if (signedIn.user.id !== user.id)
+      throw new Error('Owned sign-in did not retain the requested fixture account');
+    signedInCookies.set(user.id, signedIn.cookie);
+    return signedIn;
+  }
+  const cookieFor = (user: User) =>
+    'studio_session=' + (signedInCookies.get(user.id) ?? user.id + '-session');
   async function connect(
     user = users[0]!,
     account = { id: 101, login: 'alice-fixture' },
@@ -209,9 +246,11 @@ export async function identityHarness() {
     users,
     origin,
     cookieFor,
+    signIn,
     connect,
     project,
     async close() {
+      await signInApp.close();
       await app.close();
       await fixture.close();
       db.close();

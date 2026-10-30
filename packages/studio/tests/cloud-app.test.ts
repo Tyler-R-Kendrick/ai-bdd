@@ -338,17 +338,26 @@ describe('assembled cloud domain guards', () => {
     const directory = await mkdtemp(join(tmpdir(), 'studio-startup-cleanup-')),
       file = join(directory, 'studio.sqlite');
     cleanup.push(() => rm(directory, { recursive: true, force: true }));
-    await expect(
-      createApp(
-        {
-          ...testSettings(directory),
-          oidcIssuer: 'http://organization.example.test',
-          oidcClientId: 'fixture',
-          oidcClientSecret: 'fixture-only',
-        },
-        { db: file },
-      ),
-    ).rejects.toThrow('OIDC requires HTTPS');
+    const originalExec = Store.prototype.exec;
+    const write = vi.spyOn(Store.prototype, 'exec').mockImplementation(function (
+      this: Store,
+      sql: string,
+      ...args: any[]
+    ) {
+      if (sql.startsWith('CREATE TABLE IF NOT EXISTS github_signin_identities'))
+        throw new Error('Owned identity schema initialization failure');
+      return originalExec.call(this, sql, ...args);
+    });
+    const close = vi.spyOn(Store.prototype, 'close');
+    try {
+      await expect(
+        createApp(testSettings(directory), { db: file }),
+      ).rejects.toThrow('Owned identity schema initialization failure');
+      expect(close).toHaveBeenCalledOnce();
+    } finally {
+      write.mockRestore();
+      close.mockRestore();
+    }
     const reopened = await Store.open(file);
     await reopened.close();
   });
