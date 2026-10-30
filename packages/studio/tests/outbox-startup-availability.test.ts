@@ -137,6 +137,7 @@ async function fixture(adapter: Adapter) {
     ) => Promise<unknown> = async () => {
       throw new Error('A queue publisher must never execute a worker');
     },
+    startupDispatchLimit?: number,
   ) => {
     const sourceStore = await openStore(),
       runtime = await runtimeFor(sourceStore);
@@ -144,6 +145,7 @@ async function fixture(adapter: Adapter) {
     const application = await createApp(testSettings(dir), {
       store: sourceStore,
       runtime,
+      ...(startupDispatchLimit === undefined ? {} : { startupDispatchLimit }),
     });
     cleanup.push(() => application.app.close());
     return application;
@@ -456,7 +458,7 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         await seed.close();
         await sourceStore.close();
 
-        const application = await w.start(),
+        const application = await w.start(undefined, 2),
           health = await application.app.inject('/api/health'),
           request = await w.login(application);
         expect(w.dispatcher.publish.mock.calls.length).toBeGreaterThan(0);
@@ -510,6 +512,191 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         expect(
           (await application.store.artifact(w.artifact.id, w.user.id)).content,
         ).toEqual(w.artifact.content);
+      });
+
+      it('opens SQL-only cloud startup without invoking a hung publisher and preserves manual documents and persisted retry state', async () => {
+        const w = await fixture(adapter),
+          failedStore = await w.openStore(),
+          failedRuntime = await w.runtimeFor(failedStore);
+        failedRuntime.register(kind, async () => {
+          throw new Error('Dispatch retries must never execute a worker');
+        });
+        await expect(failedRuntime.flushOutbox()).rejects.toBeInstanceOf(
+          OutboxDispatchPendingError,
+        );
+        await failedStore.exec(
+          'UPDATE studio_job_outbox SET retry_at=0 WHERE job_id=?',
+          w.job.id,
+        );
+        const retained = await failedStore.all(
+          'SELECT id FROM studio_job_outbox WHERE job_id=? AND error IS NOT NULL',
+          w.job.id,
+        );
+        expect(retained.length).toBeGreaterThan(0);
+        await failedRuntime.close();
+        await failedStore.close();
+
+        let signalPublisherCalled!: () => void;
+        const publisherCalled = new Promise<void>((resolve) => {
+          signalPublisherCalled = resolve;
+        });
+        w.dispatcher.publish.mockClear();
+        w.dispatcher.publish.mockImplementation(async () => {
+          signalPublisherCalled();
+          return new Promise<{
+            provider: string;
+            messageId: string;
+          }>(() => {});
+        });
+        // A broken startup resolves this race through publisherCalled immediately;
+        // the correct startup completes without ever entering the unresolved call.
+        const outcome = await Promise.race([
+          w.start(undefined, 0).then((application) => ({
+            kind: 'application' as const,
+            application,
+          })),
+          publisherCalled.then(() => ({ kind: 'publisher' as const })),
+        ]);
+        expect(outcome.kind).toBe('application');
+        if (outcome.kind !== 'application')
+          throw new Error('SQL-only startup invoked the hung queue publisher');
+        const application = outcome.application,
+          health = await application.app.inject('/api/health'),
+          request = await w.login(application);
+        expect(health.statusCode).toBe(200);
+        expect(health.json()).toEqual({ ok: true });
+        expect(health.headers['x-studio-execution-state']).toBe('degraded');
+        expect(await application.executionReadiness()).toEqual(degraded);
+        expect(
+          (await request('GET', '/api/capabilities')).json().execution,
+        ).toEqual(degraded);
+        const created = await request(
+          'POST',
+          `/api/projects/${w.project.id}/artifacts`,
+          { kind: 'document', title: 'Cloud outage authoring' },
+        );
+        expect(created.statusCode, created.body).toBe(201);
+        const document = created.json(),
+          saved = await request('PATCH', `/api/artifacts/${document.id}`, {
+            version: document.version,
+            content: {
+              ...document.content,
+              doc: {
+                type: 'doc',
+                content: [
+                  {
+                    type: 'paragraph',
+                    content: [
+                      { type: 'text', text: 'Edited while dispatch is hung.' },
+                    ],
+                  },
+                ],
+              },
+            },
+          });
+        expect(saved.statusCode, saved.body).toBe(200);
+        const read = await request('GET', `/api/artifacts/${document.id}`);
+        expect(read.statusCode, read.body).toBe(200);
+        expect(read.json().artifact.version).toBe(document.version + 1);
+        expect(JSON.stringify(read.json().artifact.content.doc)).toContain(
+          'Edited while dispatch is hung.',
+        );
+        expect(
+          (await request('POST', `/api/artifacts/${document.id}/archive`))
+            .statusCode,
+        ).toBe(200);
+        expect(
+          (await request('GET', `/api/projects/${w.project.id}/artifacts`))
+            .json()
+            .some((artifact: { id: string }) => artifact.id === document.id),
+        ).toBe(false);
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
+        expect(await application.runtime.get(w.job.id)).toMatchObject({
+          status: 'queued',
+          attempt: 0,
+          fence: 0,
+          result: null,
+        });
+        const intents = await application.store.all(
+          'SELECT id,status,error,receipt_json FROM studio_job_outbox WHERE job_id=?',
+          w.job.id,
+        );
+        expect(intents.length).toBeGreaterThan(retained.length);
+        for (const { id } of retained)
+          expect(intents.find((row) => row.id === id)).toMatchObject({
+            status: 'pending',
+            receipt_json: null,
+            error: expect.any(String),
+          });
+        for (const intent of intents) {
+          expect(intent.status).toBe('pending');
+          expect(intent.receipt_json).toBeNull();
+        }
+        expect(
+          (
+            await application.store.one(
+              'SELECT count(*) AS n FROM studio_job_receipts',
+            )
+          ).n,
+        ).toBe(0);
+        expect(
+          (
+            await application.store.one(
+              'SELECT count(*) AS n FROM startup_publications',
+            )
+          ).n,
+        ).toBe(0);
+        expect(
+          (await application.store.artifact(w.artifact.id, w.user.id)).content,
+        ).toEqual(w.artifact.content);
+
+        w.setFailure(undefined);
+        w.dispatcher.publish.mockImplementation(async () => ({
+          provider: w.dispatcher.provider,
+          messageId: 'repaired-after-sql-only-startup',
+        }));
+        await application.runtime.recover();
+        expect(w.dispatcher.publish).toHaveBeenCalled();
+        expect(await application.executionReadiness()).toEqual(configured);
+        for (const row of await application.store.all(
+          'SELECT status,receipt_json FROM studio_job_outbox WHERE job_id=?',
+          w.job.id,
+        )) {
+          expect(row.status).toBe('dispatched');
+          expect(JSON.parse(row.receipt_json).provider).toBe(
+            w.dispatcher.provider,
+          );
+        }
+        expect(await application.runtime.get(w.job.id)).toMatchObject({
+          status: 'queued',
+          attempt: 0,
+          result: null,
+        });
+      });
+
+      it('keeps SQL reconciliation errors fatal when cloud startup disables external dispatch', async () => {
+        const w = await fixture(adapter),
+          sourceStore = await w.openStore(),
+          runtime = await w.runtimeFor(sourceStore),
+          message = 'fixture SQL-only recovery intent insert rejected';
+        runtime.register(kind, async () => null);
+        if (adapter === 'sqlite')
+          await sourceStore.db.exec(
+            `CREATE TRIGGER reject_recovery_intent BEFORE INSERT ON studio_job_outbox BEGIN SELECT RAISE(ABORT,'${message}'); END`,
+          );
+        else
+          await sourceStore.db.exec(
+            `CREATE FUNCTION reject_recovery_intent() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION '${message}'; END $$;
+             CREATE TRIGGER reject_recovery_intent BEFORE INSERT ON studio_job_outbox FOR EACH ROW EXECUTE FUNCTION reject_recovery_intent()`,
+          );
+        await expect(
+          createApp(testSettings(w.dir), {
+            store: sourceStore,
+            runtime,
+            startupDispatchLimit: 0,
+          }),
+        ).rejects.toThrow(message);
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
       });
 
       it('retains persisted dispatching degradation until authorized cancellation without claiming dispatch or output', async () => {
