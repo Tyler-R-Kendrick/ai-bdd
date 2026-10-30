@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ClipboardList,
   FileDown,
@@ -7,6 +7,7 @@ import {
   PanelRightClose,
   Plus,
   RefreshCw,
+  Search,
 } from 'lucide-react';
 import {
   Badge,
@@ -35,6 +36,7 @@ import {
   useDocumentWorkspace,
 } from './Workspace.tsx';
 import type { DocumentSuggestion } from '../../../shared/document-review.ts';
+import { DocumentSearchBar } from './Search.tsx';
 const names: Record<DocumentBlockKind, string> = {
   calloutBlock: 'Callout',
   columnsBlock: 'Columns',
@@ -64,6 +66,47 @@ export function DocumentTools() {
     } | null>(null),
     [processing, setProcessing] = useState(false),
     [importError, setImportError] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false),
+    [outline, setOutline] = useState<
+      { id: string; title: string; level: number }[]
+    >([]),
+    [tableActive, setTableActive] = useState(false);
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => {
+      const headings: { id: string; title: string; level: number }[] = [];
+      editor.state.doc.descendants((node, position) => {
+        if (node.type.name === 'heading')
+          headings.push({
+            id: node.attrs.id ? String(node.attrs.id) : '@' + position,
+            title: node.textContent,
+            level: Number(node.attrs.level),
+          });
+      });
+      setOutline(headings);
+    };
+    const selection = () => setTableActive(editor.isActive('table'));
+    const keyboard = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        ['f', 'h'].includes(event.key.toLowerCase()) &&
+        (event.target as Element | null)?.closest('.document-editor')
+      ) {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    update();
+    selection();
+    editor.on('update', update);
+    editor.on('selectionUpdate', selection);
+    document.addEventListener('keydown', keyboard);
+    return () => {
+      editor.off('update', update);
+      editor.off('selectionUpdate', selection);
+      document.removeEventListener('keydown', keyboard);
+    };
+  }, [editor]);
   const cancellation = useRef<AbortController | null>(null),
     fileInput = useRef<HTMLInputElement>(null);
   const propose = () => {
@@ -234,7 +277,47 @@ export function DocumentTools() {
         return;
       }
       if (format === 'html') {
-        const html = editor.getHTML();
+        setProcessing(true);
+        let html = editor.getHTML(),
+          total = 0;
+        const urls = [
+            ...new Set(
+              [...html.matchAll(/src="(\/api\/files\/[0-9a-f-]{36})"/g)].map(
+                (match) => match[1]!,
+              ),
+            ),
+          ],
+          embedded: Record<string, string> = {};
+        for (const url of urls) {
+          const response = await fetch(url, {
+            credentials: 'same-origin',
+            signal: AbortSignal.timeout(15000),
+          });
+          if (!response.ok)
+            throw new Error(
+              'A document image could not be downloaded for this export',
+            );
+          const blob = await response.blob();
+          total += blob.size;
+          if (
+            total > 16000000 ||
+            !['image/png', 'image/jpeg', 'image/webp'].includes(blob.type)
+          )
+            throw new Error(
+              'HTML export supports up to 16 MB of uploaded raster images',
+            );
+          embedded[url] = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () =>
+              reject(new Error('An image could not be embedded'));
+            reader.readAsDataURL(blob);
+          });
+        }
+        html = html.replace(
+          /src="(\/api\/files\/[0-9a-f-]{36})"/g,
+          (_, url: string) => 'src="' + embedded[url] + '"',
+        );
         download(
           artifact.title + '.html',
           '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:"><title>Exported document</title><style>body{font:16px/1.7 system-ui,sans-serif;max-width:75ch;margin:3rem auto;padding:0 1.5rem;color:#24292e}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cdd2c8;padding:.5rem}pre{white-space:pre-wrap}img{max-width:100%}</style></head><body>' +
@@ -267,13 +350,23 @@ export function DocumentTools() {
                 throw new Error(
                   'Embedded images exceed the 16 MB document export limit',
                 );
-              if (blob.type === 'image/png' || blob.type === 'image/jpeg')
+              if (blob.type === 'image/png' || blob.type === 'image/jpeg') {
+                const bitmap = await createImageBitmap(blob),
+                  width = bitmap.width,
+                  height = bitmap.height;
+                bitmap.close();
+                if (width * height > 40000000)
+                  throw new Error('An image is too large for Word export');
                 images[src] = {
                   bytes: new Uint8Array(await blob.arrayBuffer()),
                   mime: blob.type,
+                  width,
+                  height,
                 };
-              else {
-                const bitmap = await createImageBitmap(blob);
+              } else {
+                const bitmap = await createImageBitmap(blob),
+                  width = bitmap.width,
+                  height = bitmap.height;
                 if (bitmap.width * bitmap.height > 40_000_000) {
                   bitmap.close();
                   throw new Error(
@@ -297,7 +390,14 @@ export function DocumentTools() {
                 images[src] = {
                   bytes: new Uint8Array(await converted.arrayBuffer()),
                   mime: 'image/png',
+                  width,
+                  height,
                 };
+                bytes += converted.size - blob.size;
+                if (bytes > 16000000)
+                  throw new Error(
+                    'Converted images exceed the 16 MB document export limit',
+                  );
               }
             }
           }
@@ -384,6 +484,88 @@ export function DocumentTools() {
             </span>
           ) : null}
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-pressed={searchOpen}
+          onClick={() => setSearchOpen(!searchOpen)}
+        >
+          <Search size={14} />
+          Find
+        </Button>
+        <select
+          className="document-outline-select"
+          aria-label="Document outline"
+          value=""
+          disabled={!outline.length}
+          onChange={(event) => {
+            let target = -1;
+            if (event.target.value.startsWith('@')) {
+              const position = Number(event.target.value.slice(1));
+              if (
+                Number.isSafeInteger(position) &&
+                position >= 0 &&
+                editor?.state.doc.nodeAt(position)?.type.name === 'heading'
+              )
+                target = position;
+            } else
+              editor?.state.doc.descendants((node, position) => {
+                if (node.attrs.id === event.target.value) target = position;
+              });
+            if (target >= 0)
+              editor
+                ?.chain()
+                .focus()
+                .setTextSelection(target + 1)
+                .scrollIntoView()
+                .run();
+          }}
+        >
+          <option value="">Outline</option>
+          {outline.map((heading) => (
+            <option key={heading.id} value={heading.id}>
+              {'— '.repeat(Math.min(5, heading.level - 1))}
+              {heading.title || 'Untitled heading'}
+            </option>
+          ))}
+        </select>
+        {tableActive && (
+          <select
+            className="document-outline-select"
+            aria-label="Table actions"
+            value=""
+            disabled={readOnly}
+            onChange={(event) => {
+              if (!editor || readOnly) return;
+              const chain = editor.chain().focus(),
+                commands: Record<string, () => unknown> = {
+                  rowBefore: () => chain.addRowBefore().run(),
+                  rowAfter: () => chain.addRowAfter().run(),
+                  columnBefore: () => chain.addColumnBefore().run(),
+                  columnAfter: () => chain.addColumnAfter().run(),
+                  header: () => chain.toggleHeaderRow().run(),
+                  merge: () => chain.mergeCells().run(),
+                  split: () => chain.splitCell().run(),
+                  deleteRow: () => chain.deleteRow().run(),
+                  deleteColumn: () => chain.deleteColumn().run(),
+                  deleteTable: () => chain.deleteTable().run(),
+                };
+              commands[event.target.value]?.();
+            }}
+          >
+            <option value="">Table actions</option>
+            <option value="rowBefore">Add row above</option>
+            <option value="rowAfter">Add row below</option>
+            <option value="columnBefore">Add column left</option>
+            <option value="columnAfter">Add column right</option>
+            <option value="header">Toggle header row</option>
+            <option value="merge">Merge selected cells</option>
+            <option value="split">Split selected cell</option>
+            <option value="deleteRow">Delete row</option>
+            <option value="deleteColumn">Delete column</option>
+            <option value="deleteTable">Delete table</option>
+          </select>
+        )}
         <span className="document-actions-spacer" />
         {processing ? (
           <>
@@ -440,6 +622,10 @@ export function DocumentTools() {
           </>
         )}
       </div>
+      <DocumentSearchBar
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
       <Modal
         open={!!suggestion}
         onOpenChange={(open) => {
