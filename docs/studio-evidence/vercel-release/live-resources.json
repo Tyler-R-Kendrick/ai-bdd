@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "recordedAt": "2026-10-30T14:36:33Z",
+  "recordedAt": "2026-10-30T14:41:21Z",
   "applicationSource": "52a6c61897ebf23452dbf4365b4da6aeebd7dc65",
   "scope": "Provisioned resources and direct live SDK probes; no hosted-application release certification.",
   "evidenceSources": {
@@ -20,7 +20,9 @@
     "authentication": "Official CLI device flow completed; actual resource and environment writes succeeded.",
     "accessControlsChanged": false,
     "canonicalProductionOrigin": "https://ai-bdd-studio.vercel.app",
-    "productionDeploymentVerified": false
+    "productionDeploymentVerified": false,
+    "repositoryVisibilityObserved": "public; no visibility change performed",
+    "canonicalAliasAcceptance": "pending production Ready and application health verification"
   },
   "neon": {
     "projectId": "crimson-frog-10403185",
@@ -264,7 +266,14 @@
     "url": "https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app",
     "stateAtOperatorHandoff": "BUILDING",
     "hostedApplicationVerified": false,
-    "productionDeploymentObserved": false
+    "productionDeploymentObserved": true,
+    "production": {
+      "id": "dpl_Bxr93PMmv37RAVuwgMwJ9UWAjxtj",
+      "url": "https://ai-bdd-studio-jlwl3wsph-tyler-r-kendricks-projects.vercel.app",
+      "stateAtOperatorHandoff": "BUILDING",
+      "hostedApplicationVerified": false,
+      "createdAtMinuteObserved": "2026-10-30T14:39Z"
+    }
   },
   "readiness": {
     "privateBlobDirectSdk": "verified in both environments",

@@ -2,7 +2,7 @@
 
 This receipt records actual provisioned resources and direct live SDK acceptance observed on 2026-10-30. It does **not** certify a hosted application, queue recovery, or successful model inference. The reviewed application source is `52a6c61`; [live-resources.json](live-resources.json) retains safe resource IDs, timestamps, hashes, probe measurements, and precise readiness states. Credentials, populated environment files, proxy endpoints, and private operator filesystem paths are excluded.
 
-The operator authenticated Vercel CLI **65.8.0** through its official device flow. Actual CLI resource and environment writes succeeded. No ACL or deployment-protection change was used to work around the earlier MCP permission rejection. The approved project is `prj_zpOn0fQVrwbRp8ZWozPiL2ER4jLa` under team `team_BRBUnG6uGhSsVV3EG5GFV3FM`.
+The operator authenticated Vercel CLI **65.8.0** through its official device flow. Actual CLI resource and environment writes succeeded. No ACL or deployment-protection change was used to work around the earlier MCP permission rejection. The approved GitHub repository was observed as public at release time; no visibility change was performed. The approved Vercel project is `prj_zpOn0fQVrwbRp8ZWozPiL2ER4jLa` under team `team_BRBUnG6uGhSsVV3EG5GFV3FM`.
 
 ## Resource inventory
 
@@ -48,7 +48,7 @@ The managed workspace required an **operator-only network proxy preload** for th
 
 ## Remaining release gates at this observation
 
-The latest preview deployment reported by the operator was `dpl_9FfYqDpLd5YQb3zKb5k3LhEcwEHx`, at `https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app`, with state **BUILDING**. This is a timestamped build observation, not a healthy-application result. No production deployment acceptance is recorded here. Hosted login, native database transport/migrations, queue delivery and recovery, maintenance chaining, permissions, browser uploads, and durable media publication still need their own actual deployment receipt.
+At the operator handoff, the preview deployment was `dpl_9FfYqDpLd5YQb3zKb5k3LhEcwEHx`, at `https://ai-bdd-studio-atm76hmlh-tyler-r-kendricks-projects.vercel.app`, with state **BUILDING**. The operator also created production deployment `dpl_Bxr93PMmv37RAVuwgMwJ9UWAjxtj` at approximately `2026-10-30T14:39Z`, using the same source and reviewed bindings, at `https://ai-bdd-studio-jlwl3wsph-tyler-r-kendricks-projects.vercel.app`; it was still **BUILDING** at that handoff. These are build observations, not healthy-application results. Production alias activation and application acceptance have not been verified by this receipt. Hosted login, native database transport/migrations, queue delivery and recovery, maintenance chaining, permissions, browser uploads, and durable media publication still need their own actual deployment receipt.
 
 The configured generative Gateway model is `openai/gpt-5.2`; the explicit fx alternative also offers `openai/gpt-5.4-mini` and `anthropic/claude-sonnet-4.6`. The separate decision picker uses provider `vercel-structured`, model `openai/gpt-5.4-mini`, and allowed models `openai/gpt-5.4-mini` / `openai/gpt-5.2`. An actual Gateway attempt returned **HTTP 402 for credit balance**; no successful inference is claimed. T3 remains the default artifact harness and stays safely offline until an actual trusted runtime or endpoint is registered. There is no implicit fx fallback.
 
