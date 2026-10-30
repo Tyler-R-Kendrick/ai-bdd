@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { signInAcceptanceActor } from './browser-auth.ts';
 const origin = 'http://127.0.0.1:8877';
 test('captures the requested artifact workspace with honest illustrative review content', async ({
   page,
@@ -17,7 +18,7 @@ test('captures the requested artifact workspace with honest illustrative review 
     expect(r.ok(), await r.text()).toBe(true);
     return r.json();
   };
-  await call('/auth/demo');
+  await signInAcceptanceActor(page);
   const project = await call('/projects', 'POST', {
     title: 'Customer onboarding',
     description:

@@ -279,4 +279,100 @@ describe('safe document interchange and passage review', () => {
       applyDocumentSuggestion(duplicated, suggestion, passage.snapshot),
     ).toThrow('ambiguous');
   });
+  it('retains inline/block formula source and merged Word table geometry through interchange', () => {
+    const formula: RichNode = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Energy ' },
+            { type: 'inlineMath', attrs: { latex: 'E = mc^2' } },
+          ],
+        },
+        { type: 'blockMath', attrs: { latex: '\\frac{a}{b}' } },
+      ],
+    };
+    const imported = importMarkdown(exportMarkdown(formula)).doc;
+    expect(
+      imported.content?.[0]?.content?.some(
+        (node) =>
+          node.type === 'inlineMath' && node.attrs?.latex === 'E = mc^2',
+      ),
+    ).toBe(true);
+    expect(imported.content?.[1]?.attrs?.latex).toBe('\\frac{a}{b}');
+    const paragraph = (value: string) => ({
+        type: 'paragraph',
+        content: [{ type: 'text', text: value }],
+      }),
+      merged: RichNode = {
+        type: 'doc',
+        content: [
+          {
+            type: 'table',
+            content: [
+              {
+                type: 'tableRow',
+                content: [
+                  {
+                    type: 'tableHeader',
+                    attrs: { rowspan: 2, colspan: 1 },
+                    content: [paragraph('Two rows')],
+                  },
+                  { type: 'tableHeader', content: [paragraph('Next column')] },
+                ],
+              },
+              {
+                type: 'tableRow',
+                content: [
+                  { type: 'tableCell', content: [paragraph('Second row')] },
+                ],
+              },
+              {
+                type: 'tableRow',
+                content: [
+                  {
+                    type: 'tableCell',
+                    attrs: { colspan: 2 },
+                    content: [paragraph('Two columns')],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+    const roundtrip = importDocx(exportDocx(merged, 'Merged table')).doc,
+      rows = roundtrip.content![0]!.content!;
+    expect(rows[0]!.content![0]!.type).toBe('tableHeader');
+    expect(rows[0]!.content![0]!.attrs?.rowspan).toBe(2);
+    expect(rows[1]!.content).toHaveLength(1);
+    expect(rows[2]!.content![0]!.attrs?.colspan).toBe(2);
+  });
+
+  it('normalizes ZIP comments so embedded EOCD markers cannot redirect inflation and rejects ZIP64/count disagreement', () => {
+    const original = exportDocx(doc, 'ZIP directory'),
+      commented = new Uint8Array(original.length + 23);
+    commented.set(original);
+    const view = new DataView(commented.buffer),
+      end = original.length - 22;
+    view.setUint16(end + 20, 23, true);
+    view.setUint32(original.length, 0x06054b50, true);
+    expect(
+      editorSchema().nodeFromJSON(importDocx(commented).doc).textContent,
+    ).toContain('A deliberate plan');
+    const counts = original.slice(),
+      countView = new DataView(counts.buffer);
+    countView.setUint16(end + 8, countView.getUint16(end + 10, true) + 1, true);
+    expect(() => importDocx(counts)).toThrow('inconsistent');
+    const zip64 = original.slice();
+    new DataView(zip64.buffer).setUint32(end - 20, 0x07064b50, true);
+    expect(() => importDocx(zip64)).toThrow('ZIP64');
+  });
+});
+
+it('rejects every ASCII control and space inside exported links while retaining safe URLs', () => {
+  const linked = (href: string): RichNode => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Evidence', marks: [{ type: 'link', attrs: { href } }] }] }] });
+  for (let code = 0; code <= 32; code++) expect(exportMarkdown(linked('https://example.test/a' + String.fromCharCode(code) + 'b'))).not.toContain('[Evidence]');
+  expect(exportMarkdown(linked('https://example.test/evidence'))).toContain('[Evidence](https://example.test/evidence)');
 });
