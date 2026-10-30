@@ -514,6 +514,358 @@ for (const adapter of ['sqlite', 'postgres'] as const)
         ).toEqual(w.artifact.content);
       });
 
+      it('acknowledges and reloads one persisted manual message without entering a hung cloud publisher', async () => {
+        const w = await fixture(adapter),
+          sourceStore = await w.openStore(),
+          seed = await w.runtimeFor(sourceStore);
+        seed.register(kind, async () => null);
+        await expect(seed.flushOutbox()).rejects.toBeInstanceOf(
+          OutboxDispatchPendingError,
+        );
+        await sourceStore.exec('UPDATE studio_job_outbox SET retry_at=0');
+        await seed.close();
+        await sourceStore.close();
+        let signalPublisherCalled!: () => void;
+        const publisherCalled = new Promise<void>((resolve) => {
+          signalPublisherCalled = resolve;
+        });
+        w.dispatcher.publish.mockClear();
+        w.dispatcher.publish.mockImplementation(async () => {
+          signalPublisherCalled();
+          return new Promise<{ provider: string; messageId: string }>(() => {});
+        });
+        const application = await w.start(undefined, 0),
+          request = await w.login(application),
+          before = (
+            await request('GET', `/api/artifacts/${w.artifact.id}`)
+          ).json(),
+          body =
+            'A human message remains independent of unrelated queue publication.',
+          outcome = await Promise.race([
+            request('POST', `/api/artifacts/${w.artifact.id}/messages`, {
+              threadId: before.threads[0].id,
+              body,
+            }).then((response) => ({ kind: 'response' as const, response })),
+            publisherCalled.then(() => ({ kind: 'publisher' as const })),
+          ]);
+        expect(outcome.kind).toBe('response');
+        if (outcome.kind !== 'response')
+          throw new Error('Manual cloud chat entered the hung queue publisher');
+        expect(outcome.response.statusCode, outcome.response.body).toBe(201);
+        expect(outcome.response.json().body).toBe(body);
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
+        await application.app.close();
+
+        const reloaded = await w.start(undefined, 0),
+          reloadRequest = await w.login(reloaded),
+          after = (
+            await reloadRequest('GET', `/api/artifacts/${w.artifact.id}`)
+          ).json();
+        expect(
+          after.messages.filter(
+            (message: { body: string }) => message.body === body,
+          ),
+        ).toHaveLength(1);
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
+        expect(await reloaded.executionReadiness()).toEqual(degraded);
+        expect(await reloaded.runtime.get(w.job.id)).toMatchObject({
+          status: 'queued',
+          attempt: 0,
+          result: null,
+        });
+        expect(
+          (
+            await reloaded.store.one(
+              'SELECT count(*) AS n FROM studio_job_receipts',
+            )
+          ).n,
+        ).toBe(0);
+        for (const intent of await reloaded.store.all(
+          'SELECT status,receipt_json FROM studio_job_outbox',
+        )) {
+          expect(intent.status).toBe('pending');
+          expect(intent.receipt_json).toBeNull();
+        }
+        w.dispatcher.publish.mockImplementation(async () => ({
+          provider: w.dispatcher.provider,
+          messageId: 'explicit-maintenance-after-manual-chat',
+        }));
+        await reloaded.runtime.recover();
+        expect(w.dispatcher.publish).toHaveBeenCalled();
+        expect(await reloaded.executionReadiness()).toEqual(configured);
+        expect(await reloaded.runtime.get(w.job.id)).toMatchObject({
+          status: 'queued',
+          attempt: 0,
+          result: null,
+        });
+      });
+
+      it('acknowledges local manual chat after a real typed dispatch retry and permits later maintenance recovery', async () => {
+        const w = await fixture(adapter),
+          application = await w.start(),
+          request = await w.login(application),
+          before = (
+            await request('GET', `/api/artifacts/${w.artifact.id}`)
+          ).json(),
+          body =
+            'Local manual text commits despite a safely retained queue retry.';
+        w.advance(2000);
+        await application.store.exec('UPDATE studio_job_outbox SET retry_at=0');
+        w.dispatcher.publish.mockClear();
+        const posted = await request(
+          'POST',
+          `/api/artifacts/${w.artifact.id}/messages`,
+          {
+            threadId: before.threads[0].id,
+            body,
+          },
+        );
+        expect(w.dispatcher.publish).toHaveBeenCalled();
+        expect(posted.statusCode, posted.body).toBe(201);
+        expect(
+          (await application.store.messages(w.artifact.id)).filter(
+            (message) => message.body === body,
+          ),
+        ).toHaveLength(1);
+        expect(await application.executionReadiness()).toEqual(degraded);
+        for (const intent of await application.store.all(
+          'SELECT status,error,receipt_json FROM studio_job_outbox',
+        )) {
+          expect(intent.status).toBe('pending');
+          expect(intent.error).toBeTruthy();
+          expect(intent.receipt_json).toBeNull();
+        }
+        w.setFailure(undefined);
+        await application.store.exec('UPDATE studio_job_outbox SET retry_at=0');
+        await application.runtime.recover();
+        expect(await application.executionReadiness()).toEqual(configured);
+        expect(await application.runtime.get(w.job.id)).toMatchObject({
+          status: 'queued',
+          attempt: 0,
+          result: null,
+        });
+        expect(
+          (
+            await application.store.one(
+              'SELECT count(*) AS n FROM studio_job_receipts',
+            )
+          ).n,
+        ).toBe(0);
+      });
+
+      it.each(['sql', 'domain'] as const)(
+        'keeps a post-commit manual-chat %s error fatal instead of swallowing it as a queue retry',
+        async (failure) => {
+          const w = await fixture(adapter),
+            application = await w.start(),
+            request = await w.login(application),
+            before = (
+              await request('GET', `/api/artifacts/${w.artifact.id}`)
+            ).json(),
+            body =
+              'Committed text does not convert unrelated storage or access errors.';
+          await application.store.exec(
+            'UPDATE studio_job_outbox SET retry_at=0',
+          );
+          if (failure === 'sql') {
+            w.setFailure(undefined);
+            await rejectOutboxWrite(application.store, 'receipt');
+          } else
+            w.setFailure(
+              new HttpError(
+                403,
+                'Fixture domain dispatch authorization denied',
+              ),
+            );
+          w.dispatcher.publish.mockClear();
+          const posted = await request(
+            'POST',
+            `/api/artifacts/${w.artifact.id}/messages`,
+            {
+              threadId: before.threads[0].id,
+              body,
+            },
+          );
+          expect(w.dispatcher.publish).toHaveBeenCalled();
+          expect(posted.statusCode).toBe(failure === 'sql' ? 500 : 403);
+          expect(
+            (await application.store.messages(w.artifact.id)).filter(
+              (message) => message.body === body,
+            ),
+          ).toHaveLength(1);
+          expect(await application.runtime.get(w.job.id)).toMatchObject({
+            status: 'queued',
+            attempt: 0,
+            result: null,
+          });
+          expect(
+            (
+              await application.store.one(
+                'SELECT count(*) AS n FROM studio_job_receipts',
+              )
+            ).n,
+          ).toBe(0);
+        },
+      );
+
+      it('defers actual automatic-title observer admission during cloud chat and publishes it only through later maintenance', async () => {
+        const w = await fixture(adapter),
+          application = await w.start(undefined, 0),
+          request = await w.login(application),
+          provider = vi.fn(
+            async () => 'Title from an explicit service fixture',
+          ),
+          admitted = vi.fn(async () => {}),
+          captureProfile = vi.fn(async () => ({
+            harness: 'vercel-fx' as const,
+            provider: 'ai-gateway' as const,
+            model: 'fixture/deferred-title',
+          }));
+        application.titles.options.provider = provider;
+        application.titles.options.allowed = async () => true;
+        application.titles.options.available = async () => true;
+        application.titles.options.onAdmit = admitted;
+        application.titles.options.captureProfile = captureProfile;
+        application.titles.options.quietMs = 0;
+        const artifact = await application.store.createArtifact(
+            w.user,
+            w.project.id,
+            'document',
+            'Automatic title fixture',
+          ),
+          thread = (await application.store.threads(artifact.id))[0]!;
+        await application.titles.policy(w.user, artifact.id, 'automatic');
+        let signalPublisherCalled!: () => void;
+        const publisherCalled = new Promise<void>((resolve) => {
+          signalPublisherCalled = resolve;
+        });
+        w.dispatcher.publish.mockImplementation(async () => {
+          signalPublisherCalled();
+          return new Promise<{ provider: string; messageId: string }>(() => {});
+        });
+        const outcome = await Promise.race([
+          request('POST', `/api/artifacts/${artifact.id}/messages`, {
+            threadId: thread.id,
+            body: 'Name this explicitly automatic document after our queue recovers.',
+          }).then((response) => ({ kind: 'response' as const, response })),
+          publisherCalled.then(() => ({ kind: 'publisher' as const })),
+        ]);
+        expect(outcome.kind).toBe('response');
+        if (outcome.kind !== 'response')
+          throw new Error(
+            'Automatic-title observer entered the cloud queue publisher',
+          );
+        expect(outcome.response.statusCode, outcome.response.body).toBe(201);
+        expect(admitted).toHaveBeenCalledTimes(1);
+        expect(captureProfile).toHaveBeenCalledTimes(1);
+        expect(provider).not.toHaveBeenCalled();
+        expect(w.dispatcher.publish).not.toHaveBeenCalled();
+        const jobs = await application.store.all(
+          "SELECT id FROM studio_durable_jobs WHERE kind='artifact.title' AND artifact_id=?",
+          artifact.id,
+        );
+        expect(jobs).toHaveLength(1);
+        const titleJob = jobs[0]!.id;
+        expect(await application.runtime.get(titleJob)).toMatchObject({
+          status: 'queued',
+          attempt: 0,
+          result: null,
+          snapshot: { profile: { model: 'fixture/deferred-title' } },
+        });
+        expect(
+          (await application.store.artifact(artifact.id, w.user.id)).title,
+        ).toBe(artifact.title);
+        expect(
+          (
+            await application.store.one(
+              'SELECT count(*) AS n FROM studio_job_receipts',
+            )
+          ).n,
+        ).toBe(0);
+        w.dispatcher.publish.mockImplementation(async () => ({
+          provider: w.dispatcher.provider,
+          messageId: 'explicit-title-maintenance-delivery',
+        }));
+        w.advance(10000);
+        await application.runtime.recover();
+        expect(w.dispatcher.publish).toHaveBeenCalled();
+        expect(provider).not.toHaveBeenCalled();
+        await application.runtime.executeJob(titleJob, {
+          messageId: 'explicit-title-worker-delivery',
+          deliveryCount: 1,
+        });
+        expect(provider).toHaveBeenCalledTimes(1);
+        expect(await application.runtime.get(titleJob)).toMatchObject({
+          status: 'completed',
+          result: { title: 'Title from an explicit service fixture' },
+        });
+        expect(
+          (await application.store.artifact(artifact.id, w.user.id)).title,
+        ).toBe('Title from an explicit service fixture');
+      });
+
+      it('keeps dispatch deferral scoped to one async operation while independent callers still publish', async () => {
+        const w = await fixture(adapter),
+          sourceStore = await w.openStore(),
+          runtime = await w.runtimeFor(sourceStore);
+        runtime.register(kind, async () => null);
+        w.setFailure(undefined);
+        await expect(
+          runtime.deferDispatch(() => runtime.flushOutbox(0)),
+        ).rejects.toThrow('Outbox batch');
+        let entered!: () => void, release!: () => void;
+        const started = new Promise<void>((resolve) => {
+            entered = resolve;
+          }),
+          gate = new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        const scoped = runtime.deferDispatch(async () => {
+          await runtime.flushOutbox();
+          entered();
+          await gate;
+          await runtime.deferDispatch(() => runtime.flushOutbox());
+          return 'SQL admissions retained';
+        });
+        try {
+          await started;
+          expect(w.dispatcher.publish).not.toHaveBeenCalled();
+          await runtime.flushOutbox();
+          expect(w.dispatcher.publish).toHaveBeenCalledTimes(1);
+          await runtime.enqueue({
+            kind,
+            projectId: w.project.id,
+            artifactId: w.artifact.id,
+            principalId: w.user.id,
+            artifactVersion: w.artifact.version,
+            snapshot: {
+              approved: 'Independent request while another scope is deferred',
+            },
+            idempotencyKey: randomUUID(),
+          });
+        } finally {
+          release();
+        }
+        expect(await scoped).toBe('SQL admissions retained');
+        expect(w.dispatcher.publish).toHaveBeenCalledTimes(1);
+        expect(
+          (
+            await sourceStore.one(
+              "SELECT count(*) AS n FROM studio_job_outbox WHERE status='pending' AND attempts=0",
+            )
+          ).n,
+        ).toBe(1);
+        await runtime.flushOutbox();
+        expect(w.dispatcher.publish).toHaveBeenCalledTimes(2);
+        expect(
+          (
+            await sourceStore.one(
+              "SELECT count(*) AS n FROM studio_job_outbox WHERE status='pending'",
+            )
+          ).n,
+        ).toBe(0);
+      });
+
       it('opens SQL-only cloud startup without invoking a hung publisher and preserves manual documents and persisted retry state', async () => {
         const w = await fixture(adapter),
           failedStore = await w.openStore(),
