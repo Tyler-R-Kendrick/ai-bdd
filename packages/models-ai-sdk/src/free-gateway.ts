@@ -56,6 +56,10 @@ function freeCatalogModel(value: unknown, kind: FreeGatewayModelKind) {
       key === 'varies_by_provider' ? price === false :
         (key === 'input' || key === 'output') && zero(price));
 }
+/** Cleanup must not mask the policy/abort error or wait for an uncooperative body. */
+function cancelQuietly(target: { cancel(): Promise<unknown> } | null | undefined) {
+  void target?.cancel().catch(() => {});
+}
 async function metadata(path: string, signal: AbortSignal | undefined, options: Pick<FreeGatewayOptions, 'metadataFetch' | 'fetch' | 'now'>) {
   signal?.throwIfAborted();
   const now = options.now ?? Date.now;
@@ -71,7 +75,7 @@ async function metadata(path: string, signal: AbortSignal | undefined, options: 
       redirect: 'error',
       headers: { accept: 'application/json', 'cache-control': 'no-cache' }, signal: combined,
     });
-    void pending.then(value => { if (combined.aborted) void value.body?.cancel().catch(() => {}); }, () => {});
+    void pending.then(value => { if (combined.aborted) cancelQuietly(value.body); }, () => {});
     response = await abortable(pending, combined);
   } catch {
     if (signal?.aborted) throw signal.reason;
@@ -81,10 +85,10 @@ async function metadata(path: string, signal: AbortSignal | undefined, options: 
   const age = response.headers.get('age');
   if (!Number.isFinite(date) || now() - date > maximumMetadataAge || date - now() > 5000 ||
       (age !== null && (!/^[0-9]+$/.test(age) || Number(age) * 1000 > maximumMetadataAge))) {
-    void response.body?.cancel().catch(() => {});
+    cancelQuietly(response.body);
     throw new FreeGatewayPolicyError('stale-pricing');
   }
-  if (!response.ok) { void response.body?.cancel().catch(() => {}); throw new FreeGatewayPolicyError('metadata'); }
+  if (!response.ok) { cancelQuietly(response.body); throw new FreeGatewayPolicyError('metadata'); }
   const reader = response.body?.getReader();
   if (!reader) throw new FreeGatewayPolicyError('metadata');
   const chunks: Uint8Array[] = [];
@@ -103,7 +107,7 @@ async function metadata(path: string, signal: AbortSignal | undefined, options: 
     for (const chunk of chunks) { content.set(chunk, offset); offset += chunk.byteLength; }
     return JSON.parse(new TextDecoder().decode(content));
   } catch (error) {
-    void reader.cancel().catch(() => {});
+    cancelQuietly(reader);
     if (signal?.aborted) throw signal.reason;
     if (error instanceof FreeGatewayPolicyError) throw error;
     throw new FreeGatewayPolicyError('metadata');
@@ -151,6 +155,45 @@ export async function freeGatewayModels(kind: FreeGatewayModelKind, options: Pic
   return quotes.flatMap(quote => quote.status === 'fulfilled' ? [quote.value.modelId] : []);
 }
 
+/** Decode the request the SDK will actually send, before any public-price or inference fetch. */
+async function gatewayRequest(input: Parameters<GatewayFetch>[0], init: Parameters<GatewayFetch>[1], inferenceBase: URL, basePath: string) {
+  const target = new URL(input instanceof Request ? input.url : String(input));
+  const kind: FreeGatewayModelKind | null = target.pathname === basePath + '/language-model' ? 'language' : target.pathname === basePath + '/decision-model' ? 'evaluation' : null;
+  if (target.username || target.password || target.origin !== inferenceBase.origin || !kind || target.search || target.hash || (init?.method ?? (input instanceof Request ? input.method : 'GET')) !== 'POST')
+    throw new FreeGatewayPolicyError('transport');
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
+  const id = headers.get(kind === 'language' ? 'ai-language-model-id' : 'ai-model-id') ?? '';
+  const raw = init?.body ?? (input instanceof Request ? await input.clone().text() : undefined);
+  if (typeof raw !== 'string' || new TextEncoder().encode(raw).byteLength > 16 * 1024 * 1024)
+    throw new FreeGatewayPolicyError('transport');
+  let body: unknown;
+  try { body = JSON.parse(raw); } catch { throw new FreeGatewayPolicyError('transport'); }
+  if (!record(body)) throw new FreeGatewayPolicyError('transport');
+  const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+  return { target, kind, headers, id, body, signal };
+}
+
+/** Only the free-provider subset is caller configurable; all other routing is owned here. */
+function requestRouting(body: Record<string, unknown>) {
+  const providerOptions = body.providerOptions;
+  if (providerOptions !== undefined && (!record(providerOptions) || Object.keys(providerOptions).some(key => key !== 'gateway')))
+    throw new FreeGatewayPolicyError('routing');
+  const routing = record(providerOptions) ? providerOptions.gateway : undefined;
+  if (routing !== undefined && (!record(routing) || Object.keys(routing).some(key => key !== 'only')))
+    throw new FreeGatewayPolicyError('routing');
+  if (Array.isArray(body.tools) && body.tools.some(tool => record(tool) && tool.type !== 'function'))
+    throw new FreeGatewayPolicyError('routing');
+  return routing;
+}
+
+function requestedProviders(routing: unknown, providers: string[]) {
+  if (!record(routing) || routing.only === undefined) return providers;
+  if (!Array.isArray(routing.only) || !routing.only.length || routing.only.some(provider => typeof provider !== 'string' || !providers.includes(provider)))
+    throw new FreeGatewayPolicyError('routing');
+  return [...new Set(routing.only as string[])];
+}
+
 export function createFreeGateway(options: FreeGatewayOptions = {}): ReturnType<typeof createGateway> {
   const { metadataFetch, now, fetch: transport = globalThis.fetch, ...gatewayOptions } = options;
   const inferenceBase = new URL(gatewayOptions.baseURL ?? 'https://ai-gateway.vercel.sh/v4/ai');
@@ -161,38 +204,12 @@ export function createFreeGateway(options: FreeGatewayOptions = {}): ReturnType<
         (loopback && !!metadataFetch && ['http:', 'https:'].includes(inferenceBase.protocol))))
     throw new FreeGatewayPolicyError('transport');
   const guardedFetch: GatewayFetch = async (input, init) => {
-    const target = new URL(input instanceof Request ? input.url : String(input));
-    const kind = target.pathname === basePath + '/language-model' ? 'language' : target.pathname === basePath + '/decision-model' ? 'evaluation' : null;
-    if (target.origin !== inferenceBase.origin || !kind || target.search || target.hash || (init?.method ?? (input instanceof Request ? input.method : 'GET')) !== 'POST')
-      throw new FreeGatewayPolicyError('transport');
-    const headers = new Headers(input instanceof Request ? input.headers : undefined);
-    new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-    const id = headers.get(kind === 'language' ? 'ai-language-model-id' : 'ai-model-id') ?? '';
-    const raw = init?.body ?? (input instanceof Request ? await input.clone().text() : undefined);
-    if (typeof raw !== 'string' || new TextEncoder().encode(raw).byteLength > 16 * 1024 * 1024)
-      throw new FreeGatewayPolicyError('transport');
-    let body: Record<string, unknown>;
-    try { body = JSON.parse(raw); } catch { throw new FreeGatewayPolicyError('transport'); }
-    if (!record(body)) throw new FreeGatewayPolicyError('transport');
-    const providerOptions = body.providerOptions;
-    if (providerOptions !== undefined && (!record(providerOptions) || Object.keys(providerOptions).some(key => key !== 'gateway')))
-      throw new FreeGatewayPolicyError('routing');
-    const routing = record(providerOptions) ? providerOptions.gateway : undefined;
-    if (routing !== undefined && (!record(routing) || Object.keys(routing).some(key => key !== 'only')))
-      throw new FreeGatewayPolicyError('routing');
-    if (Array.isArray(body.tools) && body.tools.some(tool => record(tool) && tool.type !== 'function'))
-      throw new FreeGatewayPolicyError('routing');
-    const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+    const { target, kind, headers, id, body, signal } = await gatewayRequest(input, init, inferenceBase, basePath);
+    const routing = requestRouting(body);
     const quote = await authorizeFreeGatewayModel(id, kind, signal ?? undefined, { metadataFetch: metadataFetch ?? (options.fetch ? transport : undefined), now });
-    let providers = quote.providers;
-    if (record(routing) && routing.only !== undefined) {
-      if (!Array.isArray(routing.only) || !routing.only.length || routing.only.some(provider => typeof provider !== 'string' || !providers.includes(provider)))
-        throw new FreeGatewayPolicyError('routing');
-      providers = [...new Set(routing.only as string[])];
-    }
-    body.providerOptions = { gateway: { only: providers, models: [], byok: {} } };
+    body.providerOptions = { gateway: { only: requestedProviders(routing, quote.providers), models: [], byok: {} } };
     signal?.throwIfAborted();
-    return transport(target, { ...init, headers, body: JSON.stringify(body), redirect: 'error' });
+    return transport(target, { ...init, method: 'POST', ...(signal === undefined ? {} : { signal }), headers, body: JSON.stringify(body), redirect: 'error' });
   };
   return createGateway({ ...gatewayOptions, fetch: guardedFetch });
 }
