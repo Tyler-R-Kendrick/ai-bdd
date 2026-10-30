@@ -1035,7 +1035,19 @@ export function ImplementationPanel({
                     Draft {graph.draftRevision} · plan {graph.planRevision}
                   </span>
                   {graph.planRevision !== snapshot.planRevision && (
-                    <Badge tone="amber">Source changed · revise graph</Badge>
+                    <Badge
+                      tone={
+                        rebuild?.baseline && !rebuild.changes
+                          ? 'neutral'
+                          : 'amber'
+                      }
+                    >
+                      {rebuild?.baseline
+                        ? rebuild.changes
+                          ? 'Changes pending · rebuild or revise'
+                          : 'Reviewed base graph retained'
+                        : 'Source changed · revise graph'}
+                    </Badge>
                   )}
                 </div>
               )}
