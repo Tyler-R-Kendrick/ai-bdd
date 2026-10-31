@@ -507,23 +507,14 @@ test('remote revision conflicts preserve a downloadable local audio draft and vi
   await expect(
     page.getByLabel('Master gain (dB)', { exact: true }),
   ).toHaveValue('-3');
-  const owner = await studio.store.userByEmail(email),
+  const owner = await (await page.request.get(origin+'/api/me')).json(),
     artifactRow = await studio.store.artifact(artifact.id, owner.id);
-  const viewer = await studio.store.createUser(
-    'audio-viewer@example.test',
-    'Audio viewer',
-    null,
-  );
-  await studio.store.exec(
-    'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
-    artifactRow.projectId,
-    viewer.id,
-    'viewer',
-  );
   const viewContext = await browser.newContext(),
     view = await viewContext.newPage();
   try {
-    await signInBrowser(view, origin, viewer.email);
+    const viewer=await signInBrowser(view,origin,'audio-viewer@example.test');
+    const membership=await page.request.post(origin+`/api/projects/${artifactRow.projectId}/members`,{headers:{origin},data:{userId:viewer.id,role:'viewer'}});
+    expect(membership.ok(),await membership.text()).toBe(true);
     await view.goto(
       origin + `/?project=${artifactRow.projectId}&artifact=${artifact.id}`,
     );

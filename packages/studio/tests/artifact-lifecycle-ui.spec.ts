@@ -73,7 +73,7 @@ async function capture(page: Page, name: string) {
     animations: 'disabled',
   });
 }
-test.beforeAll(async () => {
+test.beforeAll(async ({browser}) => {
   directory = await mkdtemp(join(tmpdir(), 'studio-archive-browser-'));
   studio = await createApp(
     {
@@ -88,7 +88,10 @@ test.beforeAll(async () => {
       clientDir: resolve(import.meta.dirname, '../dist/client'),
     },
   );
-  const owner = await studio.store.userByEmail(email),
+  await studio.app.listen({ host: '127.0.0.1', port: 8902 });
+  const context=await browser.newContext(),page=await context.newPage();
+  try{
+  const owner = await signInBrowser(page,origin,email),
     project = await studio.store.createProject(
       owner,
       'Release planning',
@@ -147,18 +150,16 @@ test.beforeAll(async () => {
     new Date().toISOString(),
     new Date().toISOString(),
   );
-  const viewer = await studio.store.createUser(
-    viewerEmail,
-    'Archive viewer',
-    null,
-  );
+  await page.request.post(origin+'/api/auth/logout',{headers:{origin}});
+  const viewer = await signInBrowser(page,origin,viewerEmail);
   await studio.store.exec(
     'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
     projectId,
     viewer.id,
     'viewer',
   );
-  await studio.app.listen({ host: '127.0.0.1', port: 8902 });
+  await page.request.post(origin+'/api/auth/logout',{headers:{origin}});
+  }finally{await context.close();}
 });
 test.afterAll(async () => {
   await studio?.app.close();

@@ -15,11 +15,9 @@ test('pages artifact-thread history without losing loaded messages or the readin
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   try {
-    const user = await instance.store.createUser(
-      'history@example.test',
-      'History teammate',
-      null,
-    );
+    const address=await instance.app.listen({host:'127.0.0.1',port:0});
+    settings.origin=address;
+    const user=await signInBrowser(page,address,'history@example.test');
     const project = await instance.store.createProject(
         user,
         'Conversation history',
@@ -51,9 +49,6 @@ test('pages artifact-thread history without losing loaded messages or the readin
       commentId,
       'This belongs only to the paragraph thread.',
     );
-    const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
-    settings.origin = address;
-    await signInBrowser(page, address, user.email);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(`${address}/?project=${project.id}&artifact=${artifactId}`);
     await expect(
