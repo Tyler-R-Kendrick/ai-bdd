@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "sourceGitSha": "4dc86935837d2ce9b7760a0a1cdff33c9caae41e",
+  "sourceGitTree": "57a4f52d909e277037ff8b8b309332560b635f4e",
+  "capturedProductCodeGitSha": "4dc86935837d2ce9b7760a0a1cdff33c9caae41e",
+  "clientAndSharedSourcesIdenticalToAuthBase": true,
+  "reusedStaticIndexSha256": "f04323b22a4280f6daa47a4257877db1b516913d33f2f97556247879e2a84bec",
+  "scope": "CONTROLLED owned OAuth + synthetic intercepted GitHub repository replies + owned HTTP model fixture; actual Studio UI/Auth/API/durable jobs/AI SDK. Not production, live GitHub/Connect, real private content, or local native model inference.",
+  "zeroSeededUsers": true,
+  "automaticallyCreatedUsers": 1,
+  "personalRepositoryConnections": 0,
+  "privatePrRefreshRefusedStateUnknown": true,
+  "expectedPrivateRefusalResponses": 1,
+  "publicFileToolReturnedOwnedFixtureText": true,
+  "allRepositoryRequestsAnonymous": true,
+  "noPrivateMarkerInPromptsOrMessages": true,
+  "syntheticRepositoryRequests": 3,
+  "ownedModelRequests": 2,
+  "liveProviderCalls": 0,
+  "browserFaults": [],
+  "captures": [
+    {
+      "file": "controlled-private-repository-unavailable.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "082c31588dd03f948853b4c08eda48cac17fbed6d8ef2db2d68bf4c4f910725f",
+      "claim": "CONTROLLED actual Studio Tests UI: fresh GitHub fixture account owns this project, but refreshing an owned private PR displays repository-unavailable and leaves its state unknown. No personal repository identity is connected.",
+      "editedOrMasked": false
+    },
+    {
+      "file": "controlled-public-repository-readable.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "9e54467006038d93d2ea502c71fffed8f509e29acb5a08f494dca8d8c6686343",
+      "claim": "CONTROLLED actual Studio Chat UI: the same account reads the owned public README through the real SDK file tool and owned model HTTP fixture; the saved answer is visible. Not a live provider or native-model quality claim.",
+      "editedOrMasked": false
+    }
+  ],
+  "sourceUnchangedDuringCapture": true,
+  "accountAreaMasked": false,
+  "accountDisplayNameSynthetic": true,
+  "ownedSessionLoggedOut": true,
+  "publicGitHubAccountCallbackClaimed": false,
+  "review": {
+    "captureAgentViewedBothImages": true,
+    "rootViewedBothImages": true,
+    "hashesAndDimensionsIndependentlyVerified": true,
+    "visualAuthorizationHeaderProofClaimed": false,
+    "livePrivateRepositoryAccessClaimed": false,
+    "nativeModelQualityClaimed": false
+  },
+  "publicEndpointScope": "Public file/tree/history/pull-request endpoints support anonymous access. GitHub REST code search requires authentication even for public repositories; fixture search tests are not live search availability proof."
+}
