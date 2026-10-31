@@ -29,7 +29,7 @@ describe('explicit optional small Coder model registration without inference', (
   it('keeps the chat and independent decision defaults while registering one immutable optional subject', () => {
     expect(localModelById(id)).toMatchObject({
       repository: 'Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF', revision: 'f86cb2c1fa58255f8052cc32aeede1b7482d4361',
-      license: 'Apache-2.0', baseModel: 'Qwen/Qwen2.5-Coder-1.5B-Instruct', runtime: 'node-llama-cpp@3.22.2', nativeDecisions: false, nativeArtifactEdits: true, workerRssCeilingBytes: 2684354560,
+      license: 'Apache-2.0', baseModel: 'Qwen/Qwen2.5-Coder-1.5B-Instruct', runtime: 'node-llama-cpp@3.22.2', nativeDecisions: false, nativeArtifactEdits: false, workerRssCeilingBytes: 2684354560,
       files: [{ path: 'qwen2.5-coder-1.5b-instruct-q4_k_m.gguf', bytes: 1117320768, sha256: 'cc324af070c2ecbfd324a30884d2f951a7ff756aba85cb811a6ec436933bb046' }],
     });
     expect(LOCAL_MODELS.filter(model => model.id === id)).toHaveLength(1);
@@ -37,7 +37,7 @@ describe('explicit optional small Coder model registration without inference', (
     expect(decisionSettingsFromEnv({}, false).defaultProfile.model).toBe(DEFAULT_LOCAL_MODEL_ID);
     expect(LOCAL_DECISION_MODELS.map(model => model.id)).toEqual([DEFAULT_LOCAL_MODEL_ID, 'smollm2-135m-instruct-q4-k-m']);
     expect(localModelFingerprint()).toBe('local-native-v1:qwen2.5-0.5b-instruct-q4-k-m:node-llama-cpp@3.22.2:6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653');
-    expect(LOCAL_MODELS.filter(model => model.nativeArtifactEdits).map(model => model.id)).toEqual([id]);
+    expect(LOCAL_MODELS.filter(model => model.nativeArtifactEdits)).toEqual([]);
   });
 
   it('does not use optional file presence as default model availability or native decision eligibility', async () => {

@@ -74,7 +74,7 @@
       "baseModel": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
       "runtime": "node-llama-cpp@3.22.2",
       "nativeDecisions": false,
-      "nativeArtifactEdits": true,
+      "nativeArtifactEdits": false,
       "workerRssCeilingBytes": 2684354560,
       "files": [
         {
