@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyCodeEditProposal } from '../shared/code-edit.ts';
 import type { CodeProject } from '../shared/code-project.ts';
+import fc from 'fast-check';
 
 const base = (): CodeProject => ({ files: { 'page.html': '<button aria-label="Start">Start</button>\n', 'notes.txt': 'Keep every byte.\r\n🌿\n', 'other.js': 'export default 1;\n' }, entry: 'page.html' });
 const patch = (changes: unknown[], extra = {}) => ({ summary: 'Requested edit', changes, ...extra });
@@ -34,6 +35,50 @@ describe('literal artifact code edits', () => {
   it('supports changing only the entry without altering any file bytes', () => {
     const original = base(); const result = applyCodeEditProposal(original, patch([], { entry: 'other.js' }));
     expect(result.content.files).toEqual(original.files); expect(result.content.entry).toBe('other.js');
+  });
+  it('normalizes identity replacements after validation, including absent literals and empty source files', () => {
+    const original = { files: { 'page.html': '<p>Before</p>\n', 'notes.txt': '', 'unicode.txt': 'Exact\r\n🌿 bytes\n' }, entry: 'page.html' };
+    const result = applyCodeEditProposal(original, patch([
+      replace('notes.txt', 'absent', 'absent'),
+      replace('unicode.txt', 'another absent literal', 'another absent literal'),
+      replace('page.html', 'Before', 'After'),
+      replace('page.html', 'After', 'After'),
+    ]));
+    expect(result.content).toEqual({ ...original, files: { ...original.files, 'page.html': '<p>After</p>\n' } });
+    expect(original.files['page.html']).toBe('<p>Before</p>\n');
+  });
+  it('preserves every arbitrary source byte under an identity replacement alongside an effective change', () => {
+    fc.assert(fc.property(fc.string({ maxLength: 100 }), fc.string({ minLength: 1, maxLength: 100 }), (source, literal) => {
+      const original = { files: { 'page.html': '<p>Before</p>', 'notes.txt': source }, entry: 'page.html' };
+      const result = applyCodeEditProposal(original, patch([replace('notes.txt', literal, literal), replace('page.html', 'Before', 'After')]));
+      expect(result.content.files['notes.txt']).toBe(source);
+      expect(result.content.files['page.html']).toBe('<p>After</p>');
+      expect(original.files['notes.txt']).toBe(source);
+    }), { numRuns: 100 });
+  });
+  it('still refuses identity-only and cancelling changes that leave the whole project unchanged', () => {
+    for (const changes of [
+      [replace('notes.txt', 'absent', 'absent')],
+      [replace('page.html', 'Start', 'Launch'), replace('page.html', 'Launch', 'Start'), replace('notes.txt', 'absent', 'absent')],
+    ]) expect(() => applyCodeEditProposal(base(), patch(changes))).toThrow('must change');
+  });
+  it.each([
+    [replace('missing.txt', 'absent', 'absent')],
+    [replace('../unsafe.txt', 'absent', 'absent')],
+    [replace('notes.txt', '', '')],
+    [replace('notes.txt', 'same', 'same'), { op: 'delete', path: 'notes.txt' }],
+    [replace('notes.txt', 'same', 'same'), { op: 'create', path: 'notes.txt', content: 'new' }],
+    [{ ...replace('notes.txt', 'same', 'same'), authority: 'invented' }],
+    [replace('notes.txt', 'missing', 'different')],
+  ].map(changes => ({ changes })))('refuses invalid identity or effective operations %# before any source change', ({ changes }) => {
+    const original = base();
+    expect(() => applyCodeEditProposal(original, patch([replace(), ...changes]))).toThrow();
+    expect(original).toEqual(base());
+  });
+  it('counts identity operations and their text towards the existing operation bounds', () => {
+    expect(() => applyCodeEditProposal(base(), patch([replace(), ...Array.from({ length: 100 }, () => replace('notes.txt', 'x', 'x'))]))).toThrow();
+    const largeIdentity = 'x'.repeat(450_000);
+    expect(() => applyCodeEditProposal(base(), patch([replace(), ...Array.from({ length: 3 }, () => replace('notes.txt', largeIdentity, largeIdentity))]))).toThrow('2 MB');
   });
   it.each(['../secret.js', '/tmp/page.html', 'a\\b.js', 'node_modules/pkg.js', '.git/config', '__proto__', 'a//b.js', 'tail/'])('refuses unsafe path %s', path => {
     const original = base(); expect(() => applyCodeEditProposal(original, patch([{ op: 'create', path, content: '' }]))).toThrow(); expect(original).toEqual(base());

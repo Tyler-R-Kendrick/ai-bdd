@@ -84,6 +84,10 @@ export function applyCodeEditProposal(original: CodeProject, value: unknown) {
       sourceBytes -= encoder.encode(files[change.path]!).length;
       delete files[change.path]; fileCount--;
     } else {
+      // All operations have already passed schema, scope, conflict and text
+      // bounds validation. Replacing text with itself is the identity function,
+      // whether or not that literal occurs; it cannot change any source byte.
+      if (change.find === change.replacement) continue;
       const source = files[change.path]!;
       let matches = 0, offset = 0;
       while (true) {

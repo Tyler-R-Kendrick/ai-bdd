@@ -1050,7 +1050,7 @@ export class Agent {
         502,
         'The live source search returned no usable sources. No research document was published.',
       );
-    const output = await ctx.step(intent === 'edit' && artifact.kind === 'code' && !snapshot.remote ? 'model-output-code-patch-v2' : 'model-output', async (key) => {
+    const output = await ctx.step(intent === 'edit' && artifact.kind === 'code' && !snapshot.remote ? 'model-output-code-patch-v3' : 'model-output', async (key) => {
       await this.guard(ctx, snapshot);
       if (snapshot.visual) {
         const visual = await new VisualRouting({
