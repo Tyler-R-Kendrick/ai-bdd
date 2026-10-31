@@ -29,7 +29,7 @@ describe('explicit optional Qwen3 model registration without inference', () => {
   it('keeps the chat and independent decision defaults while registering one immutable optional subject', () => {
     expect(localModelById(id)).toMatchObject({
       repository: 'unsloth/Qwen3-0.6B-GGUF', revision: '50968a4468ef4233ed78cd7c3de230dd1d61a56b',
-      license: 'Apache-2.0', baseModel: 'Qwen/Qwen3-0.6B', runtime: 'node-llama-cpp@3.22.2', nativeDecisions: false,
+      license: 'Apache-2.0', baseModel: 'Qwen/Qwen3-0.6B', runtime: 'node-llama-cpp@3.22.2', nativeDecisions: false, nativeArtifactEdits: false,
       files: [{ path: 'Qwen3-0.6B-Q4_K_M.gguf', bytes: 396705472, sha256: 'ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a' }],
     });
     expect(LOCAL_MODELS.filter(model => model.id === id)).toHaveLength(1);

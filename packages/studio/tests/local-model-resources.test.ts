@@ -14,11 +14,11 @@ function configuration(modelId = candidate, extra = {}) {
 }
 
 describe('immutable registered local model resource policy (no weights)', () => {
-  it('keeps every older model at 1GiB and caps only the explicit candidate at 1536MiB', () => {
+  it('keeps default and legacy models at 1GiB and caps explicit larger allocations at 1536MiB', () => {
     expect(LOCAL_DEFAULT_RSS_BYTES).toBe(1073741824); expect(LOCAL_MAX_RSS_BYTES).toBe(1610612736);
     for (const model of LOCAL_MODELS) {
       const resource = localModelResources(model.id);
-      expect(resource.rssCeilingBytes).toBe(model.id === candidate ? 1610612736 : 1073741824);
+      expect(resource.rssCeilingBytes).toBe([candidate, 'qwen2.5-coder-1.5b-instruct-q4-k-m'].includes(model.id) ? 1610612736 : 1073741824);
       expect(Object.isFrozen(resource)).toBe(true); expect(Object.isFrozen(resource.file)).toBe(true);
     }
     expect(() => { (localModelResources(candidate) as any).rssCeilingBytes = Number.MAX_SAFE_INTEGER; }).toThrow();
@@ -63,7 +63,7 @@ async function worker() {
 }
 
 describe('shipping worker registered ceilings through real advanced IPC', () => {
-  it.each([DEFAULT_LOCAL_MODEL_ID, candidate])('admits exactly the registered %s ceiling then refuses missing assets without loading weights', async modelId => {
+  it.each([DEFAULT_LOCAL_MODEL_ID, candidate, 'qwen2.5-coder-1.5b-instruct-q4-k-m'])('admits exactly the registered %s ceiling then refuses missing assets without loading weights', async modelId => {
     const running = await worker();
     const events = await running.request(modelId, configuration(modelId));
     expect(events[0]).toMatchObject({ type: 'phase', phase: 'worker-start', rssCeilingBytes: localModelResources(modelId).rssCeilingBytes });

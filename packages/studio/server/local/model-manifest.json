@@ -56,12 +56,30 @@
       "baseModel": "Qwen/Qwen3-0.6B",
       "runtime": "node-llama-cpp@3.22.2",
       "nativeDecisions": false,
-      "nativeArtifactEdits": true,
+      "nativeArtifactEdits": false,
       "files": [
         {
           "path": "Qwen3-0.6B-Q4_K_M.gguf",
           "bytes": 396705472,
           "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a"
+        }
+      ]
+    },
+    {
+      "id": "qwen2.5-coder-1.5b-instruct-q4-k-m",
+      "repository": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+      "revision": "f86cb2c1fa58255f8052cc32aeede1b7482d4361",
+      "license": "Apache-2.0",
+      "baseModel": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+      "runtime": "node-llama-cpp@3.22.2",
+      "nativeDecisions": false,
+      "nativeArtifactEdits": true,
+      "workerRssCeilingBytes": 1610612736,
+      "files": [
+        {
+          "path": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+          "bytes": 1117320768,
+          "sha256": "cc324af070c2ecbfd324a30884d2f951a7ff756aba85cb811a6ec436933bb046"
         }
       ]
     }

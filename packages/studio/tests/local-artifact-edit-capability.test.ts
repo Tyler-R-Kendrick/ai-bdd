@@ -13,7 +13,7 @@ import type { AgentProfile } from '../shared/agent-profile.ts';
 import { client, project, setup, testSettings } from './helpers.ts';
 
 const candidateId = 'granite-4.0-350m-q5-k-m';
-const editCandidateId = 'qwen3-0.6b-q4-k-m';
+const editCandidateId = 'qwen2.5-coder-1.5b-instruct-q4-k-m';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -53,7 +53,7 @@ describe('local artifact-edit capabilities without inference', () => {
     const profiles = new AgentProfiles({} as any, {} as any, { managedT3: { toolsDirectory: '/owned-controlled-presence', key: new Uint8Array(32) } });
     for (const harness of ['local-cpu', 't3-code'] as const) {
       expect(() => profiles.assertArtifactEdits(profile(harness, editCandidateId))).not.toThrow();
-      for (const id of [DEFAULT_LOCAL_MODEL_ID, candidateId, 'smollm2-135m-instruct-q4-k-m', 'unregistered'])
+      for (const id of [DEFAULT_LOCAL_MODEL_ID, candidateId, 'smollm2-135m-instruct-q4-k-m', 'qwen3-0.6b-q4-k-m', 'unregistered'])
         expect(() => profiles.assertArtifactEdits(profile(harness, id))).toThrow('Choose and save');
     }
     expect(LOCAL_MODELS.filter(model => model.nativeDecisions).map(model => model.id)).toEqual([DEFAULT_LOCAL_MODEL_ID, 'smollm2-135m-instruct-q4-k-m']);
