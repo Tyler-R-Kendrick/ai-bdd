@@ -6,7 +6,7 @@ import { Store } from '../server/store.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { DiskObjectStore } from '../server/hosting/disk-objects.ts';
 import { NativeT3StateLease } from '../server/local/native-t3-state.ts';
-import { managedT3FunctionStateId, NATIVE_T3_FUNCTION_PROTOCOL_REVISION } from '../server/local/native-t3-protocol.ts';
+import { managedT3FunctionStateId, NATIVE_T3_FUNCTION_PROTOCOL_REVISION, NATIVE_T3_TRANSPORT_PROTOCOL_REVISION } from '../server/local/native-t3-protocol.ts';
 import manifest from '../server/local/native-t3-tools.json' with { type: 'json' };
 
 const cleanup: (() => Promise<unknown>)[] = [];
@@ -21,14 +21,19 @@ const identity = (artifactId = 'owned-artifact') => ({
 const legacyId = (input: ReturnType<typeof identity>) => createHash('sha256').update(JSON.stringify([
   'managed-native-t3-v1', input.t3Commit, input.openCodeVersion, input.artifactId, input.profile, input.idempotencyKey,
 ])).digest('hex');
+const bulkFunctionId = (input: ReturnType<typeof identity>) => createHash('sha256').update(JSON.stringify([
+  NATIVE_T3_FUNCTION_PROTOCOL_REVISION, input.t3Commit, input.openCodeVersion, input.artifactId, input.profile, input.idempotencyKey,
+])).digest('hex');
 
 it('uses a stable chat-protocol namespace distinct from legacy custom-envelope checkpoints', () => {
   const input = identity();
   expect(NATIVE_T3_FUNCTION_PROTOCOL_REVISION).toBe('managed-native-t3-functions-v1');
+  expect(NATIVE_T3_TRANSPORT_PROTOCOL_REVISION).toBe('managed-native-t3-reference-v1');
   const current = managedT3FunctionStateId(input);
   expect(current).toMatch(/^[a-f0-9]{64}$/);
   expect(managedT3FunctionStateId(structuredClone(input))).toBe(current);
   expect(current).not.toBe(legacyId(input));
+  expect(current).not.toBe(bulkFunctionId(input));
   for (const change of [
     { t3Commit: 'different-public-t3-source' },
     { openCodeVersion: 'different-native-version' },
@@ -42,7 +47,7 @@ it('uses a stable chat-protocol namespace distinct from legacy custom-envelope c
 if (process.env.STUDIO_REQUIRE_NATIVE_T3_POSTGRES === '1' && !process.env.STUDIO_TEST_POSTGRES_URL)
   throw new Error('Native function checkpoint PostgreSQL acceptance requires STUDIO_TEST_POSTGRES_URL');
 describe.each(['sqlite', ...(process.env.STUDIO_TEST_POSTGRES_URL ? ['postgres'] : [])])('native function checkpoint isolation on %s', adapter => {
-  it('does not read a legacy checkpoint and restores only the new protocol state on a later lease', async () => {
+  it.each(['legacy', 'bulk functions'])('does not read a %s checkpoint and restores only the new protocol state on a later lease', async previousProtocol => {
     const root = await mkdtemp('/tmp/studio-native-function-state-');
     cleanup.push(() => rm(root, { recursive: true, force: true }));
     const schema = 'native_fn_' + randomUUID().replaceAll('-', '');
@@ -53,7 +58,7 @@ describe.each(['sqlite', ...(process.env.STUDIO_TEST_POSTGRES_URL ? ['postgres']
     const project = await store.createProject(user, 'Owned checkpoint protocol boundary', '');
     const artifactId = project.mainArtifactId;
     const input = identity(artifactId);
-    const oldId = legacyId(input), newId = managedT3FunctionStateId(input);
+    const oldId = previousProtocol === 'legacy' ? legacyId(input) : bulkFunctionId(input), newId = managedT3FunctionStateId(input);
     const key = randomBytes(32), objects = new DiskObjectStore(join(root, 'objects'));
     const options = { store, objects, key, artifactId };
     const oldState = join(root, 'legacy');

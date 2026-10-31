@@ -12,6 +12,8 @@ import {
 } from './t3-native.ts';
 type ModelV3 = Extract<LanguageModel, { specificationVersion: 'v3' }>;
 type T3Config = NonNullable<IntegrationSettings['t3']>;
+/** Server-only managed transport hook; absent for external T3 integrations. */
+export type ManagedT3Launch = Readonly<{ prompt: string; payloadSha256: string }>;
 export function nativeT3Prompt(options: Parameters<ModelV3['doGenerate']>[0]) {
   return JSON.stringify({
     instructions:
@@ -49,6 +51,7 @@ export function t3LanguageModel(
   config: T3Config,
   profile: AgentProfile,
   idempotencyKey: string,
+  managedLaunch?: ManagedT3Launch,
 ): ModelV3 {
   return {
     specificationVersion: 'v3',
@@ -59,12 +62,16 @@ export function t3LanguageModel(
       const signal = options.abortSignal
         ? AbortSignal.any([options.abortSignal, AbortSignal.timeout(180000)])
         : AbortSignal.timeout(180000);
-      const prompt = nativeT3Prompt(options);
-      if (prompt.length > 120000 || Buffer.byteLength(prompt) > 700000)
+      const payload = nativeT3Prompt(options);
+      if (payload.length > 120000 || Buffer.byteLength(payload) > 700000)
         throw new HttpError(
           413,
           'T3 Code model context exceeds its bounded native input',
         );
+      if (managedLaunch && (!/^studio-native-request-v1:[a-f0-9]{64}$/.test(managedLaunch.prompt) ||
+        createHash('sha256').update(payload).digest('hex') !== managedLaunch.payloadSha256))
+        throw new HttpError(400, 'The managed native T3 launch does not match its scoped SDK request');
+      const prompt = managedLaunch?.prompt ?? payload;
       const requestId =
         'studio-' +
         createHash('sha256')

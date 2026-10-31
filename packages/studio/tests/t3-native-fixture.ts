@@ -31,6 +31,7 @@ export async function nativeT3Fixture() {
     nativeWork: [] as string[],
     replyOverride: undefined as string | undefined,
     escalateOnTextChunk: false,
+    onLaunch: undefined as undefined | ((arguments_: any) => string | Promise<string>),
   };
   const properties = {
     projectId: { type: 'string' },
@@ -132,11 +133,13 @@ export async function nativeT3Fixture() {
           (t) => t.clientRequestId === args.clientRequestId,
         );
         if (!thread) {
-          const prompt = JSON.parse(args.message),
-            tools = prompt.tools ?? [],
-            hasResult = prompt.messages.some((m: any) => m.role === 'tool');
-          const reply =
-            tools.length && !hasResult
+          let reply: string;
+          if (state.onLaunch) reply = await state.onLaunch(args);
+          else {
+            const prompt = JSON.parse(args.message),
+              tools = prompt.tools ?? [],
+              hasResult = prompt.messages.some((m: any) => m.role === 'tool');
+            reply = tools.length && !hasResult
               ? JSON.stringify({
                   type: 'tool_calls',
                   calls: [
@@ -151,6 +154,7 @@ export async function nativeT3Fixture() {
                       ? 'T3 used the verified server tool.'
                       : 'T3 native MCP model result.',
                   });
+          }
           thread = {
             threadId: randomUUID(),
             latestRunId: randomUUID(),

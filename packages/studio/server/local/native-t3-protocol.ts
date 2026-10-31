@@ -9,10 +9,11 @@ type CpuToolResult = Extract<Extract<CpuCall['prompt'][number], { role: 'tool' }
 import { cloneNativeJson, prepareNativeFunctionProtocol, projectNativeFunctionResponse } from './function-protocol.ts';
 
 export const NATIVE_T3_FUNCTION_PROTOCOL_REVISION = 'managed-native-t3-functions-v1';
+export const NATIVE_T3_TRANSPORT_PROTOCOL_REVISION = 'managed-native-t3-reference-v1';
 /** Chat execution changed; encrypted archive encoding and decision/weight identities did not. */
 export function managedT3FunctionStateId(input: { t3Commit: string; openCodeVersion: string; artifactId: string; profile: AgentProfile; idempotencyKey: string }) {
   return createHash('sha256').update(JSON.stringify([
-    NATIVE_T3_FUNCTION_PROTOCOL_REVISION, input.t3Commit, input.openCodeVersion, input.artifactId, input.profile, input.idempotencyKey,
+    NATIVE_T3_FUNCTION_PROTOCOL_REVISION, NATIVE_T3_TRANSPORT_PROTOCOL_REVISION, input.t3Commit, input.openCodeVersion, input.artifactId, input.profile, input.idempotencyKey,
   ])).digest('hex');
 }
 
