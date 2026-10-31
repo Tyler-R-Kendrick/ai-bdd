@@ -30,7 +30,7 @@
     "clientAndSharedSourceInputs": 141,
     "catalogInputs": 48,
     "emittedAssets": 10,
-    "allSourceInputsMatchGitBlobs": true,
+    "allProductSourceInputsMatchGitBlobs": true,
     "allInputAndAssetHashesRechecked": true,
     "normalStylesWithExplicitClientSourceDiscovery": true,
     "buildInputsSha256": "267a410ffd1b3b9e35f9d28446e1eaac2653a999b27348616e8653b3372e1672",
