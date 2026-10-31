@@ -23,7 +23,7 @@ pnpm --filter @ai-bdd/studio dev:ui
 
 The API listens on `http://127.0.0.1:8787`; the Vite client defaults to `http://localhost:5173`. Set `STUDIO_ORIGIN=http://localhost:5173` on the API when using Vite, because cookie mutations and WebSocket handshakes check the browser's exact origin. Open that same Vite origin in your browser.
 
-Configure the authorized first owner's `STUDIO_ADMIN_EMAIL` and a [GitHub sign-in adapter](../../docs/studio-github-signin.md). The first verified GitHub sign-in can create that owner while the database is empty; subsequent users need an invitation. Password setup/login, demo access and generic organization OIDC sign-in are disabled in development and production.
+Configure a [GitHub sign-in adapter](../../docs/studio-github-signin.md). Every genuine GitHub identity automatically receives a passwordless internal account; no owner-email setting, email claim, pre-existing account or invitation is required. Project membership and private repository authorization remain separate. Password setup/login, demo access and generic organization OIDC sign-in are disabled in development and production.
 
 For a single built process:
 
@@ -60,7 +60,7 @@ In a managed build environment using a TLS proxy, supply its public CA through a
 docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f Dockerfile.studio -t studio:local .
 ```
 
-Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN`, the authorized first-owner `STUDIO_ADMIN_EMAIL`, and the configured GitHub sign-in adapter. On Vercel, prefer the owned managed connector selected by `STUDIO_GITHUB_SIGNIN_CONNECTOR`; it requires project/environment attachment and no GitHub client secret in Studio. The explicit direct adapter outside Connect uses `STUDIO_GITHUB_SIGNIN_CLIENT_ID` and `STUDIO_GITHUB_SIGNIN_CLIENT_SECRET` with callback `/api/auth/github/callback`. Password and generic organization OIDC login are disabled. Model integrations and the acceptance runner are separate capabilities. No populated secret file belongs in a commit or image.
+Copy the variable names from `.env.example` into an ignored deployment file `.studio.env` at the repository root. Set a real HTTPS `STUDIO_ORIGIN` and the configured GitHub sign-in adapter. No owner-email setting or invitation is needed for automatic GitHub-account provisioning; project memberships remain separate. On Vercel, prefer the owned managed connector selected by `STUDIO_GITHUB_SIGNIN_CONNECTOR`; it requires project/environment attachment and no GitHub client secret in Studio. The explicit direct adapter outside Connect uses `STUDIO_GITHUB_SIGNIN_CLIENT_ID` and `STUDIO_GITHUB_SIGNIN_CLIENT_SECRET` with callback `/api/auth/github/callback`. Password and generic organization OIDC login are disabled. Model integrations and the acceptance runner are separate capabilities. No populated secret file belongs in a commit or image.
 
 Generation defaults to genuine managed T3/OpenCode with downloaded Qwen weights; independent finite decisions default to the same local weights through their own provider/model picker. Optional Gateway authoring and native evaluation require explicit registration and the [free-only policy](../../docs/studio-free-models.md) on every attempt. No paid model, credit purchase or implicit provider fallback is authorized. Published zero prices do not establish account availability: the bounded live free-model probes returned HTTP402 before inference completed.
 
