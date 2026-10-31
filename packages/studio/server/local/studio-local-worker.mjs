@@ -90,74 +90,60 @@ process.on('message', async (request) => {
       };
       return;
     }
-    const { LlamaChatSession } = await import('node-llama-cpp');
+    const { LlamaChat, LlamaChatSession } = await import('node-llama-cpp');
+    const nativeFunctions = request.nativeFunctions && Object.keys(request.nativeFunctions).length ? request.nativeFunctions : undefined;
+    if (nativeFunctions && request.schema) throw new Error('inference');
     phase('grammar-start');
-    const grammar = request.schema
-      ? await llama.createGrammarForJsonSchema(request.schema)
-      : undefined;
+    const grammar = request.schema ? await llama.createGrammarForJsonSchema(request.schema) : undefined;
     phase('grammar-ready');
-    const tokens = model.tokenize(
-      request.system +
-        '\n' +
-        JSON.stringify(request.history) +
-        '\n' +
-        request.prompt,
-    ).length;
-    // Reserve native chat framing and output; never silently shift or drop source context.
-    if (tokens + request.maxTokens + 128 > 4096) throw new Error('context');
-    phase('prompt-validated', { inputTokens: tokens });
+    const approximateTokens = model.tokenize(request.system + '\n' + JSON.stringify(request.history) + '\n' + request.prompt).length;
+    if (!request.nativeHistory && approximateTokens + request.maxTokens + 128 > 4096) throw new Error('context');
     phase('context-create');
-    context = await model.createContext({
-      contextSize: 4096,
-      threads: Math.min(2, availableParallelism()),
-      batchSize: 128,
-      flashAttention: false,
-    });
+    context = await model.createContext({ contextSize: 4096, threads: Math.min(2, availableParallelism()), batchSize: 128, flashAttention: false });
     phase('context-created');
-    const session = new LlamaChatSession({
-      contextSequence: context.getSequence(),
-      systemPrompt: request.system,
-      contextShift: {
-        strategy: () => {
-          throw new Error('context');
-        },
-      },
-    });
-    if (request.history.length)
-      session.setChatHistory([
-        { type: 'system', text: request.system },
-        ...request.history.map((item) =>
-          item.role === 'assistant'
-            ? { type: 'model', response: [item.text] }
-            : { type: 'user', text: item.text },
-        ),
-      ]);
-    phase('session-ready');
-    phase('prefill-start');
+    const contextShift = { strategy: () => { throw new Error('context'); } };
     let decoding = false, outputTokens = 0;
-    const result = await session.promptWithMeta(request.prompt, {
-      maxTokens: request.maxTokens,
-      temperature: 0,
-      grammar,
+    const callbacks = {
       onTextChunk: (text) => port.postMessage({ type: 'delta', text }),
       onToken: (tokens) => {
         outputTokens += tokens.length;
         if (!decoding && outputTokens > 0) { decoding = true; phase('decode-start', { outputTokens }); }
       },
-      customStopTriggers: request.stopSequences,
-    });
-    // Native parse verifies grammar completion; independent parent validation checks the original schema too.
-    if (grammar) grammar.parse(result.responseText);
-    const meter = session.sequence.tokenMeter.getState();
-    phase('response-ready', { inputTokens: meter.usedInputTokens, outputTokens: meter.usedOutputTokens });
-    response = {
-      type: 'result',
-      text: result.responseText,
-      inputTokens: meter.usedInputTokens,
-      outputTokens: meter.usedOutputTokens,
-      limited: result.stopReason === 'maxTokens',
-      rss: process.memoryUsage().rss,
     };
+    let text, stopReason, meter, functionCalls;
+    if (request.nativeHistory) {
+      // Low-level LlamaChat parses declarations/calls only. It has no function
+      // handlers and cannot execute any model-selected tool in this process.
+      const chat = new LlamaChat({ contextSequence: context.getSequence() });
+      const history = request.nativeHistory;
+      if (history.at(-1)?.type !== 'model') history.push({ type: 'model', response: [] });
+      const rendered = chat.chatWrapper.generateContextState({ chatHistory: history, availableFunctions: nativeFunctions, documentFunctionParams: true });
+      const tokens = rendered.contextText.tokenize(model.tokenizer).length;
+      if (tokens + request.maxTokens + 128 > 4096) throw new Error('context');
+      phase('prompt-validated', { inputTokens: tokens });
+      phase('session-ready'); phase('prefill-start');
+      const result = await chat.generateResponse(history, {
+        maxTokens: request.maxTokens, temperature: 0, contextShift,
+        ...(nativeFunctions ? { functions: nativeFunctions, documentFunctionParams: true, maxParallelFunctionCalls: 4 } : { grammar }),
+        ...callbacks, customStopTriggers: request.stopSequences,
+      });
+      text = result.response; stopReason = result.metadata.stopReason;
+      functionCalls = result.functionCalls?.map(call => ({ functionName: call.functionName, params: call.params }));
+      meter = chat.sequence.tokenMeter.getState();
+    } else {
+      phase('prompt-validated', { inputTokens: approximateTokens });
+      const session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt: request.system, contextShift });
+      if (request.history.length) session.setChatHistory([
+        { type: 'system', text: request.system },
+        ...request.history.map(item => item.role === 'assistant' ? { type: 'model', response: [item.text] } : { type: 'user', text: item.text }),
+      ]);
+      phase('session-ready'); phase('prefill-start');
+      const result = await session.promptWithMeta(request.prompt, { maxTokens: request.maxTokens, temperature: 0, grammar, ...callbacks, customStopTriggers: request.stopSequences });
+      text = result.responseText; stopReason = result.stopReason; meter = session.sequence.tokenMeter.getState();
+    }
+    if (grammar) grammar.parse(text);
+    phase('response-ready', { inputTokens: meter.usedInputTokens, outputTokens: meter.usedOutputTokens });
+    response = { type: 'result', text, ...(functionCalls ? { functionCalls } : {}), inputTokens: meter.usedInputTokens, outputTokens: meter.usedOutputTokens, limited: stopReason === 'maxTokens', rss: process.memoryUsage().rss };
   } catch (error) {
     const code =
       error?.message === 'assets' || error?.message === 'context'
