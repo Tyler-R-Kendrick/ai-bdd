@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createApp } from '../server/app.ts';
 import { Store } from '../server/store.ts';
@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 /** Actual AI SDK structured generation and Agent publication, using an owned HTTP transport. */
-async function fixture(responseContent: unknown) {
+async function fixture(responseFields: Record<string, unknown>) {
   vi.stubEnv('AI_GATEWAY_API_KEY', 'explicit-owned-edit-contract-fixture');
   const requests: any[] = [];
   const server = createServer(async (request, response) => {
@@ -27,7 +27,7 @@ async function fixture(responseContent: unknown) {
     requests.push(JSON.parse(body));
     response.setHeader('content-type', 'application/json');
     response.end(JSON.stringify({
-      content: [{ type: 'text', text: JSON.stringify({ summary: 'Proposed requested change.', content: responseContent }) }],
+      content: [{ type: 'text', text: JSON.stringify({ summary: 'Proposed requested change.', ...responseFields }) }],
       finishReason: { unified: 'stop', raw: 'stop' },
       usage: { inputTokens: { total: 5, noCache: 5, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 5, text: 5, reasoning: 0 } },
       warnings: [],
@@ -58,21 +58,22 @@ async function fixture(responseContent: unknown) {
     expect(profile.statusCode, profile.body).toBe(200);
     return { artifact, initial, threadId: initial.threads[0].id as string };
   }
-  async function edit(artifactId: string, threadId: string, brief?: string) {
+  async function edit(artifactId: string, threadId: string, brief?: string, beforeRun?: (id: string) => Promise<void>) {
     const response = await api('POST', '/api/artifacts/' + artifactId + '/agent', { threadId, intent: 'edit', ...(brief === undefined ? {} : { brief }), idempotencyKey: randomUUID() });
     expect(response.statusCode, response.body).toBe(200);
     const job = response.json();
+    await beforeRun?.(job.id);
     await runtime.executeJob(job.id, { messageId: randomUUID(), deliveryCount: 1 });
     return (await runtime.get(job.id))!;
   }
-  return { studio, store, api, requests, seed, edit, setResponseContent: (content: unknown) => { responseContent = content; } };
+  return { studio, store, api, requests, seed, edit, setResponseContent: (content: unknown) => { responseFields = { content }; } };
 }
 
 describe('trusted artifact-kind edit output contract', () => {
-  it('advertises code files/entry, quotes a brief-only API request, and requires human acceptance', async () => {
-    const original = { files: { 'index.html': '<button style="background:blue" aria-label="Start">Start</button>', 'notes.txt': 'Retain this saved file.' }, entry: 'index.html' };
+  it('advertises literal code patches, preserves saved bytes, quotes a brief-only request and requires human acceptance', async () => {
+    const original = { files: { 'index.html': '<button style="background:blue" aria-label="Start">Start</button>', 'notes.txt': 'Retain this saved file.\n' }, entry: 'index.html' };
     const proposed = { files: { ...original.files, 'index.html': '<button style="background:blue" aria-label="Launch">Launch</button>' }, entry: 'index.html' };
-    const w = await fixture(proposed);
+    const w = await fixture({ changes: [{ op: 'replace', path: 'index.html', find: 'Start', replacement: 'Launch' }] });
     const { artifact, initial, threadId } = await w.seed('code', original);
     // The normal route accepts a brief without an existing human message.
     expect(initial.messages).toHaveLength(0);
@@ -81,11 +82,12 @@ describe('trusted artifact-kind edit output contract', () => {
     expect(job.status).toBe('completed'); expect(job.attempt).toBe(1);
     expect(w.requests).toHaveLength(1);
     const request = w.requests[0];
-    const schema = request.responseFormat.schema.properties.content;
-    expect(schema.type).toBe('object'); expect(schema.required).toEqual(expect.arrayContaining(['files', 'entry']));
-    expect(schema.additionalProperties).toBe(false);
-    expect(schema.properties.files.type).toBe('object'); expect(schema.properties.files.additionalProperties.type).toBe('string');
-    expect(schema.properties.entry.type).toBe('string');
+    const schema = request.responseFormat.schema;
+    expect(schema.type).toBe('object'); expect(schema.required).toEqual(expect.arrayContaining(['summary', 'changes']));
+    expect(schema.additionalProperties).toBe(false); expect(schema.properties.content).toBeUndefined();
+    expect(schema.properties.changes.type).toBe('array');
+    expect(JSON.stringify(schema.properties.changes)).toContain('replacement');
+    expect(JSON.stringify(schema.properties.changes)).toContain('ALL non-overlapping');
     const prompt = request.prompt.flatMap((message: any) => message.content ?? []).filter((part: any) => part.type === 'text').map((part: any) => part.text).join('\n');
     expect(prompt).toContain('Apply this latest human edit request'); expect(prompt).toContain(JSON.stringify(brief));
     const state = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
@@ -100,12 +102,12 @@ describe('trusted artifact-kind edit output contract', () => {
   });
 
   it('rejects ADR-shaped content through real SDK schema validation before checking or publishing a code proposal', async () => {
-    const w = await fixture({ title: 'Unrelated ADR', context: 'Not code', decision: 'Copied metadata', consequences: '' });
+    const w = await fixture({ content: { title: 'Unrelated ADR', context: 'Not code', decision: 'Copied metadata', consequences: '' } });
     const { artifact, initial, threadId } = await w.seed('code');
     const contentCheck = vi.spyOn(w.store, 'checkedContent');
     const job = await w.edit(artifact.id, threadId, 'Update the existing code button label.');
     expect(job.status).toBe('queued'); expect(job.attempt).toBe(1);
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output'", job.id)).toEqual([]);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v1'", job.id)).toEqual([]);
     expect(w.requests).toHaveLength(1); expect(contentCheck).not.toHaveBeenCalled();
     const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages); expect(after.decisions).toEqual(initial.decisions);
@@ -113,22 +115,79 @@ describe('trusted artifact-kind edit output contract', () => {
     expect(cancel.statusCode).toBe(200);
   });
 
-  it('keeps the independent Store code-project guard after SDK shape validation', async () => {
-    const w = await fixture({ files: { 'index.html': '<p>Valid declared file.</p>' }, entry: 'missing.html' });
-    const { artifact, initial, threadId } = await w.seed('code');
-    const contentCheck = vi.spyOn(w.store, 'checkedContent');
+  it('keeps the independent Store code-project guard after literal reconstruction', async () => {
+    const w = await fixture({ changes: [{ op: 'replace', path: 'index.html', find: 'It works.', replacement: 'Ready.' }] });
+    const original = { files: { 'index.html': '<p>It works.</p>' }, entry: 'index.html' };
+    const { artifact, initial, threadId } = await w.seed('code', original);
+    const contentCheck = vi.spyOn(w.store, 'checkedContent').mockRejectedValueOnce(new Error('Independent source guard refused publication'));
     const job = await w.edit(artifact.id, threadId, 'Update the code.');
-    expect(job.status).toBe('failed'); expect(job.attempt).toBe(1); expect(contentCheck).toHaveBeenCalledOnce();
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output'", job.id)).toHaveLength(1);
-    expect(job.error).toMatch(/entry/i); expect(w.requests).toHaveLength(1);
+    expect(job.status).toBe('queued'); expect(job.attempt).toBe(1); expect(contentCheck).toHaveBeenCalledOnce();
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v1'", job.id)).toHaveLength(1);
+    expect(w.requests).toHaveLength(1);
     const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages);
     await w.api('POST', '/api/artifacts/' + artifact.id + '/agent/cancel', {});
   });
 
+  it.each([
+    [{ op: 'replace', path: 'index.html', find: 'absent', replacement: 'new' }],
+    [{ op: 'replace', path: 'missing.html', find: 'Start', replacement: 'Launch' }],
+    [{ op: 'create', path: '/tmp/escape.js', content: '' }],
+    [{ op: 'create', path: 'index.html', content: 'regenerated' }],
+    [{ op: 'delete', path: 'index.html' }],
+    [{ op: 'replace', path: 'index.html', find: 'Start', replacement: 'Launch' }, { op: 'delete', path: 'index.html' }],
+  ].map(changes => ({ changes })))('refuses invalid or contradictory patch %# before proposal/source changes', async ({ changes }) => {
+    const w = await fixture({ changes });
+    const original = { files: { 'index.html': '<button>Start</button>\n', 'notes.txt': 'untouched\n' }, entry: 'index.html' };
+    const { artifact, initial, threadId } = await w.seed('code', original);
+    const contentCheck = vi.spyOn(w.store, 'checkedContent');
+    const job = await w.edit(artifact.id, threadId, 'Update the code.');
+    expect(job.status).toBe('queued'); expect(job.attempt).toBe(1); expect(contentCheck).not.toHaveBeenCalled(); expect(w.requests).toHaveLength(1);
+    const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
+    expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages); expect(after.decisions).toEqual(initial.decisions);
+    await w.api('POST', '/api/artifacts/' + artifact.id + '/agent/cancel', {});
+  });
+
+  it('applies multiple same-file replacements literally and refuses a stale proposal version', async () => {
+    const replacement = '$&\\$`';
+    const original = { files: { 'index.html': '<p>first second</p>\n', 'notes.txt': 'exact trailing newline\n' }, entry: 'index.html' };
+    const w = await fixture({ changes: [
+      { op: 'replace', path: 'index.html', find: 'first', replacement },
+      { op: 'replace', path: 'index.html', find: 'second', replacement: 'later' },
+    ] });
+    const { artifact, initial, threadId } = await w.seed('code', original);
+    expect((await w.edit(artifact.id, threadId, 'Make two literal edits.')).status).toBe('completed');
+    const state = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
+    const proposal = state.messages.find((entry: any) => entry.role === 'assistant');
+    expect(proposal.proposal.content).toEqual({ ...original, files: { ...original.files, 'index.html': '<p>' + replacement + ' later</p>\n' } });
+    expect(state.artifact).toEqual(initial.artifact);
+    const newer = { ...original, files: { ...original.files, 'notes.txt': 'A newer owner edit.\n' } };
+    expect((await w.api('PATCH', '/api/artifacts/' + artifact.id, { version: artifact.version, content: newer })).statusCode).toBe(200);
+    const applied = await w.api('POST', `/api/artifacts/${artifact.id}/proposals/${proposal.id}/apply`, {});
+    expect(applied.statusCode).toBe(409);
+    const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
+    expect(after.artifact.version).toBe(artifact.version + 1); expect(after.artifact.content).toEqual(newer);
+  });
+
+  it('does not reuse an old full-content model receipt for the new code-patch contract', async () => {
+    const original = { files: { 'index.html': '<button>Start</button>\n' }, entry: 'index.html' };
+    const w = await fixture({ changes: [{ op: 'replace', path: 'index.html', find: 'Start', replacement: 'Launch' }] });
+    const { artifact, threadId } = await w.seed('code', original);
+    const old = JSON.stringify({ text: 'Stale full-content output', content: original });
+    const job = await w.edit(artifact.id, threadId, 'Update the label.', async id => {
+      await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, 'model-output', 'step', old, createHash('sha256').update(old).digest('hex'), new Date().toISOString());
+    });
+    expect(job.status).toBe('completed'); expect(w.requests).toHaveLength(1);
+    expect((await w.store.one("SELECT value_json FROM studio_job_receipts WHERE job_id=? AND name='model-output'", job.id)).value_json).toBe(old);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v1'", job.id)).toHaveLength(1);
+    const state = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
+    expect(state.artifact.content).toEqual(original);
+    expect(state.messages[0].proposal.content.files['index.html']).toBe('<button>Launch</button>\n');
+  });
+
   it.each(artifactKinds.filter(kind => kind !== 'code'))('retains the existing %s content format in actual structured generation', async kind => {
     const content = initialContent(kind, 'Format contract');
-    const w = await fixture(content);
+    const w = await fixture({ content });
     const { artifact, initial, threadId } = await w.seed(kind, content);
     // Documents receive canonical stable block IDs when initially saved.
     // The controlled transport returns those exact persisted source bytes.
