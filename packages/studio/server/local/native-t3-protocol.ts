@@ -66,5 +66,7 @@ export function nativeT3ResultEnvelope(call: any, result: any): string {
   const protocol = prepareNativeFunctionProtocol(call, schema => schema);
   const value = projectNativeFunctionResponse(protocol, { text, functionCalls });
   if (value.calls.length) return JSON.stringify({ type: 'tool_calls', calls: value.calls });
-  return call.responseFormat?.type === 'json' ? value.text : JSON.stringify({ type: 'final', text: value.text });
+  // Structured data may itself look like a tool_calls envelope. Wrap once so
+  // the outer native transport never reinterprets final data as tool intent.
+  return JSON.stringify({ type: 'final', text: value.text });
 }

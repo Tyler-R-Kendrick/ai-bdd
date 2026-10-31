@@ -165,8 +165,8 @@ class NativeSession {
         const prompt = body.messages.flatMap((message: any) => {
           if (message.role === 'user' && message.content === this.studioPrompt) {
             // This is an exact match to the complete server-owned native launch payload, not an artifact heuristic.
-            // Render its full conversation in roles rather than asking a tiny model to interpret serialized roles.
-            // All native context outside this message, its instructions, tool declarations and format remain present.
+            // Preserve the original typed Studio conversation. Tools and response format
+            // travel separately as SDK fields; native context outside this payload remains present.
             return renderEnvelope();
           }
           if (message.role === 'user' && Array.isArray(message.content) && message.content.some((part: any) => part.type === 'text' && part.text === this.studioPrompt)) {
