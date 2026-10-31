@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type Browser } from '@playwright/test';
 import { createApp as createStudioApp } from '../server/app.ts';
 import { githubSignInFixture } from './identity/github-signin-fixture.ts';
 
@@ -15,7 +15,11 @@ export async function createApp(...args: Parameters<typeof createStudioApp>) {
     studio = await createStudioApp(settings, options);
     // The owned provider supplies display metadata. Studio creates the
     // passwordless internal account only through the real OAuth callback.
-    studio.app.addHook('onClose', () => fixture.close());
+    studio.app.addHook('onClose', async () => {
+      const prefix = settings.origin + '\0';
+      for (const key of browserActors.keys()) if (key.startsWith(prefix)) browserActors.delete(key);
+      await fixture.close();
+    });
     return Object.assign(studio, { testGitHubAuthorizationOrigin: fixture.origin });
   } catch (error) {
     await fixture.close();
@@ -62,4 +66,18 @@ export async function signInBrowser(
   browserActors.set(origin + '\0' + selector.toLowerCase(), actor);
   browserActors.set(origin + '\0' + user.email.toLowerCase(), actor);
   return user;
+}
+
+/** Seed only through OAuth; temporary browser sessions never remain active after setup. */
+export async function provisionBrowserActor(browser: Browser, origin: string, selector: string) {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    return await signInBrowser(page, origin, selector);
+  } finally {
+    try {
+      const response = await context.request.post(origin + '/api/auth/logout', { headers: { origin } });
+      expect(response.status()).toBe(200);
+    } finally { await context.close(); }
+  }
 }
