@@ -30,6 +30,7 @@ export async function signInBrowser(
   origin: string,
   email: string = browserOwnerEmail,
 ) {
+  const previousSession = (await page.context().cookies(origin)).find(cookie => cookie.name === 'studio_session')?.value;
   const actorKey = origin + '\0' + email.toLowerCase();
   const previous = browserActors.get(actorKey);
   const selector = previous?.selector ?? email;
@@ -41,6 +42,14 @@ export async function signInBrowser(
   await page.getByRole('button', {
     name: 'Continue fixture GitHub sign-in', exact: true,
   }).click();
+  await page.waitForURL(url => url.origin === new URL(origin).origin && url.pathname === '/');
+  if (new URL(page.url()).searchParams.has('signin'))
+    throw new Error('The owned GitHub OAuth callback did not complete');
+  await expect.poll(async () => {
+    const current = (await page.context().cookies(origin)).find(cookie => cookie.name === 'studio_session')?.value;
+    return !!current && current !== previousSession;
+  }, { message: 'A completed GitHub callback must issue a fresh Studio session' }).toBe(true);
+  await expect(page.locator('#artifact-workspace')).toBeVisible();
   let user: any;
   await expect.poll(async () => {
     const response = await page.request.get(origin + '/api/me');
