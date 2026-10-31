@@ -90,7 +90,7 @@ The operator owns HTTPS, DNS, key storage, disk monitoring, backup retention, an
 - Editors modify artifacts, comments, ADRs, links, and run requests.
 - Viewers read the same project context without editing it.
 
-Access is project-scoped. A linked GitHub URL does not grant repository access. Admit collaborators by their verified GitHub email through project membership, then ask them to continue with GitHub. Studio issues no temporary passwords and sends no invitation email. A stable GitHub account identifier binds each admitted identity; a username or pasted repository URL is never authentication. See the [architecture notes](../../docs/studio-architecture.md) for the trust model.
+Access is project-scoped. After a teammate signs in with GitHub, a project owner can add their Member ID from the account sidebar. Sign-in requires no email claim or invitation. A stable GitHub account identifier binds each identity; a linked repository URL does not grant repository access. See the [architecture notes](../../docs/studio-architecture.md) for the trust model.
 
 `STUDIO_ADMIN_PASSWORD` does not enable any authentication method. Password setup, login and changes are unavailable; historical password browser sessions are rejected. Treat API tokens as user credentials; they expire after 30 days and can be revoked from Share. Browser sessions expire after seven days.
 
