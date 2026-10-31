@@ -8,7 +8,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { Pool } from 'pg';
+import { Pool, type QueryConfig, type ClientConfig } from 'pg';
 import { prepareGitHubSession } from '../verification/github-session-fixture.ts';
 
 // Exercise Docker's actual command, not an imported factory or a mocked server.
@@ -161,7 +161,23 @@ async function isolatedPostgres() {
   cleanup.push(async () => {
     await database.end();
     try {
-      await administration.query('DROP DATABASE "' + name + '" WITH (FORCE)');
+      // pg-pool resolves end() after removing idle clients, before their TCP
+      // shutdown callbacks necessarily finish. Never force-drop those sockets.
+      const deadline = Date.now() + 5000;
+      let connections = Number.NaN;
+      while (Date.now() < deadline) {
+        const query: QueryConfig & Pick<ClientConfig, 'query_timeout'> = {
+          text: 'SELECT COUNT(*)::int AS n FROM pg_stat_activity WHERE datname=$1',
+          values: [name],
+          query_timeout: Math.max(1, deadline - Date.now()),
+        };
+        const result = await administration.query<{ n: number }>(query);
+        connections = result.rows[0]!.n;
+        if (connections === 0) break;
+        await delay(Math.min(25, Math.max(0, deadline - Date.now())));
+      }
+      expect(connections, 'Owned entrypoint database clients must finish closing before removal').toBe(0);
+      await administration.query('DROP DATABASE "' + name + '"');
     } finally {
       await administration.end();
     }
