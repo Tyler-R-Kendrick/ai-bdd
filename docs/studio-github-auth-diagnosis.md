@@ -1,8 +1,8 @@
 # Production GitHub sign-in diagnosis
 
-Status: the app imposed an email-based admission requirement that the user did not request. The selected remedy removes it and automatically provisions users from authenticated GitHub identities. Deployment and a real production login remain separate acceptance gates; this is not a successful-login receipt.
+Status: the unwanted email-based admission requirement was removed and the automatic GitHub-account implementation was deployed as `869c18bfdce4cb63074deaddafa23e5196f8f870`. A real production GitHub callback/account session is still unobserved. Deployment and controlled-provider checks do not constitute a successful real-login receipt.
 
-The deployed implementation is `f7ce9aea561c4ddc16ac38be0127c3b55214b5c2`. Its production callback logs establish the following sequence without recording credentials or identity values:
+The affected release was `f7ce9aea561c4ddc16ac38be0127c3b55214b5c2`, before the email requirement was removed. Its historical production callback logs establish the following sequence without recording credentials or identity values:
 
 | Stage | Observed result |
 | --- | --- |
@@ -13,7 +13,7 @@ The deployed implementation is `f7ce9aea561c4ddc16ac38be0127c3b55214b5c2`. Its p
 | Studio identity validation | HTTP 403 |
 | Workspace admission and session creation | Not reached |
 
-The immediate failure is the mismatch between Connect's optional profile claims and Studio's required verified-email admission. It does not establish that the GitHub account has no verified email.
+The immediate failure was the mismatch between Connect's optional profile claims and Studio's then-required verified-email admission. It does not establish that the GitHub account has no verified email.
 
 ## Explanations assessed
 
@@ -26,7 +26,7 @@ The immediate failure is the mismatch between Connect's optional profile claims 
 | Connect's GitHub mapper does not emit verified-email claims | Plausible; its public profile contract makes both email fields optional |
 | Missing callback cookie, expired state, replay, or broken PKCE | Inconsistent with this attempt's successful challenge and code exchange |
 | Wrong callback URL, rejected client authentication, or failed token transport | Inconsistent with this attempt's successful code exchange and userinfo request |
-| Incorrect current production source | Deployed source contents were checked against the reviewed release; the callback emitted its new diagnostic stages |
+| Incorrect source on that affected release | Deployed source contents were checked against the reviewed release; the callback emitted its new diagnostic stages |
 | Stale static frontend | Cannot explain the observed server-side profile rejection; authentication APIs are not cached |
 | Workspace owner email configuration or pre-existing identity conflict | Separate preflight found a valid matching owner configuration, one intended owner account, and no direct or managed identity binding for it; actual admission was not reached |
 | Final session-cookie or redirect behavior | Not reached in this attempt; requires separate browser verification |

@@ -216,9 +216,16 @@ it('reports only the current user personal repository connection, preserving ind
   expect((await a('GET', '/api/capabilities')).json().githubAuthenticated).toBe(true);
   expect((await b('GET', '/api/capabilities')).json().githubAuthenticated).toBe(false);
   github.permissions.set('101:acme/private', { pull: true, push: true });
-  expect((await a('POST', '/api/projects', { title: 'Authorized personal repository', repository: 'https://github.com/acme/private' })).statusCode).toBe(201);
+  const project = await a('POST', '/api/projects', { title: 'Authorized personal repository', repository: 'https://github.com/acme/private' });
+  expect(project.statusCode).toBe(201);
+  const read = { repository: 'https://github.com/acme/private', request: { kind: 'file', path: 'README.md', ref: tip } };
+  expect((await a('POST', '/api/identity/repository/read', read)).statusCode).toBe(200);
   expect((await b('POST', '/api/projects', { title: 'No personal grant', repository: 'https://github.com/acme/private' })).statusCode).toBe(403);
   expect(github.requests.filter(entry => entry.path.startsWith('/repos/')).every(entry => entry.authorization === 'Bearer ' + github.lastAccess)).toBe(true);
   expect((await a('DELETE', '/api/identity/github')).statusCode).toBe(200);
   expect((await a('GET', '/api/capabilities')).json().githubAuthenticated).toBe(false);
+  const before = github.requests.length;
+  expect((await a('POST', '/api/identity/repository/read', read)).statusCode).toBe(403);
+  expect((await a('GET', `/api/artifacts/${project.json().mainArtifactId}`)).statusCode).toBe(403);
+  expect(github.requests).toHaveLength(before);
 });
