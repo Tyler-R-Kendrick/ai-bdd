@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "sourceGitTree": "e5795487420fff34de5f6138b684f1ae49a1bbf3",
+  "productCodeSourceGitSha": "e2c98dcca9d6388406e2747508a98b54f336bf8e",
+  "sourceDifferencesFromProductCodeSource": "test fixtures only",
+  "productInputs": [
+    {
+      "path": "packages/studio/server/auth.ts",
+      "sha256": "9f8f89717ad91260f4aa7c8dea2784e95fe0d40e818405c4ad429fb8cafbaeea"
+    },
+    {
+      "path": "packages/studio/server/github-connect-signin.ts",
+      "sha256": "1d9390a666d76c63a45826ca1da52ac7db4735b454d16749e8d4ec671ae4d883"
+    },
+    {
+      "path": "packages/studio/server/github-signin.ts",
+      "sha256": "ab3fc1bee48394100e2c94c28ba7a314658ff34f6c9448118bb83adf0e3d9c1a"
+    },
+    {
+      "path": "packages/studio/server/store.ts",
+      "sha256": "421aaaead5038dd347a1cf1034a57f2fd94bed9b10b2330ffcb700269ba5bf54"
+    },
+    {
+      "path": "packages/studio/server/app.ts",
+      "sha256": "e3930d429803578eb06bb1b5efa99ef9492c8fd32d22d97bd3eadb36d3a69da2"
+    },
+    {
+      "path": "packages/studio/client/App.tsx",
+      "sha256": "f60454fa78b12c042941795ded27de8e2b5a487aacc1696fddd2fbfdcc225d5d"
+    },
+    {
+      "path": "packages/studio/client/components/Login.tsx",
+      "sha256": "c492f1cb834ab5c82b83b8740579840d379635b46882feb9be0641b29b7be86b"
+    },
+    {
+      "path": "packages/studio/client/components/ShareDialog.tsx",
+      "sha256": "ddd1783d2afed7442842c682d64a1842fb15c9c7b45331d63f18fa7e30917d4c"
+    },
+    {
+      "path": "packages/studio/dist/client/index.html",
+      "sha256": "f04323b22a4280f6daa47a4257877db1b516913d33f2f97556247879e2a84bec"
+    }
+  ],
+  "kind": "CONTROLLED normal GitHub sign-in and automatic internal account UI",
+  "sourceGitSha": "5bb8d6bb90d2b0fe790b195b1d20af77fae32f45",
+  "scope": "Local actual Studio UI/Auth with an independently implemented owned OAuth code/PKCE provider. Not a live Connect/GitHub callback or production login.",
+  "passed": true,
+  "captures": [
+    {
+      "file": "controlled-login-desktop.png",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "sha256": "4f3210008588ef8fc937f2becf4f258f476021a437e8e5a9dbc8ac5f6358d2f9",
+      "claim": "CONTROLLED local normal sign-in UI: one Continue with GitHub action; no Studio email, password, invitation, or separate signup form.",
+      "accountIdentityMaskedAtCapture": false
+    },
+    {
+      "file": "controlled-login-mobile.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "b812e24ab32e291bd1395ff5cb65f0e3508ae8fa4c3563e2049653bed832b4cb",
+      "claim": "CONTROLLED local mobile normal sign-in UI, before any provider callback.",
+      "accountIdentityMaskedAtCapture": false
+    },
+    {
+      "file": "controlled-workspace-desktop.png",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "sha256": "43e640b9fa57b7d4bd5e8f1ac1dc90ae2c37e658bac25d37608a4814a850a76a",
+      "claim": "CONTROLLED workspace after actual Studio OAuth callback/session and automatic internal-account creation for the owned email-less managed-principal fixture. Not production GitHub login.",
+      "accountIdentityMaskedAtCapture": true
+    }
+  ],
+  "zeroSeededUsers": true,
+  "liveConnectOrGitHubCalls": 0,
+  "modelCalls": 0,
+  "fakeSessionOrBearerUsed": false,
+  "connectRequestsRelayedToOwnedFixture": 1,
+  "callbackCompleted": true,
+  "actualStudioSessionIssued": true,
+  "createdInternalUsers": 1,
+  "providerEmailMetadataRequired": false,
+  "ownedLocalSessionClosed": true,
+  "browserAndOwnedFixtureClosed": true,
+  "sourceHeadAfterCapture": "5bb8d6bb90d2b0fe790b195b1d20af77fae32f45",
+  "sourceTreeAfterCapture": "e5795487420fff34de5f6138b684f1ae49a1bbf3",
+  "productInputsUnchanged": true,
+  "publishedSourceGitSha": "869c18bfdce4cb63074deaddafa23e5196f8f870",
+  "publishedSourceHasIdenticalGitTree": true,
+  "review": {
+    "captureAgentViewedAllImages": true,
+    "rootViewedAllImages": true,
+    "independentReviewerViewedAllImages": true,
+    "imageHashesVerified": true,
+    "productionLoginClaimed": false,
+    "memberIdSharingVisuallyClaimed": false
+  }
+}
