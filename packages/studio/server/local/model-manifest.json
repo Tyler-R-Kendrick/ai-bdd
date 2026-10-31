@@ -75,7 +75,7 @@
       "runtime": "node-llama-cpp@3.22.2",
       "nativeDecisions": false,
       "nativeArtifactEdits": true,
-      "workerRssCeilingBytes": 1610612736,
+      "workerRssCeilingBytes": 2684354560,
       "files": [
         {
           "path": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",

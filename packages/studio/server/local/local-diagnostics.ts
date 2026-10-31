@@ -1,3 +1,4 @@
+import { LOCAL_MAX_RSS_BYTES } from './model-resources.mjs';
 /** Finite IPC metadata only. Never expose model input/output, environment, paths or library errors. */
 const workerPhases = new Set([
   'worker-start', 'weights-verified', 'binding-loaded', 'model-loaded', 'inference-start', 'grammar-start', 'grammar-ready', 'prompt-validated', 'context-create', 'context-created', 'session-ready', 'prefill-start', 'prefill-complete', 'decode-start', 'response-ready', 'context-dispose-start', 'context-disposed', 'complete',
@@ -29,7 +30,7 @@ export function localWorkerPhase(value: unknown): { phase: LocalWorkerPhase; rss
     const inputTokens = input?.inputTokens, outputTokens = input?.outputTokens, availableParallelism = input?.availableParallelism, ceiling = input?.rssCeilingBytes;
     return { phase, rssBytes: rss,
       ...(typeof input.useMmap === 'boolean' ? { useMmap: input.useMmap } : {}),
-      ...(Number.isSafeInteger(ceiling) && ceiling >= 16777216 && ceiling <= 1610612736 ? { rssCeilingBytes: ceiling } : {}),
+      ...(Number.isSafeInteger(ceiling) && ceiling >= 16777216 && ceiling <= LOCAL_MAX_RSS_BYTES ? { rssCeilingBytes: ceiling } : {}),
       ...(Number.isSafeInteger(availableParallelism) && availableParallelism >= 1 && availableParallelism <= 65536 ? { availableParallelism } : {}),
       ...(Number.isSafeInteger(inputTokens) && inputTokens >= 0 && inputTokens <= 262144 ? { inputTokens } : {}),
       ...(Number.isSafeInteger(outputTokens) && outputTokens >= 0 && outputTokens <= 65536 ? { outputTokens } : {}),
@@ -57,7 +58,7 @@ export class LocalInferenceDiagnostics {
     return true;
   }
   memory(rss: unknown, ceiling: number, useMmap?: boolean) {
-    if (Number.isSafeInteger(ceiling) && ceiling >= 16777216 && ceiling <= 1610612736)
+    if (Number.isSafeInteger(ceiling) && ceiling >= 16777216 && ceiling <= LOCAL_MAX_RSS_BYTES)
       this.memorySample = { ...(Number.isSafeInteger(rss) && Number(rss) >= 0 ? { rssBytes: Number(rss) } : {}), rssCeilingBytes: ceiling, ...(typeof useMmap === 'boolean' ? { useMmap } : {}) };
   }
   finish(error?: unknown) {

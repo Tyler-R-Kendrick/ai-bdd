@@ -1,7 +1,7 @@
 import manifest from './model-manifest.json' with { type: 'json' };
 
 export const LOCAL_DEFAULT_RSS_BYTES = 1073741824;
-export const LOCAL_MAX_RSS_BYTES = 1610612736;
+export const LOCAL_MAX_RSS_BYTES = 2684354560;
 const minimumRssBytes = 16777216;
 const invalid = () => new Error('Invalid registered local model resource configuration');
 const resources = new Map();

@@ -126,9 +126,20 @@ describe('local model with a controlled child-process IPC fixture (no weights or
     fixture.response = native({ text: 'Controlled mapped result', useMmap: true });
     const candidate = createLocalLanguageModel({ directory: '/controlled-coder-mapped/' + randomUUID(), modelId: 'qwen2.5-coder-1.5b-instruct-q4-k-m', useMmap: false } as any);
     await candidate.doGenerate({ prompt } as any);
-    expect(fixture.sent[0].configuration).toMatchObject({ useMmap: true, rssCeilingBytes: 1610612736 });
+    expect(fixture.sent[0].configuration).toMatchObject({ useMmap: true, rssCeilingBytes: 2684354560 });
     fixture.response = native({ useMmap: true });
     await expect(model().doGenerate({ prompt } as any)).rejects.toMatchObject({ code: 'configuration' });
+  });
+  it('admits the registered Pro Coder allocation and reports its own over-limit guard without raising older budgets', async () => {
+    const events: any[] = [], timers = vi.spyOn(globalThis, 'setTimeout');
+    const candidate = createLocalLanguageModel({ directory: '/controlled-pro-coder/' + randomUUID(), modelId: 'qwen2.5-coder-1.5b-instruct-q4-k-m', onEvent: event => { events.push(event); } });
+    fixture.response = native({ text: 'Controlled Pro response', rss: 2147483648, useMmap: true });
+    expect((await candidate.doGenerate({ prompt, maxOutputTokens: 4000 } as any)).content).toEqual([{ type: 'text', text: 'Controlled Pro response' }]);
+    expect(fixture.sent[0]).toMatchObject({ maxTokens: 1024, configuration: { rssCeilingBytes: 2684354560, useMmap: true } });
+    expect(timers.mock.calls.some(([, milliseconds]) => milliseconds === 45000)).toBe(true);
+    fixture.response = native({ text: 'Must not publish', rss: 2684354561, useMmap: true });
+    await expect(candidate.doGenerate({ prompt } as any)).rejects.toMatchObject({ code: 'memory' });
+    expect(events.at(-1)).toMatchObject({ state: 'failure', code: 'memory', rssBytes: 2684354561, rssCeilingBytes: 2684354560, useMmap: true });
   });
 
   it('exits each worker before alternating registered model identities in one directory pool', async () => {

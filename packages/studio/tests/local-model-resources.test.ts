@@ -14,11 +14,11 @@ function configuration(modelId = candidate, extra = {}) {
 }
 
 describe('immutable registered local model resource policy (no weights)', () => {
-  it('keeps default and legacy models at 1GiB and caps explicit larger allocations at 1536MiB', () => {
-    expect(LOCAL_DEFAULT_RSS_BYTES).toBe(1073741824); expect(LOCAL_MAX_RSS_BYTES).toBe(1610612736);
+  it('keeps default/older budgets and caps only the Coder allocation at 2560MiB', () => {
+    expect(LOCAL_DEFAULT_RSS_BYTES).toBe(1073741824); expect(LOCAL_MAX_RSS_BYTES).toBe(2684354560);
     for (const model of LOCAL_MODELS) {
       const resource = localModelResources(model.id);
-      expect(resource.rssCeilingBytes).toBe([candidate, 'qwen2.5-coder-1.5b-instruct-q4-k-m'].includes(model.id) ? 1610612736 : 1073741824);
+      expect(resource.rssCeilingBytes).toBe(model.id === 'qwen2.5-coder-1.5b-instruct-q4-k-m' ? 2684354560 : model.id === candidate ? 1610612736 : 1073741824);
       expect(resource.useMmap).toBe(model.id === 'qwen2.5-coder-1.5b-instruct-q4-k-m');
       expect(Object.isFrozen(resource)).toBe(true); expect(Object.isFrozen(resource.file)).toBe(true);
     }
@@ -35,6 +35,10 @@ describe('immutable registered local model resource policy (no weights)', () => 
     expect(() => workerResourceConfiguration(DEFAULT_LOCAL_MODEL_ID, configuration(DEFAULT_LOCAL_MODEL_ID, { rssCeilingBytes: 1610612736 }))).toThrow();
     expect(() => workerResourceConfiguration(candidate, configuration(candidate, { file: localModelResources(DEFAULT_LOCAL_MODEL_ID).file }))).toThrow();
     expect(() => workerResourceConfiguration(candidate, configuration(candidate, { directory: 'relative' }))).toThrow();
+  });
+  it.each([undefined, NaN, Infinity, 2684354561, Number.MAX_SAFE_INTEGER])('refuses malformed or over-cap Pro Coder ceilings %s', rssCeilingBytes => {
+    const coder = 'qwen2.5-coder-1.5b-instruct-q4-k-m';
+    expect(() => workerResourceConfiguration(coder, configuration(coder, { rssCeilingBytes }))).toThrow();
   });
   it.each([undefined, null, 0, 1, 'true', {}, false])('refuses a malformed or mismatched mapped-model flag %j', useMmap => {
     const coder = 'qwen2.5-coder-1.5b-instruct-q4-k-m';

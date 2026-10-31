@@ -29,7 +29,7 @@ describe('explicit optional small Coder model registration without inference', (
   it('keeps the chat and independent decision defaults while registering one immutable optional subject', () => {
     expect(localModelById(id)).toMatchObject({
       repository: 'Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF', revision: 'f86cb2c1fa58255f8052cc32aeede1b7482d4361',
-      license: 'Apache-2.0', baseModel: 'Qwen/Qwen2.5-Coder-1.5B-Instruct', runtime: 'node-llama-cpp@3.22.2', nativeDecisions: false, nativeArtifactEdits: true, workerRssCeilingBytes: 1610612736,
+      license: 'Apache-2.0', baseModel: 'Qwen/Qwen2.5-Coder-1.5B-Instruct', runtime: 'node-llama-cpp@3.22.2', nativeDecisions: false, nativeArtifactEdits: true, workerRssCeilingBytes: 2684354560,
       files: [{ path: 'qwen2.5-coder-1.5b-instruct-q4_k_m.gguf', bytes: 1117320768, sha256: 'cc324af070c2ecbfd324a30884d2f951a7ff756aba85cb811a6ec436933bb046' }],
     });
     expect(LOCAL_MODELS.filter(model => model.id === id)).toHaveLength(1);

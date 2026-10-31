@@ -2,6 +2,8 @@
 
 Status: accepted for a new loading-strategy assessment; authoring and production release remain gated.
 
+Scope: this record retains the mapped-loading assessment on the earlier 2 GiB profile. The later [Pro capacity decision](studio-adr-pro-model-capacity.md) changes Coder's allocation and host capacity without changing this loading strategy or the old result.
+
 The first Coder assessment was killed by the container's 2 GiB memory limit during model loading, before `model-loaded`, prefill, decoding or generated text. The Docker OOM event and original source are retained. That observation is an allocation failure, not a model-quality result or proof of which internal allocation caused the peak. The previous worker explicitly requested non-mapped loading.
 
 Only the pinned Qwen2.5 Coder model now requests read-only memory-mapped I/O through the existing native loader. All earlier models retain non-mapped loading. The shared immutable registry binds this boolean to the exact model identity and file pin; parent and worker verify it, private requests cannot flip it, and a live worker refuses loading-mode rebinding. Operator preparation removes write permission only for a verified mapped asset. The worker still requires a regular non-symlink file, the expected realpath, exact size and full SHA256, and additionally refuses a writable mapped file. Production assets remain in the read-only image or verified read-only mounts.
