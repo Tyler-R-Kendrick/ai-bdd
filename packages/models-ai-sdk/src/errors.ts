@@ -18,6 +18,7 @@ import {
   APICallError,
 } from 'ai';
 import { AiBddError, type JsonObject, type ModelPurpose } from '@ai-bdd/sdk/contracts';
+import { FreeGatewayPolicyError } from './free-gateway.ts';
 
 export interface ErrorContext {
   purpose: ModelPurpose;
@@ -72,6 +73,12 @@ export function mapModelError(error: unknown, ctx: ErrorContext): AiBddError {
   if (error instanceof AiBddError) return error;
   const inner = RetryError.isInstance(error) ? error.lastError : error;
   const details: JsonObject = { purpose: ctx.purpose, modelId: ctx.modelId };
+  let policyCause: unknown = inner;
+  for (let depth = 0; depth < 8 && policyCause && typeof policyCause === 'object'; depth++) {
+    if (policyCause instanceof FreeGatewayPolicyError)
+      return new AiBddError('MODEL_UNAVAILABLE', 'A free Gateway route could not be verified. No inference was admitted.', { retryable: false, details, cause: error });
+    policyCause = 'cause' in policyCause ? policyCause.cause : undefined;
+  }
 
   if (isAbort(error, ctx.signal) || isAbort(inner, ctx.signal)) {
     return new AiBddError('ABORTED', `model call aborted (${ctx.purpose})`, { details, cause: error });

@@ -3,11 +3,10 @@ import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createApp } from '../server/app.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { initialAudioContent } from '../shared/audio.ts';
 const run = promisify(execFile),
   origin = 'http://127.0.0.1:8891',
-  password = 'audio-browser-fixture-only-123',
   email = 'audio-owner@example.test';
 let studio: Awaited<ReturnType<typeof createApp>>, directory: string;
 const faults: string[] = [];
@@ -20,7 +19,6 @@ test.beforeAll(async () => {
       demo: false,
       dataDir: directory,
       adminEmail: email,
-      adminPassword: password,
     },
     {
       db: ':memory:',
@@ -58,11 +56,7 @@ async function open(page: Page) {
       return (original as any).call(this, destination, ...rest);
     } as any;
   });
-  const login = await page.request.post(origin + '/api/auth/login', {
-    headers: { origin },
-    data: { email, password },
-  });
-  expect(login.status(), await login.text()).toBe(200);
+  await signInBrowser(page, origin, email);
   const projectResponse = await page.request.post(origin + '/api/projects', {
     headers: { origin },
     data: {
@@ -513,28 +507,14 @@ test('remote revision conflicts preserve a downloadable local audio draft and vi
   await expect(
     page.getByLabel('Master gain (dB)', { exact: true }),
   ).toHaveValue('-3');
-  const owner = await studio.store.userByEmail(email),
+  const owner = await (await page.request.get(origin+'/api/me')).json(),
     artifactRow = await studio.store.artifact(artifact.id, owner.id);
-  const { passwordHash } = await import('../server/auth.ts');
-  const viewer = await studio.store.createUser(
-    'audio-viewer@example.test',
-    'Audio viewer',
-    await passwordHash(password),
-  );
-  await studio.store.exec(
-    'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
-    artifactRow.projectId,
-    viewer.id,
-    'viewer',
-  );
   const viewContext = await browser.newContext(),
     view = await viewContext.newPage();
   try {
-    const login = await view.request.post(origin + '/api/auth/login', {
-      headers: { origin },
-      data: { email: viewer.email, password },
-    });
-    expect(login.ok()).toBe(true);
+    const viewer=await signInBrowser(view,origin,'audio-viewer@example.test');
+    const membership=await page.request.post(origin+`/api/projects/${artifactRow.projectId}/members`,{headers:{origin},data:{userId:viewer.id,role:'viewer'}});
+    expect(membership.ok(),await membership.text()).toBe(true);
     await view.goto(
       origin + `/?project=${artifactRow.projectId}&artifact=${artifact.id}`,
     );

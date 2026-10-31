@@ -3,7 +3,8 @@ import cookie from '@fastify/cookie';
 import { DatabaseSync } from 'node:sqlite';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
-import { HttpError, hash } from '../../server/store.ts';
+import { HttpError, hash, type Store } from '../../server/store.ts';
+import { Auth } from '../../server/auth.ts';
 import { registerRepositoryIdentity } from '../../server/identity/github.ts';
 import type {
   IdentityStore,
@@ -12,10 +13,11 @@ import type {
 } from '../../server/identity/ports.ts';
 import type { User, Project } from '../../shared/domain.ts';
 import { githubFixture } from './github-fixture.ts';
+import { githubSignIn, injectedGitHub, fixtureGitHubIdentity } from './github-signin-inject-fixture.ts';
 export async function identityHarness() {
   const db = new DatabaseSync(':memory:');
   db.exec(
-    'PRAGMA foreign_keys=ON;CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT,name TEXT,color TEXT);CREATE TABLE sessions(token TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id),expires BIGINT,kind TEXT);CREATE TABLE projects(id TEXT PRIMARY KEY,title TEXT,repository TEXT);CREATE TABLE memberships(project_id TEXT,user_id TEXT,role TEXT,PRIMARY KEY(project_id,user_id));',
+    'PRAGMA foreign_keys=ON;CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT,name TEXT,color TEXT);CREATE TABLE sessions(token TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id),expires BIGINT,kind TEXT);CREATE TABLE github_signin_sessions(token TEXT PRIMARY KEY REFERENCES sessions(token) ON DELETE CASCADE);CREATE TABLE projects(id TEXT PRIMARY KEY,title TEXT,repository TEXT);CREATE TABLE memberships(project_id TEXT,user_id TEXT,role TEXT,PRIMARY KEY(project_id,user_id));',
   );
   let tail: Promise<void> = Promise.resolve();
   const active = new AsyncLocalStorage<boolean>();
@@ -68,15 +70,16 @@ export async function identityHarness() {
   const origin = 'http://studio.fixture.test',
     auth: IdentityAuth = {
       async user(req) {
-        const token =
-            req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1] ??
+        const bearer = req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1],
+          token = bearer ??
             req.cookies.studio_session,
           row =
             token &&
             (await store.one(
-              'SELECT user_id FROM sessions WHERE token=? AND expires>?',
+              'SELECT user_id FROM sessions WHERE token=? AND expires>? AND kind=?' + (bearer ? '' : ' AND EXISTS(SELECT 1 FROM github_signin_sessions g WHERE g.token=sessions.token)'),
               hash(token),
               Date.now(),
+              bearer ? 'api' : 'session',
             ));
         if (!row) throw new HttpError(401, 'Sign in');
         return store.publicUser(row.user_id);
@@ -121,6 +124,8 @@ export async function identityHarness() {
       Date.now() + 3600000,
       'session',
     );
+    // This isolated permission fixture starts after a verified browser sign-in.
+    await store.exec('INSERT INTO github_signin_sessions(token) VALUES(?)', hash(user.id + '-session'));
   }
   const fixture = await githubFixture(),
     settings: IdentitySettings = {
@@ -152,7 +157,48 @@ export async function identityHarness() {
     settings,
   });
   await app.ready();
-  const cookieFor = (user: User) => 'studio_session=' + user.id + '-session';
+  // Extra users in cross-Store lease cases complete the actual sign-in callback.
+  // The standalone repository fixture retains its intentionally small SQL schema.
+  const signInStore = {
+    ...store,
+    db: { lock: async () => {} },
+  } as unknown as Store;
+  const signInAuth = new Auth(signInStore, {
+    production: false, origin, dataDir: '/tmp/owned-repository-identity-fixture',
+    demo: false, githubSignInProvider: injectedGitHub,
+  });
+  await signInAuth.initialize();
+  const signInApp = Fastify();
+  await signInApp.register(cookie);
+  await signInAuth.routes(signInApp);
+  await signInApp.ready();
+  const signedInCookies = new Map<string, string>();
+  async function bindFixtureUser(user: User) {
+    const principal = fixtureGitHubIdentity(user.email);
+    if (principal.kind !== 'github') throw new Error('Repository permission fixtures require an explicit numeric GitHub actor');
+    await store.tx(async () => {
+      const existing = await store.one('SELECT id FROM users WHERE id=?', user.id);
+      if (!existing) await store.exec('INSERT INTO users VALUES(?,?,?,?)', user.id, user.email, user.name, user.color);
+      const bound = await store.one('SELECT user_id FROM github_signin_identities WHERE github_id=?', principal.id);
+      const previous = await store.one('SELECT github_id FROM github_signin_identities WHERE user_id=?', user.id);
+      if ((bound && bound.user_id !== user.id) || (previous && previous.github_id !== principal.id))
+        throw new Error('Owned fixture numeric GitHub binding changed');
+      if (!bound) await store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)', principal.id, user.id, Date.now());
+    });
+  }
+  // This deliberately small permission fixture retains fixed user IDs. These
+  // trusted setup bindings are explicit; production never links by email.
+  for (const user of users) await bindFixtureUser(user);
+  async function signIn(user: User) {
+    await bindFixtureUser(user);
+    const signedIn = await githubSignIn(signInApp, user.email);
+    if (signedIn.user.id !== user.id)
+      throw new Error('Owned sign-in did not retain the requested fixture account');
+    signedInCookies.set(user.id, signedIn.cookie);
+    return signedIn;
+  }
+  const cookieFor = (user: User) =>
+    'studio_session=' + (signedInCookies.get(user.id) ?? user.id + '-session');
   async function connect(
     user = users[0]!,
     account = { id: 101, login: 'alice-fixture' },
@@ -206,9 +252,11 @@ export async function identityHarness() {
     users,
     origin,
     cookieFor,
+    signIn,
     connect,
     project,
     async close() {
+      await signInApp.close();
       await app.close();
       await fixture.close();
       db.close();

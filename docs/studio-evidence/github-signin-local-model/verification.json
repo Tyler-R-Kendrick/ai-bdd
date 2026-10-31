@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "scope": "Actual local Qwen chat and native decisions through a controlled GitHub OAuth fixture; explicit Local CPU harness selection",
+  "captureSourceFilesSha256": {
+    "packages/studio/client/App.tsx": "e2cce879f75389d0145e7a9721bf812cc034421d01d1234b568b6e845871434c",
+    "packages/studio/tests/local-cpu-ui.spec.ts": "f6edb575fa0bdd6214c8cbae30e00009a3bf46beda25bce4cc8fc072cf69d43a"
+  },
+  "captures": [
+    {
+      "file": "local-runtime-picker.png",
+      "sha256": "3cd64461b586f11f05f1675ebe6b38a82a6c5aa24d9bb4106c3220737da709e6"
+    },
+    {
+      "file": "local-design-chat.png",
+      "sha256": "ada57496da455f3747b9b22eba81da14f8d94f4dd6b59127ed536a21a17467c3"
+    },
+    {
+      "file": "local-design-chat-mobile.png",
+      "sha256": "475ab54c1fb7f0c4a3d7a9794a5da396a23c5592eca9bb124d0c500feebff400"
+    }
+  ],
+  "checks": {
+    "focusedRequiredLocalModelBrowserPassed": 1,
+    "fullRequiredModelBrowserMatrix": {
+      "passed": 72,
+      "failed": 0,
+      "skipped": 0
+    },
+    "browserOAuthProtocolCasesPassed": 7
+  },
+  "rootVisualReview": {
+    "reviewedCaptures": 3,
+    "desktopAnswerMatchesSavedBlueStartDesign": true,
+    "independentDecisionPickerVisible": true,
+    "mobileRetainedAnswerVisible": true,
+    "mobileDocumentVisible": false
+  },
+  "limits": [
+    "Controlled OAuth provider; no live GitHub service acceptance",
+    "Explicit Local CPU harness; no claim that these images show native T3",
+    "No hosted deployment or single-CPU affinity acceptance shown",
+    "Native decision receipt was checked through the API; evaluation output is not shown in these images"
+  ],
+  "sourceDescription": "Source-file hashes identify the frozen reviewed browser lane; later source changes require their own validation."
+}

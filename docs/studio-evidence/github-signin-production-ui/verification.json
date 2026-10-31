@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "sourceGitSha": "f7ce9aea561c4ddc16ac38be0127c3b55214b5c2",
+  "scope": "Actual anonymous production login UI and separate production HTTP verification; completed user GitHub login remains unverified.",
+  "screenshots": [
+    {
+      "file": "github-signin-desktop.png",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "de645d422845d2b6a439977a0bae47fe7ba50edbc862b57a47ac355a1fdf23f1"
+    },
+    {
+      "file": "github-signin-mobile.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "f6641175f76b7870f9780791ce8bcf43d13e7d0d64b5f5035400893890f857a5"
+    }
+  ],
+  "productionHttpChecks": {
+    "total": 8,
+    "passed": true,
+    "checks": [
+      {
+        "check": "/api/health",
+        "passed": true
+      },
+      {
+        "check": "/api/hosting/readiness",
+        "passed": true
+      },
+      {
+        "check": "/api/auth/status",
+        "passed": true
+      },
+      {
+        "check": "/api/auth/login refused without session",
+        "passed": true
+      },
+      {
+        "check": "/api/auth/setup refused without session",
+        "passed": true
+      },
+      {
+        "check": "/api/auth/demo refused without session",
+        "passed": true
+      },
+      {
+        "check": "anonymous identity refused",
+        "passed": true
+      },
+      {
+        "check": "actual managed authorization start with exact callback, OAuth/PKCE and browser binding",
+        "passed": true
+      }
+    ]
+  },
+  "completedUserGitHubLoginVerified": false
+}

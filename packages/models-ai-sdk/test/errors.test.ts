@@ -2,6 +2,7 @@ import { APICallError, JSONParseError, RetryError, TypeValidationError } from 'a
 import { describe, expect, it } from 'vitest';
 import { AiBddError, RETRYABLE_CODES } from '@ai-bdd/sdk/contracts';
 import { aiSdkModels } from '../src/index.ts';
+import { freeSdkFixture } from './free-gateway-fixture.ts';
 import { ACT_TOOLS, mockModel, mockProvider, request, textResult, toolCallResult } from './helpers.ts';
 
 function actModel(m: ReturnType<typeof mockModel>, maxRetries = 0) {
@@ -65,10 +66,12 @@ describe('provider errors -> MODEL_UNAVAILABLE', () => {
     const previous = globalThis.AI_SDK_DEFAULT_PROVIDER;
     globalThis.AI_SDK_DEFAULT_PROVIDER = mockProvider({});
     try {
-      const set = aiSdkModels({ extract: 'x/none', act: 'x/none', checkgen: 'x/none', judge: 'x/none' });
+      const owned = freeSdkFixture('');
+      const set = aiSdkModels({ extract: 'x/none', act: 'x/none', checkgen: 'x/none', judge: 'x/none' }, { maxRetries: 0, gateway: { apiKey: 'owned-sdk-fixture', fetch: owned.fetcher } });
       const err = await failure(set.act.generate(request()));
       expect(err.code).toBe('MODEL_UNAVAILABLE');
       expect(err.retryable).toBe(false);
+      expect(owned.count()).toBe(0);
     } finally {
       globalThis.AI_SDK_DEFAULT_PROVIDER = previous;
     }

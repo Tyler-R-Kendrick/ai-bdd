@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "scope": "Disposable release-gate OAuth seeding order; application authentication and SQLite policies unchanged",
+  "baseSource": "0837738a2c1611517a0abb7f7231513571e843dc",
+  "sourceFile": "packages/studio/verification/container-smoke.mjs",
+  "sourceSha256Before": "9c5233a3a16b9c28264c863334fb9740b47c9f8f0d2fc3575fc2295bcb458361",
+  "sourceSha256After": "ff8683200107ea17e638b2bbc1a68be54bbc8e75618fdd04cb0fc283b8a5c1c5",
+  "staticVerification": {
+    "allOriginalAppModelSecurityAssertionsByteIdentical": true,
+    "shippingApplicationSourcesChanged": false,
+    "seedCompletesBeforeShippingWriterStarts": true,
+    "cookieStillAttachedOnlyAfterOriginalAnonymousAuthenticationRefusals": true,
+    "cleanupLimitedToOwnedSeedContainer": true
+  },
+  "actualLocalProtocol": {
+    "schemaVersion": 1,
+    "passed": true,
+    "source": "0837738a2c1611517a0abb7f7231513571e843dc",
+    "scope": "Local seed-order protocol using unchanged source compiled with shipping external-package settings and an isolated controlled production dependency closure refreshed from verified public SDK/workspace builds",
+    "checks": [
+      "Real controlled OAuth challenge/callback seeds the owned SQLite volume before any shipping writer starts",
+      "Unmodified production main accepts the callback-issued GitHub session while refusing anonymous and password/setup authentication",
+      "A second concurrent fixture writer is still refused by the unchanged exclusive SQLite lock",
+      "The actual shipping API persists project, document, discussion and accepted ADR and refuses stale writes",
+      "The same callback-issued session and exact document/chat/ADR persist across a real shipping process restart"
+    ],
+    "isolation": {
+      "uid": 1000,
+      "readOnlyRoot": true,
+      "network": "none",
+      "memoryBytes": 2147483648,
+      "cpus": 1,
+      "capabilities": "all dropped",
+      "noNewPrivileges": true
+    },
+    "liveGitHubCalls": 0,
+    "modelCalls": 0,
+    "externalInfrastructureChanges": 0,
+    "limitations": [
+      "This is an actual local dependency-closure/container protocol probe, not a freshly built complete release image.",
+      "CI must separately run the full release image and all original model/browser gates."
+    ]
+  },
+  "wholeFreshReleaseImageRerunPerformed": false,
+  "limitations": [
+    "The local protocol uses the existing controlled production dependency closure refreshed with verified public Connect/Auth dependencies and current built workspace packages. It is not a freshly built complete release image.",
+    "The complete CI image gate must still run its unchanged offline model, CPU-affinity, native T3, browser and production-refusal checks.",
+    "The seeded identity uses a controlled provider through the real OAuth state/PKCE/browser-binding callback; this does not establish live GitHub account login."
+  ]
+}

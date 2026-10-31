@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { Store, HttpError, hash } from '../server/store.ts';
+import { Store, HttpError } from '../server/store.ts';
 import { MachineService } from '../server/integrations/machines.ts';
 import { InvestigationService } from '../server/integrations/investigations.ts';
 import { ImplementationGraphs } from '../server/integrations/implementation.ts';
@@ -21,20 +21,7 @@ it('renews the original builders still-valid repository permission before browse
         '',
         repository,
       );
-    await h.store.exec(
-      'INSERT INTO users VALUES(?,?,?,?)',
-      user.id,
-      user.email,
-      user.name,
-      user.color,
-    );
-    await h.store.exec(
-      'INSERT INTO sessions VALUES(?,?,?,?)',
-      hash(user.id + '-session'),
-      user.id,
-      Date.now() + 3600000,
-      'session',
-    );
+    await h.signIn(user);
     h.fixture.permissions.set('101:acme/private', { pull: true, push: true });
     expect((await h.connect(user)).response.statusCode).toBe(302);
     await h.project(user);

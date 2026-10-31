@@ -1,3 +1,4 @@
+import { signInBrowser } from './browser-fixture.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -376,19 +377,12 @@ test('a fresh viewer can read document review and search without editing questio
 }) => {
   const { call, project, origin } = await fixture(page),
     email = `document-viewer-${randomUUID()}@example.test`,
-    invitation = await call(`/projects/${project.id}/members`, 'POST', {
-      email,
-      name: 'Document viewer',
-      role: 'viewer',
-    }),
     viewerContext = await browser.newContext({ baseURL: origin });
   try {
-    const viewer = await viewerContext.newPage(),
-      login = await viewer.request.post('/api/auth/login', {
-        headers: { origin },
-        data: { email, password: invitation.temporaryPassword },
-      });
-    expect(login.ok()).toBe(true);
+    const viewer = await viewerContext.newPage();
+    const actor=await signInBrowser(viewer,origin,email);
+    const invitation=await call(`/projects/${project.id}/members`,'POST',{userId:actor.id,role:'viewer'});
+    expect(invitation).not.toHaveProperty('temporaryPassword');
     await viewer.goto(
       `/?project=${project.id}&artifact=${project.mainArtifactId}`,
     );

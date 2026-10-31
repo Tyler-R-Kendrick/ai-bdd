@@ -24,7 +24,9 @@ The checker calls the production `capability` predicate for all nine combination
 
 ## Optional Magnetar verifier boundary
 
-The official [Magnetar publication page](https://www.microsoft.com/en-us/research/publication/magnetar-high-speed-post-quantumrv64-zkvm-from-standard-hashes/) and [research article](https://www.microsoft.com/en-us/research/blog/proof-based-general-purpose-computing-with-magnetar/) describe a general-purpose RV64 zero-knowledge virtual machine. The publication page inspected on 2026-10-29 supplied a paper and article, without an operational verifier API adopted by this implementation. Studio therefore ships **no Magnetar proof generation or cryptographic verifier**.
+The official [Magnetar publication page](https://www.microsoft.com/en-us/research/publication/magnetar-high-speed-post-quantumrv64-zkvm-from-standard-hashes/) and [research article](https://www.microsoft.com/en-us/research/blog/proof-based-general-purpose-computing-with-magnetar/) describe a general-purpose RV64 zero-knowledge virtual machine. The publication page inspected on 2026-10-29 supplied a paper and article, without an operational verifier API adopted by this implementation. Studio ships **no Microsoft Magnetar implementation or production verification guarantee**.
+
+The separate [Magnetar research workflow](../../../.github/workflows/studio-magnetar.yml) builds the pinned independent `open-magnetar` prover/verifier, proves and verifies eight public layout guest executions, and rejects modified proofs and public inputs/outputs. Its [research adapter and limitations](magnetar/README.md) are explicit: this is an unaudited independent implementation, its execution witnesses are not zero knowledge, and its finite guest executions do not prove the whole application.
 
 An operator can supply a verifier adapter through `STUDIO_PROOF_VERIFIER`, an absolute executable path. It must perform real cryptographic verification. Studio invokes it without a shell:
 

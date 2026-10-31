@@ -3,6 +3,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { CredentialVault } from '../server/identity/vault.ts';
 import { DurableChallenges } from '../server/identity/challenges.ts';
 import { RepositoryIdentity } from '../server/identity/github.ts';
+import { hash } from '../server/store.ts';
 import { identityHarness } from './identity/harness.ts';
 
 let h: Awaited<ReturnType<typeof identityHarness>>;
@@ -82,6 +83,39 @@ describe('durable connection challenges and credential vault', () => {
   });
 });
 describe('actual HTTP GitHub OAuth and per-user repository permissions', () => {
+  it('rejects a pre-cutover repository OAuth challenge bound to a legacy browser session before exchanging credentials', async () => {
+    const user = h.users[0]!, start = await h.app.inject({method:'POST',url:'/api/identity/github/start',headers:{origin:h.origin,cookie:h.cookieFor(user)},payload:{}});
+    const authorize = await fetch(start.json().authorizationUrl,{redirect:'manual'}), callback = new URL(authorize.headers.get('location')!);
+    const binding = start.cookies.find(value=>value.name==='studio_repository_oauth')!.value;
+    await h.store.exec('DELETE FROM github_signin_sessions WHERE token=?',hash(user.id+'-session'));
+    const result = await h.app.inject({url:callback.pathname+callback.search,headers:{cookie:'studio_repository_oauth='+binding}});
+    expect(result.statusCode).toBe(401);
+    expect(h.fixture.requests.filter(value=>value.path==='/login/oauth/access_token')).toHaveLength(0);
+    expect(await h.store.one('SELECT user_id FROM repository_identities WHERE user_id=?',user.id)).toBeUndefined();
+  });
+  it('rechecks GitHub browser provenance atomically after an in-flight repository exchange', async () => {
+    const user = h.users[0]!, start = await h.app.inject({method:'POST',url:'/api/identity/github/start',headers:{origin:h.origin,cookie:h.cookieFor(user)},payload:{}});
+    const authorize = await fetch(start.json().authorizationUrl,{redirect:'manual'}), callback = new URL(authorize.headers.get('location')!);
+    const binding = start.cookies.find(value=>value.name==='studio_repository_oauth')!.value, gate=deferred(), entered=deferred();
+    h.fixture.gateToken(async()=>{entered.resolve();await gate.promise;});
+    const pending = h.app.inject({url:callback.pathname+callback.search,headers:{cookie:'studio_repository_oauth='+binding}});
+    await entered.promise;
+    await h.store.exec('DELETE FROM github_signin_sessions WHERE token=?',hash(user.id+'-session'));
+    h.fixture.gateToken();gate.resolve();
+    expect((await pending).statusCode).toBe(401);
+    expect(await h.store.one('SELECT user_id FROM repository_identities WHERE user_id=?',user.id)).toBeUndefined();
+  });
+  it('preserves a repository connection explicitly authorized by a valid API bearer credential', async () => {
+    const user = h.users[0]!, token = randomBytes(32).toString('base64url');
+    await h.store.exec("INSERT INTO sessions VALUES(?,?,?,'api')",hash(token),user.id,Date.now()+60000);
+    const start = await h.app.inject({method:'POST',url:'/api/identity/github/start',headers:{authorization:'Bearer '+token},payload:{}});
+    expect(start.statusCode,start.body).toBe(200);
+    const authorize = await fetch(start.json().authorizationUrl,{redirect:'manual'}), callback = new URL(authorize.headers.get('location')!);
+    const binding = start.cookies.find(value=>value.name==='studio_repository_oauth')!.value;
+    const result = await h.app.inject({url:callback.pathname+callback.search,headers:{cookie:'studio_repository_oauth='+binding}});
+    expect(result.statusCode,result.body).toBe(302);
+    expect((await h.identity.status(user)).connected).toBe(true);
+  });
   it('reads a pinned bounded tree with the selected user token and respects caller cancellation without an operator fallback', async () => {
     h.fixture.permissions.set('101:acme/private', { pull: true, push: false });
     await h.connect();

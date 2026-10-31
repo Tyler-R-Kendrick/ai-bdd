@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -6,9 +7,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import * as Y from 'yjs';
 import { yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
-import { createApp } from '../server/app.ts';
-import { passwordHash, type Settings } from '../server/auth.ts';
-const password = 'fixture-only-goal-browser-password';
+import { createApp, signInBrowser } from './browser-fixture.ts';
+import type { Settings } from '../server/auth.ts';
 const title = 'Contract preview intent';
 const goal =
   'Keep the preview usable with a consumer contract fixture while the integration is unavailable.';
@@ -61,17 +61,13 @@ async function fixture() {
     model: 'fixture/title-goal',
     integrations: {
       gatewayBaseUrl: `http://127.0.0.1:${(server.address() as any).port}`,
+      gatewayMetadataFetch: ownedFreeGatewayMetadata(),
     },
   };
   const instance = await createApp(settings, {
     db: ':memory:',
     clientDir: resolve(import.meta.dirname, '../dist/client'),
   });
-  const user = await instance.store.createUser(
-    'owner@goal-browser.invalid',
-    'Goal owner',
-    await passwordHash(password),
-  );
   const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
   settings.origin = address;
   const errors: string[] = [];
@@ -85,18 +81,13 @@ async function fixture() {
         errors.push(`${response.status()} ${response.url()}`);
     });
   }
-  async function login(page: Page, email = user.email) {
+  async function login(page: Page, email = 'owner@goal-browser.invalid') {
     observe(page);
-    await page.goto(address);
-    await page.getByRole('textbox', { name: 'Email', exact: true }).fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(password);
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(
-      page.getByRole('textbox', { name: 'Email', exact: true }),
-    ).toHaveCount(0);
+    const user=await signInBrowser(page,address,email);
     expect((await page.request.get(address + '/api/projects')).status()).toBe(
       200,
     );
+    return user;
   }
   async function api(page: Page, path: string, method = 'GET', data?: unknown) {
     const response = await page.request.fetch(address + '/api' + path, {
@@ -234,7 +225,6 @@ async function fixture() {
   }
   return {
     instance,
-    user,
     address,
     requests,
     errors,
@@ -362,21 +352,12 @@ test('explicit title and goal consent seeds the empty main design document once 
       page.locator('.document-page [data-id="goal-body"]'),
     ).toHaveText(goal);
     await expect(page.locator('.artifact-title')).toHaveText(title);
-    const viewer = await f.instance.store.createUser(
-      'viewer@goal-browser.invalid',
-      'Goal viewer',
-      await passwordHash(password),
-    );
-    await f.instance.store.exec(
-      "INSERT INTO memberships VALUES(?,?,'viewer')",
-      project.id,
-      viewer.id,
-    );
     viewerContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
     });
     const mobile = await viewerContext.newPage();
-    await f.login(mobile, viewer.email);
+    const viewer=await f.login(mobile,'viewer@goal-browser.invalid');
+    await f.api(page,`/projects/${project.id}/members`,'POST',{userId:viewer.id,role:'viewer'});
     await mobile.goto(
       `${f.address}/?project=${project.id}&artifact=${artifact.id}`,
     );

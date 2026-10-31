@@ -1,5 +1,7 @@
 // Explicit real-host acceptance only. Do not run before the operator confirms the reviewed deployment Ready.
 import assert from 'node:assert/strict';
+import { readLiveGitHubSessions } from './vercel-live.ts';
+if (process.env.STUDIO_HOSTED_LOCAL_AI_PASSWORD_FILE !== undefined) throw new Error('Password authentication is disabled; use GitHub session exports');
 import { readFile, writeFile, mkdir, lstat, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -11,8 +13,8 @@ import {
   HostedLocalAIGuardError,
 } from './hosted-local-ai-guards.ts';
 const target = hostedLocalAITarget(process.env), origin = target.origin;
-if (!process.env.STUDIO_HOSTED_LOCAL_AI_REPORT || !process.env.STUDIO_HOSTED_LOCAL_AI_PASSWORD_FILE || !process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL)
-  throw new HostedLocalAIGuardError('owner-credential-reference-and-fresh-report-required');
+if (!process.env.STUDIO_HOSTED_LOCAL_AI_REPORT || !process.env.STUDIO_HOSTED_LOCAL_AI_GITHUB_SESSIONS_FILE || !process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL)
+  throw new HostedLocalAIGuardError('github-session-reference-and-fresh-report-required');
 const path = process.env.STUDIO_HOSTED_LOCAL_AI_REPORT;
 await mkdir(dirname(path), { recursive: true, mode: 0o700 });
 try { await lstat(path); throw new HostedLocalAIGuardError('fresh-report-required'); }
@@ -21,7 +23,8 @@ const sha = value => createHash('sha256').update(value).digest('hex');
 const question = 'What is 2 + 2? Reply with only the numeral.';
 const fixtureText = 'Implement a tiny calculator. When a user submits 2 + 2, display 4. Acceptance: the displayed result equals 4. Keep the existing T3 Code authoring runtime; no change in tools is required.';
 const report = {
-  schemaVersion: 1, kind: 'hosted downloaded local-model chat and decisions',
+  schemaVersion: 1,
+  identity: { provider: 'github', sessionSource: 'operator-browser-export', externalOAuthExchangePerformed: false }, kind: 'hosted downloaded local-model chat and decisions',
   origin, environment: target.production ? 'production' : 'preview',
   previewIdentityHeaderSent: !target.production,
   deploymentSourceProvidedByOperator: process.env.STUDIO_HOSTED_LOCAL_AI_SOURCE,
@@ -72,12 +75,15 @@ async function request(stage, route, { method = 'GET', cookie = '', body, expect
   catch { throw new ProbeError('non-json-response', response.status); }
   return { value, response };
 }
-const password = (await readFile(process.env.STUDIO_HOSTED_LOCAL_AI_PASSWORD_FILE, 'utf8')).replace(/\r?\n$/, '');
-assert(password.length >= 16);
+let suppliedSessions, nextSession = 0;
 async function login(stage) {
-  const { value, response } = await request(stage, '/api/auth/login', { method: 'POST', body: { email: process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL, password } });
-  const cookie = response.headers.getSetCookie().map(value => value.split(';', 1)[0]).find(value => value.startsWith('studio_session='));
-  if (!cookie || !value.id) throw new ProbeError('person-session-required', response.status);
+  const { value: status } = await request(stage + '-provider', '/api/auth/status');
+  assert.equal(status.github, true); assert.equal(status.password, false); assert.equal(status.oidc, false);
+  suppliedSessions ??= await readLiveGitHubSessions(process.env.STUDIO_HOSTED_LOCAL_AI_GITHUB_SESSIONS_FILE, origin);
+  const cookie = suppliedSessions[nextSession++];
+  if (!cookie) throw new ProbeError('two-distinct-github-sessions-required');
+  const { value } = await request(stage, '/api/me', { cookie });
+  if (!value.id || value.email?.toLowerCase() !== process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL.toLowerCase()) throw new ProbeError('github-session-identity-mismatch');
   sessions.add(cookie); return cookie;
 }
 async function guardProfiles(cookie, artifactId) {
@@ -113,7 +119,7 @@ async function poll(stage, load, id) {
 try {
   assert.equal((await request('health', '/api/health')).value.ok, true);
   assert.equal((await request('readiness', '/api/hosting/readiness')).value.ready, true);
-  const owner = await login('owner-login');
+  const owner = await login('owner-github-session');
   let prior = null;
   if (process.env.STUDIO_HOSTED_LOCAL_AI_RESUME_FILE) {
     const bytes = await readFile(process.env.STUDIO_HOSTED_LOCAL_AI_RESUME_FILE);
@@ -219,6 +225,8 @@ try {
     report.resources.reviewJobId = job.id; report.explicitInferenceAdmissions.designReview = 1; await persist();
   }
   const reviewJob = await poll('native-local-decisions', async () => (await request('poll-design-review', `/api/artifacts/${id}/decision-review`, { cookie: owner })).value.jobs.find(job => job.id === report.resources.reviewJobId), report.resources.reviewJobId);
+  report.actualReviewObservation = structuredClone(reviewJob.result ?? null);
+  await persist();
   assert(reviewJob.result && !reviewJob.stale);
   const result = reviewJob.result, evaluation = result.evaluation;
   assert.equal(result.artifactVersion, report.sourceVersion);
@@ -237,7 +245,7 @@ try {
   };
   const { value: storedEvaluation } = await request('read-retained-evaluation', `/api/artifacts/${id}/decision/evaluations/${evaluation.id}`, { cookie: owner });
   assert.deepEqual(storedEvaluation, evaluation);
-  const fresh = await login('fresh-owner-login');
+  const fresh = await login('fresh-owner-github-session');
   const { value: again } = await request('fresh-artifact-chat', `/api/artifacts/${id}`, { cookie: fresh });
   assert.equal(again.artifact.version, report.sourceVersion);
   assert.equal(sha(JSON.stringify(again.artifact.content)), report.sourceHash);
@@ -264,7 +272,7 @@ try {
     try { await request('close-owned-verification-session', '/api/auth/logout', { method: 'POST', cookie, body: {} }); closed++; }
     catch { /* Keep failures finite; never print cookies or raw transport errors. */ }
   }
-  report.ownedSessionCleanup = { created: sessions.size, closed };
+  report.ownedSessionCleanup = { used: sessions.size, closed };
   if (closed !== sessions.size) { report.passed = false; process.exitCode = 1; }
 }
 report.completedAt = new Date().toISOString();

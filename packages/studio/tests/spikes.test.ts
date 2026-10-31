@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -140,6 +141,7 @@ async function fixture(
       model: 'fixture/model',
       integrations: {
         gatewayBaseUrl: `http://127.0.0.1:${(server.address() as any).port}`,
+        gatewayMetadataFetch: ownedFreeGatewayMetadata(),
       },
     },
     judge = createSpikeJudge(settings)!;

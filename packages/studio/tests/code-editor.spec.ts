@@ -1,22 +1,13 @@
+import { signInAcceptanceActor } from './browser-auth.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { exportCodeZip, importCodeZip } from '../shared/code-archive.ts';
 
 const origin = process.env.STUDIO_TEST_ORIGIN ?? 'http://127.0.0.1:8877';
-let ownerCookies:
-  | Awaited<ReturnType<ReturnType<Page['context']>['cookies']>>
-  | undefined;
 async function project(page: Page, content?: unknown) {
+  await signInAcceptanceActor(page);
   let response;
-  if (ownerCookies) await page.context().addCookies(ownerCookies);
-  else {
-    response = await page.request.post('/api/auth/demo', {
-      headers: { origin },
-    });
-    expect(response.ok(), await response.text()).toBe(true);
-    ownerCookies = await page.context().cookies();
-  }
   response = await page.request.post('/api/projects', {
     headers: { origin },
     data: {

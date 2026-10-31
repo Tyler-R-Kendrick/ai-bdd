@@ -6,6 +6,8 @@ import {
 import type { LocalInferenceObserver } from '../local/local-diagnostics.ts';
 import { retainLocalModel } from '../local/model.ts';
 import { localDecisionProvider } from './local.ts';
+import { gatewayNativeDecisionProvider } from './gateway-native.ts';
+import { freeGatewayModels } from '@ai-bdd/models-ai-sdk';
 import { createHash, randomUUID } from 'node:crypto';
 import type { IdentityExecutionContext } from '../hosting/identity-context.ts';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -53,6 +55,8 @@ export class DecisionModels {
   private readonly tasks = new Set<Promise<DecisionEvaluation>>();
   private closing = false;
   private releaseLocal?: () => Promise<void>;
+  private structuredGatewayModels: string[] = [];
+  private nativeGatewayModels: string[] = [];
   constructor(
     readonly options: {
       store: Store;
@@ -85,6 +89,8 @@ export class DecisionModels {
           options.identityExecutionContext,
         ),
       );
+    if (settings.evaluation)
+      this.providers.set('vercel-evaluation', gatewayNativeDecisionProvider(settings.evaluation, options.identityExecutionContext));
     this.ready = this.initialize();
     void this.ready.catch(() => {});
   }
@@ -127,6 +133,22 @@ export class DecisionModels {
           row.id,
         );
     });
+    await this.refreshGatewayModels();
+  }
+  private async refreshGatewayModels() {
+    const { structured, evaluation } = this.options.settings;
+    await Promise.all([
+      (async () => {
+        if (!structured) { this.structuredGatewayModels = []; return; }
+        try { this.structuredGatewayModels = (await freeGatewayModels('language', { ...(structured.metadataFetch ? { metadataFetch: structured.metadataFetch } : {}) })).filter(id => structured.models.includes(id)); }
+        catch { this.structuredGatewayModels = []; }
+      })(),
+      (async () => {
+        if (!evaluation) { this.nativeGatewayModels = []; return; }
+        try { this.nativeGatewayModels = (await freeGatewayModels('evaluation', { ...(evaluation.metadataFetch ? { metadataFetch: evaluation.metadataFetch } : {}) })).filter(id => evaluation.models.includes(id)); }
+        catch { this.nativeGatewayModels = []; }
+      })(),
+    ]);
   }
   private receipt(row: any): DecisionEvaluation | null {
     if (!row.result_json) return null;
@@ -207,7 +229,9 @@ export class DecisionModels {
           ? settings.openai
           : profile.provider === 'jev'
             ? settings.jev
-            : settings.structured;
+            : profile.provider === 'vercel-evaluation'
+              ? settings.evaluation
+              : settings.structured;
     return hash({
       ...(profile.provider === 'llama-cpp-cpu'
         ? {
@@ -221,14 +245,15 @@ export class DecisionModels {
       provider: profile.provider,
       modelCatalog: config?.models ?? [],
       baseUrl:
-        config?.baseUrl ??
-        (profile.provider === 'vercel-structured'
-          ? 'https://ai-gateway.vercel.sh/v3/ai'
+        (config && 'baseUrl' in config ? config.baseUrl : undefined) ??
+        ((profile.provider === 'vercel-structured' || profile.provider === 'vercel-evaluation')
+          ? 'https://ai-gateway.vercel.sh/v4/ai'
           : null),
       adapterVersion:
         this.providers.get(profile.provider)?.version ?? 'unconfigured',
       configurationVersion: settings.configRevision ?? 'v1',
       questionPolicyVersion: 'decision-policy-v1',
+      costPolicyVersion: 'free-gateway-pricing-v1',
     });
   }
   private captured(profile: DecisionProfile): DecisionProfile {
@@ -292,15 +317,26 @@ export class DecisionModels {
         mode: 'native-decision',
       },
       {
+        id: 'vercel-evaluation',
+        maxInputBytes: 6000,
+        maxQuestions: 64,
+        contextTokens: 8192,
+        label: 'Vercel AI Gateway · free native evaluations',
+        configured: !!this.nativeGatewayModels.length,
+        reason: this.nativeGatewayModels.length ? null : 'Optional free Gateway evaluation requires verified free routes and account access. Local CPU remains available; no paid fallback is used.',
+        models: [...this.nativeGatewayModels],
+        mode: 'native-decision',
+      },
+      {
         id: 'vercel-structured',
         maxInputBytes: 120000,
         maxQuestions: 64,
         label: 'Vercel AI SDK structured generation',
-        configured: !!settings.structured,
-        reason: settings.structured
+        configured: !!this.structuredGatewayModels.length,
+        reason: this.structuredGatewayModels.length
           ? null
           : 'No explicit structured decision model is registered. Chat configuration does not enable this provider.',
-        models: settings.structured?.models ?? [],
+        models: [...this.structuredGatewayModels],
         mode: 'structured-generation',
       },
     ];
@@ -310,6 +346,8 @@ export class DecisionModels {
       maxInputBytes:
         profile.provider === 'llama-cpp-cpu'
           ? 12000
+          : profile.provider === 'vercel-evaluation'
+            ? 6000
           : profile.provider === 'jev'
             ? 32000
             : 120000,
@@ -323,6 +361,7 @@ export class DecisionModels {
     update?: DecisionProfile,
   ): Promise<DecisionProfileView> {
     await this.ready;
+    await this.refreshGatewayModels();
     const artifact = await this.store.artifact(
         id,
         user.id,

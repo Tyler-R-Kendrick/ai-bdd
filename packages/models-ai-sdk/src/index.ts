@@ -12,10 +12,16 @@ import {
 } from '@ai-bdd/sdk/contracts';
 import { mapModelError } from './errors.ts';
 import { toAiMessages } from './messages.ts';
+import { createFreeGateway } from './free-gateway.ts';
+import type { FreeGatewayOptions } from './free-gateway.ts';
+export { createFreeGateway, authorizeFreeGatewayModel, freeGatewayModels, FreeGatewayPolicyError } from './free-gateway.ts';
+export type { FreeGatewayOptions, FreeGatewayModelKind, FreeGatewayProvider, GatewayFetch } from './free-gateway.ts';
 
 export interface AiSdkModelsOptions {
   /** Passed straight through to the AI SDK's `maxRetries` (its default applies when omitted). */
   maxRetries?: number;
+  /** Trusted server configuration for the guarded Gateway, never model-supplied routing. */
+  gateway?: FreeGatewayOptions;
 }
 
 const PURPOSES: readonly ModelPurpose[] = ['extract', 'act', 'checkgen', 'judge'];
@@ -84,7 +90,8 @@ class AiSdkChatModel implements ChatModel {
     let result;
     try {
       result = await generateText({
-        model: this.model,
+        model: typeof this.model === 'string' || /^gateway(?:[./]|$)/.test(this.model.provider)
+          ? createFreeGateway(this.opts.gateway)(this.id) : this.model,
         messages: toAiMessages(req.messages),
         ...(req.system.length > 0 ? { instructions: req.system } : {}),
         ...(tools === undefined ? {} : { tools }),
@@ -147,7 +154,7 @@ function requireModel(value: unknown, purpose: string): LanguageModel {
 
 /**
  * Builds a {@link ModelSet} backed by the Vercel AI SDK. Values are either AI SDK language model
- * objects or model id strings, which the AI SDK resolves through its global provider.
+ * objects or model id strings. Strings use the guarded zero-cost Gateway provider.
  */
 export function aiSdkModels(models: Record<ModelPurpose, LanguageModel | string>, opts: AiSdkModelsOptions = {}): ModelSet {
   const build = (purpose: ModelPurpose): ChatModel =>
@@ -157,7 +164,7 @@ export function aiSdkModels(models: Record<ModelPurpose, LanguageModel | string>
 
 /**
  * JSON-config form: `{ extract, act, checkgen, judge, maxRetries? }`, where the four purposes are
- * model id strings passed to the AI SDK as-is. Unknown keys are rejected with `CONFIG_INVALID`.
+ * model id strings routed through the free-only Gateway guard. Unknown keys are rejected with `CONFIG_INVALID`.
  */
 export function createModelSet(options: Record<string, unknown>): ModelSet {
   const known = new Set<string>([...PURPOSES, 'maxRetries']);

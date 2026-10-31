@@ -1,4 +1,5 @@
-import { createGateway, generateText, Output, type LanguageModel } from 'ai';
+import { generateText, Output, type LanguageModel } from 'ai';
+import { createFreeGateway, type GatewayFetch } from '@ai-bdd/models-ai-sdk';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { User, Artifact, RichNode } from '../../shared/domain.ts';
@@ -59,6 +60,7 @@ export class VisualRouting {
     readonly options: {
       model: LanguageModel;
       gatewayBaseUrl?: string;
+      gatewayMetadataFetch?: GatewayFetch;
       decisions?: DecisionModels;
       decisionProfile: DecisionProfile | null;
       user: User;
@@ -72,8 +74,11 @@ export class VisualRouting {
     artifact: Artifact,
   ) {
     const model =
-      this.options.gatewayBaseUrl && typeof this.options.model === 'string'
-        ? createGateway({ baseURL: this.options.gatewayBaseUrl })(
+      typeof this.options.model === 'string'
+        ? createFreeGateway({
+            ...(this.options.gatewayBaseUrl ? { baseURL: this.options.gatewayBaseUrl } : {}),
+            ...(this.options.gatewayMetadataFetch ? { metadataFetch: this.options.gatewayMetadataFetch } : {}),
+          })(
             this.options.model,
           )
         : this.options.model;

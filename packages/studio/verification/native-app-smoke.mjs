@@ -6,6 +6,7 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { prepareGitHubSession } from './studio-github-session-fixture.mjs';
 
 assert.equal(
   process.env.STUDIO_SMOKE_NATIVE_APP,
@@ -23,8 +24,7 @@ assert.ok(modelDirectory && isAbsolute(modelDirectory));
 assert.ok(toolsDirectory && isAbsolute(toolsDirectory));
 const origin = 'https://native-studio.example.test',
   base = 'http://127.0.0.1:8787';
-const email = 'native-smoke-owner@example.test',
-  password = 'synthetic-native-smoke-password-123';
+const email = 'native-smoke-owner@example.test';
 const data = await mkdtemp(join(tmpdir(), 'studio-native-app-smoke-'));
 const childEnv = {
   PATH: '/usr/local/bin:/usr/bin:/bin',
@@ -35,7 +35,8 @@ const childEnv = {
   STUDIO_ORIGIN: origin,
   STUDIO_DATA_DIR: data,
   STUDIO_ADMIN_EMAIL: email,
-  STUDIO_ADMIN_PASSWORD: password,
+  STUDIO_GITHUB_SIGNIN_CLIENT_ID: 'native-smoke-fixture-client',
+  STUDIO_GITHUB_SIGNIN_CLIENT_SECRET: 'native-smoke-fixture-secret-never-live',
   STUDIO_LOCAL_MODEL_DIR: modelDirectory,
   STUDIO_T3_MANAGED_TOOLS_DIR: toolsDirectory,
   STUDIO_T3_STATE_KEY:
@@ -44,7 +45,7 @@ const childEnv = {
   SCARF_NO_ANALYTICS: 'true',
 };
 // No process.env spread, provider API keys, platform credentials, or pre-existing user homes.
-let child,
+let child, principal,
   cookie = '';
 const pauses = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function api(path, method = 'GET', body, expected = 200) {
@@ -72,6 +73,12 @@ async function api(path, method = 'GET', body, expected = 200) {
   return JSON.parse(text);
 }
 async function start() {
+  // The real OAuth Auth callback issues a session in this disposable SQL store.
+  // Only the explicit verification helper selects a controlled identity provider.
+  const fixture = await prepareGitHubSession({ dataDirectory: data, email });
+  if (principal) assert.equal(fixture.user.id, principal.id, 'A fresh process preserves the exact GitHub account binding');
+  principal = fixture.user;
+  cookie = fixture.cookie;
   child = spawn(
     process.execPath,
     [new URL('./main.js', import.meta.url).pathname],
@@ -108,8 +115,14 @@ async function stop() {
   }
 }
 async function login() {
-  cookie = '';
-  await api('/api/auth/login', 'POST', { email, password });
+  await api('/api/auth/login', 'POST', { email, password: 'legacy-password-must-fail' }, 403);
+  const me = await api('/api/me');
+  assert.equal(me.id, principal.id);
+  assert.match(me.email, /^[0-9a-f-]+@identity\.invalid$/);
+  const challenge = await fetch(base + '/api/auth/github', { redirect: 'manual', signal: AbortSignal.timeout(10000) });
+  assert.equal(challenge.status, 302);
+  assert.match(challenge.headers.get('location'), /^https:\/\/github\.com\/login\/oauth\/authorize\?/);
+  assert.match(challenge.headers.get('set-cookie'), /Secure/i);
 }
 async function turn(artifact, threadId, body) {
   await api(
@@ -296,9 +309,10 @@ try {
   assert.ok(Number(nativeLedger(artifact.id).n) > 0);
   console.log(
     JSON.stringify({
-      scope: 'shipping-main-http-native-t3-local-cpu',
+      scope: 'shipping-main-http-native-t3-local-cpu-controlled-github-oauth',
       checks: [
-        'non-root production main.js',
+        'non-root production main.js with controlled OAuth-issued session',
+        'password login refused; shipping GitHub authorization redirect',
         'default genuine native T3/OpenCode with pinned Qwen',
         'real completed HTTP chat and native checkpoint lease release',
         'SQLite and disk object persistence',

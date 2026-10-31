@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
-import { Store, HttpError, hash } from '../server/store.ts';
+import { Store, HttpError } from '../server/store.ts';
 import { RepositoryIdentity } from '../server/identity/github.ts';
 import { DecisionModels } from '../server/decisions/models.ts';
 import { decisionSettingsFromEnv } from '../server/decisions/settings.ts';
@@ -54,20 +54,7 @@ it.each([45000, 600])(
           repository,
         ),
         artifact = await store.artifact(project.mainArtifactId, user.id);
-      await h.store.exec(
-        'INSERT INTO users VALUES(?,?,?,?)',
-        user.id,
-        user.email,
-        user.name,
-        user.color,
-      );
-      await h.store.exec(
-        'INSERT INTO sessions VALUES(?,?,?,?)',
-        hash(user.id + '-session'),
-        user.id,
-        Date.now() + 3600000,
-        'session',
-      );
+      await h.signIn(user);
       h.fixture.permissions.set('101:acme/private', {
         pull: true,
         push: true,

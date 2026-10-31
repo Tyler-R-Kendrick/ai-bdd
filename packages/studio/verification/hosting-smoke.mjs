@@ -1,7 +1,7 @@
 import { mkdtemp, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { prepareGitHubSession } from '../dist/server/studio-github-session-fixture.mjs';
 import { createServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -15,8 +15,8 @@ const port = listener.address().port;
 await new Promise((resolve, reject) =>
   listener.close((error) => (error ? reject(error) : resolve())),
 );
-const origin = `http://127.0.0.1:${port}`,
-  password = randomBytes(24).toString('hex');
+const origin = `http://127.0.0.1:${port}`;
+const { cookie } = await prepareGitHubSession({ dataDirectory: temporary, email: 'hosting-smoke@example.test' });
 let processHandle,
   logs = '';
 async function start() {
@@ -31,7 +31,8 @@ async function start() {
       STUDIO_HOST: '127.0.0.1',
       STUDIO_DATA_DIR: temporary,
       STUDIO_ADMIN_EMAIL: 'hosting-smoke@example.test',
-      STUDIO_ADMIN_PASSWORD: password,
+      STUDIO_GITHUB_SIGNIN_CLIENT_ID: 'hosting-fixture-client',
+      STUDIO_GITHUB_SIGNIN_CLIENT_SECRET: 'hosting-fixture-secret-never-live',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -71,18 +72,13 @@ try {
   const first = await start();
   if (first.database !== 'sqlite' || first.provider !== 'node')
     throw new Error('Incorrect local composition');
-  const login = await fetch(origin + '/api/auth/login', {
-    method: 'POST',
-    headers: { origin, 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'hosting-smoke@example.test', password }),
+  const denied = await fetch(origin + '/api/auth/login', {
+    method: 'POST', headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'hosting-smoke@example.test', password: 'legacy-password-must-fail' }),
   });
-  if (!login.ok)
-    throw new Error('Built entry could not authenticate its bootstrap owner');
-  const cookie = login.headers
-    .getSetCookie()
-    .find((value) => value.startsWith('studio_session='))
-    ?.split(';')[0];
-  if (!cookie) throw new Error('Owner session is missing');
+  if (denied.status !== 403 || denied.headers.get('set-cookie')) throw new Error('Password sign-in must be disabled');
+  const me = await fetch(origin + '/api/me', { headers: { cookie } });
+  if (!me.ok || (await me.json()).email !== 'hosting-smoke@example.test') throw new Error('Controlled OAuth session was not restored by the actual hosting entry');
   const created = await fetch(origin + '/api/projects', {
     method: 'POST',
     headers: { origin, cookie, 'content-type': 'application/json' },
@@ -112,6 +108,8 @@ try {
       provider: second.provider,
       database: second.database,
       authenticatedProjectPersistence: true,
+      identityEvidence: 'controlled-GitHub-OAuth-provider',
+      passwordLoginRefused: true,
       cleanSigterm: true,
       cloudServices: 'not-provisioned-or-verified',
     }),

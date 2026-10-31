@@ -1,5 +1,7 @@
 // Read-only screenshots of already completed, real hosted local-model work. Never starts inference.
 import assert from 'node:assert/strict';
+import { readLiveGitHubSessions } from './vercel-live.ts';
+if (process.env.STUDIO_HOSTED_LOCAL_AI_PASSWORD_FILE !== undefined) throw new Error('Password authentication is disabled; use GitHub session exports');
 import { readFile, writeFile, mkdir, lstat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -22,7 +24,8 @@ catch(error) { if(error.code !== 'ENOENT') throw error; }
 const ids = receipt.resources;
 for(const key of ['projectId','artifactId','threadId','assistantMessageId','reviewJobId','evaluationId']) assert.match(ids[key], /^[a-f0-9-]{36}$/);
 const report = {
-  schemaVersion: 1, kind: 'read-only actual hosted local-AI screenshots', origin,
+  schemaVersion: 1,
+  identity: { provider: 'github', sessionSource: 'operator-browser-export', externalOAuthExchangePerformed: false }, kind: 'read-only actual hosted local-AI screenshots', origin,
   source: receipt.deploymentSourceProvidedByOperator, deploymentId: receipt.deploymentIdProvidedByOperator,
   priorReceiptSha256: createHash('sha256').update(receiptBytes).digest('hex'), resources: ids,
   startedAt: new Date().toISOString(), passed: false, captures: [],
@@ -30,7 +33,7 @@ const report = {
   blockedForeignRequests: 0, blockedPageMutations: 0,
   webSocket: { transport: 'Playwright exact-origin routed relay', observed: 0, framesReceived: 0, errors: 0 },
 };
-let browser, context, stage = 'launch', sessionCreated = false;
+let browser, context, stage = 'launch', sessionUsed = false;
 try {
   const proxyAddress = process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY;
   const proxy = proxyAddress ? new URL(proxyAddress) : null;
@@ -61,10 +64,12 @@ try {
     const response = await context.request.fetch(url.href,{...options,maxRedirects:0,timeout:60000,headers:{origin,...options.headers}});
     assert.equal(response.status(),200); return response.json();
   }
-  stage='owner-login';
-  assert(process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL&&process.env.STUDIO_HOSTED_LOCAL_AI_PASSWORD_FILE);
-  const password=(await readFile(process.env.STUDIO_HOSTED_LOCAL_AI_PASSWORD_FILE,'utf8')).replace(/\r?\n$/,'');
-  await api('/api/auth/login',{method:'POST',data:{email:process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL,password}}); sessionCreated=true;
+  stage='owner-github-session';
+  assert(process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL&&process.env.STUDIO_HOSTED_LOCAL_AI_GITHUB_SESSIONS_FILE);
+  const [cookie]=await readLiveGitHubSessions(process.env.STUDIO_HOSTED_LOCAL_AI_GITHUB_SESSIONS_FILE,origin,1);
+  await context.addCookies([{name:'studio_session',value:cookie.slice('studio_session='.length),domain:new URL(origin).hostname,path:'/',httpOnly:true,secure:true,sameSite:'Strict'}]);
+  const user=await api('/api/me');
+  assert.equal(user.email.toLowerCase(),process.env.STUDIO_HOSTED_LOCAL_AI_EMAIL.toLowerCase()); sessionUsed=true;
   const profiles={agent:assertLocalAgentCatalog(await api(`/api/artifacts/${ids.artifactId}/agent/profile`)),decision:assertLocalDecisionCatalog(await api(`/api/artifacts/${ids.artifactId}/decision/profile`))};
   assert.deepEqual(profiles.agent.profile,receipt.profilePersistence.chatProfile);
   assert.equal(profiles.decision.profile.minimumConfidence,.7);
@@ -127,13 +132,13 @@ try {
   report.failure={stage,code:'read-only-hosted-local-ui-failure',browserNetworkCode:String(error?.message??'').match(/net::(ERR_[A-Z_]+)/)?.[1]??null};
   process.exitCode=1;
 } finally {
-  if(context&&sessionCreated) {
+  if(context&&sessionUsed) {
     try {const response=await context.request.post(new URL('/api/auth/logout',origin).href,{headers:{origin},data:{},maxRedirects:0,timeout:60000});report.ownedSessionClosed=response.status()===200;}
     catch {report.ownedSessionClosed=false;}
   }
   await context?.unrouteAll({behavior:'ignoreErrors'}).catch(()=>{});
   await context?.close().catch(()=>{});await browser?.close().catch(()=>{});
-  if(sessionCreated&&!report.ownedSessionClosed){report.passed=false;process.exitCode=1;}
+  if(sessionUsed&&!report.ownedSessionClosed){report.passed=false;process.exitCode=1;}
 }
 report.completedAt=new Date().toISOString();
 await writeFile(join(directory,'hosted-local-ai-ui.json'),JSON.stringify(report,null,2)+'\n');

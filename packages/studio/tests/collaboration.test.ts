@@ -49,6 +49,7 @@ describe('Authenticated CRDT collaboration', () => {
   let instance: TestApp,
     dir: string,
     cookie: string,
+    ownerUser:Awaited<ReturnType<typeof setup>>['user'],
     request: ReturnType<typeof client>,
     url: string;
   let clients: { doc: Y.Doc; provider: WebsocketProvider }[] = [];
@@ -57,7 +58,7 @@ describe('Authenticated CRDT collaboration', () => {
     instance = await createApp(testSettings(dir), {
       db: join(dir, 'studio.sqlite'),
     });
-    ({ cookie } = await setup(instance.app));
+    ({ cookie,user:ownerUser } = await setup(instance.app));
     request = client(instance.app, cookie);
     url = (await instance.app.listen({ host: '127.0.0.1', port: 0 })).replace(
       'http:',
@@ -120,7 +121,7 @@ describe('Authenticated CRDT collaboration', () => {
         (
           await instance.store.artifact(
             p.mainArtifactId,
-            (await instance.store.userByEmail('owner@example.test')).id,
+            ownerUser.id,
           )
         ).content,
       ).includes('Editor B adds'),
@@ -206,9 +207,7 @@ describe('Authenticated CRDT collaboration', () => {
   it('leaves the live document unchanged when a replacement fails validation or storage', async () => {
     const p = await project(request),
       editor = await connect(p.mainArtifactId),
-      owner = await instance.store.publicUser(
-        (await instance.store.userByEmail('owner@example.test')).id,
-      ),
+      owner = await instance.store.publicUser(ownerUser.id),
       before = text(editor.doc),
       original = await instance.store.artifact(p.mainArtifactId, owner.id);
     await expect(

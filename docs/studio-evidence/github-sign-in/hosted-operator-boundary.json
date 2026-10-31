@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "scope": "GitHub-only exact-origin hosted operator credential boundary, tested without hosted usage",
+  "sourceFiles": {
+    "packages/studio/verification/hosted-local-ai-live.mjs": "95997d50f2dea8f545b1f3c1e918dc58c4c6808b51a76e3093cf8e8dd6340555",
+    "packages/studio/verification/hosted-local-ai-ui-live.mjs": "d6f579aefe1601fbb6ee8ab25eb04e09e6403d0cf9b8a808f06f491b766f785a",
+    "packages/studio/verification/hosted-audio-live.mjs": "428066542efd79515fefac1349fbe70eb1c836ebc1baa0ffd6055bd7a33b081f",
+    "packages/studio/verification/hosted-audio-ui-live.mjs": "b0e9e543cb4da17cf39fc479c18e11293b710b41d53f501dc9b127700459d360",
+    "packages/studio/verification/hosted-audio-import-live.mjs": "c59be38c131aec8cec28b6c9df1fc2b74637b565234942cd8593bf9427512d18",
+    "packages/studio/verification/hosted-video-live.mjs": "3ec608c65b79ef39eea742f4c8df8b841c05c24bb48a332681ba0ec4d389c294",
+    "packages/studio/verification/vercel-live.ts": "16f4d48620cec0930fb8de16a1214a9b9ec63e949ef94feea4b3f6e912f633b0",
+    "packages/studio/tests/vercel-live.test.ts": "3b23f9d9adcec858ff9507b6e6daf7b51647ca454e00c76be130d2d635a5a842",
+    "packages/studio/tests/hosted-github-operators.test.ts": "294c6f60aa6f034a9297e07d39dee549069805a4452505aa2bddbd9857a1a178"
+  },
+  "focusedOperatorTests": {
+    "files": 2,
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 9.75
+  },
+  "combinedRuntimeMatrix": {
+    "files": 5,
+    "passed": 66,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 28.56,
+    "postgres": "actual isolated local PostgreSQL 17",
+    "overlap": "Includes the 16 operator tests and the previous 50 runtime checks; counts must not be added."
+  },
+  "otherChecks": [
+    "Studio TypeScript noEmit passed",
+    "focused lint passed",
+    "all six hosted operator syntax checks passed",
+    "git diff check passed"
+  ],
+  "validatedBoundaries": [
+    "legacy password references refused before any acceptance usage or password-file reads",
+    "exact-origin private nonsymlink bounded cookie exports, valid expiry and Secure/HttpOnly/Strict metadata",
+    "two distinct existing GitHub sessions for authenticated persistence, with one-session exports for read-only UI capture",
+    "expected account checked through actual /api/me and both used persistence sessions logged out",
+    "read-only checks do not read the explicitly selected session file or enter writes",
+    "foreign origin/redirect and Vercel identity header boundaries unchanged",
+    "model/provider catalogs and media/source/version/persistence assertions preserved"
+  ],
+  "liveGitHubOAuthExchangeVerified": false,
+  "hostedModelCalls": 0,
+  "hostedMediaJobs": 0,
+  "infrastructureChanges": 0,
+  "limitations": [
+    "Actual browser-cookie exports and live GitHub sign-in still require their own release acceptance.",
+    "These checks do not establish successful inference or media execution on a hosted candidate.",
+    "Cookie attributes are validated export metadata; the application independently checks GitHub session provenance."
+  ]
+}

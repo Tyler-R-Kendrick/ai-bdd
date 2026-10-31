@@ -16,12 +16,13 @@ import {
   TypeValidationError,
   UnsupportedFunctionalityError,
 } from 'ai';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AiBddError, type ModelMessage } from '@ai-bdd/sdk/contracts';
 import { mapModelError } from '../src/errors.ts';
 import { aiSdkModels, createModelSet } from '../src/index.ts';
 import { toAiMessages } from '../src/messages.ts';
 import { ACT_TOOLS, mockModel, mockProvider, request, textResult, toolCallResult } from './helpers.ts';
+import { freeSdkFixture } from './free-gateway-fixture.ts';
 
 const ctx = { purpose: 'judge' as const, modelId: 'judge-model' };
 const apiError = (over: { statusCode?: number; isRetryable?: boolean; message?: string } = {}) =>
@@ -295,14 +296,27 @@ describe('createModelSet: maxRetries', () => {
   const previous = globalThis.AI_SDK_DEFAULT_PROVIDER;
   afterEach(() => {
     globalThis.AI_SDK_DEFAULT_PROVIDER = previous;
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it('maxRetries: 0 reaches the AI SDK, so a retryable error is attempted exactly once', async () => {
     const m = mockModel(() => Promise.reject(apiError({ statusCode: 503, isRetryable: true })), 'p/b');
     globalThis.AI_SDK_DEFAULT_PROVIDER = mockProvider({ 'p/b': m, 'p/a': m, 'p/c': m, 'p/d': m });
+    const owned = freeSdkFixture('p/b');
+    let attempted = 0;
+    vi.stubEnv('AI_GATEWAY_API_KEY', 'owned-sdk-protocol-fixture');
+    vi.stubGlobal('fetch', async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      if (new URL(input instanceof Request ? input.url : String(input)).pathname === '/v4/ai/language-model') {
+        attempted++;
+        return Response.json({ error: { message: 'owned unavailable fixture' } }, { status: 503 });
+      }
+      return owned.fetcher(input, init);
+    });
     const set = createModelSet({ ...ids, maxRetries: 0 });
     await expect(set.act.generate(request())).rejects.toMatchObject({ code: 'MODEL_UNAVAILABLE', retryable: true });
-    expect(m.doGenerateCalls).toHaveLength(1);
+    expect(m.doGenerateCalls).toHaveLength(0);
+    expect(attempted).toBe(1);
   });
 
   it.each([

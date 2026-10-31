@@ -7,7 +7,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { createApp } from '../server/app.ts';
-import { passwordHash } from '../server/auth.ts';
+import { githubSignIn, fixtureGitHubIdentity } from './identity/github-signin-inject-fixture.ts';
+import { Auth } from '../server/auth.ts';
 import { Store, HttpError } from '../server/store.ts';
 import {
   openDatabase,
@@ -18,7 +19,7 @@ import {
   OutboxDispatchPendingError,
 } from '../server/runtime/jobs.ts';
 import type { DurableJobContext } from '../server/runtime/contracts.ts';
-import { client, origin, ownerPassword, testSettings } from './helpers.ts';
+import { client, testSettings } from './helpers.ts';
 
 // Explicit local protocol fixtures only; deployed database URLs are rejected.
 const postgresUrl =
@@ -77,7 +78,7 @@ async function fixture(adapter: Adapter) {
   const user = await store.createUser(
       'outbox-owner-' + randomUUID() + '@example.test',
       'Outbox availability owner',
-      await passwordHash(ownerPassword),
+      null,
     ),
     project = await store.createProject(user, 'Cold-start workspace', ''),
     artifact = await store.createArtifact(
@@ -86,6 +87,12 @@ async function fixture(adapter: Adapter) {
       'code',
       'Durable output target',
     );
+  // This cold-start fixture restores an explicitly bound historical actor.
+  // No production admission path matches or claims accounts by email.
+  await new Auth(store, testSettings(dir)).initialize();
+  const principal = fixtureGitHubIdentity(user.email);
+  if (principal.kind !== 'github') throw new Error('Expected the owned numeric GitHub fixture');
+  await store.exec('INSERT INTO github_signin_identities(github_id,user_id,created_at) VALUES(?,?,?)', principal.id, user.id, Date.now());
   await store.db.exec(
     'CREATE TABLE startup_publications(job_id TEXT PRIMARY KEY,fence INTEGER NOT NULL,source TEXT NOT NULL)',
   );
@@ -153,18 +160,8 @@ async function fixture(adapter: Adapter) {
     return application;
   };
   const login = async (application: Awaited<ReturnType<typeof start>>) => {
-    const response = await application.app.inject({
-      method: 'POST',
-      url: '/api/auth/login',
-      headers: { origin },
-      payload: { email: user.email, password: ownerPassword },
-    });
-    expect(response.statusCode, response.body).toBe(200);
-    const session = response.cookies.find(
-      (cookie) => cookie.name === 'studio_session',
-    );
-    expect(session).toBeDefined();
-    return client(application.app, session!.value);
+    const { cookie } = await githubSignIn(application.app, user.email);
+    return client(application.app, cookie);
   };
   return {
     dir,

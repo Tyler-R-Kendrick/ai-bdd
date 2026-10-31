@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createApp } from '../server/app.ts';
-import { hash } from '../server/store.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { testSettings } from './helpers.ts';
 test('pages artifact-thread history without losing loaded messages or the reading position', async ({
   page,
@@ -16,11 +15,9 @@ test('pages artifact-thread history without losing loaded messages or the readin
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   try {
-    const user = await instance.store.createUser(
-      'history@example.test',
-      'History teammate',
-      null,
-    );
+    const address=await instance.app.listen({host:'127.0.0.1',port:0});
+    settings.origin=address;
+    const user=await signInBrowser(page,address,'history@example.test');
     const project = await instance.store.createProject(
         user,
         'Conversation history',
@@ -52,25 +49,6 @@ test('pages artifact-thread history without losing loaded messages or the readin
       commentId,
       'This belongs only to the paragraph thread.',
     );
-    const token = randomBytes(32).toString('base64url');
-    await instance.store.exec(
-      'INSERT INTO sessions VALUES(?,?,?,?)',
-      hash(token),
-      user.id,
-      Date.now() + 3600000,
-      'session',
-    );
-    const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
-    settings.origin = address;
-    await page.context().addCookies([
-      {
-        name: 'studio_session',
-        value: token,
-        url: address,
-        httpOnly: true,
-        sameSite: 'Strict',
-      },
-    ]);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(`${address}/?project=${project.id}&artifact=${artifactId}`);
     await expect(

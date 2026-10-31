@@ -3,11 +3,14 @@ import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { localModelById, type LocalModelSettings } from '../local/catalog.ts';
 import { managedT3SettingsFromEnv, type ManagedT3Settings } from '../local/managed-t3-settings.ts';
+import type { GatewayFetch } from '@ai-bdd/models-ai-sdk';
 
 export type IntegrationSettings = {
   localModel?: LocalModelSettings;
   managedT3?: ManagedT3Settings;
   gatewayBaseUrl?: string;
+  /** Trusted server-only metadata transport for owned protocol fixtures. Never loaded from an environment or artifact. */
+  gatewayMetadataFetch?: GatewayFetch;
   searchUrl?: string;
   searchToken?: string;
   remotePlanner?: boolean;
@@ -47,6 +50,8 @@ export function integrationSettingsFromEnv(
   env: NodeJS.ProcessEnv,
 ): IntegrationSettings {
   const production = env.NODE_ENV === 'production';
+  if (production && (env.STUDIO_T3_MCP_URL || env.STUDIO_REMOTE_PLANNER === 'on' || env.STUDIO_OPEN_DESIGN_REGISTRATION))
+    throw new Error('The free-model policy cannot verify externally selected agent or design models. Use managed local T3 or verified free Gateway models.');
   let openDesign: IntegrationSettings['openDesign'];
   if (env.STUDIO_OPEN_DESIGN_REGISTRATION) {
     if (!isAbsolute(env.STUDIO_OPEN_DESIGN_REGISTRATION))

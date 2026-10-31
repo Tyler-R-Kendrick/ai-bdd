@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "GitHub-only sign-in browser UI",
+  "authenticationBoundary": "Controlled API status and navigation responses; no GitHub identity authenticated",
+  "sourceFilesSha256": {
+    "packages/studio/client/components/Login.tsx": "8139cc210a1cc9d5b3188b344d60e366ec985b767e08f59c6d5cdc56752677a1",
+    "packages/studio/client/styles.css": "22639e6c421c30c9b3247f0fe1f595be312eb0dba97b5320a4196edfb5d695c2",
+    "packages/studio/client/components/ShareDialog.tsx": "6c5f4a834e23fa2ac6fd0e1f30fda464410a734c01e8f22fbb6f03ec21c33bf9",
+    "packages/studio/tests/github-login.spec.ts": "1ca52d6d2541530ae28bfdb1c225f0a5b800f0414ebdf16527669432436d25f2"
+  },
+  "checks": {
+    "browser": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 5.8
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "diffCheck": "passed"
+  },
+  "captures": [
+    {
+      "file": "desktop.png",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 48436,
+      "sha256": "8155f1ebbb6b005171127ab4022590abe9b71540695a35780973189dc6ddcf95"
+    },
+    {
+      "file": "mobile.png",
+      "width": 390,
+      "height": 844,
+      "bytes": 33317,
+      "sha256": "f6641175f76b7870f9780791ce8bcf43d13e7d0d64b5f5035400893890f857a5"
+    }
+  ],
+  "review": {
+    "desktopAndMobileVisuallyInspected": true,
+    "signInActionReadable": true,
+    "onlyGitHubSignInAction": true,
+    "credentialInputsAbsent": true,
+    "mobileHorizontalOverflow": false,
+    "githubOAuthExchangeVerifiedByThisLane": false,
+    "serverPasswordRejectionVerifiedByThisLane": false
+  }
+}

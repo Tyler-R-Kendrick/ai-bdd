@@ -16,12 +16,15 @@ import {
   ArtifactLifecycle,
 } from '../server/artifact-lifecycle.ts';
 import { DiskObjectStore } from '../server/hosting/disk-objects.ts';
+import {
+  githubSignIn,
+  injectedGitHub,
+} from './identity/github-signin-inject-fixture.ts';
 const pending: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of pending.splice(0).reverse()) await close();
 });
-const url = process.env.STUDIO_TEST_POSTGRES_URL,
-  password = 'synthetic-archive-fixture-password';
+const url = process.env.STUDIO_TEST_POSTGRES_URL;
 async function fixture(postgres: boolean) {
   const directory = await mkdtemp(join(tmpdir(), 'studio-artifact-lifecycle-')),
     schema = 'lifecycle_' + randomUUID().replaceAll('-', ''),
@@ -37,7 +40,7 @@ async function fixture(postgres: boolean) {
       demo: false,
       dataDir: directory,
       adminEmail: 'archive-owner@example.test',
-      adminPassword: password,
+      githubSignInProvider: injectedGitHub,
       integrations: {},
     },
     database ? { database } : { db: file },
@@ -53,8 +56,11 @@ async function fixture(postgres: boolean) {
       }
     }
   });
-  const owner = await studio.store.userByEmail('archive-owner@example.test'),
-    project = (await studio.store.createProject(
+  const { user: owner } = await githubSignIn(
+    studio.app,
+    'archive-owner@example.test',
+  );
+  const project = (await studio.store.createProject(
       owner,
       'Archive project',
       '',
@@ -202,14 +208,8 @@ for (const postgres of [false, true])
       });
       it('enforces authenticated origin and person-only deletion over the real HTTP routes', async () => {
         const c = await fixture(postgres),
-          login = await c.app.inject({
-            method: 'POST',
-            url: '/api/auth/login',
-            headers: { origin: 'http://127.0.0.1:8902' },
-            payload: { email: c.owner.email, password },
-          }),
-          cookie = login.cookies[0]!.name + '=' + login.cookies[0]!.value;
-        expect(login.statusCode).toBe(200);
+          login = await githubSignIn(c.app, c.owner.email),
+          cookie = 'studio_session=' + login.cookie;
         await c.service.archive(c.owner, c.artifact.id);
         const listing = await c.app.inject({
           url: `/api/projects/${c.project.id}/archive`,

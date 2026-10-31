@@ -1,32 +1,32 @@
 import { useEffect, useState } from 'react';
-import { PanelsTopLeft, ArrowRight, GitBranch } from 'lucide-react';
+import { PanelsTopLeft, ArrowRight, GitBranch, LogIn } from 'lucide-react';
 import { api } from '../lib.ts';
-import { Button, Field, Input, Spinner } from './ui.tsx';
-import type { User } from '../../shared/domain.ts';
-export function Login({ onLogin }: { onLogin: (u: User) => void }) {
-  const [status, setStatus] = useState<any>(null),
+import { Button, Spinner } from './ui.tsx';
+
+type SignInStatus = { github: boolean };
+
+export function Login() {
+  const callbackFailed =
+    new URLSearchParams(location.search).get('signin') === 'failed';
+  const [status, setStatus] = useState<SignInStatus | null>(null),
     [error, setError] = useState(''),
-    [busy, setBusy] = useState(false);
+    [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    api('/auth/status')
-      .then(setStatus)
-      .catch((e) => setError(e.message));
-  }, []);
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.currentTarget));
-    setBusy(true);
+    let active = true;
+    setStatus(null);
     setError('');
-    try {
-      onLogin(
-        await api(status.setup ? '/auth/setup' : '/auth/login', 'POST', data),
-      );
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+    api<SignInStatus>('/auth/status')
+      .then((value) => {
+        if (active) setStatus({ github: value.github === true });
+      })
+      .catch(() => {
+        if (active)
+          setError('We couldn’t check GitHub sign-in. Please try again.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
   return (
     <main className="login-page">
       <div className="login-brand">
@@ -50,96 +50,41 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
             <span>Document → build → test → evidence</span>
           </div>
         </div>
-        <section className="login-form">
-          <h2>{status?.setup ? 'Create your workspace' : 'Welcome back'}</h2>
+        <section className="login-form" aria-labelledby="sign-in-heading">
+          <h2 id="sign-in-heading">Welcome back</h2>
           <p className="muted">
-            {status?.setup
-              ? 'Set up the first owner account.'
-              : 'Sign in to continue working with your team.'}
+            Sign in with GitHub to continue working with your team.
           </p>
-          {!status ? (
-            <Spinner />
-          ) : (
+          {!status && !error ? (
+            <Spinner label="Checking GitHub sign-in…" />
+          ) : status?.github ? (
             <>
-              <form onSubmit={submit}>
-                {status.setup && (
-                  <Field label="Your name">
-                    <Input
-                      name="name"
-                      required
-                      autoComplete="name"
-                      maxLength={100}
-                    />
-                  </Field>
-                )}
-                <Field label="Email">
-                  <Input
-                    type="email"
-                    name="email"
-                    required
-                    autoComplete="username"
-                  />
-                </Field>
-                <Field
-                  label={
-                    status.setup
-                      ? 'Password · at least 16 characters'
-                      : 'Password'
-                  }
-                >
-                  <Input
-                    name="password"
-                    type="password"
-                    required
-                    minLength={status.setup ? 16 : 1}
-                    maxLength={256}
-                    autoComplete={
-                      status.setup ? 'new-password' : 'current-password'
-                    }
-                  />
-                </Field>
-                {error && (
-                  <p role="alert" className="error-text">
-                    {error}
-                  </p>
-                )}
-                <Button disabled={busy} className="w-full">
-                  {busy ? (
-                    <Spinner label="Signing in…" />
-                  ) : (
-                    <>
-                      {status.setup ? 'Create workspace' : 'Sign in'}
-                      <ArrowRight size={16} />
-                    </>
-                  )}
-                </Button>
-              </form>
-              {status.oidc && (
-                <Button variant="outline" asChild className="w-full">
-                  <a href="/api/auth/oidc">Continue with your organization</a>
-                </Button>
-              )}
-              {status.demo && (
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => {
-                    setBusy(true);
-                    api<User>('/auth/demo', 'POST')
-                      .then(onLogin)
-                      .catch((e) => setError(e.message))
-                      .finally(() => setBusy(false));
-                  }}
-                  disabled={busy}
-                >
-                  Open local demo
-                </Button>
-              )}
-              {status.demo && (
-                <p className="small muted">
-                  Local development demo. Sample content is illustrative.
+              {callbackFailed && (
+                <p role="alert" className="error-text">
+                  GitHub sign-in wasn’t completed. Please try again.
                 </p>
               )}
+              <Button asChild className="login-github w-full">
+                <a href="/api/auth/github">
+                  <LogIn size={18} />
+                  Continue with GitHub
+                  <ArrowRight size={16} />
+                </a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p role="alert" className="error-text">
+                {error ||
+                  'GitHub sign-in is temporarily unavailable. Please try again in a moment.'}
+              </p>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setAttempt((value) => value + 1)}
+              >
+                Try again
+              </Button>
             </>
           )}
         </section>

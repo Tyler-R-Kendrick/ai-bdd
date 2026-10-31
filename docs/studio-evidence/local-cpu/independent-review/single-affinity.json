@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "scope": "Controlled single-affinity CPU regression on an exported production dependency closure; not hosted release acceptance or a complete image build",
+  "source": {
+    "baseCommit": "4b95cbd855ce71b2e4045594e176da96158c2b35",
+    "sourceFixCommit": "fa265ffdb18c10a2ee779fb9dd9125a6cd366a9e",
+    "change": "Cap native runtime, generation context and decision context threads to min(2, availableParallelism())",
+    "nativeAppRuntimeEquivalentToFix": true,
+    "nativeAppCopyDifference": "Experimental thread-capped copies differ from the committed source only in comment/import placement; the mandatory regression was then run with the exact committed worker and decisions files."
+  },
+  "isolation": {
+    "node": "24.22.2",
+    "cpuBinding": "node-llama-cpp@3.22.2",
+    "model": "qwen2.5-0.5b-instruct-q4-k-m",
+    "nonRoot": true,
+    "network": "none",
+    "filesystem": "read-only plus disposable tmpfs",
+    "memoryBytes": 2147483648,
+    "cpuQuota": 1,
+    "actualAffinityCpuCount": 1,
+    "workerAvailableParallelism": 1,
+    "hostAuthenticationMounted": false,
+    "completeStudioImageBuilt": false
+  },
+  "unchangedThreads2": {
+    "small": {
+      "name": "small actual chat",
+      "elapsedMs": 13250,
+      "passed": false,
+      "text": "3"
+    },
+    "long": {
+      "estimatedInputTokens": 1494,
+      "status": "deadline",
+      "elapsedMs": 45002,
+      "lastNativePhase": "prefill-start",
+      "decodeObserved": false,
+      "rssBytesAtPrefill": 733102080
+    }
+  },
+  "cappedThreads1": {
+    "small": {
+      "name": "small actual chat",
+      "elapsedMs": 2142,
+      "passed": false,
+      "text": "3"
+    },
+    "long": {
+      "name": "complete larger input actual chat",
+      "elapsedMs": 10651,
+      "passed": false,
+      "text": "3"
+    },
+    "longActualInputTokens": 1505,
+    "longFirstDecodeMs": 10621,
+    "fiveQuestionDecisions": {
+      "name": "five question actual native decisions",
+      "elapsedMs": 6133,
+      "inputTokens": 909,
+      "outputTokens": 5,
+      "rss": 780890112
+    },
+    "probabilitiesCalibrated": false
+  },
+  "nativeApp": {
+    "result": {
+      "scope": "shipping-main-http-native-t3-local-cpu-controlled-github-oauth",
+      "checks": [
+        "non-root production main.js with controlled OAuth-issued session",
+        "password login refused; shipping GitHub authorization redirect",
+        "default genuine native T3/OpenCode with pinned Qwen",
+        "real completed HTTP chat and native checkpoint lease release",
+        "SQLite and disk object persistence",
+        "fresh-process authenticated reply/ADR/thread read",
+        "second genuine native turn after restart",
+        "third native turn uses saved design source: blue and Start",
+        "canonical source, dedicated ADR and thread preserved",
+        "graceful SIGTERM"
+      ],
+      "passed": true
+    },
+    "workerAvailableParallelism": [
+      1,
+      1,
+      1
+    ],
+    "actualInputTokens": [
+      1543,
+      1586,
+      1582
+    ],
+    "completedCpuRequestMs": [
+      14081,
+      14200,
+      12469
+    ],
+    "authenticationScope": "Synthetic controlled OAuth provider only; no live identity credentials"
+  },
+  "mandatoryImageRegression": {
+    "result": {
+      "scope": "offline-single-affinity-actual-CPU-image-regression",
+      "availableParallelism": 1,
+      "checks": [
+        "actual arithmetic chat",
+        "actual native schema-constrained JSON",
+        "complete long-source prefill and decode within the original 45s budget; throughput only",
+        "actual balanced native predicates and finite ordinal distributions within the original 30s review budget; no general rubric accuracy claim"
+      ],
+      "passed": true
+    },
+    "launcher": "Selects the first permitted Linux CPU and launches the actual model subprocess under taskset; asserts availableParallelism=1 in both test process and worker",
+    "sourcePreserved": "At least 1600 native input tokens required for the full-source throughput case",
+    "budgetsMs": {
+      "generation": 45000,
+      "fiveQuestionDecisions": 30000
+    },
+    "imageWiring": "Unconditional container-smoke invocation; existing native App, schema, offline, memory and browser checks preserved",
+    "localExecution": "Actual fixture executed with the production dependency closure and committed worker files; complete image CI remains separate"
+  },
+  "retainedQualityFailures": [
+    {
+      "case": "What is 2 + 2? Reply only with the numeral.",
+      "observedBefore": "3",
+      "observedAfter": "3",
+      "claim": "No arithmetic quality improvement from the thread cap"
+    },
+    {
+      "case": "The same arithmetic numeral instruction after the repeated synthetic context",
+      "observedAfter": "3",
+      "claim": "The long workload is throughput-only; it does not pass arithmetic quality"
+    },
+    {
+      "case": "New decision paraphrase: Is the chosen color blue?",
+      "observed": false,
+      "expected": true,
+      "claim": "This paraphrase is outside the passing predicate corpus; no general decision accuracy claim"
+    }
+  ],
+  "receiptCorrection": "The initial experimental capped runner set its aggregate passed flag after completed inference despite failed per-case arithmetic assertions. Its raw private output is retained unchanged; this report marks those semantic checks as failures. The final mandatory regression uses explicit semantic and throughput scopes with assertions.",
+  "conclusion": "Actual single-CPU affinity reproduces the original prefill deadline. Capping the native thread counts completes the same long workload within the original deadline, and genuine native App math/restart/source/checkpoint checks pass under that affinity. Hosted acceptance is still required separately.",
+  "limits": [
+    "No hosted model success, real identity login, full image build, capacity/SLO or general model correctness is established by this local experiment.",
+    "Native probability vectors are uncalibrated. Ordinal distribution checks validate consistency, not general rubric accuracy.",
+    "No Sandbox adapter activation or AI Gateway usage."
+  ]
+}

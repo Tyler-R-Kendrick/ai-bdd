@@ -30,7 +30,7 @@ describe('operator-owned managed native T3 settings', () => {
     expect(JSON.stringify(first)).not.toContain(fixtureSecret);
     expect(Object.isFrozen(first)).toBe(true);
   });
-  it('supports explicit checkpoint key rotation while preserving remote HTTPS admission', () => {
+  it('supports checkpoint key rotation and enforces production pricing and HTTPS boundaries', () => {
     const explicit = managedT3SettingsFromEnv({ ...configured, STUDIO_T3_STATE_KEY: fixtureSecret + '-dedicated' }, true)!;
     expect(explicit.key).not.toEqual(managedT3SettingsFromEnv(configured, true)!.key);
     const settings = integrationSettingsFromEnv(configured);
@@ -38,6 +38,9 @@ describe('operator-owned managed native T3 settings', () => {
     expect(settings.localModel?.directory).toBe('/opt/studio-model');
     expect(() => integrationSettingsFromEnv({ ...configured,
       STUDIO_T3_MCP_URL: 'http://127.0.0.1:9999/mcp', STUDIO_T3_PROJECT: '/workspace/project',
+    })).toThrow('free-model policy');
+    expect(() => integrationSettingsFromEnv({ ...configured,
+      STUDIO_SEARCH_URL: 'http://127.0.0.1:9999/search',
     })).toThrow('HTTPS');
   });
 });

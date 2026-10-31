@@ -74,6 +74,22 @@ async function ready() {
 
 try {
   await docker(['volume', 'create', identifier]);
+  // Seed this disposable owned volume before the shipping command acquires its
+  // exclusive SQLite writer lock. The fixture uses the real OAuth callback;
+  // only this short-lived, offline verification container selects its provider.
+  const seeded = await docker([
+    'run', '--rm', '--name', identifier + '-identity',
+    '--network', 'none', '--read-only', '--tmpfs', '/tmp',
+    '--memory=2g', '--cpus=1', '--cap-drop', 'ALL',
+    '--security-opt', 'no-new-privileges:true',
+    '-v', `${identifier}:/data`, image,
+    'node', '--input-type=module', '-e',
+    "import{prepareGitHubSession}from'./dist/server/studio-github-session-fixture.mjs';const fixture=await prepareGitHubSession({dataDirectory:'/data',email:'owner@example.test'});process.stdout.write(JSON.stringify({cookie:fixture.cookie,userId:fixture.user.id,controlledOAuthProvider:fixture.controlledOAuthProvider}))",
+  ]);
+  const controlled = JSON.parse(seeded.stdout);
+  assert.equal(controlled.controlledOAuthProvider, true);
+  assert.match(controlled.cookie, /^studio_session=[A-Za-z0-9_-]{43}$/);
+  pass('controlled GitHub OAuth seeds the owned volume before the shipping SQLite writer starts');
   await docker([
     'run',
     '-d',
@@ -96,7 +112,9 @@ try {
     '-e',
     'STUDIO_ADMIN_EMAIL=owner@example.test',
     '-e',
-    'STUDIO_ADMIN_PASSWORD=ci-only-strong-bootstrap-password',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_ID=release-fixture-client',
+    '-e',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_SECRET=release-fixture-secret-never-live',
     image,
   ]);
   await ready();
@@ -133,6 +151,17 @@ try {
   pass(
     'packaged pinned CPU model generates chat and schema JSON as non-root with no network',
   );
+  await docker([
+    'run', '--rm', '--name', identifier + '-cpu-affinity',
+    '--network', 'none', '--read-only', '--tmpfs', '/tmp',
+    '--memory=2g', '--cpus=1', '--cap-drop', 'ALL',
+    '--security-opt', 'no-new-privileges:true',
+    '-e', 'STUDIO_SMOKE_CPU_AFFINITY=1', image,
+    'node', 'dist/server/studio-local-cpu-affinity.mjs',
+  ], 120000);
+  pass(
+    'actual model subprocess inherits one permitted CPU affinity and completes chat, JSON, full-source prefill and balanced native decisions offline within original model budgets',
+  );
   await docker(
     [
       'run',
@@ -160,13 +189,21 @@ try {
     'shipping App defaults to genuine local native T3, completes HTTP chat and a fresh-process turn with persisted checkpoints offline',
   );
 
-  await api('/auth/demo', 'POST', undefined, 404);
+  await api('/auth/demo', 'POST', undefined, 403);
   pass('demo access is unavailable in production');
   await api('/auth/login', 'POST', {
-    email: 'owner@example.test',
-    password: 'ci-only-strong-bootstrap-password',
-  });
-  pass('password login issues Secure HttpOnly session cookies');
+    email: 'owner@example.test', password: 'legacy-password-must-fail',
+  }, 403);
+  await api('/auth/setup', 'POST', { email: 'owner@example.test', password: 'legacy-password-must-fail' }, 403);
+  const challenge = await fetch(`http://127.0.0.1:${port}/api/auth/github`, { redirect: 'manual' });
+  assert.equal(challenge.status, 302);
+  assert.match(challenge.headers.get('location'), /^https:\/\/github\.com\/login\/oauth\/authorize\?/);
+  pass('shipping command refuses password/setup and offers GitHub OAuth only');
+  cookie = controlled.cookie;
+  const me = await api('/me');
+  assert.equal(me.id, controlled.userId);
+  assert.match(me.email, /^[0-9a-f-]+@identity\.invalid$/);
+  pass('controlled GitHub OAuth callback issues a persisted Secure HttpOnly session used by the unmodified shipping command');
   const project = await api(
     '/projects',
     'POST',
@@ -269,7 +306,9 @@ try {
     '-e',
     `STUDIO_ORIGIN=${origin}`,
     '-e',
-    'STUDIO_ADMIN_PASSWORD=ci-only-strong-bootstrap-password',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_ID=release-fixture-client',
+    '-e',
+    'STUDIO_GITHUB_SIGNIN_CLIENT_SECRET=release-fixture-secret-never-live',
     image,
   ]).then(
     () => false,
@@ -283,7 +322,7 @@ try {
     checks: results,
     passed: true,
     scope:
-      'Actual local release-image models and native T3 with synthetic accounts and durable data; hosted identity has separate acceptance.',
+      'Actual local release-image models and native T3 with controlled GitHub OAuth provider sessions and durable data; live GitHub identity has separate acceptance.',
   };
   if (process.env.STUDIO_SMOKE_REPORT) {
     await writeFile(
@@ -306,6 +345,8 @@ try {
     );
   throw error;
 } finally {
+  await docker(['rm', '-f', identifier + '-identity']).catch(() => {});
+  await docker(['rm', '-f', identifier + '-cpu-affinity']).catch(() => {});
   await docker(['rm', '-f', identifier]).catch(() => {});
   await docker(['volume', 'rm', identifier]).catch(() => {});
 }

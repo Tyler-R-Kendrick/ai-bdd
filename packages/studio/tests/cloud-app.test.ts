@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../server/app.ts';
 import { implementationPointer } from '../shared/implementation.ts';
 import { client, setup, testSettings } from './helpers.ts';
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
@@ -169,6 +170,9 @@ describe('assembled cloud domain guards', () => {
       {
         ...testSettings('/tmp/studio-decision-composition'),
         model: 'fixture/chat-model',
+        integrations: {
+          gatewayMetadataFetch: ownedFreeGatewayMetadata(['fixture/chat-model']),
+        },
       },
       {
         db: ':memory:',
@@ -338,17 +342,26 @@ describe('assembled cloud domain guards', () => {
     const directory = await mkdtemp(join(tmpdir(), 'studio-startup-cleanup-')),
       file = join(directory, 'studio.sqlite');
     cleanup.push(() => rm(directory, { recursive: true, force: true }));
-    await expect(
-      createApp(
-        {
-          ...testSettings(directory),
-          oidcIssuer: 'http://organization.example.test',
-          oidcClientId: 'fixture',
-          oidcClientSecret: 'fixture-only',
-        },
-        { db: file },
-      ),
-    ).rejects.toThrow('OIDC requires HTTPS');
+    const originalExec = Store.prototype.exec;
+    const write = vi.spyOn(Store.prototype, 'exec').mockImplementation(function (
+      this: Store,
+      sql: string,
+      ...args: any[]
+    ) {
+      if (sql.startsWith('CREATE TABLE IF NOT EXISTS github_signin_identities'))
+        throw new Error('Owned identity schema initialization failure');
+      return originalExec.call(this, sql, ...args);
+    });
+    const close = vi.spyOn(Store.prototype, 'close');
+    try {
+      await expect(
+        createApp(testSettings(directory), { db: file }),
+      ).rejects.toThrow('Owned identity schema initialization failure');
+      expect(close).toHaveBeenCalledOnce();
+    } finally {
+      write.mockRestore();
+      close.mockRestore();
+    }
     const reopened = await Store.open(file);
     await reopened.close();
   });
@@ -518,7 +531,13 @@ describe('assembled cloud domain guards', () => {
   });
   it('exposes the selected default T3 availability and requires an explicit configured FX selection', async () => {
     const studio = await createApp(
-      { ...testSettings('/tmp/studio-profile-api'), model: 'fixture/model' },
+      {
+        ...testSettings('/tmp/studio-profile-api'),
+        model: 'fixture/model',
+        integrations: {
+          gatewayMetadataFetch: ownedFreeGatewayMetadata(['fixture/model']),
+        },
+      },
       { db: ':memory:' },
     );
     cleanup.push(() => studio.app.close());

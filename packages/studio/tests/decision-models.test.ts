@@ -1,3 +1,4 @@
+import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -326,7 +327,7 @@ describe('independent typed decision models over actual native HTTP contracts', 
     const chat = new AgentProfiles(
       w.store,
       { model: 'fixture/chat' } as any,
-      {},
+      { gatewayMetadataFetch: ownedFreeGatewayMetadata(['fixture/chat']) },
     );
     await chat.initialize();
     await chat.view(w.user, w.artifact.id, {
@@ -475,6 +476,7 @@ describe('independent typed decision models over actual native HTTP contracts', 
     const w = await workspace(
       native(api.url, {
         structured: {
+          metadataFetch: ownedFreeGatewayMetadata(['fixture/decision']),
           baseUrl: fallback.url,
           apiKey: 'explicit-fallback-fixture-key',
           models: ['fixture/decision'],
@@ -563,6 +565,7 @@ describe('independent typed decision models over actual native HTTP contracts', 
     const w = await workspace(
       native('http://127.0.0.1:1', {
         structured: {
+          metadataFetch: ownedFreeGatewayMetadata(['fixture/decision']),
           baseUrl: api.url,
           apiKey: 'explicit-sdk-decision-fixture',
           models: ['fixture/decision'],
@@ -607,7 +610,7 @@ describe('independent typed decision models over actual native HTTP contracts', 
         OPENAI_API_KEY: 'fixture',
         STUDIO_OPENAI_DECISIONS_BASE_URL: 'http://127.0.0.1:1',
       }),
-    ).toThrow('HTTPS');
+    ).toThrow('free-model policy');
   });
   it('rejects mismatched native Jev answer types and inconsistent selected choice probabilities', async () => {
     const jev = await http((_body, res) =>

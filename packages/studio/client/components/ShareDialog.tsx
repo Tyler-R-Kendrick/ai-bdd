@@ -23,14 +23,12 @@ export function ShareDialog({
   onError: (e: string) => void;
 }) {
   const [members, setMembers] = useState<any[]>([]),
-    [secret, setSecret] = useState(''),
     [busy, setBusy] = useState(false),
     [token, setToken] = useState('');
   const refresh = () => api(`/projects/${project.id}/members`).then(setMembers);
   useEffect(() => {
     if (open) {
       refresh().catch((e) => onError(e.message));
-      setSecret('');
       setToken('');
     }
   }, [open, project.id]);
@@ -49,7 +47,7 @@ export function ShareDialog({
             </span>
             <span>
               {m.name}
-              <small>{m.email}</small>
+              <small className="break-all">Member ID: {m.id}</small>
             </span>
             <Badge>{m.role}</Badge>
             {project.role === 'owner' && (
@@ -74,12 +72,11 @@ export function ShareDialog({
             setBusy(true);
             try {
               const b = Object.fromEntries(new FormData(e.currentTarget));
-              const result = await api(
+              await api(
                 `/projects/${project.id}/members`,
                 'POST',
                 b,
               );
-              setSecret(result.temporaryPassword ?? '');
               await refresh();
             } catch (e) {
               onError((e as Error).message);
@@ -88,13 +85,10 @@ export function ShareDialog({
             }
           }}
         >
-          <Field label="Teammate's email">
-            <Input type="email" name="email" required />
+          <Field label="Teammate's member ID">
+            <Input name="userId" required maxLength={36} autoComplete="off" />
           </Field>
           <div className="form-row">
-            <Field label="Name">
-              <Input name="name" required maxLength={100} />
-            </Field>
             <Field label="Access">
               <Select name="role" defaultValue="editor">
                 <option value="editor">Editor</option>
@@ -104,16 +98,10 @@ export function ShareDialog({
             </Field>
           </div>
           <Button disabled={busy}>Add or update member</Button>
-          {secret && (
-            <div className="secret-box">
-              <strong>Temporary password</strong>
-              <code>{secret}</code>
-              <p className="small">
-                Share this password through a secure channel. No invitation
-                email was sent.
-              </p>
-            </div>
-          )}
+          <p className="small muted">
+            Ask your teammate to sign in with GitHub and copy their member ID
+            from the account area. No email address is required.
+          </p>
         </form>
       )}
       <div className="settings-section">

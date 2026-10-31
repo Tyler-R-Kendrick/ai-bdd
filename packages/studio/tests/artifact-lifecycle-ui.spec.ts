@@ -3,11 +3,9 @@ import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createApp } from '../server/app.ts';
-import { passwordHash } from '../server/auth.ts';
+import { createApp, signInBrowser } from './browser-fixture.ts';
 import { paragraph } from '../shared/domain.ts';
 const origin = 'http://127.0.0.1:8902',
-  password = 'synthetic-archive-browser-password',
   email = 'archive-browser-owner@example.test',
   viewerEmail = 'archive-browser-viewer@example.test';
 let studio: Awaited<ReturnType<typeof createApp>>,
@@ -23,11 +21,7 @@ async function signIn(page: Page, user = email) {
       faults.push(response.url() + ':' + response.status());
   });
   await page.goto(origin);
-  const result = await page.request.post(origin + '/api/auth/login', {
-    headers: { origin },
-    data: { email: user, password },
-  });
-  expect(result.status(), await result.text()).toBe(200);
+  await signInBrowser(page, origin, user);
   await page.goto(origin + `/?project=${projectId}&artifact=${draftId}`);
   await expect(page.locator('.artifact-title')).toHaveText(
     'Archive lifecycle note',
@@ -79,7 +73,7 @@ async function capture(page: Page, name: string) {
     animations: 'disabled',
   });
 }
-test.beforeAll(async () => {
+test.beforeAll(async ({browser}) => {
   directory = await mkdtemp(join(tmpdir(), 'studio-archive-browser-'));
   studio = await createApp(
     {
@@ -88,14 +82,16 @@ test.beforeAll(async () => {
       demo: false,
       dataDir: directory,
       adminEmail: email,
-      adminPassword: password,
     },
     {
       db: join(directory, 'store.sqlite'),
       clientDir: resolve(import.meta.dirname, '../dist/client'),
     },
   );
-  const owner = await studio.store.userByEmail(email),
+  await studio.app.listen({ host: '127.0.0.1', port: 8902 });
+  const context=await browser.newContext(),page=await context.newPage();
+  try{
+  const owner = await signInBrowser(page,origin,email),
     project = await studio.store.createProject(
       owner,
       'Release planning',
@@ -154,18 +150,16 @@ test.beforeAll(async () => {
     new Date().toISOString(),
     new Date().toISOString(),
   );
-  const viewer = await studio.store.createUser(
-    viewerEmail,
-    'Archive viewer',
-    await passwordHash(password),
-  );
+  await page.request.post(origin+'/api/auth/logout',{headers:{origin}});
+  const viewer = await signInBrowser(page,origin,viewerEmail);
   await studio.store.exec(
     'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
     projectId,
     viewer.id,
     'viewer',
   );
-  await studio.app.listen({ host: '127.0.0.1', port: 8902 });
+  await page.request.post(origin+'/api/auth/logout',{headers:{origin}});
+  }finally{await context.close();}
 });
 test.afterAll(async () => {
   await studio?.app.close();
@@ -292,11 +286,7 @@ test('mobile viewer browses retained archives in read mode and cannot restore or
     page = await context.newPage();
   try {
     await page.goto(origin);
-    const login = await page.request.post(origin + '/api/auth/login', {
-      headers: { origin },
-      data: { email: viewerEmail, password },
-    });
-    expect(login.status()).toBe(200);
+    await signInBrowser(page, origin, viewerEmail);
     await page.goto(origin + `/?project=${projectId}&artifact=${proofId}`);
     page.on('pageerror', (error) => faults.push(error.message));
     page.on('response', (response) => {

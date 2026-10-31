@@ -1,3 +1,4 @@
+import { signInBrowser } from './browser-fixture.ts';
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -178,21 +179,14 @@ test('shows shared connections to a fresh viewer without exposing write or pairi
     { mode: 'manual', paused: true },
   );
   const email = `connections-viewer-${Date.now()}@example.test`;
-  const invitation = await call(`/projects/${project.id}/members`, 'POST', {
-    email,
-    name: 'Read-only teammate',
-    role: 'viewer',
-  });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
   });
   try {
-    const response = await context.request.post(origin + '/api/auth/login', {
-      headers: { origin },
-      data: { email, password: invitation.temporaryPassword },
-    });
-    expect(response.ok()).toBe(true);
     const viewer = await context.newPage();
+    const actor=await signInBrowser(viewer,origin,email);
+    const invitation=await call(`/projects/${project.id}/members`,'POST',{userId:actor.id,role:'viewer'});
+    expect(invitation).not.toHaveProperty('temporaryPassword');
     await viewer.goto(
       `${origin}/?project=${project.id}&artifact=${project.mainArtifactId}`,
     );

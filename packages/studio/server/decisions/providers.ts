@@ -1,4 +1,5 @@
-import { createGateway, generateText, Output } from 'ai';
+import { generateText, Output } from 'ai';
+import { createFreeGateway } from '@ai-bdd/models-ai-sdk';
 import type { IdentityExecutionContext } from '../hosting/identity-context.ts';
 import { identityLanguageModel } from '../hosting/identity-language-model.ts';
 import { z } from 'zod';
@@ -438,9 +439,10 @@ export function structuredDecisionProvider(
     version: 'vercel-ai-sdk:7/structured-decision-v1',
     mode: 'structured-generation',
     async evaluate(input) {
-      const gateway = createGateway({
+      const gateway = createFreeGateway({
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
         ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+        ...(config.metadataFetch ? { metadataFetch: config.metadataFetch } : {}),
       });
       const result = await generateText({
         model: identityLanguageModel(

@@ -1681,6 +1681,9 @@ hr {
 .login-form > a {
   margin-top: 10px;
 }
+.login-github {
+  color: var(--primary-foreground);
+}
 .login-form .small {
   font-size: 10px;
   margin-top: 15px;

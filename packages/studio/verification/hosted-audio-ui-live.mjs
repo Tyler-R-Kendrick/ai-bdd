@@ -1,5 +1,7 @@
 // Read-only capture of a previously verified synthetic hosted audio export.
 import assert from 'node:assert/strict';
+import { readLiveGitHubSessions } from './vercel-live.ts';
+if (process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE !== undefined) throw new Error('Password authentication is disabled; use GitHub session exports');
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -14,12 +16,13 @@ assert.equal(origin.pathname, '/');
 assert.equal(origin.port + origin.username + origin.password + origin.search + origin.hash, '');
 const ids = previous.resources;
 for (const key of ['projectId', 'artifactId', 'jobId']) assert.match(ids[key], /^[a-f0-9-]{36}$/);
-assert(process.env.VERCEL_OIDC_TOKEN && process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE && process.env.STUDIO_HOSTED_AUDIO_EMAIL);
+assert(process.env.VERCEL_OIDC_TOKEN && process.env.STUDIO_HOSTED_AUDIO_GITHUB_SESSIONS_FILE && process.env.STUDIO_HOSTED_AUDIO_EMAIL);
 const evidence = process.env.STUDIO_HOSTED_AUDIO_UI_EVIDENCE_DIR;
 assert(evidence);
 await mkdir(evidence, { recursive: true });
 const report = {
   schemaVersion: 1,
+  identity: { provider: 'github', sessionSource: 'operator-browser-export', externalOAuthExchangePerformed: false },
   kind: 'read-only hosted synthetic audio UI capture',
   origin: origin.origin,
   source: previous.deploymentSourceProvidedByOperator,
@@ -78,16 +81,13 @@ try {
     }
     socket.connectToServer();
   });
-  const password = (await readFile(process.env.STUDIO_HOSTED_AUDIO_PASSWORD_FILE, 'utf8')).replace(/\r?\n$/, '');
-  stage = 'owner-login';
-  // APIRequestContext does not use page routing; both fixed auth URLs are exact-origin.
-  const login = await context.request.post(new URL('/api/auth/login', origin).href, {
-    headers: { origin: origin.origin },
-    data: { email: process.env.STUDIO_HOSTED_AUDIO_EMAIL, password },
-    maxRedirects: 0,
-    timeout: 60000,
-  });
-  assert.equal(login.status(), 200);
+  stage = 'owner-github-session';
+  const [cookie] = await readLiveGitHubSessions(process.env.STUDIO_HOSTED_AUDIO_GITHUB_SESSIONS_FILE, origin.origin, 1);
+  await context.addCookies([{ name: 'studio_session', value: cookie.slice('studio_session='.length), domain: origin.hostname, path: '/', httpOnly: true, secure: true, sameSite: 'Strict' }]);
+  // APIRequestContext does not use page routing; this fixed identity URL is exact-origin.
+  const me = await context.request.get(new URL('/api/me', origin).href, { maxRedirects: 0, timeout: 60000 });
+  assert.equal(me.status(), 200);
+  assert.equal((await me.json()).email.toLowerCase(), process.env.STUDIO_HOSTED_AUDIO_EMAIL.toLowerCase());
   signedIn = true;
   const page = await context.newPage();
   let pageErrors = 0, serverFailures = 0;

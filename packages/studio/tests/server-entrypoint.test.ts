@@ -8,13 +8,13 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { Pool } from 'pg';
+import { Pool, type QueryConfig, type ClientConfig } from 'pg';
+import { prepareGitHubSession } from '../verification/github-session-fixture.ts';
 
 // Exercise Docker's actual command, not an imported factory or a mocked server.
 let directory: string;
 let entrypoint: string;
 const cleanup: (() => Promise<unknown>)[] = [];
-const password = 'entrypoint-fixture-password-only';
 const previewOrigin = 'https://entrypoint-preview.vercel.app';
 beforeAll(async () => {
   await mkdir('dist', { recursive: true });
@@ -52,10 +52,13 @@ async function freePort() {
   );
   return address.port;
 }
-async function launch(overrides: NodeJS.ProcessEnv) {
+async function launch(overrides: NodeJS.ProcessEnv, prepareSession = true) {
   const port = await freePort();
   const dataDirectory = await mkdtemp(join(tmpdir(), 'studio-entrypoint-'));
   cleanup.push(() => rm(dataDirectory, { recursive: true, force: true }));
+  const authenticated = prepareSession ? await prepareGitHubSession({
+    dataDirectory, email: 'entrypoint@example.test', databaseUrl: overrides.DATABASE_URL,
+  }) : undefined;
   // Never inherit live provider bindings or operator authentication into fixtures.
   const child = spawn(process.execPath, [entrypoint], {
     env: {
@@ -65,7 +68,8 @@ async function launch(overrides: NodeJS.ProcessEnv) {
       STUDIO_PORT: String(port),
       STUDIO_DATA_DIR: dataDirectory,
       STUDIO_ADMIN_EMAIL: 'entrypoint@example.test',
-      STUDIO_ADMIN_PASSWORD: password,
+      STUDIO_GITHUB_SIGNIN_CLIENT_ID: 'entrypoint-fixture-client',
+      STUDIO_GITHUB_SIGNIN_CLIENT_SECRET: 'entrypoint-fixture-secret-never-live',
       DO_NOT_TRACK: '1',
       SCARF_NO_ANALYTICS: 'true',
       ...overrides,
@@ -104,6 +108,7 @@ async function launch(overrides: NodeJS.ProcessEnv) {
     stop,
     output: () => output,
     url: 'http://127.0.0.1:' + port,
+    cookie: authenticated?.cookie,
   };
 }
 async function ready(service: Awaited<ReturnType<typeof launch>>) {
@@ -128,13 +133,14 @@ async function ready(service: Awaited<ReturnType<typeof launch>>) {
     'Default image command did not become healthy: ' + service.output(),
   );
 }
-async function login(url: string, origin: string) {
+async function passwordDenied(url: string, origin: string) {
   const response = await fetch(url + '/api/auth/login', {
     method: 'POST',
     headers: { origin, 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'entrypoint@example.test', password }),
+    body: JSON.stringify({ email: 'entrypoint@example.test', password: 'legacy-password-must-fail' }),
   });
-  return response;
+  expect(response.status).toBe(403);
+  expect(response.headers.get('set-cookie')).toBeNull();
 }
 const cloud = {
   VERCEL_ENV: 'preview',
@@ -155,7 +161,23 @@ async function isolatedPostgres() {
   cleanup.push(async () => {
     await database.end();
     try {
-      await administration.query('DROP DATABASE "' + name + '" WITH (FORCE)');
+      // pg-pool resolves end() after removing idle clients, before their TCP
+      // shutdown callbacks necessarily finish. Never force-drop those sockets.
+      const deadline = Date.now() + 5000;
+      let connections = Number.NaN;
+      while (Date.now() < deadline) {
+        const query: QueryConfig & Pick<ClientConfig, 'query_timeout'> = {
+          text: 'SELECT COUNT(*)::int AS n FROM pg_stat_activity WHERE datname=$1',
+          values: [name],
+          query_timeout: Math.max(1, deadline - Date.now()),
+        };
+        const result = await administration.query<{ n: number }>(query);
+        connections = result.rows[0]!.n;
+        if (connections === 0) break;
+        await delay(Math.min(25, Math.max(0, deadline - Date.now())));
+      }
+      expect(connections, 'Owned entrypoint database clients must finish closing before removal').toBe(0);
+      await administration.query('DROP DATABASE "' + name + '"');
     } finally {
       await administration.end();
     }
@@ -179,11 +201,11 @@ describe('Provider-aware default image entrypoint', () => {
     expect((await fetch(service.url + '/api/hosting/readiness')).status).toBe(
       404,
     );
-    const response = await login(
-      service.url,
-      env.STUDIO_ORIGIN ?? 'http://127.0.0.1:8787',
-    );
-    expect(response.status).toBe(200);
+    await passwordDenied(service.url, env.STUDIO_ORIGIN ?? 'http://127.0.0.1:8787');
+    expect((await fetch(service.url + '/api/me', { headers: { cookie: service.cookie! } })).status).toBe(200);
+    const start = await fetch(service.url + '/api/auth/github', { redirect: 'manual' });
+    expect(start.status).toBe(302);
+    expect(start.headers.get('location')).toMatch(/^https:\/\/github\.com\/login\/oauth\/authorize\?/);
     await service.stop();
   });
   it.skipIf(!process.env.STUDIO_TEST_POSTGRES_URL).each([
@@ -217,13 +239,15 @@ describe('Provider-aware default image entrypoint', () => {
           media: { adapter: 'vercel-sandbox', verified: false },
         },
       });
-      expect(
-        (await login(service.url, 'https://production.example.test')).status,
-      ).toBe(403);
-      const authenticated = await login(service.url, previewOrigin);
-      expect(authenticated.status).toBe(200);
-      expect(authenticated.headers.get('set-cookie')).toContain('Secure');
-      const cookie = authenticated.headers.get('set-cookie')!.split(';')[0];
+      await passwordDenied(service.url, previewOrigin);
+      const authStart = await fetch(service.url + '/api/auth/github', { redirect: 'manual' });
+      expect(authStart.status).toBe(302);
+      expect(authStart.headers.get('set-cookie')).toContain('Secure');
+      const cookie = service.cookie!;
+      expect((await fetch(service.url + '/api/projects', {
+        method: 'POST', headers: { cookie, origin: 'https://production.example.test', 'content-type': 'application/json' },
+        body: JSON.stringify({ title: 'Cross-origin denied' }),
+      })).status).toBe(403);
       const created = await fetch(service.url + '/api/projects', {
         method: 'POST',
         headers: {
@@ -312,7 +336,7 @@ describe('Provider-aware default image entrypoint', () => {
   ])(
     'retains the $label guard in the real bundled process',
     async ({ env, error }) => {
-      const service = await launch(env);
+      const service = await launch(env, false);
       const [code, signal] = await service.exited;
       expect({ code, signal }).toEqual({ code: 1, signal: null });
       expect(service.output()).toContain(error);

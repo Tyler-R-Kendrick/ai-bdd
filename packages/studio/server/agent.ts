@@ -1,6 +1,7 @@
 import { documentNodeSource } from '../shared/document-digest.ts';
 import { passagePlacementSchema } from '../shared/investigations.ts';
-import { createGateway, generateText, Output, stepCountIs, tool } from 'ai';
+import { generateText, Output, stepCountIs, tool } from 'ai';
+import { createFreeGateway } from '@ai-bdd/models-ai-sdk';
 import type { IdentityExecutionContext } from './hosting/identity-context.ts';
 import { identityLanguageModel } from './hosting/identity-language-model.ts';
 import { createLocalLanguageModel, retainLocalModel } from './local/model.ts';
@@ -846,11 +847,10 @@ export class Agent {
         'This model-backed adjunct requires a local T3 or Vercel/fx harness selection',
       );
     return identityLanguageModel(
-      this.integrations.gatewayBaseUrl
-        ? createGateway({ baseURL: this.integrations.gatewayBaseUrl })(
-            profile.model,
-          )
-        : profile.model,
+      createFreeGateway({
+        ...(this.integrations.gatewayBaseUrl ? { baseURL: this.integrations.gatewayBaseUrl } : {}),
+        ...(this.integrations.gatewayMetadataFetch ? { metadataFetch: this.integrations.gatewayMetadataFetch } : {}),
+      })(profile.model),
       this.options.identityExecutionContext,
     );
   }
