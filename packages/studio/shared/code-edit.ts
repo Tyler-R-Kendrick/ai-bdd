@@ -8,26 +8,42 @@ import {
 } from './code-project.ts';
 
 const fileSourceLimit = 500_000;
-const path = z.string().min(1).max(200).refine(validCodePath)
+const path = z.string().min(1).max(200)
+  .regex(/^[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_.-]+)*$/)
+  .refine(validCodePath)
   .describe('Relative path in this code artifact; no absolute paths, traversal, or reserved directories.');
-export const codeEditProposalSchema = z.object({
-  summary: z.string().max(10_000),
-  changes: z.array(z.discriminatedUnion('op', [
-    z.object({
-      op: z.literal('replace'),
-      path,
-      find: z.string().min(1).max(fileSourceLimit).describe('Exact nonempty existing text, not a regular expression.'),
-      replacement: z.string().max(fileSourceLimit).describe('Literal replacement for ALL non-overlapping matches; may be empty. Preserve unrelated text.'),
-    }).strict(),
-    z.object({
-      op: z.literal('create'),
-      path,
-      content: z.string().max(fileSourceLimit),
-    }).strict(),
-    z.object({ op: z.literal('delete'), path }).strict(),
-  ])).max(100).describe('Apply in order. Replace/delete only original files; create only originally missing files. Create/delete cannot share a path with another operation. Empty only for an entry update.'),
-  entry: path.optional().describe('Omit to preserve the current entry; otherwise select an existing final HTML/JavaScript/JSX/TypeScript file.'),
-}).strict();
+function proposalSchema(existingPath: z.ZodType<string>, createPath: z.ZodType<string>) {
+  return z.object({
+    summary: z.string().max(10_000),
+    changes: z.array(z.discriminatedUnion('op', [
+      z.object({
+        op: z.literal('replace'),
+        path: existingPath,
+        find: z.string().min(1).max(fileSourceLimit).describe('Exact nonempty existing text, not a regular expression.'),
+        replacement: z.string().max(fileSourceLimit).describe('Literal replacement for ALL non-overlapping matches; may be empty. Preserve unrelated text.'),
+      }).strict(),
+      z.object({
+        op: z.literal('create'),
+        path: createPath,
+        content: z.string().max(fileSourceLimit),
+      }).strict(),
+      z.object({ op: z.literal('delete'), path: existingPath }).strict(),
+    ])).max(100).describe('Use the smallest change set required by the request; preservation constraints are not edit operations. Omit replacements that leave text unchanged. Apply in order. Replace/delete only original files; create only originally missing files. Create/delete cannot share a path with another operation. Empty only for an entry update.'),
+    entry: path.optional().describe('Omit to preserve the current entry; otherwise select an existing final HTML/JavaScript/JSX/TypeScript file.'),
+  }).strict();
+}
+export const codeEditProposalSchema = proposalSchema(path, path);
+
+/** Bind the model's existing-file choices to this trusted saved artifact only. */
+export function codeEditProposalSchemaFor(original: CodeProject) {
+  const names = Object.keys(checkCodeProject(original).files);
+  const existing = new Set(names);
+  return proposalSchema(
+    z.enum(names).describe('Choose an exact existing filename from this saved artifact.'),
+    path.refine(name => !existing.has(name), 'Create requires an originally missing artifact file')
+      .describe('Choose a new relative artifact filename; never recreate an existing file.'),
+  );
+}
 
 /** Pure artifact-scoped reconstruction; never reads or writes a host file. */
 export function applyCodeEditProposal(original: CodeProject, value: unknown) {

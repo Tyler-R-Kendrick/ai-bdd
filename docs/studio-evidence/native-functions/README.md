@@ -20,6 +20,8 @@ Model-backed code editing through T3, Vercel/fx, and local CPU now uses explicit
 
 Managed native requests use a domain-separated keyed reference bound to the artifact, profile, durable request key, and complete CPU-effective SDK data. Exact-one matching, native provider/mode guards, typed tool/result validation, input/resource limits, and native effect-tool denial remain in force. A separate transport namespace isolates older bulk-envelope checkpoints. External three-argument T3 integrations retain their existing wire format; decision fingerprints and defaults are unchanged.
 
+Model-backed code edit schemas now enumerate only the selected saved artifact's filenames for replace/delete operations. Create paths advertise relative syntax, while independent schema and reconstruction checks still reject existing, reserved or traversing paths. Native decoding constrains existing-file enum choices; it does not enforce every string pattern or prove the requested edit's semantics. The source-bound contract uses the separate `model-output-code-patch-v2` durable step so older full-content and unbound patch receipts are not reused. Source-aware path constraints and minimal-change instructions have controlled SDK/API coverage; they are not a new weighted authoring result.
+
 The weighted cases retain a true single-CPU affinity, 4,096-token context, 1,024-token output, 45-second CPU-request deadline, 1 GiB worker RSS guard, 2 GiB whole-container limit, and 120-second case bound. Saved-source chat used exactly two actual Granite calls and zero decision calls; it completed in 47.05 seconds. Its largest observed worker diagnostic RSS was 654,938,112 bytes. Diagnostic RSS is sampled rather than a continuous peak measurement.
 
 ## Actual saved-source conversation

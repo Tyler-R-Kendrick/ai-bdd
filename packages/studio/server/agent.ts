@@ -47,7 +47,7 @@ import type { DecisionModels } from './decisions/models.ts';
 import { adviseParticipation } from './integrations/participation-adviser.ts';
 import { generateTitleGoal, type TitleGenerationInput } from './integrations/title-provider.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
-import { applyCodeEditProposal, codeEditProposalSchema } from '../shared/code-edit.ts';
+import { applyCodeEditProposal, codeEditProposalSchemaFor } from '../shared/code-edit.ts';
 import type { CodeProject } from '../shared/code-project.ts';
 import {
   VisualRouting,
@@ -1050,7 +1050,7 @@ export class Agent {
         502,
         'The live source search returned no usable sources. No research document was published.',
       );
-    const output = await ctx.step(intent === 'edit' && artifact.kind === 'code' && !snapshot.remote ? 'model-output-code-patch-v1' : 'model-output', async (key) => {
+    const output = await ctx.step(intent === 'edit' && artifact.kind === 'code' && !snapshot.remote ? 'model-output-code-patch-v2' : 'model-output', async (key) => {
       await this.guard(ctx, snapshot);
       if (snapshot.visual) {
         const visual = await new VisualRouting({
@@ -1112,8 +1112,8 @@ export class Agent {
         if (artifact.kind === 'code') {
           const result = await generateText({
             ...options,
-            prompt: `${prompt}\nPropose literal code changes against the saved artifact files. Replace exact text in existing files; each replacement applies to all non-overlapping literal matches, with no regular expressions or replacement-template syntax. Preserve unrelated bytes and files. Use create only for new paths and delete only for original paths; do not combine create/delete with other operations on the same path. Omit entry unless changing the entry file. Explain the change.`,
-            output: Output.object({ schema: codeEditProposalSchema }),
+            prompt: `${prompt}\nPropose the smallest set of literal code changes required by the request against the saved artifact files. Preservation constraints are not edit operations; omit replacements that leave text unchanged. Replace exact text in existing files; each replacement applies to all non-overlapping literal matches, with no regular expressions or replacement-template syntax. Preserve unrelated bytes and files. Use create only for new paths and delete only for original paths; do not combine create/delete with other operations on the same path. Omit entry unless changing the entry file. Explain the change.`,
+            output: Output.object({ schema: codeEditProposalSchemaFor(artifact.content as CodeProject) }),
             maxOutputTokens: 14000,
           });
           const proposal = applyCodeEditProposal(artifact.content as CodeProject, result.output);

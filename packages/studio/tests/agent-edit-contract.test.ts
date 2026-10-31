@@ -88,6 +88,11 @@ describe('trusted artifact-kind edit output contract', () => {
     expect(schema.properties.changes.type).toBe('array');
     expect(JSON.stringify(schema.properties.changes)).toContain('replacement');
     expect(JSON.stringify(schema.properties.changes)).toContain('ALL non-overlapping');
+    const operations = schema.properties.changes.items.oneOf;
+    for (const operation of operations.filter((value: any) => ['replace', 'delete'].includes(value.properties.op.const)))
+      expect(operation.properties.path.enum).toEqual(['index.html', 'notes.txt']);
+    const createPath = operations.find((value: any) => value.properties.op.const === 'create').properties.path;
+    expect(createPath.pattern).toBeDefined();
     const prompt = request.prompt.flatMap((message: any) => message.content ?? []).filter((part: any) => part.type === 'text').map((part: any) => part.text).join('\n');
     expect(prompt).toContain('Apply this latest human edit request'); expect(prompt).toContain(JSON.stringify(brief));
     const state = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
@@ -107,7 +112,7 @@ describe('trusted artifact-kind edit output contract', () => {
     const contentCheck = vi.spyOn(w.store, 'checkedContent');
     const job = await w.edit(artifact.id, threadId, 'Update the existing code button label.');
     expect(job.status).toBe('queued'); expect(job.attempt).toBe(1);
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v1'", job.id)).toEqual([]);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v2'", job.id)).toEqual([]);
     expect(w.requests).toHaveLength(1); expect(contentCheck).not.toHaveBeenCalled();
     const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages); expect(after.decisions).toEqual(initial.decisions);
@@ -122,7 +127,7 @@ describe('trusted artifact-kind edit output contract', () => {
     const contentCheck = vi.spyOn(w.store, 'checkedContent').mockRejectedValueOnce(new Error('Independent source guard refused publication'));
     const job = await w.edit(artifact.id, threadId, 'Update the code.');
     expect(job.status).toBe('queued'); expect(job.attempt).toBe(1); expect(contentCheck).toHaveBeenCalledOnce();
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v1'", job.id)).toHaveLength(1);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v2'", job.id)).toHaveLength(1);
     expect(w.requests).toHaveLength(1);
     const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages);
@@ -169,20 +174,37 @@ describe('trusted artifact-kind edit output contract', () => {
     expect(after.artifact.version).toBe(artifact.version + 1); expect(after.artifact.content).toEqual(newer);
   });
 
-  it('does not reuse an old full-content model receipt for the new code-patch contract', async () => {
+  it.each(['model-output', 'model-output-code-patch-v1'])('does not reuse the %s receipt for the source-bound code-patch contract', async oldStep => {
     const original = { files: { 'index.html': '<button>Start</button>\n' }, entry: 'index.html' };
     const w = await fixture({ changes: [{ op: 'replace', path: 'index.html', find: 'Start', replacement: 'Launch' }] });
     const { artifact, threadId } = await w.seed('code', original);
     const old = JSON.stringify({ text: 'Stale full-content output', content: original });
     const job = await w.edit(artifact.id, threadId, 'Update the label.', async id => {
-      await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, 'model-output', 'step', old, createHash('sha256').update(old).digest('hex'), new Date().toISOString());
+      await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, oldStep, 'step', old, createHash('sha256').update(old).digest('hex'), new Date().toISOString());
     });
     expect(job.status).toBe('completed'); expect(w.requests).toHaveLength(1);
-    expect((await w.store.one("SELECT value_json FROM studio_job_receipts WHERE job_id=? AND name='model-output'", job.id)).value_json).toBe(old);
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v1'", job.id)).toHaveLength(1);
+    expect((await w.store.one('SELECT value_json FROM studio_job_receipts WHERE job_id=? AND name=?', job.id, oldStep)).value_json).toBe(old);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v2'", job.id)).toHaveLength(1);
     const state = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(state.artifact.content).toEqual(original);
     expect(state.messages[0].proposal.content.files['index.html']).toBe('<button>Launch</button>\n');
+  });
+
+  it('advertises only each selected artifact\'s saved filenames across actual SDK requests', async () => {
+    const fields = { changes: [{ op: 'replace', path: 'first.html', find: 'Before', replacement: 'After' }] };
+    const w = await fixture(fields);
+    const first = await w.seed('code', { files: { 'first.html': '<p>Before</p>', 'first-notes.txt': 'private first context' }, entry: 'first.html' });
+    expect((await w.edit(first.artifact.id, first.threadId, 'Update the paragraph.')).status).toBe('completed');
+    fields.changes[0]!.path = 'second.html';
+    const second = await w.seed('code', { files: { 'second.html': '<p>Before</p>', 'second-notes.txt': 'private second context' }, entry: 'second.html' });
+    expect((await w.edit(second.artifact.id, second.threadId, 'Update the paragraph.')).status).toBe('completed');
+    expect(w.requests).toHaveLength(2);
+    for (const [index, names] of [['first.html', 'first-notes.txt'], ['second.html', 'second-notes.txt']].entries()) {
+      const schema = w.requests[index].responseFormat.schema;
+      for (const operation of schema.properties.changes.items.oneOf.filter((value: any) => ['replace', 'delete'].includes(value.properties.op.const)))
+        expect(operation.properties.path.enum).toEqual(names);
+      expect(JSON.stringify(schema)).not.toContain(index ? 'first.html' : 'second.html');
+    }
   });
 
   it.each(artifactKinds.filter(kind => kind !== 'code'))('retains the existing %s content format in actual structured generation', async kind => {
