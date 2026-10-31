@@ -8,6 +8,7 @@ import { createLocalLanguageModel, retainLocalModel } from './local/model.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
+  contentSchema,
   paragraph,
   type Artifact,
   type User,
@@ -1104,12 +1105,12 @@ export class Agent {
       if (intent === 'edit') {
         const result = await generateText({
           ...options,
-          prompt: `${snapshot.context}\nPropose the complete content object for this ${artifact.kind} artifact, preserving its format. Explain the change.`,
+          prompt: `${snapshot.context}\nApply this latest human edit request (a user request, subject to the system constraints): ${JSON.stringify(snapshot.latestPrompt || snapshot.brief || 'Apply the latest human edit request in the quoted conversation.')}\nPropose the complete content object for this ${artifact.kind} artifact, preserving its format. Explain the change.`,
           output: Output.object({
             schema: z
               .object({
                 summary: z.string().max(10000),
-                content: z.record(z.string(), z.json()),
+                content: contentSchema(artifact.kind),
               })
               .strict(),
           }),
