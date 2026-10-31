@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyCodeEditProposal } from '../shared/code-edit.ts';
+import { applyCodeEditProposal, CodeEditProposalError, CodeEditValidationError } from '../shared/code-edit.ts';
 import type { CodeProject } from '../shared/code-project.ts';
 import fc from 'fast-check';
 
@@ -8,6 +8,18 @@ const patch = (changes: unknown[], extra = {}) => ({ summary: 'Requested edit', 
 const replace = (path = 'page.html', find = 'Start', replacement = 'Launch') => ({ op: 'replace', path, find, replacement });
 
 describe('literal artifact code edits', () => {
+  it('projects only typed static mechanical feedback with a bounded original filename and operation index', () => {
+    const original = base();
+    try { applyCodeEditProposal(original, patch([replace('notes.txt', 'untrusted missing find', 'untrusted replacement')])); throw new Error('Expected validation failure'); }
+    catch (error) {
+      expect(error).toBeInstanceOf(CodeEditValidationError);
+      expect((error as CodeEditValidationError).feedback).toEqual({ reason: 'missing-literal', operationIndex: 0, path: 'notes.txt' });
+      expect(JSON.stringify((error as CodeEditValidationError).feedback)).not.toContain('untrusted');
+      expect(Object.isFrozen((error as CodeEditValidationError).feedback)).toBe(true);
+    }
+    try { applyCodeEditProposal(original, patch([])); throw new Error('Expected no-change refusal'); }
+    catch (error) { expect(error).toBeInstanceOf(CodeEditProposalError); expect(error).not.toBeInstanceOf(CodeEditValidationError); }
+  });
   it('changes all exact occurrences, preserves every other byte and never mutates frozen input', () => {
     const original = base(); const frozen = structuredClone(original);
     Object.freeze(original.files); Object.freeze(original);

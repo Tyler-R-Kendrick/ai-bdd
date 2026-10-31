@@ -474,6 +474,7 @@ class CpuRuntime {
           message.type === 'decision' ? message.result?.rss : message.rss;
         if ((rss !== undefined && (!Number.isSafeInteger(rss) || rss < 0)) ||
           (message.rssCeilingBytes !== undefined && message.rssCeilingBytes !== current.resources.rssCeilingBytes) ||
+          (message.useMmap !== undefined && message.useMmap !== current.resources.useMmap) ||
           message.code === 'configuration') {
           this.finish(current, new LocalModelError('configuration'));
           void this.stop();
@@ -483,7 +484,7 @@ class CpuRuntime {
           message.code === 'memory' ||
           (typeof rss === 'number' && rss > current.resources.rssCeilingBytes)
         ) {
-          current.diagnostics.memory(rss, current.resources.rssCeilingBytes);
+          current.diagnostics.memory(rss, current.resources.rssCeilingBytes, current.resources.useMmap);
           this.finish(current, new LocalModelError('memory'));
           void this.stop();
           return;
@@ -536,6 +537,7 @@ class CpuRuntime {
       configuration: {
         directory: this.directory,
         rssCeilingBytes: task.resources.rssCeilingBytes,
+        useMmap: task.resources.useMmap,
         file: task.resources.file,
       },
       ...task.prepared,

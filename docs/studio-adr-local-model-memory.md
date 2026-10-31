@@ -2,6 +2,8 @@
 
 Status: accepted resource policy; artifact-edit eligibility is assessed separately for each model.
 
+Scope: this record describes the earlier 2 GiB profile. The later [Pro capacity decision](studio-adr-pro-model-capacity.md) supersedes only Coder's allocation and the host target; it does not change these historical limits or results.
+
 The optional pinned Qwen3 assessment exhausted its original 1 GiB worker RSS allowance during context allocation, before decoding or producing text. That result establishes an allocation failure, not an assessment of the model's edit quality. The original source, allocation and failed receipt remain separate evidence.
 
 The trusted model registry assigns that exact Qwen3 identity and file pin a 1,536 MiB worker ceiling. The separately registered code-specific Qwen2.5-Coder-1.5B subject uses the same ceiling and still needs actual qualification within it. The original smaller models, including default Qwen2.5 chat and native decisions, retain 1 GiB. The whole container remains limited to 2 GiB and one CPU; the larger worker budget leaves 512 MiB for the application and native harness. No Vercel plan or memory setting changes. Context remains 4,096 tokens, output remains 1,024 tokens and the CPU request deadline remains 45 seconds.

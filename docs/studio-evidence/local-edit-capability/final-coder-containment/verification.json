@@ -1,0 +1,55 @@
+{
+  "source": "db2c793acd4367d1679141740262f7f19c7957ee",
+  "sourceTree": "eadee0ad137364080cf8cedb07977e9ed6e87b48",
+  "scope": "Owned read-only configuration/catalog fixture rendering the actual AgentProfile and DecisionProfile components and normal shared styles. The optional assessment cache is used for presence checks only; this is not the default release asset or a production deployment.",
+  "screenshots": [
+    {
+      "name": "controlled-coder-edit-containment-and-decision-picker.png",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "b8676c2ea071ffb7a9452e8f7fcaa3aa8e1cd6132fc093e1615b2801b768aae1",
+      "caption": "Controlled current AgentProfile and DecisionProfile components: explicit T3/local Coder selection reports artifact edit proposals unavailable while chat and repository reads remain available. Independent Qwen decision selector keeps its default provider/model/0.7 threshold. Current catalog methods supply owned read-only HTTP configuration fixtures. No inference, generated answer, persisted selection or authentication claim."
+    }
+  ],
+  "capture": {
+    "passed": true,
+    "exitCode": 0,
+    "elapsedMs": 2008,
+    "sampledProcessTreePeakRssBytes": 173867008,
+    "activeOwnedProcessesAfterExit": 0,
+    "modelInferenceAdmissions": 0,
+    "decisionInferenceAdmissions": 0,
+    "nativeRuntimeAdmissions": 0,
+    "allowedBrowserProcesses": 1,
+    "blockedExecutionAttempts": 0,
+    "apiMutations": 0,
+    "browserFaults": 0
+  },
+  "build": {
+    "freshBuild": true,
+    "clientAndSharedSourceInputs": 141,
+    "catalogInputs": 48,
+    "emittedAssets": 10,
+    "allProductSourceInputsMatchGitBlobs": true,
+    "allInputAndAssetHashesRechecked": true,
+    "normalStylesWithExplicitClientSourceDiscovery": true,
+    "buildInputsSha256": "267a410ffd1b3b9e35f9d28446e1eaac2653a999b27348616e8653b3372e1672",
+    "privateBuildReceiptSha256": "7d8875a82e38baa954c5ff978d7c9c9025a28069f7bdb42d5da0581b1e0e3818"
+  },
+  "containment": {
+    "allRegisteredLocalArtifactEditsDisabled": true,
+    "explicitFixtureChatModel": "qwen2.5-coder-1.5b-instruct-q4-k-m",
+    "defaultChatModelUnchanged": "qwen2.5-0.5b-instruct-q4-k-m",
+    "defaultDecisionModelUnchanged": "qwen2.5-0.5b-instruct-q4-k-m",
+    "minimumDecisionConfidence": 0.7,
+    "defaultLocalFingerprintUnchanged": "local-native-v1:qwen2.5-0.5b-instruct-q4-k-m:node-llama-cpp@3.22.2:6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+    "weightsStatCheckedOnly": true,
+    "weightsLoadedOrDownloaded": false
+  },
+  "limits": "Isolated components only: no full Studio editor, persisted account or selector state, authentication, production GitHub, generated answer, code preview, authoring success or model quality claim.",
+  "selfReview": {
+    "openedImage": true,
+    "dimensionsAndHashVerified": true,
+    "captionMatchesRenderedScope": true
+  }
+}

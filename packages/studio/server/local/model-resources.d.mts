@@ -4,6 +4,7 @@ export type LocalModelResources = Readonly<{
   modelId: string;
   file: Readonly<{ path: string; bytes: number; sha256: string }>;
   rssCeilingBytes: number;
+  useMmap: boolean;
 }>;
 export function localModelResources(modelId: string): LocalModelResources;
 export function workerResourceConfiguration(modelId: unknown, configuration: unknown): LocalModelResources & Readonly<{ directory: string }>;

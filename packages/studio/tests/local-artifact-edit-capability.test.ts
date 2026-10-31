@@ -52,8 +52,7 @@ describe('local artifact-edit capabilities without inference', () => {
   it('keeps independent model fingerprints and decision eligibility unchanged', () => {
     const profiles = new AgentProfiles({} as any, {} as any, { managedT3: { toolsDirectory: '/owned-controlled-presence', key: new Uint8Array(32) } });
     for (const harness of ['local-cpu', 't3-code'] as const) {
-      expect(() => profiles.assertArtifactEdits(profile(harness, editCandidateId))).not.toThrow();
-      for (const id of [DEFAULT_LOCAL_MODEL_ID, candidateId, 'smollm2-135m-instruct-q4-k-m', 'qwen3-0.6b-q4-k-m', 'unregistered'])
+      for (const id of [...LOCAL_MODELS.map(model => model.id), 'unregistered'])
         expect(() => profiles.assertArtifactEdits(profile(harness, id))).toThrow('Choose and save');
     }
     expect(LOCAL_MODELS.filter(model => model.nativeDecisions).map(model => model.id)).toEqual([DEFAULT_LOCAL_MODEL_ID, 'smollm2-135m-instruct-q4-k-m']);
@@ -67,7 +66,7 @@ describe('local artifact-edit capabilities without inference', () => {
     expect(() => external.assertArtifactEdits({ harness: 't3-code', provider: 'studioLocal', model: 'external-operator-model' })).not.toThrow();
   });
 
-  it.each((['local-cpu', 't3-code'] as const).flatMap(harness => [candidateId, DEFAULT_LOCAL_MODEL_ID].map(model => ({ harness, model }))))('denies unsupported $harness/$model edits before ownership, queue, decision or model work', async ({ harness, model: modelId }) => {
+  it.each((['local-cpu', 't3-code'] as const).flatMap(harness => LOCAL_MODELS.map(model => ({ harness, model: model.id }))))('denies unsupported $harness/$model edits before ownership, queue, decision or model work', async ({ harness, model: modelId }) => {
     const w = await fixture();
     const selected = profile(harness, modelId);
     const saved = await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', selected);
@@ -90,14 +89,14 @@ describe('local artifact-edit capabilities without inference', () => {
     expect(after.artifact).toEqual(w.initial.artifact); expect(after.messages).toEqual(w.initial.messages); expect(after.decisions).toEqual(w.initial.decisions);
   });
 
-  it.each(['local-cpu', 't3-code'] as const)('admits an explicitly selected supported %s edit without changing the decision selection', async harness => {
+  it.each(['local-cpu', 't3-code'] as const)('retains an explicitly selected %s Coder chat profile without changing the decision selection', async harness => {
     const w = await fixture();
     const before = await w.studio.decisions.captureProfile(w.signed.user, w.artifact.id);
     const selected = profile(harness, editCandidateId);
     const saved = await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', selected);
     expect(saved.statusCode, saved.body).toBe(200);
-    expect(saved.json().harnesses.find((h: any) => h.id === harness).providers.find((p: any) => p.id === selected.provider).modelCapabilities[selected.model]).toEqual({ artifactEdits: true });
-    const response = await w.api('POST', '/api/artifacts/' + w.artifact.id + '/agent', { threadId: w.threadId, intent: 'edit', brief: 'Change Start to Launch.' });
+    expect(saved.json().harnesses.find((h: any) => h.id === harness).providers.find((p: any) => p.id === selected.provider).modelCapabilities[selected.model]).toEqual({ artifactEdits: false });
+    const response = await w.api('POST', '/api/artifacts/' + w.artifact.id + '/agent', { threadId: w.threadId, intent: 'chat', brief: 'Explain the saved source.' });
     expect(response.statusCode, response.body).toBe(200);
     const job = (await w.runtime.get(response.json().id))!;
     expect(job.status).toBe('queued'); expect(job.attempt).toBe(0); expect((job.snapshot as any).profile).toEqual(selected);
@@ -105,9 +104,9 @@ describe('local artifact-edit capabilities without inference', () => {
     await w.runtime.cancel(job.id, w.signed.user);
   });
 
-  it('rechecks a previously admitted unsupported edit before any model call or publication', async () => {
+  it.each([candidateId, editCandidateId])('rechecks a previously admitted unsupported %s edit before any model call or publication', async modelId => {
     const w = await fixture();
-    await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', profile('local-cpu', candidateId));
+    await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', profile('local-cpu', modelId));
     // Simulate a job admitted by the old capability policy; the persisted snapshot is genuine.
     vi.spyOn(w.studio.agent.profiles, 'assertArtifactEdits').mockImplementationOnce(() => {});
     const response = await w.api('POST', '/api/artifacts/' + w.artifact.id + '/agent', { threadId: w.threadId, intent: 'edit', brief: 'Change Start to Launch.' });
@@ -122,7 +121,7 @@ describe('local artifact-edit capabilities without inference', () => {
     expect(after.artifact).toEqual(w.initial.artifact); expect(after.messages).toEqual(w.initial.messages);
   });
 
-  it.each([candidateId, DEFAULT_LOCAL_MODEL_ID])('retains chat and authorized read-only SDK functions for %s without artifact edits', async chatModelId => {
+  it.each([candidateId, DEFAULT_LOCAL_MODEL_ID, editCandidateId])('retains chat and authorized read-only SDK functions for %s without artifact edits', async chatModelId => {
     const w = await fixture();
     await w.store.exec('UPDATE projects SET repository=? WHERE id=?', 'https://github.com/owned/capability-fixture', w.artifact.projectId);
     const reads: string[] = [];

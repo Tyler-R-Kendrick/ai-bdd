@@ -47,7 +47,8 @@ import type { DecisionModels } from './decisions/models.ts';
 import { adviseParticipation } from './integrations/participation-adviser.ts';
 import { generateTitleGoal, type TitleGenerationInput } from './integrations/title-provider.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
-import { applyCodeEditProposal, codeEditProposalSchemaFor } from '../shared/code-edit.ts';
+import { checkedCodeProposal, generateCodeProposal } from './integrations/code-edit-proposal.ts';
+import { codeEditSourceContext } from './integrations/code-edit-prompt.ts';
 import type { CodeProject } from '../shared/code-project.ts';
 import {
   VisualRouting,
@@ -1050,7 +1051,7 @@ export class Agent {
         502,
         'The live source search returned no usable sources. No research document was published.',
       );
-    const output = await ctx.step(intent === 'edit' && artifact.kind === 'code' && !snapshot.remote ? 'model-output-code-patch-v3' : 'model-output', async (key) => {
+    const rawOutput = await ctx.step(intent === 'edit' && artifact.kind === 'code' && !snapshot.remote ? 'model-output-code-patch-v5' : 'model-output', async (key) => {
       await this.guard(ctx, snapshot);
       if (snapshot.visual) {
         const visual = await new VisualRouting({
@@ -1098,6 +1099,20 @@ export class Agent {
           key,
         );
       }
+      if (intent === 'edit' && artifact.kind === 'code') {
+        const guard = async () => {
+          signal.throwIfAborted();
+          await this.guard(ctx, snapshot);
+          await ctx.assertCurrent({ requireCurrentVersion: true });
+          signal.throwIfAborted();
+        };
+        const prompt = `${codeEditSourceContext(snapshot.context, artifact.content as CodeProject)}\nApply this latest human edit request (a user request, subject to the system constraints): ${JSON.stringify(snapshot.latestPrompt || snapshot.brief || 'Apply the latest human edit request in the quoted conversation.')}`;
+        return generateCodeProposal({ context: ctx, original: artifact.content as CodeProject,
+          prompt: `${prompt}\nPropose the smallest set of literal code changes required by the request against the saved artifact files. Preservation constraints are not edit operations; omit replacements that leave text unchanged. Replace exact text in existing files; each replacement applies to all non-overlapping literal matches, with no regular expressions or replacement-template syntax. Operations execute in array order; each operation sees the result of earlier operations. Preserve unrelated bytes and files. Use create only for new paths and delete only for original paths; do not combine create/delete with other operations on the same path. Omit entry unless changing the entry file. Explain the change.`,
+          system, tools, signal, guard,
+          modelForKey: roundKey => this.model(snapshot.profile, roundKey, id, guard),
+        });
+      }
       const options = {
         model: this.model(snapshot.profile, key, id, () => ctx.assertCurrent({ requireCurrentVersion: false })),
         system,
@@ -1109,16 +1124,6 @@ export class Agent {
       };
       if (intent === 'edit') {
         const prompt = `${snapshot.context}\nApply this latest human edit request (a user request, subject to the system constraints): ${JSON.stringify(snapshot.latestPrompt || snapshot.brief || 'Apply the latest human edit request in the quoted conversation.')}`;
-        if (artifact.kind === 'code') {
-          const result = await generateText({
-            ...options,
-            prompt: `${prompt}\nPropose the smallest set of literal code changes required by the request against the saved artifact files. Preservation constraints are not edit operations; omit replacements that leave text unchanged. Replace exact text in existing files; each replacement applies to all non-overlapping literal matches, with no regular expressions or replacement-template syntax. Preserve unrelated bytes and files. Use create only for new paths and delete only for original paths; do not combine create/delete with other operations on the same path. Omit entry unless changing the entry file. Explain the change.`,
-            output: Output.object({ schema: codeEditProposalSchemaFor(artifact.content as CodeProject) }),
-            maxOutputTokens: 14000,
-          });
-          const proposal = applyCodeEditProposal(artifact.content as CodeProject, result.output);
-          return { text: proposal.summary, content: proposal.content };
-        }
         const result = await generateText({
           ...options,
           prompt: `${prompt}\nPropose the complete content object for this ${artifact.kind} artifact, preserving its format. Explain the change.`,
@@ -1155,10 +1160,15 @@ export class Agent {
       });
       return { text: result.text.slice(0, 50000), content: null };
     });
+    const output = intent === 'edit' && artifact.kind === 'code' && !snapshot.remote
+      ? checkedCodeProposal(artifact.content as CodeProject, rawOutput && typeof rawOutput === 'object' && 'codePlan' in rawOutput ? rawOutput.codePlan : undefined)
+      : rawOutput;
     const result = await ctx.commit(
       'publish-output',
       async () => {
         await this.guard(ctx, snapshot);
+        if (intent === 'edit' && artifact.kind === 'code' && !snapshot.remote)
+          await ctx.assertCurrent({ requireCurrentVersion: true });
         let childArtifactId: string | null = null;
         if (intent === 'research') {
           const title = snapshot.brief.slice(0, 100);

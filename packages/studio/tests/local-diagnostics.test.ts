@@ -40,6 +40,17 @@ it('keeps hostile exceptions and observer failures outside execution and bounded
   const sync = new LocalInferenceDiagnostics('generate', () => { throw new Error('SECRET'); });
   expect(() => { sync.start(); sync.progress({ type: 'phase', phase: 'worker-start', rss: 1 }); sync.finish(); }).not.toThrow();
 });
+it('retains only bounded numeric Pro-profile memory observations', () => {
+  const events: LocalInferenceEvent[] = [];
+  const observer = new LocalInferenceDiagnostics('generate', event => { events.push(event); });
+  expect(observer.progress({ type: 'phase', phase: 'context-create', rss: 2147483648, rssCeilingBytes: 2684354560, useMmap: true, prompt: 'SECRET' })).toBe(true);
+  observer.memory(2684354561, 2684354560, true);
+  observer.finish({ code: 'memory', secret: 'SECRET' });
+  expect(events[0]).toMatchObject({ rssBytes: 2147483648, rssCeilingBytes: 2684354560, useMmap: true });
+  expect(events[1]).toMatchObject({ rssBytes: 2684354561, rssCeilingBytes: 2684354560, useMmap: true, code: 'memory' });
+  expect(localWorkerPhase({ type: 'phase', phase: 'context-create', rss: 1, rssCeilingBytes: 2684354561 })).toEqual({ phase: 'context-create', rssBytes: 1 });
+  expect(JSON.stringify(events)).not.toContain('SECRET');
+});
 
 const directory = process.env.STUDIO_LOCAL_TEST_MODEL_DIR;
 if (process.env.STUDIO_REQUIRE_LOCAL_MODEL_TEST === '1' && !directory) throw new Error('Real model directory is required');

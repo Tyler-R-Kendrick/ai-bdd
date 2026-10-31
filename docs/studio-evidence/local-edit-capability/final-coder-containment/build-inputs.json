@@ -1,0 +1,1052 @@
+{
+  "source": "db2c793acd4367d1679141740262f7f19c7957ee",
+  "sourceTree": "eadee0ad137364080cf8cedb07977e9ed6e87b48",
+  "clientAndSharedSourceInputs": [
+    {
+      "path": "packages/studio/client/App.tsx",
+      "bytes": 41213,
+      "sha256": "f60454fa78b12c042941795ded27de8e2b5a487aacc1696fddd2fbfdcc225d5d"
+    },
+    {
+      "path": "packages/studio/client/components/AccountMachinesPanel.tsx",
+      "bytes": 5427,
+      "sha256": "0bc8b3e58e36a391323af69aa265eaf10b4ec8e294b19924289f2a6cb4bc1869"
+    },
+    {
+      "path": "packages/studio/client/components/ArchivePanel.tsx",
+      "bytes": 11665,
+      "sha256": "1850a773a8ac0a06e843c5c10895d9b82671771dba5345edc644422f014c39b9"
+    },
+    {
+      "path": "packages/studio/client/components/ArtifactTitle.tsx",
+      "bytes": 4147,
+      "sha256": "499b144f107766accf33a1ae3922dfb4c5ac7492441b957df1b5006dcc98a810"
+    },
+    {
+      "path": "packages/studio/client/components/DetailPanel.tsx",
+      "bytes": 61289,
+      "sha256": "d9cb581cd9affc5005aa139e1ebac8f3c82fe293409199934a6e7cb7295d9ac5"
+    },
+    {
+      "path": "packages/studio/client/components/Login.tsx",
+      "bytes": 2993,
+      "sha256": "c492f1cb834ab5c82b83b8740579840d379635b46882feb9be0641b29b7be86b"
+    },
+    {
+      "path": "packages/studio/client/components/RepositoryIdentity.tsx",
+      "bytes": 4460,
+      "sha256": "7db8e8c118d670fd6ad42e0a8eea07931d328a0bcd22eca5a63de9511246d1ed"
+    },
+    {
+      "path": "packages/studio/client/components/ShareDialog.tsx",
+      "bytes": 4849,
+      "sha256": "ddd1783d2afed7442842c682d64a1842fb15c9c7b45331d63f18fa7e30917d4c"
+    },
+    {
+      "path": "packages/studio/client/components/account-machines.css",
+      "bytes": 1726,
+      "sha256": "389162cfb0d95e4cad0f7f96b17d08248c27f20d9739be111a884c0e07a8d2bb"
+    },
+    {
+      "path": "packages/studio/client/components/archive.css",
+      "bytes": 2899,
+      "sha256": "e5309c163cdb2b2c0c174f1b8d2b65cbfb5c65e150461fd1bf12554659f9a5ab"
+    },
+    {
+      "path": "packages/studio/client/components/artifact-title.css",
+      "bytes": 424,
+      "sha256": "5eb77a2256f86798ab8bc9f3e4b59478def9fa14b92f49afb0395bfd07dfeef6"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/AgentProfile.tsx",
+      "bytes": 7972,
+      "sha256": "ce80da4c4bc98b5dcca1b889bdf7d0abfe42f54d3f1c556d6a61209d0661e48b"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/ConversationCards.tsx",
+      "bytes": 9051,
+      "sha256": "ae77a4a6e396be4b4568296110461abd811d5bb64ff7bec1d1a509d69b524bcf"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/DecisionProfile.tsx",
+      "bytes": 10116,
+      "sha256": "d07b6ab128ccae8a8cbbd2309ee174ef1662cf991df12d0ff3cc0664acc25439"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/DesignReview.tsx",
+      "bytes": 14274,
+      "sha256": "193e75dadf71fd7bfab7e52dde173e7eb83a048531bdb1d2017750282ba7bf95"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/ImplementationPanel.tsx",
+      "bytes": 54792,
+      "sha256": "fec26a3a9ff2a7fe30715d60df403ad7432eb36c64cc5acec244231b2ccf5818"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/IntegrationPanel.tsx",
+      "bytes": 47138,
+      "sha256": "2b9d7046ed705abbd9b82f18b84593f2a60bbca4ee60f96553cdbea3c4622eca"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/RebuildPanel.tsx",
+      "bytes": 7931,
+      "sha256": "fa2edc51e36fcd53f5a06f11993df2db88a68518a252797273d63a45fdcc1ff5"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/agent-profile.css",
+      "bytes": 427,
+      "sha256": "f5a04262871229f6223984aaa7a41ac74e9942479b0df51339c7ef59f5f81bee"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/conversation.css",
+      "bytes": 1295,
+      "sha256": "16e7650940202468be03b330a4bc6fccbecdc7b85b73d5c4ad570f1b865505e3"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/decision-profile.css",
+      "bytes": 476,
+      "sha256": "55439dc8c8f275591b3a086816713fd36898ed3262a80f8b682f250ff22ddd2e"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/design-review.css",
+      "bytes": 1436,
+      "sha256": "4d8a1aec88d91e298054456c97e7fda33d58d3063683a5686f3a510ff37ab723"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/implementation.css",
+      "bytes": 6062,
+      "sha256": "63b6c9c39e0245b81a11931741086f627435389e20e4bfe62bdc639d45328a01"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/integrations.css",
+      "bytes": 2982,
+      "sha256": "2fa750dff152db1a855676f3dc2ed2262f7f17a317c55ed174b22afceca9deb2"
+    },
+    {
+      "path": "packages/studio/client/components/integrations/rebuild.css",
+      "bytes": 784,
+      "sha256": "a75795e94949bf90e86b4f96766e8861f42eed149b2094d2386a78f25a3af6ff"
+    },
+    {
+      "path": "packages/studio/client/components/investigations/FindingsReview.tsx",
+      "bytes": 9061,
+      "sha256": "d5fb7c56dd4286fc9e08ab25b025248c85134331f4834c50c802292c0b404e71"
+    },
+    {
+      "path": "packages/studio/client/components/investigations/InvestigationPanel.tsx",
+      "bytes": 22386,
+      "sha256": "d0f72b38b9c2e15fce0fcd84da254c28b11b63a3aa9478a3153323b37282c491"
+    },
+    {
+      "path": "packages/studio/client/components/investigations/investigations.css",
+      "bytes": 4641,
+      "sha256": "ee186881dead1344a2f64499abb6523ace2bab4777b061e9970c89455f5c4e29"
+    },
+    {
+      "path": "packages/studio/client/components/panels/DetailPanel.css",
+      "bytes": 15043,
+      "sha256": "7451b4d1bda51c0c322c3dcdf3a0457026c81617e38ecd8ca364aef1632c37c3"
+    },
+    {
+      "path": "packages/studio/client/components/panels/MessageMarkdown.tsx",
+      "bytes": 4553,
+      "sha256": "1ea935cc29c9c36c3eb049c83e93478031c40f3ede0c9daf2251b6d925158770"
+    },
+    {
+      "path": "packages/studio/client/components/panels/useThreadMessages.ts",
+      "bytes": 5159,
+      "sha256": "0e085bf3309f8689365a760d05c252e2ddbd4e4e888a475a3d7889dac4dccfed"
+    },
+    {
+      "path": "packages/studio/client/components/remote/AccountPlannerPanel.tsx",
+      "bytes": 8735,
+      "sha256": "35e377dd2b25c4530326cb76cc4613c7397ce221bd78540bea42ee545016b40d"
+    },
+    {
+      "path": "packages/studio/client/components/remote/RemoteActivity.tsx",
+      "bytes": 31624,
+      "sha256": "28057c4ff76e437e265e6f8a1edc9be5f2a671c26dde4cd131a6b6209c98ca14"
+    },
+    {
+      "path": "packages/studio/client/components/remote/account-planner.css",
+      "bytes": 2185,
+      "sha256": "c7ce1a7473fa26f8b1e5687147984f37550d02c9b52b9bb5b2d553fe576a9dbc"
+    },
+    {
+      "path": "packages/studio/client/components/remote/remote-activity.css",
+      "bytes": 3284,
+      "sha256": "7d45c3d63c63bd3b70af9c99f29fc50583b6e6869adbb6324259fb28589deac3"
+    },
+    {
+      "path": "packages/studio/client/components/ui.tsx",
+      "bytes": 5880,
+      "sha256": "bd2a4fcc2b74f4c0f2f0c2458e93d95fc549ffaee2e973abf4da5173c5382e40"
+    },
+    {
+      "path": "packages/studio/client/editors/AudioEditor.tsx",
+      "bytes": 44357,
+      "sha256": "6595b509aad565502e50b8f9227df32eca3f127cd216a2a0d30c0c8af8575b17"
+    },
+    {
+      "path": "packages/studio/client/editors/CodeEditor.css",
+      "bytes": 8477,
+      "sha256": "f9b56f65586e5901c558da926a8d1fcff85c9f63b4966fae402ceae59e30375f"
+    },
+    {
+      "path": "packages/studio/client/editors/CodeEditor.tsx",
+      "bytes": 33032,
+      "sha256": "fe157f6f0646f6814f0bf791c1c8a257b2ec1a9dc4e7c63f64e4f84c90438cbf"
+    },
+    {
+      "path": "packages/studio/client/editors/DocumentEditor.tsx",
+      "bytes": 22835,
+      "sha256": "c2d4650a76dc887fd21312500280c965852e993b8ed13a824ee97ea4e78a8c60"
+    },
+    {
+      "path": "packages/studio/client/editors/GenerativeEditor.css",
+      "bytes": 4885,
+      "sha256": "fee87354f3904db5d085b71e7656527e1f02e9f5d6a8d6338068e730673a1dcf"
+    },
+    {
+      "path": "packages/studio/client/editors/GenerativeEditor.tsx",
+      "bytes": 27289,
+      "sha256": "ce55a9b797e284e56fda964076a2fe3baf563af4303347591f2c4968382c3f15"
+    },
+    {
+      "path": "packages/studio/client/editors/MidiEditor.tsx",
+      "bytes": 37020,
+      "sha256": "f1a14b39c6fdbf911ae98cd08813ae8157b68862641f47877b6a9e288fd94bb2"
+    },
+    {
+      "path": "packages/studio/client/editors/ProjectCanvas.tsx",
+      "bytes": 3817,
+      "sha256": "f7d6cc10ddd6caef03a0ad81f141077a55b1da03242c8edb337fa780d9e5d496"
+    },
+    {
+      "path": "packages/studio/client/editors/SceneEditor.tsx",
+      "bytes": 58552,
+      "sha256": "5ca95fa6eac6dcc7ef70ce80469171f908ec8c6893f99e96d8e524948c78dcc2"
+    },
+    {
+      "path": "packages/studio/client/editors/VideoEditor.tsx",
+      "bytes": 63509,
+      "sha256": "c486452443a33f894ba20c8560e0883b8418a18e92923e01b0fa6cf14d736383"
+    },
+    {
+      "path": "packages/studio/client/editors/VisualEditor.tsx",
+      "bytes": 63311,
+      "sha256": "0b42b384f3d6bfcef72d9d109e277339323ca57beec2d8a7629f0b2fc8be037c"
+    },
+    {
+      "path": "packages/studio/client/editors/audio/audio.css",
+      "bytes": 8122,
+      "sha256": "3808fbec6c89128e64e5ca3e7d1053d18f22a324ac23449f7f2d95527605a75d"
+    },
+    {
+      "path": "packages/studio/client/editors/audio/playback.ts",
+      "bytes": 9113,
+      "sha256": "ce2ea830cbb22d3add30a933ff49ef07aa4d3a5648bb9a2be2aaa5732258e0e0"
+    },
+    {
+      "path": "packages/studio/client/editors/code/CodePrompt.tsx",
+      "bytes": 3005,
+      "sha256": "fddb3e3ab638a76e96f6f8de3b52bd9020244cf5be455ce85d0af828aba9ce7f"
+    },
+    {
+      "path": "packages/studio/client/editors/document/AgentChanges.tsx",
+      "bytes": 4100,
+      "sha256": "a042bcc0c8e43a4767585cf3da1beebd95deb684e54d6aa1499dbc29272a72a8"
+    },
+    {
+      "path": "packages/studio/client/editors/document/Blocks.tsx",
+      "bytes": 35021,
+      "sha256": "7f5af4ce23d20134c9e514a1794119f58d0f12b49753aef65f984d507b681470"
+    },
+    {
+      "path": "packages/studio/client/editors/document/Commands.tsx",
+      "bytes": 7573,
+      "sha256": "57d17cd16307e369650a6af127d9430ef7cd629fb1ac6cf37666d0f34dc65236"
+    },
+    {
+      "path": "packages/studio/client/editors/document/Investigations.tsx",
+      "bytes": 7273,
+      "sha256": "d52058509cb884a015a1ec5ee92a5372e08bd35df8b8cdb762200cd9860b6e60"
+    },
+    {
+      "path": "packages/studio/client/editors/document/Search.tsx",
+      "bytes": 7157,
+      "sha256": "29ab76fd1779e9231d3de1e27088df5b2c89555e081291efbe7e555d96a49707"
+    },
+    {
+      "path": "packages/studio/client/editors/document/Tools.tsx",
+      "bytes": 31046,
+      "sha256": "7d546ce1a96a0be356212ab5d93b11c457b90c8dc074567d8f1aa185fbb5b3a9"
+    },
+    {
+      "path": "packages/studio/client/editors/document/Workspace.tsx",
+      "bytes": 8720,
+      "sha256": "f3dc1ea6912f0c516eff9b51302f000bd5117306ee685039a35edc44295b3ff2"
+    },
+    {
+      "path": "packages/studio/client/editors/document/document.css",
+      "bytes": 12747,
+      "sha256": "c61639ed8e905f16282c55a9a86bbcfd22579a476521f68e9fd523d78b6e86ab"
+    },
+    {
+      "path": "packages/studio/client/editors/document/interchange.worker.ts",
+      "bytes": 817,
+      "sha256": "b2efd071f13ae590d73863c652f92cf8fd865b5d76aa47215812e485fed92206"
+    },
+    {
+      "path": "packages/studio/client/editors/document/investigations.css",
+      "bytes": 1021,
+      "sha256": "ab9165211ec89c077ce2fca02bd0e551b3a69645a878929affa890eb1e4ba401"
+    },
+    {
+      "path": "packages/studio/client/editors/midi/NumberField.tsx",
+      "bytes": 1934,
+      "sha256": "e2353591057c17193ea1aa4398cd32fe8b3351b2cf3aa60315bcaf5e91531a77"
+    },
+    {
+      "path": "packages/studio/client/editors/midi/PianoRoll.tsx",
+      "bytes": 11394,
+      "sha256": "2757532bb98ecc441ee13f91a585264e74e164e0dfbf51790a35ab259cb70971"
+    },
+    {
+      "path": "packages/studio/client/editors/midi/README.md",
+      "bytes": 2710,
+      "sha256": "2b9ac79e4de01ac25a6043a182724d88b4b7c558bfa14f076a79871337b4c986"
+    },
+    {
+      "path": "packages/studio/client/editors/midi/editor.css",
+      "bytes": 9631,
+      "sha256": "14ae708453cc3dc8f20973f69109b81dda5058eaffd732be4a69a5e4c062828b"
+    },
+    {
+      "path": "packages/studio/client/editors/midi/model.ts",
+      "bytes": 5319,
+      "sha256": "074631757336ac80f13e2b612093a262d5b037e916e443a3f9e2f2984f8a7153"
+    },
+    {
+      "path": "packages/studio/client/editors/midi/synth.ts",
+      "bytes": 14582,
+      "sha256": "d3c2ba6841eeeb74fe7cd81ff9f758558a0646da5d17a47d8a9e375561cd9260"
+    },
+    {
+      "path": "packages/studio/client/editors/rich/Blocks.tsx",
+      "bytes": 18838,
+      "sha256": "25dd0610507da8e920d603b3d961f9275bdb7fabfa926b8c6592899aed4605fe"
+    },
+    {
+      "path": "packages/studio/client/editors/rich/blocks.css",
+      "bytes": 3509,
+      "sha256": "456d3754c1bd7abe86320264f1502ae6dc88e5372142ccca0c4d8ca4c0b27ab8"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/FeatureInspector.tsx",
+      "bytes": 5054,
+      "sha256": "2b85b6eb290586e715c464ecad41179444d2550878503d537227c68a69e75d14"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/csg.ts",
+      "bytes": 1952,
+      "sha256": "e79ad075909ce89756100cdff309b3d06d7b681bfb8fc2859516a752b15466c6"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/csg.worker.ts",
+      "bytes": 515,
+      "sha256": "f46b64786f004fd1a1eab1272490f1c9ab0f338fc8c1a24b4b4f86d605a34c28"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/editor.css",
+      "bytes": 7734,
+      "sha256": "b912a57db959b38c67ee3b49b0156231b02b8678c011a198972ed3aa197f1461"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/imports.ts",
+      "bytes": 5913,
+      "sha256": "3f11b29647d45165a10362e869d2adf957e28137feca9de3d0600d219ed658dd"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/kernel.ts",
+      "bytes": 5918,
+      "sha256": "f8e6c4db9edb4f1d0873c3e84bc84229b13ed0a5ea4ab6b6a81eadb7a63f667e"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/kernel.worker.ts",
+      "bytes": 1453,
+      "sha256": "0c8fe282fcb4bb2ec54a5be575f13d09ad78b37cd50028d6402bd40ed237eb19"
+    },
+    {
+      "path": "packages/studio/client/editors/scene/model.ts",
+      "bytes": 6880,
+      "sha256": "a53551832c4d66885a15b6230e8151ae84364fe0d18bf9070e275d4fc572fcfb"
+    },
+    {
+      "path": "packages/studio/client/editors/test-status.ts",
+      "bytes": 991,
+      "sha256": "033d7a3986047df8e9fd117f1fdb01c0702b5eaa817591d221e3fab2a72f41ae"
+    },
+    {
+      "path": "packages/studio/client/editors/video/MediaClip.tsx",
+      "bytes": 2190,
+      "sha256": "b792abd93a2e7a5697b365b2629ae1139e6d131e8b8162c2db733ed86152b9d8"
+    },
+    {
+      "path": "packages/studio/client/editors/video/README.md",
+      "bytes": 5353,
+      "sha256": "3b8af9f854dafb3f97f011830823e93a5d8d625b3a9f72e15e78cf896f302fe9"
+    },
+    {
+      "path": "packages/studio/client/editors/video/editor.css",
+      "bytes": 10105,
+      "sha256": "0c3acbf410a8c326a72dd26104466870a9fdccc688f8a4a13f0a76bc93e8a669"
+    },
+    {
+      "path": "packages/studio/client/editors/video/media-capabilities.ts",
+      "bytes": 1421,
+      "sha256": "49fffe4d1dff69b52d8ab714a8e6fc23c8953dd067ca9aa4b27c775734e0e1de"
+    },
+    {
+      "path": "packages/studio/client/editors/video/project.ts",
+      "bytes": 5851,
+      "sha256": "b25d9456cece71e52044f51fdf9b9ac5c98f88a8c3d456a448def30ae1332d1f"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/FilterDefinition.tsx",
+      "bytes": 1207,
+      "sha256": "0684f89dd0820cdaf6a045c4ba42d16dc0d624be4365db45cf5e3b10733f6d11"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/FontDesigner.tsx",
+      "bytes": 6895,
+      "sha256": "8f7b061f9b9dcd14ceb083a50d7f632c2371a9e45543ba8c29197c18c400db27"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/LayerShape.tsx",
+      "bytes": 4220,
+      "sha256": "938a092c95d85d1708b88811e2aa26d4812a9f58c0654f2c33bdc2d037a7115b"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/PathDesigner.tsx",
+      "bytes": 10994,
+      "sha256": "da95e4434c0fc46847c70836c8ab6b0ae8996c2d7d8b97976526cf295d5f1aa4"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/assets.ts",
+      "bytes": 6827,
+      "sha256": "7875d0076f3153b0073ecb76aafd56ea29b4719c40cf92620c260b96eb524725"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/editor.css",
+      "bytes": 11912,
+      "sha256": "45f2831fbab50c74fb25e4c9ed009ea6240fdeb4503a26b083f14b53b38e07b3"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/raster.ts",
+      "bytes": 1758,
+      "sha256": "9b227724d37184215a05d25ade03adec65c15ef3857845ebdbd2da721f6458e9"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/render.ts",
+      "bytes": 13020,
+      "sha256": "fc43cef426240cc382a19efba33efd4aeabbf67e3298ce0d72f5db67a58770eb"
+    },
+    {
+      "path": "packages/studio/client/editors/visual/typeface.ts",
+      "bytes": 11735,
+      "sha256": "c29560b12998829e07a6bca12cf0f98d0e0b74f28082f24850a710337627661b"
+    },
+    {
+      "path": "packages/studio/client/hosting-upload.ts",
+      "bytes": 1170,
+      "sha256": "4c0f62e5bc0d6eeb2fed8055dc1e8c0a77469f66cfc39bc3d44cb7742398fc33"
+    },
+    {
+      "path": "packages/studio/client/lib.ts",
+      "bytes": 2074,
+      "sha256": "84a5eee864d22823e47d5065fd69e596821483a9ea0f252ad953c2502896c437"
+    },
+    {
+      "path": "packages/studio/client/main.tsx",
+      "bytes": 477,
+      "sha256": "8f92cd0c106af9a1f756d86880fe997aeeb0e4efcb3aa41fe08575d3da8d080e"
+    },
+    {
+      "path": "packages/studio/client/styles.css",
+      "bytes": 34039,
+      "sha256": "22639e6c421c30c9b3247f0fe1f595be312eb0dba97b5320a4196edfb5d695c2"
+    },
+    {
+      "path": "packages/studio/package.json",
+      "bytes": 4444,
+      "sha256": "88d0a23d73aa2bc7a0c872f6ee98d7bc2ec745e44acdcbf6f8adca81f8a7b84c"
+    },
+    {
+      "path": "packages/studio/shared/account-machines.ts",
+      "bytes": 1086,
+      "sha256": "3590f7c1733c8c9bce00dba95719e35c26149e35fd3d717adbfbebace4decd40"
+    },
+    {
+      "path": "packages/studio/shared/account-planners.ts",
+      "bytes": 3403,
+      "sha256": "906a7e32f3a7e2d2cab311fcc0ecc1958f72d09c81f19d82872da10f36b2804c"
+    },
+    {
+      "path": "packages/studio/shared/agent-profile.ts",
+      "bytes": 904,
+      "sha256": "08a234b0aa2eb7c717d56260830483b9a3157b7644ab2048f5ce82b662365dc4"
+    },
+    {
+      "path": "packages/studio/shared/artifact-lifecycle.ts",
+      "bytes": 1206,
+      "sha256": "0f06cbf466dc591f99776dd374a996d1f5ecb4a821f8d2e74f18c100332d8c22"
+    },
+    {
+      "path": "packages/studio/shared/audio.ts",
+      "bytes": 3616,
+      "sha256": "4b8afa76a4759bdc2e07c1212cc34fadfc4d22210558f0b8d4f4501077242020"
+    },
+    {
+      "path": "packages/studio/shared/cad-domain.ts",
+      "bytes": 2891,
+      "sha256": "43c6cc6ae7de37b9637ed8ef1934e38f3c4e117da96174a9c07748abc3bd56bf"
+    },
+    {
+      "path": "packages/studio/shared/code-archive.ts",
+      "bytes": 8025,
+      "sha256": "f0a0770078f1bb97a8d01495b90e08430c44ca96b1db71a651f488c0380f5cd6"
+    },
+    {
+      "path": "packages/studio/shared/code-edit.ts",
+      "bytes": 7251,
+      "sha256": "acbcda9b09f5143b8bb06db1e2e936f645f9c10ac7cb262fe55989b81252549c"
+    },
+    {
+      "path": "packages/studio/shared/code-project.ts",
+      "bytes": 8055,
+      "sha256": "7d5dd370f22456fabddddb733d355588e193cb037bcdb9ae706634691eae2677"
+    },
+    {
+      "path": "packages/studio/shared/conversation.ts",
+      "bytes": 2344,
+      "sha256": "7cc57cffe345ccb41530f6995670841afd1556dea56b341c5e0fe6179bfbd028"
+    },
+    {
+      "path": "packages/studio/shared/decision-profile.ts",
+      "bytes": 5702,
+      "sha256": "dd9fb9419b62f7fc8dea598ce07fb6061bf50faec7ed638e8053824f7f3fe6ca"
+    },
+    {
+      "path": "packages/studio/shared/decision-review.ts",
+      "bytes": 975,
+      "sha256": "62f9d9114688d53bc4ce84d889c61dd4127071cc20809abbb8ca413d0a3e6dc2"
+    },
+    {
+      "path": "packages/studio/shared/document-agent-changes.ts",
+      "bytes": 375,
+      "sha256": "31c504a7cd1f7fc8ce52cc9efded8318011cd6edb47cd3cafbbaa500a9c69d6b"
+    },
+    {
+      "path": "packages/studio/shared/document-authoring.ts",
+      "bytes": 1881,
+      "sha256": "75c987907b41f9a4a741d35de1a0a0cef2933973d9c478473cc214ff7a7b664d"
+    },
+    {
+      "path": "packages/studio/shared/document-blocks.ts",
+      "bytes": 4525,
+      "sha256": "7cbd428239c98f36626109462fa41c540cf2163e240686396e47fb6712fdfeff"
+    },
+    {
+      "path": "packages/studio/shared/document-canonical.ts",
+      "bytes": 827,
+      "sha256": "1fe85b7ff892e7db4e75cdc0862d029eace7ec9b99d973b5690382842c6f47f0"
+    },
+    {
+      "path": "packages/studio/shared/document-digest.ts",
+      "bytes": 538,
+      "sha256": "72015d1f928a954e353e8b40ea214e79d9332ce40963a10dc47524594b2037a0"
+    },
+    {
+      "path": "packages/studio/shared/document-identity.ts",
+      "bytes": 2778,
+      "sha256": "d1856c5849091516e25250a3ca7fe8f5905dc9539224ffcc5e1ba7e49cc5c3f2"
+    },
+    {
+      "path": "packages/studio/shared/document-interchange.ts",
+      "bytes": 41565,
+      "sha256": "1bfffb60cc20e21842a9665bc60d438b0f26cbc7dd6af2a0060fd50de08c92cb"
+    },
+    {
+      "path": "packages/studio/shared/document-review.ts",
+      "bytes": 3736,
+      "sha256": "832c9e89eb006abbc5832a7e6c6ee5f10a29d83b34f4458b5a7dbfc8c1f57b34"
+    },
+    {
+      "path": "packages/studio/shared/domain.ts",
+      "bytes": 16691,
+      "sha256": "26cdd84bb8dc3429b4eef8349356c4269542d4e89440bcd701bd7dd9c64ef624"
+    },
+    {
+      "path": "packages/studio/shared/editor.ts",
+      "bytes": 5176,
+      "sha256": "a8f038ff6ce0b11c25fe9bb9da31c27cc4913074901cde847af92e34c9ba0c19"
+    },
+    {
+      "path": "packages/studio/shared/findings-review.ts",
+      "bytes": 1555,
+      "sha256": "cbc006d920944da108f8813fc565c5193a02ea9f7059f5b859d11230f6eca8c8"
+    },
+    {
+      "path": "packages/studio/shared/identity.ts",
+      "bytes": 3144,
+      "sha256": "fb2f3de555f50291ce1e4d02fb0fc647f4c924d3f855f2cfa8fbcad2e07b3cbb"
+    },
+    {
+      "path": "packages/studio/shared/implementation.ts",
+      "bytes": 8199,
+      "sha256": "fea9f695b5bbe5ed51ffe7450ffaf6b8925158a8c283be28c41851986489c250"
+    },
+    {
+      "path": "packages/studio/shared/integrations.ts",
+      "bytes": 1457,
+      "sha256": "918ac4eb87eb63f4d81929722ee9ed55d0fa419c64398cd35a4dc4ca48bbce56"
+    },
+    {
+      "path": "packages/studio/shared/investigation-blocks.ts",
+      "bytes": 1776,
+      "sha256": "0ad32d58ec0296544551e7909e3e4a06c129e3441813986eae2fed02e501f5c2"
+    },
+    {
+      "path": "packages/studio/shared/investigations.ts",
+      "bytes": 9228,
+      "sha256": "b646540549df7aa63b73f86eab52835182bf23da6b52b562567aa044950bbd88"
+    },
+    {
+      "path": "packages/studio/shared/message-history.ts",
+      "bytes": 2474,
+      "sha256": "de84512e553ee936ef2c342b7daff3e192e2e387768cb32284b37e089635e8bb"
+    },
+    {
+      "path": "packages/studio/shared/midi-file.ts",
+      "bytes": 18629,
+      "sha256": "35635d31a6ee272c786998dc2f268849c9fd526d85b071ca6771fc28aaee4eee"
+    },
+    {
+      "path": "packages/studio/shared/midi.ts",
+      "bytes": 6278,
+      "sha256": "7cf22ecf5650f11db33d3e2a89a18fff8999468a7ca05c02a1d3c798f812f353"
+    },
+    {
+      "path": "packages/studio/shared/plan-source.ts",
+      "bytes": 1653,
+      "sha256": "95ace1cffb7bd2d7a7b2d3b469a143fede853ce956219844d1a36505be6ab9e3"
+    },
+    {
+      "path": "packages/studio/shared/preview.ts",
+      "bytes": 20697,
+      "sha256": "6d1d646752b57a4715930382412db21d8c12f7c87fcb42686742968beeb16812"
+    },
+    {
+      "path": "packages/studio/shared/rebuild.ts",
+      "bytes": 2641,
+      "sha256": "afc5c0cb783053f2e8da059d61e742002430d7418ae69d2be166d425d99cb072"
+    },
+    {
+      "path": "packages/studio/shared/remote-agent.ts",
+      "bytes": 15296,
+      "sha256": "61e171732d653648116c582a77ccbc991b40ea2b61dd93b80ee069d6f090257b"
+    },
+    {
+      "path": "packages/studio/shared/remote-stream.ts",
+      "bytes": 7648,
+      "sha256": "642db552cf1a8a9173dffe5cea700d246644aa191db050f5e33fb6b5906cf3df"
+    },
+    {
+      "path": "packages/studio/shared/rich-blocks.ts",
+      "bytes": 6115,
+      "sha256": "ddcc1cb27bfbc62242b38b3c96c9119f1fb46f1454e0c8f1f448f193643e42cd"
+    },
+    {
+      "path": "packages/studio/shared/safe-xml.ts",
+      "bytes": 5306,
+      "sha256": "716c1d58b77576e66486622dc75af3a7d0f4d6e0d7cc7fa530b8994a37f02d73"
+    },
+    {
+      "path": "packages/studio/shared/video-appearance.ts",
+      "bytes": 1929,
+      "sha256": "7813424d580c825f1de0edeb11f12f2a6d0502761283421e5ab7da33d05d91b7"
+    },
+    {
+      "path": "packages/studio/shared/video-html.ts",
+      "bytes": 13662,
+      "sha256": "25df806338982e6863b25f5708e1e1a1cc02ff30b9618da2688894b11ac70711"
+    },
+    {
+      "path": "packages/studio/shared/video-timeline.ts",
+      "bytes": 5105,
+      "sha256": "35f7fbc8a16b126f321f6604389fc735c28dcd926a6ec418bc8bbe199d066e25"
+    },
+    {
+      "path": "packages/studio/shared/video.ts",
+      "bytes": 7804,
+      "sha256": "d97c617b191255d3734aae9bc271716160c6a0f6dafe77ef7776106c3635432e"
+    },
+    {
+      "path": "packages/studio/shared/visual-design.ts",
+      "bytes": 6131,
+      "sha256": "9202ccb16e34cb9404508bd962542db9c46fe7dd053928cd56c738cdf49576a9"
+    },
+    {
+      "path": "packages/studio/vite.config.ts",
+      "bytes": 476,
+      "sha256": "18c1c748cc86ca5a753a8176ee0326863ea9a3901d6172af7ff8fd7ca99a8cf9"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 337508,
+      "sha256": "34a3c9ae5c3e45dd3cb87cd2f17e7a183f22f5d8e6f520b218743670934c6ef7"
+    }
+  ],
+  "catalogInputs": [
+    {
+      "path": "packages/studio/shared/agent-profile.ts",
+      "bytes": 904,
+      "sha256": "08a234b0aa2eb7c717d56260830483b9a3157b7644ab2048f5ce82b662365dc4"
+    },
+    {
+      "path": "packages/studio/server/http-error.ts",
+      "bytes": 232,
+      "sha256": "233676a1ecbd210c45710a2cdc012edb7c5f35a4431b92e28c9188718d6e525f"
+    },
+    {
+      "path": "packages/studio/shared/document-identity.ts",
+      "bytes": 2778,
+      "sha256": "d1856c5849091516e25250a3ca7fe8f5905dc9539224ffcc5e1ba7e49cc5c3f2"
+    },
+    {
+      "path": "packages/studio/shared/document-canonical.ts",
+      "bytes": 827,
+      "sha256": "1fe85b7ff892e7db4e75cdc0862d029eace7ec9b99d973b5690382842c6f47f0"
+    },
+    {
+      "path": "packages/studio/server/persistence/sqlite.ts",
+      "bytes": 3951,
+      "sha256": "72caaee78b766efdecacc73b94d8c910ddceccd2b96f036275e29c60c23892e4"
+    },
+    {
+      "path": "packages/studio/server/persistence/sql.ts",
+      "bytes": 6538,
+      "sha256": "0cb47590c33ecdec5033b8ffb606f695c60f876271a4409f6b63929e94f876ef"
+    },
+    {
+      "path": "packages/studio/server/persistence/postgres.ts",
+      "bytes": 6926,
+      "sha256": "aa28a9557311edeba6022504ecc344dc7f8f1282c78e5a087de807cf66450ae7"
+    },
+    {
+      "path": "packages/studio/server/persistence/index.ts",
+      "bytes": 762,
+      "sha256": "16444b2e286e826ddc7d0c7a6647fb742742d4e61c5f657d8fe4ea9f1e7130ab"
+    },
+    {
+      "path": "packages/studio/shared/investigations.ts",
+      "bytes": 9228,
+      "sha256": "b646540549df7aa63b73f86eab52835182bf23da6b52b562567aa044950bbd88"
+    },
+    {
+      "path": "packages/studio/shared/investigation-blocks.ts",
+      "bytes": 1776,
+      "sha256": "0ad32d58ec0296544551e7909e3e4a06c129e3441813986eae2fed02e501f5c2"
+    },
+    {
+      "path": "packages/studio/shared/document-blocks.ts",
+      "bytes": 4525,
+      "sha256": "7cbd428239c98f36626109462fa41c540cf2163e240686396e47fb6712fdfeff"
+    },
+    {
+      "path": "packages/studio/shared/rich-blocks.ts",
+      "bytes": 6115,
+      "sha256": "ddcc1cb27bfbc62242b38b3c96c9119f1fb46f1454e0c8f1f448f193643e42cd"
+    },
+    {
+      "path": "packages/studio/shared/editor.ts",
+      "bytes": 5176,
+      "sha256": "a8f038ff6ce0b11c25fe9bb9da31c27cc4913074901cde847af92e34c9ba0c19"
+    },
+    {
+      "path": "packages/studio/shared/code-project.ts",
+      "bytes": 8055,
+      "sha256": "7d5dd370f22456fabddddb733d355588e193cb037bcdb9ae706634691eae2677"
+    },
+    {
+      "path": "packages/studio/shared/visual-design.ts",
+      "bytes": 6131,
+      "sha256": "9202ccb16e34cb9404508bd962542db9c46fe7dd053928cd56c738cdf49576a9"
+    },
+    {
+      "path": "packages/studio/shared/cad-domain.ts",
+      "bytes": 2891,
+      "sha256": "43c6cc6ae7de37b9637ed8ef1934e38f3c4e117da96174a9c07748abc3bd56bf"
+    },
+    {
+      "path": "packages/studio/shared/video.ts",
+      "bytes": 7804,
+      "sha256": "d97c617b191255d3734aae9bc271716160c6a0f6dafe77ef7776106c3635432e"
+    },
+    {
+      "path": "packages/studio/shared/audio.ts",
+      "bytes": 3616,
+      "sha256": "4b8afa76a4759bdc2e07c1212cc34fadfc4d22210558f0b8d4f4501077242020"
+    },
+    {
+      "path": "packages/studio/shared/midi.ts",
+      "bytes": 6278,
+      "sha256": "7cf22ecf5650f11db33d3e2a89a18fff8999468a7ca05c02a1d3c798f812f353"
+    },
+    {
+      "path": "packages/studio/shared/domain.ts",
+      "bytes": 16691,
+      "sha256": "26cdd84bb8dc3429b4eef8349356c4269542d4e89440bcd701bd7dd9c64ef624"
+    },
+    {
+      "path": "packages/studio/server/store.ts",
+      "bytes": 41619,
+      "sha256": "421aaaead5038dd347a1cf1034a57f2fd94bed9b10b2330ffcb700269ba5bf54"
+    },
+    {
+      "path": "packages/studio/server/local/model-manifest.json",
+      "bytes": 2964,
+      "sha256": "f362116a3e0de09e69845b3149de59856a8fe680853b766abdd1704a75683005"
+    },
+    {
+      "path": "packages/studio/server/local/catalog.ts",
+      "bytes": 1749,
+      "sha256": "c1460421bf333b1467d1cb11e08cb6daa8c518b35b7ef9f79eb00da4459fc1c2"
+    },
+    {
+      "path": "packages/studio/server/integrations/t3-native.ts",
+      "bytes": 18068,
+      "sha256": "0c2713ac154d36e89fc2c32039573d78155cec9bed98d7e4963b7e387dffe1db"
+    },
+    {
+      "path": "packages/studio/server/integrations/t3-model.ts",
+      "bytes": 6743,
+      "sha256": "2ea07bf2c3bf8053678c649cc22373e790bb80394eca0cc603e9be9d984ca9fe"
+    },
+    {
+      "path": "packages/studio/server/local/function-protocol.ts",
+      "bytes": 8677,
+      "sha256": "6b445935cb061eca32ea1747b141e537a7241c60a93a3494dbea167c5dbf713f"
+    },
+    {
+      "path": "packages/studio/server/local/native-t3-protocol.ts",
+      "bytes": 4799,
+      "sha256": "eb562816c7f5c4475ed450b517dd0e03223212d55b6da702f66ef81067519857"
+    },
+    {
+      "path": "packages/studio/server/local/native-t3-state.ts",
+      "bytes": 15309,
+      "sha256": "8059f47b1ecb0b3e4119903ce61ffce74b78469dfc32fcfd02ac4c67d9213b6c"
+    },
+    {
+      "path": "packages/studio/server/local/native-t3-request.ts",
+      "bytes": 4825,
+      "sha256": "7d3aa4d02652d5f6d5b1ee15a4e7176c59956c835b50c06ea65fadbb4ef189d6"
+    },
+    {
+      "path": "packages/studio/server/local/native-t3-diagnostics.ts",
+      "bytes": 5147,
+      "sha256": "77ffaf24373890d975ce8c3484973770f196b9d06af05c4f184b38218b9886f5"
+    },
+    {
+      "path": "packages/studio/server/local/native-t3-tools.json",
+      "bytes": 1170,
+      "sha256": "4b304dbd90b0df6a9444fc0b83843ebc7e9b83eab4cb6d39adfb1d9ec07c03a2"
+    },
+    {
+      "path": "packages/studio/server/local/native-t3-runtime.ts",
+      "bytes": 28270,
+      "sha256": "92d0b0766072ea228ab7fa4f26a3777bfd0bb7ccc2b0b743cf34f1c08d873880"
+    },
+    {
+      "path": "packages/studio/server/integrations/agent-profiles.ts",
+      "bytes": 10076,
+      "sha256": "7ff3ec8e813a200c94a1bbbc3ef66815f7f7a2cfb85cdcbbb80475cfc5504d20"
+    },
+    {
+      "path": "packages/studio/server/local/model-resources.mjs",
+      "bytes": 2152,
+      "sha256": "cb2dffd4723c37f20db7f6c121bbda8c0b0b6dede8b51c94949702bcd5e5d042"
+    },
+    {
+      "path": "packages/studio/server/local/local-diagnostics.ts",
+      "bytes": 5506,
+      "sha256": "34d3c9f4169152d4ad2a0f102c1e5983d80a2f51c61a170d3b200953524c0ad8"
+    },
+    {
+      "path": "packages/studio/shared/decision-profile.ts",
+      "bytes": 5702,
+      "sha256": "dd9fb9419b62f7fc8dea598ce07fb6061bf50faec7ed638e8053824f7f3fe6ca"
+    },
+    {
+      "path": "packages/studio/server/local/model.ts",
+      "bytes": 26729,
+      "sha256": "9d0dbabf606fd297b0121afdbac2f4b03c5dec65232e088f83b3b7a8463ec21b"
+    },
+    {
+      "path": "packages/studio/server/hosting/identity-language-model.ts",
+      "bytes": 889,
+      "sha256": "be5868f06b26d7335f29eee25d951126acad5bd3b75afa3f91ce7f5cb8f7d0f9"
+    },
+    {
+      "path": "packages/studio/server/integrations/http.ts",
+      "bytes": 1252,
+      "sha256": "f1450dad2874816a8abb2b69d953ef5c4f04e6fd23467c5c5bccc76bdec0510e"
+    },
+    {
+      "path": "packages/studio/server/decisions/providers.ts",
+      "bytes": 17648,
+      "sha256": "465ddab7917803a17b4c9dad4b961efd7c5ab012e6b16adf72914a13c9ba9ffe"
+    },
+    {
+      "path": "packages/studio/server/decisions/local.ts",
+      "bytes": 2992,
+      "sha256": "a8db112249162ddb0e976de7a1bdc0e988ace3be3679d13abe4820c04ba51617"
+    },
+    {
+      "path": "packages/studio/server/hosting/identity-context.ts",
+      "bytes": 400,
+      "sha256": "efd6fde362409d0aed12e9997441616a4bcba854d076c8c1b3fc901fc9aeeee8"
+    },
+    {
+      "path": "packages/studio/server/decisions/gateway-native.ts",
+      "bytes": 7524,
+      "sha256": "6a2a9b8ab375c5ee9442a2483f9e5709f9a62d80e2891b311deb73b24430b3c2"
+    },
+    {
+      "path": "packages/studio/server/decisions/models.ts",
+      "bytes": 38097,
+      "sha256": "c77b1fcc24b9ceb925feb582c55c431ff0b07dd916e3e98ef872ab5f99b11e64"
+    },
+    {
+      "path": "packages/studio/server/local/managed-t3-settings.ts",
+      "bytes": 1689,
+      "sha256": "8629b1e130a721c300e4b3a936549ec50de0f93f710ae3ed80513dcd59c37524"
+    },
+    {
+      "path": "packages/studio/server/integrations/settings.ts",
+      "bytes": 5921,
+      "sha256": "97489c45a0ac7b090e068e8d1690411cf1f497aa542cd617d163cfd35f09c1be"
+    },
+    {
+      "path": "packages/studio/server/decisions/settings.ts",
+      "bytes": 4279,
+      "sha256": "f2838989e7b74b5c7e8c496ce4d5d8414ab5ced4e3863bc517fd660c6909edbc"
+    },
+    {
+      "path": "controlled-fixture/catalog-entry.private.ts",
+      "bytes": 627,
+      "sha256": "b50f7ba44c05fddbca07ff8dc6ded737395add1eb1f68daf655d7cd0c0250ad9"
+    }
+  ],
+  "controlledFixtureBuildInputs": [
+    {
+      "path": "controlled-fixture/index.html",
+      "bytes": 352,
+      "sha256": "58e8ef816bdcea8f48f159cc963c970f9b6df070cd403846a14ada506bad9394"
+    },
+    {
+      "path": "controlled-fixture/main.tsx",
+      "bytes": 939,
+      "sha256": "9dfa18a45fcccfe13236cbac342a4472d33e9556429410cfc8926391323b0bbc"
+    },
+    {
+      "path": "controlled-fixture/capture-style.css",
+      "bytes": 207,
+      "sha256": "589835ec50221756ff2e7dc59b920a3ba81727a9976cd6a82cb97d1d3278139f"
+    },
+    {
+      "path": "controlled-fixture/catalog-entry.private.ts",
+      "bytes": 627,
+      "sha256": "b50f7ba44c05fddbca07ff8dc6ded737395add1eb1f68daf655d7cd0c0250ad9"
+    },
+    {
+      "path": "controlled-fixture/build.private.mjs",
+      "bytes": 3699,
+      "sha256": "6cdde4cbc9796d63d96647154144f05d2a7387e8bbf34238aa5e42def0ca84c5"
+    },
+    {
+      "path": "controlled-fixture/catalog.private.mjs",
+      "bytes": 137063,
+      "sha256": "58e79aff0b40bfc9beebe7ef16adaf7585c031c24b92065b84c88ea5a40f6b75"
+    },
+    {
+      "path": "controlled-fixture/build-report.private.json",
+      "bytes": 39619,
+      "sha256": "7d8875a82e38baa954c5ff978d7c9c9025a28069f7bdb42d5da0581b1e0e3818"
+    },
+    {
+      "path": "controlled-fixture/capture.private.mjs",
+      "bytes": 11718,
+      "sha256": "38c1aed798bc6d57b843274ca0d3373481293c94bec07d8f09c8e389295110f9"
+    },
+    {
+      "path": "controlled-fixture/run-capture.private.py",
+      "bytes": 4781,
+      "sha256": "3207ffecf33115c58660e040e7beae5e8b84b16b0583de61bcfa9f8cd91360a1"
+    }
+  ],
+  "emittedClientAssets": [
+    {
+      "path": "assets/index-BcFAjaJV.css",
+      "bytes": 43367,
+      "sha256": "fb1ecdfaf94de9bff412392a3b78a4bee6698b1a452aa4153ee80967368fc795"
+    },
+    {
+      "path": "assets/index-DCb2h479.js",
+      "bytes": 369632,
+      "sha256": "7d1fa443b562a44a6ea342eeb114cc4f6fed7d3acb4cf6d450f4e651a8c8c960"
+    },
+    {
+      "path": "assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2",
+      "bytes": 25960,
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd"
+    },
+    {
+      "path": "assets/inter-cyrillic-wght-normal-DqGufNeO.woff2",
+      "bytes": 18748,
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075"
+    },
+    {
+      "path": "assets/inter-greek-ext-wght-normal-DlzME5K_.woff2",
+      "bytes": 11232,
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190"
+    },
+    {
+      "path": "assets/inter-greek-wght-normal-CkhJZR-_.woff2",
+      "bytes": 18996,
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6"
+    },
+    {
+      "path": "assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+      "bytes": 85068,
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "path": "assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+      "bytes": 48256,
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "path": "assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2",
+      "bytes": 10252,
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2"
+    },
+    {
+      "path": "index.html",
+      "bytes": 455,
+      "sha256": "a7b6f97a5248f729a0a3c091830c7df4712c0a7b06ff51903ced2e17911247df"
+    }
+  ]
+}

@@ -27,6 +27,8 @@ services:
     security_opt:
       - no-new-privileges:true
     pids_limit: 512
+    mem_limit: 4g
+    cpus: 2.0
     stop_grace_period: 45s
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
