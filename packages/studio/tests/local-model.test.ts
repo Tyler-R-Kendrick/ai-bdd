@@ -259,6 +259,7 @@ describe.skipIf(!directory)(
       try {
         const message = once(child, 'message');
         child.send({
+          modelId: localModelManifest.id,
           configuration: {
             directory: directory!,
             file: localModelManifest.files[0],
@@ -269,7 +270,7 @@ describe.skipIf(!directory)(
           history: [],
           maxTokens: 16,
         });
-        expect((await message)[0]).toEqual({ type: 'error', code: 'memory' });
+        expect((await message)[0]).toMatchObject({ type: 'error', code: 'memory', rssCeilingBytes: 16777216 });
         expect((await exited)[0]).toBe(1);
       } finally {
         child.kill('SIGKILL');

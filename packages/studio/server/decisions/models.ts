@@ -1,5 +1,5 @@
 import {
-  LOCAL_MODELS,
+  LOCAL_DECISION_MODELS,
   localModelFingerprint,
   localModelPresent,
 } from '../local/catalog.ts';
@@ -235,7 +235,7 @@ export class DecisionModels {
     return hash({
       ...(profile.provider === 'llama-cpp-cpu'
         ? {
-            localRuntimeFingerprint: LOCAL_MODELS.some(
+            localRuntimeFingerprint: LOCAL_DECISION_MODELS.some(
               (item) => item.id === profile.model,
             )
               ? localModelFingerprint(profile.model)
@@ -276,18 +276,18 @@ export class DecisionModels {
         calibrated: false,
         configured:
           !!settings.local &&
-          LOCAL_MODELS.some((item) =>
+          LOCAL_DECISION_MODELS.some((item) =>
             localModelPresent(settings.local, item.id),
           ),
         reason:
           settings.local &&
-          LOCAL_MODELS.some((item) =>
+          LOCAL_DECISION_MODELS.some((item) =>
             localModelPresent(settings.local, item.id),
           )
             ? null
             : 'The verified local model directory is not configured or its pinned weights are unavailable.',
-        models: LOCAL_MODELS.map((item) => item.id),
-        availableModels: LOCAL_MODELS.filter((item) =>
+        models: LOCAL_DECISION_MODELS.map((item) => item.id),
+        availableModels: LOCAL_DECISION_MODELS.filter((item) =>
           localModelPresent(settings.local, item.id),
         ).map((item) => item.id),
         mode: 'native-decision',

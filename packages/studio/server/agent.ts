@@ -8,6 +8,7 @@ import { createLocalLanguageModel, retainLocalModel } from './local/model.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
+  contentSchema,
   paragraph,
   type Artifact,
   type User,
@@ -35,6 +36,7 @@ import { mutateDocument } from './runtime/document-write.ts';
 import type { RemotePlanner } from './integrations/remote-planner.ts';
 import { AgentProfiles } from './integrations/agent-profiles.ts';
 import { t3LanguageModel } from './integrations/t3-model.ts';
+import { repositoryFileTool } from './integrations/repository-tools.ts';
 import { managedT3LanguageModel } from './local/native-t3-runtime.ts';
 import type { LocalInferenceObserver } from './local/local-diagnostics.ts';
 import type { NativeT3Observer } from './local/native-t3-diagnostics.ts';
@@ -45,6 +47,8 @@ import type { DecisionModels } from './decisions/models.ts';
 import { adviseParticipation } from './integrations/participation-adviser.ts';
 import { generateTitleGoal, type TitleGenerationInput } from './integrations/title-provider.ts';
 import { implementationDefinitionSchema } from '../shared/implementation.ts';
+import { applyCodeEditProposal, codeEditProposalSchemaFor } from '../shared/code-edit.ts';
+import type { CodeProject } from '../shared/code-project.ts';
 import {
   VisualRouting,
   visualTarget,
@@ -553,6 +557,9 @@ export class Agent {
         ))
       )
         throw new HttpError(404, 'Discussion not found');
+      const profile = await this.captureProfile(user, id);
+      this.profiles.assertAvailable(profile);
+      if (intent === 'edit') this.profiles.assertArtifactEdits(profile);
       const pending = await this.store.all(
         "SELECT id,status,input_json FROM studio_durable_jobs WHERE artifact_id=? AND kind IN ('agent.chat','agent.edit','agent.research') AND status IN ('queued','running')",
         id,
@@ -570,8 +577,6 @@ export class Agent {
             'An agent task is already queued or running. Wait for it or cancel it.',
           );
       }
-      const profile = await this.captureProfile(user, id);
-      this.profiles.assertAvailable(profile);
       if (profile.harness === 'remote-planner' && !this.options.remote)
         throw new HttpError(
           503,
@@ -774,6 +779,7 @@ export class Agent {
   }
   private async guard(ctx: DurableJobContext, snapshot: Snapshot) {
     await ctx.assertCurrent({ requireCurrentVersion: false });
+    if (snapshot.intent === 'edit') this.profiles.assertArtifactEdits(snapshot.profile);
     const policy = await this.policy(snapshot.user, ctx.job.artifactId);
     if (policy.paused)
       throw new HttpError(409, 'The artifact agent is paused');
@@ -1000,12 +1006,7 @@ export class Agent {
             inputSchema: z.object({}).strict(),
             execute: () => reader.tree(),
           }),
-          repository_file: tool({
-            description:
-              'Read a bounded repository file at this frozen turn revision.',
-            inputSchema: z.object({ path: z.string().max(500) }).strict(),
-            execute: ({ path }) => reader.file(path),
-          }),
+          repository_file: repositoryFileTool(path => reader.file(path)),
           repository_search: tool({
             description:
               'Search a bounded literal phrase only in this repository’s GitHub indexed default branch. Snippets are hints; use repository_file at this turn’s pinned revision to verify exact source.',
@@ -1049,7 +1050,7 @@ export class Agent {
         502,
         'The live source search returned no usable sources. No research document was published.',
       );
-    const output = await ctx.step('model-output', async (key) => {
+    const output = await ctx.step(intent === 'edit' && artifact.kind === 'code' && !snapshot.remote ? 'model-output-code-patch-v3' : 'model-output', async (key) => {
       await this.guard(ctx, snapshot);
       if (snapshot.visual) {
         const visual = await new VisualRouting({
@@ -1059,6 +1060,7 @@ export class Agent {
           user,
           artifactId: id,
           artifactVersion: artifact.version,
+          assertArtifactEdits: () => this.profiles.assertArtifactEdits(snapshot.profile),
         }).propose(ctx, snapshot.visual, artifact);
         if (visual)
           return {
@@ -1106,14 +1108,25 @@ export class Agent {
         headers: { 'Idempotency-Key': key },
       };
       if (intent === 'edit') {
+        const prompt = `${snapshot.context}\nApply this latest human edit request (a user request, subject to the system constraints): ${JSON.stringify(snapshot.latestPrompt || snapshot.brief || 'Apply the latest human edit request in the quoted conversation.')}`;
+        if (artifact.kind === 'code') {
+          const result = await generateText({
+            ...options,
+            prompt: `${prompt}\nPropose the smallest set of literal code changes required by the request against the saved artifact files. Preservation constraints are not edit operations; omit replacements that leave text unchanged. Replace exact text in existing files; each replacement applies to all non-overlapping literal matches, with no regular expressions or replacement-template syntax. Preserve unrelated bytes and files. Use create only for new paths and delete only for original paths; do not combine create/delete with other operations on the same path. Omit entry unless changing the entry file. Explain the change.`,
+            output: Output.object({ schema: codeEditProposalSchemaFor(artifact.content as CodeProject) }),
+            maxOutputTokens: 14000,
+          });
+          const proposal = applyCodeEditProposal(artifact.content as CodeProject, result.output);
+          return { text: proposal.summary, content: proposal.content };
+        }
         const result = await generateText({
           ...options,
-          prompt: `${snapshot.context}\nPropose the complete content object for this ${artifact.kind} artifact, preserving its format. Explain the change.`,
+          prompt: `${prompt}\nPropose the complete content object for this ${artifact.kind} artifact, preserving its format. Explain the change.`,
           output: Output.object({
             schema: z
               .object({
                 summary: z.string().max(10000),
-                content: z.record(z.string(), z.json()),
+                content: contentSchema(artifact.kind),
               })
               .strict(),
           }),
@@ -1217,6 +1230,8 @@ export class Agent {
             { researchArtifactId: child.id, agentJobId: ctx.job.id },
           );
         } else if (intent === 'edit' || 'visual' in output) {
+          // Cached model-output receipts may predate the current capability policy.
+          this.profiles.assertArtifactEdits(snapshot.profile);
           const content = await this.store.checkedContent(
             artifact.kind,
             output.content,

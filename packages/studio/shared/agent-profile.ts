@@ -25,6 +25,11 @@ export type AgentProfileView = {
     label: string;
     configured: boolean;
     reason: string | null;
-    providers: { id: string; label: string; models: string[] }[];
+    providers: {
+      id: string;
+      label: string;
+      models: string[];
+      modelCapabilities?: Record<string, { artifactEdits: boolean }>;
+    }[];
   }[];
 };

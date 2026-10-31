@@ -200,6 +200,12 @@ export function AgentProfile({
               {harness.reason}
             </p>
           )}
+          {provider?.modelCapabilities?.[draft.model]?.artifactEdits === false && (
+            <p className="integration-note">
+              Artifact edit proposals are unavailable for this model. Chat and
+              repository reads remain available. Choose another model for edits.
+            </p>
+          )}
           <p className="integration-note">
             {view.requiresExplicitFallback
               ? 'Another harness is used only after you explicitly select and save it.'

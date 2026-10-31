@@ -1,0 +1,45 @@
+{
+  "source": "a263f19b5fa4324022a76123a3fb0d4074b40b8d",
+  "sourceTree": "4eedcba61f365c87dcea55486f3db57e2cff64ed",
+  "scope": "Controlled configuration component capture: actual freshly built AgentProfile and shared styles, read-only owned HTTP profile fixture from actual AgentProfiles.catalog(). No model replies, inference, account login, full Studio editor, or production GitHub claim.",
+  "screenshots": [
+    {
+      "name": "controlled-granite-edit-capability-picker.png",
+      "width": 960,
+      "height": 800,
+      "sha256": "eb01e9ce27e2ca8376c83738218fd65cab51a90d3b4fabd63e18ab1698e41f15",
+      "caption": "Controlled actual AgentProfile component and current shared styles: explicit T3/Granite configuration reports that artifact edit proposals are unavailable; chat and repository reads remain available. Actual catalog response via owned read-only HTTP fixture. No authentication, model inference or generated answer."
+    }
+  ],
+  "build": {
+    "freshBuild": true,
+    "sourceInputs": 141,
+    "catalogBundleInputs": 34,
+    "emittedAssets": 10,
+    "allInputAndAssetHashesRechecked": true,
+    "normalStylesWithExplicitClientSourceDiscovery": true,
+    "buildReceiptSha256": "f9fae50612dc35c9747d05385decc6143a822e5d8ca40fee67f05ee78fef8f14"
+  },
+  "capture": {
+    "passed": true,
+    "exitCode": 0,
+    "elapsedMs": 2016,
+    "sampledProcessTreePeakRssBytes": 174514176,
+    "activeOwnedProcessesAfterExit": 0,
+    "modelInferenceAdmissions": 0,
+    "decisionInferenceAdmissions": 0,
+    "nativeRuntimeAdmissions": 0,
+    "blockedExecutionAttempts": 0,
+    "allowedBrowserProcesses": 1,
+    "apiMutations": 0,
+    "browserFaults": 0
+  },
+  "authScope": "No authentication, account, production GitHub or Connect claim; owned read-only HTTP configuration fixture.",
+  "modelScope": "No model answer or inference. The image demonstrates the software capability note, not model quality or production readiness.",
+  "priorCapture": "The first isolated fixture omitted Tailwind source discovery for imported component utility classes. It was retained privately. This second version fixes only the capture build and uses unchanged product source; no image was edited.",
+  "selfReview": {
+    "openedImage": true,
+    "dimensionsAndHashVerified": true,
+    "captionMatchesRenderedScope": true
+  }
+}

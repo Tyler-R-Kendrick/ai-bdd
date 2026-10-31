@@ -3,6 +3,7 @@ import type { DecisionProvider, DecisionSettings } from './contracts.ts';
 import { DecisionProviderError } from './providers.ts';
 import { evaluateLocalDecisions, LocalModelError } from '../local/model.ts';
 import {
+  localModelById,
   localModelFingerprint,
   localModelPresent,
 } from '../local/catalog.ts';
@@ -17,7 +18,8 @@ export function localDecisionProvider(
     version: 'node-llama-cpp@3.22.2/chat-option-likelihood-v2',
     mode: 'native-decision',
     async evaluate(input) {
-      if (!localModelPresent(config, input.profile.model))
+      if (!localModelById(input.profile.model)?.nativeDecisions ||
+          !localModelPresent(config, input.profile.model))
         throw new DecisionProviderError('provider-error', false);
       try {
         const result = await evaluateLocalDecisions(

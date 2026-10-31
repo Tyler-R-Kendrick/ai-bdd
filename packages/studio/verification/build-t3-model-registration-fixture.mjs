@@ -20,4 +20,4 @@ for(const registered of[false,true]){
   }`);s=s.replace('    let prior: any;', '    await this.prepareInventoryProxy();\n    let prior: any;');s=s.replace('serverUrl: this.openOrigin,','serverUrl: this.inventoryProxyOrigin,');s=s.replace('this.modelServer = undefined; }',`this.modelServer = undefined; await closeServer(this.inventoryProxy); this.inventoryProxy = undefined; if (this.inventoryBlocked) console.error(JSON.stringify({scope:'owned-empty-discovery-proxy',emptyModelCatalogRequests:this.inventoryBlocked})); }`);return{contents:s,loader:'ts',resolveDir:join(studio,'server/local')}})}}]});
 }
 
-for(const name of ['studio-local-worker.mjs','studio-local-decisions.mjs'])await copyFile(join(studio,'server/local',name),join(output,name));
+for(const name of ['studio-local-worker.mjs','studio-local-decisions.mjs','model-resources.mjs','model-manifest.json'])await copyFile(join(studio,'server/local',name),join(output,name));

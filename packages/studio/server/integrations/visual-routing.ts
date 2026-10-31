@@ -66,6 +66,7 @@ export class VisualRouting {
       user: User;
       artifactId: string;
       artifactVersion: number;
+      assertArtifactEdits?: () => void;
     },
   ) {}
   async propose(
@@ -178,6 +179,7 @@ export class VisualRouting {
     const kind = z
       .enum(['chartBlock', 'diagramBlock', 'tabsBlock'])
       .parse(classification) as RichVisualKind;
+    this.options.assertArtifactEdits?.();
     const data = await run(
       'author',
       'Author the selected ' +

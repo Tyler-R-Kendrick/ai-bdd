@@ -1,0 +1,7 @@
+# Literal code edit contract
+
+Model-backed code proposals use bounded literal replace, create and delete operations against the selected saved artifact. Existing-file choices come from that artifact's filenames. The independent reconstruction guard validates every operation's schema, original-file scope, conflicts, count and aggregate text bounds before applying any operation. Paths are never stripped or normalized into another target.
+
+A validated replacement whose `find` and `replacement` strings are identical is an identity operation: it leaves every source string unchanged, whether or not that nonempty literal occurs. Reconstruction skips only that operation after the validation pass. Identity operations still count towards request bounds and participate in path/conflict checks. Effective replacements still require an exact existing literal, and the final project must change a file or its entry. An identity-only or net-unchanged proposal is refused.
+
+Models remain instructed to omit redundant operations and preserve unrelated bytes. This identity rule changes deterministic reconstruction, not model prompts, weights, resource budgets or the expected requested result. It does not rewrite effectful edits or accept invalid paths. The `model-output-code-patch-v3` durable step separates this contract from previous full-content and patch receipts. Earlier rejected assessments retain their original source and result; controlled contract checks are not a new weighted authoring qualification.

@@ -5,6 +5,8 @@ await copyFile(
   new URL('../server/local/studio-local-worker.mjs', import.meta.url),
   new URL('../dist/server/studio-local-worker.mjs', import.meta.url),
 );
+for (const name of ['model-resources.mjs', 'model-manifest.json'])
+  await copyFile(new URL('../server/local/' + name, import.meta.url), new URL('../dist/server/' + name, import.meta.url));
 
 await copyFile(
   new URL('../server/local/studio-local-decisions.mjs', import.meta.url),

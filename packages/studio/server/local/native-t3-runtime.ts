@@ -12,14 +12,15 @@ import type { Store } from '../store.ts';
 import type { ObjectStore } from '../hosting/ports.ts';
 import type { AgentProfile } from '../../shared/agent-profile.ts';
 import { HttpError } from '../http-error.ts';
-import { t3LanguageModel, nativeT3Prompt } from '../integrations/t3-model.ts';
+import { t3LanguageModel } from '../integrations/t3-model.ts';
 import { NativeT3 } from '../integrations/t3-native.ts';
+import { nativeT3CpuOptions, nativeT3ResultEnvelope, managedT3FunctionStateId, NATIVE_T3_FUNCTION_PROTOCOL_REVISION, NATIVE_T3_TRANSPORT_PROTOCOL_REVISION } from './native-t3-protocol.ts';
 import { NativeT3StateLease } from './native-t3-state.ts';
+import { createManagedT3Request } from './native-t3-request.ts';
 import { NativeT3Diagnostics, type NativeT3Observer, type NativeT3Phase } from './native-t3-diagnostics.ts';
 export { cleanupManagedT3Checkpoints } from './native-t3-state.ts';
 import manifest from './native-t3-tools.json' with { type: 'json' };
 type NativeModel = Extract<LanguageModel, { specificationVersion: 'v3' }>;
-type NativeCall = Parameters<NativeModel['doGenerate']>[0];
 type CpuModel = Exclude<LanguageModel, string>;
 export type ManagedT3Options = {
   store: Store; objects: ObjectStore; localModel: CpuModel; key: Uint8Array;
@@ -32,7 +33,6 @@ export type ManagedT3Options = {
 };
 const execute = promisify(execFile);
 const unavailable = () => new HttpError(503, 'The managed native T3 runtime is unavailable or its pinned executable/state could not be verified');
-const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 
 /** Catalog probe only. Every executable's full pinned digest is verified before a native process starts. */
 export function managedT3ToolsPresent(directory: string): boolean {
@@ -102,23 +102,6 @@ async function terminate(child: ChildProcess | undefined) {
     await Promise.race([once(child, 'exit').catch(() => {}), new Promise(r => setTimeout(r, 2000))]);
   if (child.exitCode === null && child.signalCode === null) throw unavailable();
 }
-function responseSchema(options: NativeCall): any {
-  const definitions: Record<string, any> = {};
-  const embed = (schema: any, name: string) => {
-    const rewrite = (node: any): any => Array.isArray(node) ? node.map(rewrite) : node && typeof node === 'object'
-      ? Object.fromEntries(Object.entries(node).filter(([key]) => key !== '$defs' && key !== 'definitions').map(([key, value]) => [key, key === '$ref' && typeof value === 'string' && /^#\/(?:\$defs|definitions)\/[^/]+$/.test(value) ? '#/definitions/' + name + '_' + value.split('/').at(-1) : rewrite(value)])) : node;
-    for (const [key, value] of Object.entries(schema?.$defs ?? schema?.definitions ?? {})) definitions[name + '_' + key] = rewrite(value);
-    definitions[name] = rewrite(schema);
-    return { $ref: '#/definitions/' + name };
-  };
-  const tools = options.toolChoice?.type === 'none' ? [] : (options.tools ?? []).filter((tool: any) => tool.type === 'function' && (options.toolChoice?.type !== 'tool' || options.toolChoice.toolName === tool.name));
-  const choices: any[] = [];
-  if (tools.length) choices.push({ type: 'object', properties: { type: { const: 'tool_calls' }, calls: { type: 'array', minItems: 1, maxItems: 4, items: { oneOf: tools.map((tool: any, index) => ({ type: 'object', properties: { name: { const: tool.name }, input: embed(tool.inputSchema, 'tool' + index) }, required: ['name', 'input'], additionalProperties: false })) } } }, required: ['type', 'calls'], additionalProperties: false });
-  if (!['required', 'tool'].includes(options.toolChoice?.type ?? 'auto'))
-    choices.push(options.responseFormat?.type === 'json' ? embed(options.responseFormat.schema ?? true, 'final') : { type: 'object', properties: { type: { const: 'final' }, text: { type: 'string' } }, required: ['type', 'text'], additionalProperties: false });
-  if (!choices.length) throw new HttpError(400, 'The native local model has no permitted response shape');
-  return { ...(choices.length === 1 ? choices[0] : { oneOf: choices }), definitions };
-}
 
 class NativeSession {
   readonly base: string; readonly workspace: string;
@@ -130,7 +113,7 @@ class NativeSession {
   nativeOrigin = ''; openOrigin = ''; modelOrigin = '';
   readonly modelToken = randomBytes(32).toString('base64url');
   readonly openPassword = randomBytes(24).toString('base64url');
-  constructor(readonly options: ManagedT3Options, readonly root: string, readonly profile: AgentProfile, readonly signal: AbortSignal, readonly shape: any, readonly studioPrompt: string, readonly diagnostics: NativeT3Diagnostics) {
+  constructor(readonly options: ManagedT3Options, readonly root: string, readonly profile: AgentProfile, readonly signal: AbortSignal, readonly request: ReturnType<typeof createManagedT3Request>, readonly diagnostics: NativeT3Diagnostics) {
     this.base = join(root, 'native'); this.workspace = join(root, 'workspace');
   }
   environment() {
@@ -174,33 +157,13 @@ class NativeSession {
         for await (const part of req) { if ((bytes += part.length) > 512000) throw unavailable(); text += part; }
         const body = JSON.parse(text);
         if (body.model !== this.options.localModel.modelId || !Array.isArray(body.messages) || body.messages.length > 100 || (body.tool_choice && !['auto', 'none'].includes(body.tool_choice))) throw unavailable();
-        let matched = 0;
-        const renderEnvelope = () => {
-          matched++;
-          const envelope = JSON.parse(this.studioPrompt);
-          return [{ role: 'system', content: envelope.instructions + '\nRegistered Studio server tools:\n' + JSON.stringify(envelope.tools) + '\nRequested response format:\n' + JSON.stringify(envelope.responseFormat) }, ...envelope.messages];
-        };
-        const prompt = body.messages.flatMap((message: any) => {
-          if (message.role === 'user' && message.content === this.studioPrompt) {
-            // This is an exact match to the complete server-owned native launch payload, not an artifact heuristic.
-            // Render its full conversation in roles rather than asking a tiny model to interpret serialized roles.
-            // All native context outside this message, its instructions, tool declarations and format remain present.
-            return renderEnvelope();
-          }
-          if (message.role === 'user' && Array.isArray(message.content) && message.content.some((part: any) => part.type === 'text' && part.text === this.studioPrompt)) {
-            return message.content.flatMap((part: any) => part.type === 'text' && part.text === this.studioPrompt ? renderEnvelope() : [{ role: 'user', content: [part] }]);
-          }
-          if (message.role === 'system' || message.role === 'developer') { if (typeof message.content !== 'string') throw unavailable(); return { role: 'system', content: message.content }; }
-          if (!['user', 'assistant'].includes(message.role)) throw unavailable();
-          const content = typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : message.content;
-          if (!Array.isArray(content) || content.some((part: any) => part.type !== 'text' || typeof part.text !== 'string')) throw unavailable();
-          return { role: message.role, content };
-        });
+        const matched = body.messages.reduce((count: number, message: any) => count + (message?.role !== 'user' ? 0
+          : message.content === this.request.reference ? 1 : Array.isArray(message.content)
+            ? message.content.filter((part: any) => part?.type === 'text' && part.text === this.request.reference).length : 0), 0);
         this.diagnostics.request(body.messages, matched);
-        if (matched !== 1) throw unavailable();
-        const result: any = await this.diagnostics.run('local-inference', async () => await this.options.localModel.doGenerate({ prompt, toolChoice: { type: 'none' }, responseFormat: { type: 'json', schema: this.shape }, maxOutputTokens: 1024, abortSignal: AbortSignal.any([this.signal, abort.signal, AbortSignal.timeout(60000)]) } as any));
-        if (result.content.some((part: any) => part.type === 'tool-call')) throw unavailable();
-        const content = result.content.filter((part: any) => part.type === 'text').map((part: any) => part.text).join('');
+        const { prompt } = this.request.expand(body.messages);
+        const result: any = await this.diagnostics.run('local-inference', async () => await this.options.localModel.doGenerate({ ...nativeT3CpuOptions(this.request.call, prompt), abortSignal: AbortSignal.any([this.signal, abort.signal, AbortSignal.timeout(60000)]) } as any));
+        const content = nativeT3ResultEnvelope(this.request.call, result);
         const id = 'chatcmpl-' + randomBytes(12).toString('hex'), created = Math.floor(Date.now() / 1000);
         const model = this.options.localModel.modelId;
         const usage = { prompt_tokens: result.usage.inputTokens.total ?? 0, completion_tokens: result.usage.outputTokens.total ?? 0, total_tokens: (result.usage.inputTokens.total ?? 0) + (result.usage.outputTokens.total ?? 0) };
@@ -308,16 +271,24 @@ class NativeSession {
 /** Genuine T3 owns every turn. Local CPU is only its text provider; native effect tools are never emitted. */
 export function managedT3LanguageModel(options: ManagedT3Options, profile: AgentProfile, idempotencyKey: string): NativeModel {
   if (options.key.length !== 32 || typeof options.artifactId !== 'string' || !options.artifactId || options.artifactId.length > 200 || !isAbsolute(options.toolsDirectory) || (options.stateDirectory && !isAbsolute(options.stateDirectory)) || profile.harness !== 't3-code' || profile.provider !== 'studioLocal' || profile.model !== 'studio-local/' + options.localModel.modelId) throw unavailable();
+  options = Object.freeze({ ...options, key: Uint8Array.from(options.key) });
+  profile = Object.freeze({ ...profile });
   return {
     specificationVersion: 'v3', provider: 't3-code:studioLocal', modelId: profile.model, supportedUrls: {},
     async doGenerate(call) {
+      let request: ReturnType<typeof createManagedT3Request>;
+      try { request = createManagedT3Request({ key: options.key, artifactId: options.artifactId, profile, idempotencyKey }, call); }
+      catch (error) {
+        if (error instanceof HttpError) throw error;
+        throw new HttpError(400, 'The native local model received invalid tools, history or response schema');
+      }
       const abort = new AbortController();
       const signal = AbortSignal.any([abort.signal, ...(call.abortSignal ? [call.abortSignal] : []), AbortSignal.timeout(180000)]);
       const diagnostics = new NativeT3Diagnostics(options.onEvent);
       const release = await diagnostics.run('queue', () => slot(signal));
       let lease: NativeT3StateLease | undefined, native: NativeSession | undefined;
       let timer: NodeJS.Timeout | undefined, heartbeat = false;
-      const stateId = digest(JSON.stringify(['managed-native-t3-v1', manifest.t3Commit, manifest.openCodeVersion, options.artifactId, profile, idempotencyKey]));
+      const stateId = managedT3FunctionStateId({ t3Commit: manifest.t3Commit, openCodeVersion: manifest.openCodeVersion, artifactId: options.artifactId, profile, idempotencyKey });
       const parent = options.stateDirectory ?? '/tmp/studio-managed-t3-v1';
       const root = join(parent, stateId);
       const marker = join(root, '.managed-studio-native-v1');
@@ -343,19 +314,19 @@ export function managedT3LanguageModel(options: ManagedT3Options, profile: Agent
           await beforeAbort(lease!.restore(root), signal);
           await lease!.renew(); signal.throwIfAborted();
         });
-        native = new NativeSession(options, root, profile, signal, responseSchema(call), nativeT3Prompt(call), diagnostics);
+        native = new NativeSession(options, root, profile, signal, request, diagnostics);
         const onAbort = () => { void native?.close().catch(() => {}); };
         signal.addEventListener('abort', onAbort, { once: true });
         try {
           await diagnostics.run('native-start', () => beforeAbort(native!.start(), signal));
           await diagnostics.run('initial-checkpoint', async () => { await native!.stop(); await beforeAbort(lease!.checkpoint(root), signal); }); // Same native MCP session is durable before any model inference.
           const config = await diagnostics.run('native-restart', () => beforeAbort(native!.start(), signal));
-          const model = t3LanguageModel(config, profile, idempotencyKey);
+          const model = t3LanguageModel(config, profile, idempotencyKey, request.launch);
           let result;
-          try { result = await diagnostics.run('inference', () => beforeAbort(model.doGenerate({ ...call, abortSignal: signal }), signal)); }
+          try { result = await diagnostics.run('inference', () => beforeAbort(model.doGenerate({ ...request.call, abortSignal: signal }), signal)); }
           catch (error: any) { if (native.providerError && error?.message === 'The selected T3 Code run ended without a completed response') throw native.providerError; throw error; }
           await diagnostics.run('final-checkpoint', async () => { await native!.stop(); await beforeAbort(lease!.checkpoint(root), signal); });
-          return { ...result, providerMetadata: { ...result.providerMetadata, managedT3: { sessionRenewed: native.sessionRenewed, namespaceGeneration: native.namespaceGeneration, nativeTools: 'disabled', localModel: options.localModel.modelId } } };
+          return { ...result, providerMetadata: { ...result.providerMetadata, managedT3: { sessionRenewed: native.sessionRenewed, namespaceGeneration: native.namespaceGeneration, nativeTools: 'disabled', functionProtocol: NATIVE_T3_FUNCTION_PROTOCOL_REVISION, transportProtocol: NATIVE_T3_TRANSPORT_PROTOCOL_REVISION, localModel: options.localModel.modelId } } };
         } finally { signal.removeEventListener('abort', onAbort); }
       } finally {
         if (timer) clearInterval(timer);
