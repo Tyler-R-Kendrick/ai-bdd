@@ -9,7 +9,7 @@ import { Pool } from 'pg';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createApp } from '../server/app.ts';
-import { Store } from '../server/store.ts';
+import { Store, HttpError } from '../server/store.ts';
 import { openDatabase } from '../server/persistence/index.ts';
 import { createDurableJobRuntime } from '../server/runtime/jobs.ts';
 import { createStudioMcpServer } from '../server/mcp.ts';
@@ -115,13 +115,14 @@ for (const adapter of ['sqlite', 'postgres'] as const) {
     expect((await w.store.one('SELECT COUNT(*) AS n FROM repository_identities')).n).toBe(0);
     const reader = w.reader(project.id);
     for (const read of [() => reader.file('src/private.ts'), () => reader.tree(), () => reader.search('owned'), () => reader.history(), () => reader.pullRequest(1)])
-      await expect(read()).rejects.toMatchObject({ statusCode: 502 });
-    await expect(resolveExistingPullRequest({ store: w.store, settings: w.settings }, w.actor.user, privateRepository, privateRepository + '/pull/1', AbortSignal.timeout(10000))).rejects.toMatchObject({ statusCode: 502 });
+      await expect(read()).rejects.toMatchObject({ statusCode: 403 });
+    await expect(resolveExistingPullRequest({ store: w.store, settings: w.settings }, w.actor.user, privateRepository, privateRepository + '/pull/1', AbortSignal.timeout(10000))).rejects.toMatchObject({ statusCode: 403 });
     const blank = await w.create('');
     expect((await w.api('POST', `/api/artifacts/${blank.mainArtifactId}/links`, { label: 'Private PR', url: privateRepository + '/pull/1', kind: 'pull-request' })).statusCode).toBe(200);
     const link = await w.store.one('SELECT id FROM links WHERE artifact_id=?', blank.mainArtifactId);
     const refreshed = await w.api('POST', `/api/artifacts/${blank.mainArtifactId}/links/${link.id}/refresh`);
-    expect(refreshed.statusCode).toBe(502);
+    expect(refreshed.statusCode).toBe(403);
+    expect(refreshed.json().error).toBe('GitHub repository data is unavailable. Check the URL or authorize your personal GitHub repository connection.');
     expect((await w.store.one('SELECT state FROM links WHERE id=?', link.id)).state).toBe('unknown');
     expect(refreshed.body).not.toContain('owned/branch');
     expect((await w.api('GET', '/api/capabilities')).json().githubAuthenticated).toBe(false);
@@ -150,6 +151,46 @@ it('keeps allowlisted and unlisted public source/PR reads anonymous, bounded and
     expect((await w.store.one('SELECT state FROM links WHERE id=?', link.id)).state).toBe('merged');
   }
   expect(w.repositoryRequests.every(entry => entry.authorization === null)).toBe(true);
+});
+
+it.each([401, 403, 404])('anonymous upstream %i is the same safe terminal refusal, without asserting repository existence', async status => {
+  const response = Response.json({ message: privateMarker }, { status });
+  const request = vi.fn(async () => response);
+  const reader = new RepositoryReader(privateRepository, { ...testSettings('/tmp/owned-reader-refusal'), githubToken: operatorToken, githubRepositories: ['owned-audit/private'] }, () => {}, AbortSignal.timeout(10000), request);
+  reader.pin(tip);
+  await expect(reader.file('README.md')).rejects.toMatchObject({ statusCode: 403, message: 'GitHub repository data is unavailable. Check the URL or authorize your personal GitHub repository connection.' });
+  expect(response.bodyUsed).toBe(true);
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it.each([500, 502, 503])('anonymous upstream %i remains a retryable provider failure with a fixed safe message', async status => {
+  const reader = new RepositoryReader(privateRepository, testSettings('/tmp/owned-reader-provider-failure'), () => {}, AbortSignal.timeout(10000), async () => Response.json({ message: privateMarker }, { status }));
+  reader.pin(tip);
+  await expect(reader.file('README.md')).rejects.toMatchObject({ statusCode: 502, message: 'GitHub could not return repository data. Use a public repository or authorize your personal GitHub repository connection.' });
+});
+
+it('preserves a configured personal transport failure without retrying an anonymous or operator request', async () => {
+  const request = vi.fn();
+  const reader = new RepositoryReader(privateRepository, { ...testSettings('/tmp/owned-personal-reader-failure'), repositoryIdentity: {} as any, githubToken: operatorToken, githubRepositories: ['owned-audit/private'] }, () => {}, AbortSignal.timeout(10000), request, async () => { throw new HttpError(503, 'Personal provider unavailable'); });
+  reader.pin(tip);
+  await expect(reader.file('README.md')).rejects.toMatchObject({ statusCode: 503, message: 'Personal provider unavailable' });
+  expect(request).not.toHaveBeenCalled();
+});
+
+it('a private repository preflight ends the real durable agent request after one attempt without generating or scheduling another read', async () => {
+  const w = await fixture(), project = await w.create(), id = project.mainArtifactId;
+  expect((await w.api('PUT', `/api/artifacts/${id}/agent/profile`, { harness: 'vercel-fx', provider: 'ai-gateway', model: 'fixture/model' })).statusCode).toBe(200);
+  const thread = (await w.store.threads(id))[0]!.id;
+  const queued = await w.api('POST', `/api/artifacts/${id}/agent`, { threadId: thread, intent: 'chat' });
+  expect(queued.statusCode).toBe(200);
+  const job = queued.json();
+  await w.runtime.executeJob(job.id, { messageId: 'owned-private-denial', deliveryCount: 1 });
+  expect(await w.runtime.get(job.id)).toMatchObject({ status: 'cancelled', attempt: 1 });
+  expect(w.repositoryRequests).toHaveLength(1);
+  expect(w.prompts).toHaveLength(0);
+  await w.runtime.executeJob(job.id, { messageId: 'owned-duplicate-denial', deliveryCount: 2 });
+  expect(w.repositoryRequests).toHaveLength(1);
+  expect(await w.runtime.get(job.id)).toMatchObject({ status: 'cancelled', attempt: 1 });
 });
 
 it('fences a missing personal transport and revoked local membership before any repository request', async () => {

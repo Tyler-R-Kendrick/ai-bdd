@@ -82,6 +82,11 @@ export class RepositoryReader {
     );
     if (!response.ok) {
       await response.body?.cancel().catch(() => {});
+      if ([401, 403, 404].includes(response.status))
+        throw new HttpError(
+          403,
+          'GitHub repository data is unavailable. Check the URL or authorize your personal GitHub repository connection.',
+        );
       throw new HttpError(
         502,
         'GitHub could not return repository data. Use a public repository or authorize your personal GitHub repository connection.',
