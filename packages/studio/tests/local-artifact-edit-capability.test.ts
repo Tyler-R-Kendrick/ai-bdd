@@ -13,6 +13,7 @@ import type { AgentProfile } from '../shared/agent-profile.ts';
 import { client, project, setup, testSettings } from './helpers.ts';
 
 const candidateId = 'granite-4.0-350m-q5-k-m';
+const editCandidateId = 'qwen3-0.6b-q4-k-m';
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -51,8 +52,8 @@ describe('local artifact-edit capabilities without inference', () => {
   it('keeps independent model fingerprints and decision eligibility unchanged', () => {
     const profiles = new AgentProfiles({} as any, {} as any, { managedT3: { toolsDirectory: '/owned-controlled-presence', key: new Uint8Array(32) } });
     for (const harness of ['local-cpu', 't3-code'] as const) {
-      expect(() => profiles.assertArtifactEdits(profile(harness, DEFAULT_LOCAL_MODEL_ID))).not.toThrow();
-      for (const id of [candidateId, 'smollm2-135m-instruct-q4-k-m', 'unregistered'])
+      expect(() => profiles.assertArtifactEdits(profile(harness, editCandidateId))).not.toThrow();
+      for (const id of [DEFAULT_LOCAL_MODEL_ID, candidateId, 'smollm2-135m-instruct-q4-k-m', 'unregistered'])
         expect(() => profiles.assertArtifactEdits(profile(harness, id))).toThrow('Choose and save');
     }
     expect(LOCAL_MODELS.filter(model => model.nativeDecisions).map(model => model.id)).toEqual([DEFAULT_LOCAL_MODEL_ID, 'smollm2-135m-instruct-q4-k-m']);
@@ -66,9 +67,9 @@ describe('local artifact-edit capabilities without inference', () => {
     expect(() => external.assertArtifactEdits({ harness: 't3-code', provider: 'studioLocal', model: 'external-operator-model' })).not.toThrow();
   });
 
-  it.each(['local-cpu', 't3-code'] as const)('denies an unsupported %s edit before ownership, queue, decision or model work', async harness => {
+  it.each((['local-cpu', 't3-code'] as const).flatMap(harness => [candidateId, DEFAULT_LOCAL_MODEL_ID].map(model => ({ harness, model }))))('denies unsupported $harness/$model edits before ownership, queue, decision or model work', async ({ harness, model: modelId }) => {
     const w = await fixture();
-    const selected = profile(harness, candidateId);
+    const selected = profile(harness, modelId);
     const saved = await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', selected);
     expect(saved.statusCode, saved.body).toBe(200);
     const catalog = saved.json();
@@ -92,7 +93,7 @@ describe('local artifact-edit capabilities without inference', () => {
   it.each(['local-cpu', 't3-code'] as const)('admits an explicitly selected supported %s edit without changing the decision selection', async harness => {
     const w = await fixture();
     const before = await w.studio.decisions.captureProfile(w.signed.user, w.artifact.id);
-    const selected = profile(harness, DEFAULT_LOCAL_MODEL_ID);
+    const selected = profile(harness, editCandidateId);
     const saved = await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', selected);
     expect(saved.statusCode, saved.body).toBe(200);
     expect(saved.json().harnesses.find((h: any) => h.id === harness).providers.find((p: any) => p.id === selected.provider).modelCapabilities[selected.model]).toEqual({ artifactEdits: true });
@@ -121,7 +122,7 @@ describe('local artifact-edit capabilities without inference', () => {
     expect(after.artifact).toEqual(w.initial.artifact); expect(after.messages).toEqual(w.initial.messages);
   });
 
-  it('retains chat and authorized read-only SDK functions for a model without artifact edits', async () => {
+  it.each([candidateId, DEFAULT_LOCAL_MODEL_ID])('retains chat and authorized read-only SDK functions for %s without artifact edits', async chatModelId => {
     const w = await fixture();
     await w.store.exec('UPDATE projects SET repository=? WHERE id=?', 'https://github.com/owned/capability-fixture', w.artifact.projectId);
     const reads: string[] = [];
@@ -132,7 +133,7 @@ describe('local artifact-edit capabilities without inference', () => {
       throw new Error('Unexpected controlled read');
     };
     let calls = 0;
-    const controlledModel = { specificationVersion: 'v3', provider: 'owned-scripted-capability-fixture', modelId: candidateId, supportedUrls: {}, async doGenerate(call: any) {
+    const controlledModel = { specificationVersion: 'v3', provider: 'owned-scripted-capability-fixture', modelId: chatModelId, supportedUrls: {}, async doGenerate(call: any) {
       calls++;
       if (calls === 1) {
         expect(call.tools.some((tool: any) => tool.name === 'repository_file')).toBe(true);
@@ -142,7 +143,7 @@ describe('local artifact-edit capabilities without inference', () => {
       return generated([{ type: 'text', text: 'The saved name is Cedar Lantern.' }]);
     } };
     vi.spyOn(w.studio.agent as any, 'model').mockReturnValue(controlledModel);
-    await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', profile('local-cpu', candidateId));
+    await w.api('PUT', '/api/artifacts/' + w.artifact.id + '/agent/profile', profile('local-cpu', chatModelId));
     const response = await w.api('POST', '/api/artifacts/' + w.artifact.id + '/agent', { threadId: w.threadId, intent: 'chat' });
     expect(response.statusCode, response.body).toBe(200);
     await w.runtime.executeJob(response.json().id, { messageId: randomUUID(), deliveryCount: 1 });
