@@ -169,6 +169,18 @@ describe('native functions: typed data and original-schema validation', () => {
     expect(() => prepareNativeFunctionProtocol(options({ responseFormat: { type: 'json', schema: asynchronous } }), identity)).toThrow();
   });
 
+  it('snapshots tool and final schemas so caller mutation cannot change an in-flight validation contract', () => {
+    const advertised = tools();
+    const finalSchema: any = { type: 'object', properties: { contact: { type: 'string', format: 'email' } }, required: ['contact'], additionalProperties: false };
+    const protocol = prepareNativeFunctionProtocol(options({ tools: advertised, responseFormat: { type: 'json', schema: finalSchema } }), identity);
+    advertised[0]!.inputSchema.properties.path = { type: 'string', pattern: '.*' } as any;
+    delete finalSchema.properties.contact.format;
+    expect(protocol.originalSchemas.repository_file).toEqual(fileSchema);
+    expect(protocol.finalSchema).toMatchObject({ properties: { contact: { format: 'email' } } });
+    expect(() => projectNativeFunctionResponse(protocol, { text: '', functionCalls: [{ functionName: 'repository_file', params: { path: '../../private.key' } }] })).toThrow();
+    expect(() => projectNativeFunctionResponse(protocol, { text: '', functionCalls: [{ functionName: FINAL_RESPONSE_FUNCTION, params: { contact: 'not-an-email' } }] })).toThrow();
+  });
+
   it('validates native arguments against original constraints even when native grammar drops a pattern', () => {
     const protocol = prepareNativeFunctionProtocol(options(), schema => typeof schema === 'boolean' ? schema : ({ ...schema, properties: { path: { type: 'string' } } }));
     expect(protocol.functions.repository_file?.params).not.toEqual(fileSchema);
