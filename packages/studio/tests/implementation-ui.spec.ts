@@ -2,7 +2,7 @@ import { ownedFreeGatewayMetadata } from './free-gateway-fixture.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createApp, signInBrowser } from './browser-fixture.ts';
+import { createApp, signInBrowser, provisionBrowserActor } from './browser-fixture.ts';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import type { ImplementationSnapshot } from '../shared/implementation.ts';
@@ -36,7 +36,7 @@ const serverFaults: string[] = [];
 const watchedPages = new WeakSet<Page>();
 const ownerEmail = 'build-owner@example.test',
   reviewerEmail = 'build-reviewer@example.test';
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
   modelServer = createServer(async (request, response) => {
     let source = '';
     for await (const chunk of request) source += chunk;
@@ -80,7 +80,8 @@ test.beforeAll(async () => {
       clientDir: resolve(import.meta.dirname, '../dist/client'),
     },
   );
-  const owner = await studio.store.userByEmail(ownerEmail),
+  await studio.app.listen({ host: '127.0.0.1', port: 8896 });
+  const owner = await provisionBrowserActor(browser, origin, ownerEmail),
     project = await studio.store.createProject(
       owner,
       'Implementation UI acceptance',
@@ -88,18 +89,15 @@ test.beforeAll(async () => {
       'https://github.com/example/build-fixture',
     );
   id = project.mainArtifactId;
-  const reviewer = await studio.store.createUser(
-    reviewerEmail,
-    'Independent reviewer',
-    null,
-  );
+  const reviewer = await provisionBrowserActor(browser, origin, reviewerEmail);
+  // Display metadata is seeded only after this exact principal authenticated.
+  await studio.store.exec('UPDATE users SET name=? WHERE id=?', 'Independent reviewer', reviewer.id);
   await studio.store.exec(
     'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
     project.id,
     reviewer.id,
     'editor',
   );
-  await studio.app.listen({ host: '127.0.0.1', port: 8896 });
 });
 test.afterAll(async () => {
   await studio?.app.close();

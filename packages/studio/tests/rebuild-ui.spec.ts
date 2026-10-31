@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createApp, signInBrowser } from './browser-fixture.ts';
+import { createApp, signInBrowser, provisionBrowserActor } from './browser-fixture.ts';
 import { implementationPointer } from '../shared/implementation.ts';
 import { paragraph } from '../shared/domain.ts';
 const origin = 'http://127.0.0.1:8895',
@@ -58,7 +58,7 @@ async function capture(page: Page, name: string) {
     fullPage: true,
   });
 }
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
   dir = await mkdtemp(join(tmpdir(), 'studio-rebuild-ui-'));
   studio = await createApp(
     {
@@ -73,7 +73,8 @@ test.beforeAll(async () => {
       clientDir: resolve(import.meta.dirname, '../dist/client'),
     },
   );
-  owner = await studio.store.userByEmail(email);
+  await studio.app.listen({ host: '127.0.0.1', port: 8895 });
+  owner = await provisionBrowserActor(browser, origin, email);
   const project = (await studio.store.createProject(
     owner,
     'Living billing plan',
@@ -210,18 +211,13 @@ test.beforeAll(async () => {
     url,
   ) => ({ url, repository: repo, state: 'open', branch, commit: head });
   await studio.rebuilds.snapshot(owner, id);
-  const viewer = await studio.store.createUser(
-    viewerEmail,
-    'Read-only reviewer',
-    null,
-  );
+  const viewer = await provisionBrowserActor(browser, origin, viewerEmail);
   await studio.store.exec(
     'INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,?)',
     project.id,
     viewer.id,
     'viewer',
   );
-  await studio.app.listen({ host: '127.0.0.1', port: 8895 });
 });
 test.afterAll(async () => {
   await studio?.app.close();

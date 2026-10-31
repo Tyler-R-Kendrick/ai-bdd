@@ -48,10 +48,11 @@ function observe(page: Page) {
 }
 async function login(page: Page, who = email) {
   observe(page);
-  await signInBrowser(page, origin, who);
+  return signInBrowser(page, origin, who);
 }
 async function open(page: Page, title: string) {
-  await login(page);
+  const authenticated = await login(page);
+  const user = await studio.store.publicUser(authenticated.id);
   const created = await page.request.post(origin + '/api/projects', {
     headers: { origin },
     data: {
@@ -65,10 +66,9 @@ async function open(page: Page, title: string) {
   const project = await created.json(),
     initialArtifact = await studio.store.artifact(
       project.mainArtifactId,
-      (await studio.store.userByEmail(email)).id,
+      user.id,
     ),
     threadId = (await studio.store.threads(initialArtifact.id))[0]!.id;
-  const user = await studio.store.userByEmail(email);
   const content = structuredClone(initialArtifact.content);
   content.doc.content = [
     {
@@ -557,23 +557,16 @@ test('viewer cannot answer, source changes withdraw questions, and durable stop 
       exact: true,
     }),
   ).toBeVisible();
-  const viewer =
-    (await studio.store.userByEmail(viewerEmail)) ??
-    (await studio.store.createUser(
-      viewerEmail,
-      'Read-only reviewer',
-      null,
-    ));
+  const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    }),
+    mobile = await context.newPage();
+  const viewer = await login(mobile, viewerEmail);
   await studio.store.exec(
     "INSERT INTO memberships(project_id,user_id,role) VALUES(?,?,'viewer') ON CONFLICT(project_id,user_id) DO NOTHING",
     w.project.id,
     viewer.id,
   );
-  const context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-    }),
-    mobile = await context.newPage();
-  await login(mobile, viewerEmail);
   await mobile.goto(
     origin + `/?project=${w.project.id}&artifact=${w.artifact.id}`,
   );

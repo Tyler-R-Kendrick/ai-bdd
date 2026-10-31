@@ -76,7 +76,7 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await signInBrowser(page, origin, email);
+  const user = await signInBrowser(page, origin, email);
   const project = await api('/projects', 'POST', {
     title: 'Offline design review',
     description: 'Actual local CPU inference; no external model provider.',
@@ -109,7 +109,6 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
   expect(initial.decisions[0].artifactId).toBe(artifact.id);
   const adr = initial.decisions[0].id,
     thread = initial.threads[0].id;
-  const user = await studio.store.userByEmail(email);
   const evaluation = await studio.decisions.decide({
     user,
     artifactId: artifact.id,

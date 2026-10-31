@@ -6,7 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createApp, signInBrowser } from './browser-fixture.ts';
+import { createApp, signInBrowser, provisionBrowserActor } from './browser-fixture.ts';
+import type { User } from '../shared/domain.ts';
 import { decisionProfileSchema } from '../shared/decision-profile.ts';
 import type { FindingsProposal } from '../shared/findings-review.ts';
 import type { FindingsReviews } from '../server/integrations/findings-review.ts';
@@ -20,7 +21,8 @@ let studio: Awaited<ReturnType<typeof createApp>> & {
   directory: string,
   origin: string,
   id: string,
-  investigationId: string;
+  investigationId: string,
+  owner: User;
 let provider: ReturnType<typeof createServer>;
 const previousKey = process.env.AI_GATEWAY_API_KEY,
   requests: any[] = [],
@@ -46,7 +48,7 @@ const proposal: FindingsProposal = {
     },
   ],
 };
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
   provider = createServer(async (req, res) => {
     let text = '';
     for await (const chunk of req) text += chunk;
@@ -114,19 +116,18 @@ test.beforeAll(async () => {
       },
     },
   })) as typeof studio;
-  const owner = await studio.store.userByEmail(email),
-    project = await studio.store.createProject(
+  await studio.app.listen({ host: '127.0.0.1', port: 0 });
+  origin = studio.app.listeningOrigin;
+  settings.origin = origin;
+  owner = await provisionBrowserActor(browser, origin, email);
+  const project = await studio.store.createProject(
       owner,
       'Evidence-grounded queue design',
       '',
       'https://github.com/example/findings-browser',
     );
   id = project.mainArtifactId;
-  const viewer = await studio.store.createUser(
-    viewerEmail,
-    'Independent viewer',
-    null,
-  );
+  const viewer = await provisionBrowserActor(browser, origin, viewerEmail);
   await studio.store.exec(
     'INSERT INTO memberships VALUES(?,?,?)',
     project.id,
@@ -199,9 +200,6 @@ test.beforeAll(async () => {
     },
   });
   await studio.agent.claimPlanner(owner, id);
-  await studio.app.listen({ host: '127.0.0.1', port: 0 });
-  origin = studio.app.listeningOrigin;
-  settings.origin = origin;
 });
 test.afterAll(async () => {
   await studio?.app.close();
@@ -253,8 +251,7 @@ test('actual App reviews findings through native decision and frozen harness, th
   ).toBeVisible();
   const apply = panel.getByRole('button', { name: 'Apply reviewed findings' });
   await expect(apply).toBeDisabled();
-  const owner = await studio.store.userByEmail(email),
-    before = await studio.store.artifact(id, owner.id);
+  const before = await studio.store.artifact(id, owner.id);
   expect(JSON.stringify(before.content)).not.toContain(
     proposal.edits[0]!.replacement,
   );
@@ -344,8 +341,7 @@ test('actual App reviews findings through native decision and frozen harness, th
 test('a person can incorporate text-only evidence with an explicit rationale and no model call or source rewrite', async ({
   page,
 }) => {
-  const owner = await studio.store.userByEmail(email),
-    artifact = await studio.store.artifact(id, owner.id),
+  const artifact = await studio.store.artifact(id, owner.id),
     machine = await studio.store.one(
       'SELECT * FROM studio_machines WHERE project_id=? AND user_id=?',
       artifact.projectId,
