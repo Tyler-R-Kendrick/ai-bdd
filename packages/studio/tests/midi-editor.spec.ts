@@ -476,15 +476,16 @@ test('draft conflicts retain local notes and viewers can audition/export while e
   await expect(
     page.getByRole('spinbutton', { name: 'Note velocity', exact: true }),
   ).toHaveValue('83');
-  const email = `midi-viewer-${crypto.randomUUID()}@example.test`,
-    invitation = await (
+  const email = `midi-viewer-${crypto.randomUUID()}@example.test`;
+  const ownerCookie=(await page.context().cookies(origin)).find(cookie=>cookie.name==='studio_session')!.value;
+  const actor=await signInBrowser(page,origin,email);
+  const invitation = await (
       await page.request.post(`/api/projects/${project.id}/members`, {
-        headers: { origin },
-        data: { email, name: 'Music reviewer', role: 'viewer' },
+        headers: { origin,cookie:'studio_session='+ownerCookie },
+        data: { userId:actor.id, role: 'viewer' },
       })
     ).json();
   expect(invitation).not.toHaveProperty('temporaryPassword');
-  await signInBrowser(page, origin, email);
   await page.goto(`/?project=${project.id}&artifact=${artifact.id}`);
   await expect(page.getByLabel('MIDI composition editor')).toBeVisible();
   await page

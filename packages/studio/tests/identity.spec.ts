@@ -43,20 +43,17 @@ test.beforeAll(async () => {
     db: ':memory:',
     clientDir: resolve(import.meta.dirname, '../dist/client'),
   });
-  const alice = await studio.store.createUser(
-    'alice@example.test',
-    'Alice Verified',
-    null,
-  );
+  const start=await studio.app.inject('/api/auth/github');
+  const callback=new URL(issuer.callbackFor('alice@example.test',String(start.headers.location)));
+  const binding=start.cookies.find(cookie=>cookie.name==='studio_github_signin')!.value;
+  const signed=await studio.app.inject({url:callback.pathname+callback.search,headers:{cookie:'studio_github_signin='+binding}});
+  expect(signed.headers.location).toBe('/');
+  const session=signed.cookies.find(cookie=>cookie.name==='studio_session')!.value;
+  const alice=(await studio.app.inject({url:'/api/me',headers:{cookie:'studio_session='+session}})).json();
   await studio.store.createUser(
     'teammate@example.test',
     'Password teammate',
     await passwordHash('fixture-only-teammate-password-123'),
-  );
-  await studio.store.createUser(
-    'unverified@example.test',
-    'Unverified User',
-    null,
   );
   await studio.store.createProject(
     alice,
@@ -97,7 +94,7 @@ async function capture(page: Page, name: string) {
   });
 }
 
-test('verified GitHub OAuth binds an admitted user through PKCE and durable state; callback replay cannot mint another session', async ({
+test('GitHub OAuth authenticates a provisioned user through PKCE and durable state; callback replay cannot mint another session', async ({
   page,
 }) => {
   let callback = '';
@@ -123,7 +120,7 @@ test('verified GitHub OAuth binds an admitted user through PKCE and durable stat
   ).toBeVisible();
   expect((await page.request.get(origin + '/api/me')).status()).toBe(200);
   const me = await (await page.request.get(origin + '/api/me')).json();
-  expect(me.email).toBe('alice@example.test');
+  expect(me.email).toMatch(/@identity\.invalid$/);
   expect(issuer.tokenRequests).toBeGreaterThan(0);
   expect(callback).toContain('state=');
   const sessions = await studio.store.all(
@@ -196,19 +193,6 @@ test('GitHub web connection uses the signed-in user and repository membership ne
   );
   expect(reader.status()).toBe(200);
   expect((await reader.json()).title).toBe('Protected fixture change');
-  const admission = await page.request.post(
-    origin + `/api/projects/${project.id}/members`,
-    {
-      headers: { origin },
-      data: {
-        email: 'teammate@example.test',
-        name: 'Password teammate',
-        role: 'viewer',
-      },
-    },
-  );
-  expect(admission.status()).toBe(200);
-  expect(await admission.json()).not.toHaveProperty('temporaryPassword');
   const teammate = await browser.newContext({ baseURL: origin });
   const passwordLogin = await teammate.request.post('/api/auth/login', {
     headers: { origin },
@@ -219,7 +203,9 @@ test('GitHub web connection uses the signed-in user and repository membership ne
   });
   expect(passwordLogin.status()).toBe(403);
   const teammatePage = await teammate.newPage();
-  await signInBrowser(teammatePage, origin, 'teammate@example.test');
+  const actor=await signInBrowser(teammatePage, origin, 'teammate@example.test');
+  const admission=await page.request.post(origin+`/api/projects/${project.id}/members`,{headers:{origin},data:{userId:actor.id,role:'viewer'}});
+  expect(admission.status()).toBe(200);expect(await admission.json()).not.toHaveProperty('temporaryPassword');
   const denied = await teammate.request.get(`/api/artifacts/${project.mainArtifactId}`);
   expect(denied.status()).toBe(403);
   await teammate.close();
@@ -235,24 +221,24 @@ test('GitHub web connection uses the signed-in user and repository membership ne
   ).toBeVisible();
 });
 
-test('verified but unadmitted issuer accounts cannot create a Studio account or session', async ({
+test('a genuine GitHub account can sign in without a local account or invitation', async ({
   page,
 }) => {
   await begin(page);
   await finish(page, 'outsider@example.test');
-  await expect(page).toHaveURL(origin + '/?signin=failed');
-  expect((await page.request.get(origin + '/api/me')).status()).toBe(401);
+  await expect(page.getByRole('button',{name:'Workspace settings',exact:true})).toBeVisible();
+  expect((await page.request.get(origin + '/api/me')).status()).toBe(200);
   expect(
     await studio.store.userByEmail('outsider@example.test'),
   ).toBeUndefined();
 });
-test('an admitted account still cannot sign in with an unverified issuer email', async ({
+test('an authenticated GitHub account does not need a released verified email', async ({
   page,
 }) => {
   await begin(page);
   await finish(page, 'unverified@example.test');
-  await expect(page).toHaveURL(origin + '/?signin=failed');
-  expect((await page.request.get(origin + '/api/me')).status()).toBe(401);
+  await expect(page.getByRole('button',{name:'Workspace settings',exact:true})).toBeVisible();
+  expect((await page.request.get(origin + '/api/me')).status()).toBe(200);
 });
 test('expired durable state is denied before the real issuer authorization code can be exchanged', async ({
   page,

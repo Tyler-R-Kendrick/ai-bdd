@@ -213,15 +213,12 @@ async function fixture(cards: boolean, model = false) {
     if (priorFlag === undefined) delete process.env.STUDIO_CONVERSATION_CARDS;
     else process.env.STUDIO_CONVERSATION_CARDS = priorFlag;
   }
-  const user = await instance.store.createUser(
-    'owner@product-browser.test',
-    'Evidence owner',
-    null,
-  );
+  let user:import('../shared/domain.ts').User|undefined;
   const address = await instance.app.listen({ host: '127.0.0.1', port: 0 });
   settings.origin = address;
-  async function login(page: Page, email = user.email) {
-    await signInBrowser(page, address, email);
+  async function login(page: Page, email = 'owner@product-browser.test') {
+    const actor=await signInBrowser(page,address,email);
+    if(email==='owner@product-browser.test')user=actor;
     await expect(
       page.getByRole('button', { name: 'New project', exact: true }).first(),
     ).toBeVisible();
@@ -295,7 +292,7 @@ async function fixture(cards: boolean, model = false) {
     instance,
     selectFx,
     address,
-    user,
+    get user(){if(!user)throw new Error('The owner must authenticate before using the project fixture');return user;},
     login,
     call,
     close,
@@ -735,23 +732,20 @@ test('a real owner-approved investigation publishes inline native evidence, shar
     ).toBeVisible();
     await inline.scrollIntoViewIfNeeded();
     await capture(page, 'investigation-inline-desktop.png');
+    viewerContext = await browser.newContext();
+    const viewer = await viewerContext.newPage();
+    await f.login(viewer,'reader@product-browser.test');
+    const actor=await (await viewer.request.get(f.address+'/api/me')).json();
     const invitation = await f.call(
       page,
       `/projects/${project.id}/members`,
       'POST',
       {
-        email: 'reader@product-browser.test',
-        name: 'Evidence reader',
+        userId:actor.id,
         role: 'viewer',
       },
     );
     expect(invitation).not.toHaveProperty('temporaryPassword');
-    viewerContext = await browser.newContext();
-    const viewer = await viewerContext.newPage();
-    await f.login(
-      viewer,
-      'reader@product-browser.test',
-    );
     await viewer.goto(
       `${f.address}/?project=${project.id}&artifact=${completed.childArtifactId}`,
     );
@@ -1299,22 +1293,12 @@ test('passage slash commands place exact research and investigation cards inline
       card.getByRole('button', { name: 'Stop investigation', exact: true }),
     ).toBeVisible();
     await capture(page, 'passage-investigation-queued-desktop.png');
-    const viewer = await f.instance.store.createUser(
-      'passage-viewer@test.invalid',
-      'Passage viewer',
-      null,
-    );
-    await f.instance.store.exec(
-      'INSERT INTO memberships VALUES(?,?,?)',
-      project.id,
-      viewer.id,
-      'viewer',
-    );
     viewerContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
     });
     const mobile = await viewerContext.newPage();
-    await signInBrowser(mobile, f.address, viewer.email);
+    const viewer=await signInBrowser(mobile,f.address,'passage-viewer@test.invalid');
+    await f.call(page,`/projects/${project.id}/members`,'POST',{userId:viewer.id,role:'viewer'});
     await mobile.goto(`${f.address}/?project=${project.id}&artifact=${id}`);
     const mobileCard = mobile.locator('.document-investigation');
     await mobileCard.scrollIntoViewIfNeeded();

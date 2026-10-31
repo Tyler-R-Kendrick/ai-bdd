@@ -430,14 +430,15 @@ test('new revisions retain local video drafts and viewer controls prevent edits'
   await page.getByRole('button', { name: 'Load latest', exact: true }).click();
   await expect(page.getByLabel('Layer text')).toHaveValue('Build with intent.');
   const email = `video-viewer-${crypto.randomUUID()}@example.test`;
+  const ownerCookie=(await page.context().cookies(origin)).find(cookie=>cookie.name==='studio_session')!.value;
+  const actor=await signInBrowser(page,origin,email);
   const invitation = await (
     await page.request.post(`/api/projects/${project.id}/members`, {
-      headers: { origin },
-      data: { email, name: 'Motion reviewer', role: 'viewer' },
+      headers: { origin,cookie:'studio_session='+ownerCookie },
+      data: { userId:actor.id, role: 'viewer' },
     })
   ).json();
   expect(invitation).not.toHaveProperty('temporaryPassword');
-  await signInBrowser(page, origin, email);
   await page.goto(`/?project=${project.id}&artifact=${artifact.id}`);
   await expect(
     page.getByRole('button', { name: 'Add text', exact: true }),

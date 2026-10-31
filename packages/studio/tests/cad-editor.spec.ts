@@ -287,16 +287,16 @@ test('keeps exact CAD and import tools read-only for a project viewer', async ({
     'Viewer CAD permissions',
   );
   const email = `cad-viewer-${crypto.randomUUID()}@example.test`;
+  const context = await browser.newContext({ baseURL: origin });
+  const viewer = await context.newPage();
+  const actor=await signInBrowser(viewer,origin,email);
   const invitation = await post(
     page,
     origin,
     `/projects/${project.id}/members`,
-    { email, name: 'CAD reviewer', role: 'viewer' },
+    { userId:actor.id, role: 'viewer' },
   );
-  const context = await browser.newContext({ baseURL: origin });
   expect(invitation).not.toHaveProperty('temporaryPassword');
-  const viewer = await context.newPage();
-  await signInBrowser(viewer, origin, email);
   await open(viewer, project, artifact);
   await expect(
     viewer.getByRole('button', {

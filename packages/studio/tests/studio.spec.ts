@@ -422,16 +422,12 @@ test('shows view-only documents to invited viewers without editable controls', a
 }) => {
   const project = await makeProject(page.request),
     email = `viewer-${Date.now()}@example.test`,
-    member = await post(page.request, `/projects/${project.id}/members`, {
-      email,
-      name: 'Review teammate',
-      role: 'viewer',
-    }),
     context = await browser.newContext({ baseURL: origin });
   try {
-    expect(member).not.toHaveProperty('temporaryPassword');
     const viewer = await context.newPage();
-    await signInBrowser(viewer, origin, email);
+    const actor=await signInBrowser(viewer, origin, email);
+    const member=await post(page.request,`/projects/${project.id}/members`,{userId:actor.id,role:'viewer'});
+    expect(member).not.toHaveProperty('temporaryPassword');
     await open(viewer, project);
     const editor = viewer.getByLabel('Document editor', { exact: true });
     await expect(editor).toBeVisible();

@@ -377,16 +377,12 @@ test('a fresh viewer can read document review and search without editing questio
 }) => {
   const { call, project, origin } = await fixture(page),
     email = `document-viewer-${randomUUID()}@example.test`,
-    invitation = await call(`/projects/${project.id}/members`, 'POST', {
-      email,
-      name: 'Document viewer',
-      role: 'viewer',
-    }),
     viewerContext = await browser.newContext({ baseURL: origin });
   try {
-    expect(invitation).not.toHaveProperty('temporaryPassword');
     const viewer = await viewerContext.newPage();
-    await signInBrowser(viewer, origin, email);
+    const actor=await signInBrowser(viewer,origin,email);
+    const invitation=await call(`/projects/${project.id}/members`,'POST',{userId:actor.id,role:'viewer'});
+    expect(invitation).not.toHaveProperty('temporaryPassword');
     await viewer.goto(
       `/?project=${project.id}&artifact=${project.mainArtifactId}`,
     );
