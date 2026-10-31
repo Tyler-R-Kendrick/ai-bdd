@@ -15,10 +15,11 @@ export type NativeFunctionProtocol = {
   requireCall: boolean;
   finalSchema?: Schema;
 };
-const ajv = new Ajv({ strict: false, strictSchema: true, allErrors: false, validateFormats: true });
+const ajv = new Ajv({ strict: false, strictSchema: true, strictNumbers: true, allErrors: false, validateFormats: true });
 addFormats(ajv);
 const invalid = () => new Error('Invalid native function protocol');
 function validate(schema: Schema, value?: unknown, check = false) {
+  if (check) json(value);
   try {
     const validator = ajv.compile(schema);
     if ('$async' in validator && validator.$async === true) throw invalid();
@@ -26,7 +27,12 @@ function validate(schema: Schema, value?: unknown, check = false) {
   } finally { if (typeof schema === 'object') ajv.removeSchema(schema); }
 }
 function json(value: unknown): unknown {
-  const encoded = JSON.stringify(value);
+  // JSON.stringify silently turns non-finite numbers into null. Refuse that
+  // change before serializing tool arguments, results, schemas or final data.
+  const encoded = JSON.stringify(value, (_key, item: unknown) => {
+    if (typeof item === 'number' && !Number.isFinite(item)) throw invalid();
+    return item;
+  });
   if (encoded === undefined || Buffer.byteLength(encoded) > 120000) throw invalid();
   return JSON.parse(encoded);
 }
