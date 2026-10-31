@@ -81,20 +81,22 @@ export function prepareNativeFunctionProtocol(options: any, transform: (schema: 
     if (typeof tool.name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_-]{0,99}$/.test(tool.name) ||
       ['__proto__', 'constructor', 'prototype', FINAL_RESPONSE_FUNCTION].includes(tool.name) || Object.hasOwn(originalSchemas, tool.name) ||
       (tool.description !== undefined && typeof tool.description !== 'string')) throw invalid();
-    validate(tool.inputSchema);
-    originalSchemas[tool.name] = tool.inputSchema;
+    const originalSchema = json(tool.inputSchema) as Schema;
+    validate(originalSchema);
+    originalSchemas[tool.name] = originalSchema;
     if (options.toolChoice?.type !== 'none' && (options.toolChoice?.type !== 'tool' || options.toolChoice.toolName === tool.name))
-      functions[tool.name] = { ...(tool.description === undefined ? {} : { description: tool.description }), params: transform(tool.inputSchema) };
+      functions[tool.name] = { ...(tool.description === undefined ? {} : { description: tool.description }), params: transform(originalSchema) };
   }
   const requireCall = ['required', 'tool'].includes(options.toolChoice?.type ?? 'auto');
   if (requireCall && !Object.keys(functions).length) throw invalid();
-  const finalSchema = options.responseFormat?.type === 'json' ? options.responseFormat.schema ?? true : undefined;
+  const finalSchema = options.responseFormat?.type === 'json' ? json(options.responseFormat.schema ?? true) as Schema : undefined;
   if (finalSchema !== undefined) {
     validate(finalSchema);
     if (!requireCall && Object.keys(functions).length)
       functions[FINAL_RESPONSE_FUNCTION] = { description: 'Return the final response matching the requested JSON schema. This is output only and is never executed.', params: transform(finalSchema) };
   }
-  if (Buffer.byteLength(JSON.stringify({ functions, originalSchemas, finalSchema })) > 48000) throw invalid();
+  if (Buffer.byteLength(JSON.stringify(functions)) > 48000 ||
+    Buffer.byteLength(JSON.stringify({ originalSchemas, finalSchema })) > 48000) throw invalid();
   if (options.toolChoice && !['auto', 'none', 'required', 'tool'].includes(options.toolChoice.type)) throw invalid();
   const history = nativeFunctionHistory(options.prompt);
   for (const item of history) if (item.type === 'model') for (const part of item.response)
