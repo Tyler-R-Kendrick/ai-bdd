@@ -112,7 +112,7 @@ describe('trusted artifact-kind edit output contract', () => {
     const contentCheck = vi.spyOn(w.store, 'checkedContent');
     const job = await w.edit(artifact.id, threadId, 'Update the existing code button label.');
     expect(job.status).toBe('queued'); expect(job.attempt).toBe(1);
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v3'", job.id)).toEqual([]);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v4'", job.id)).toEqual([]);
     expect(w.requests).toHaveLength(1); expect(contentCheck).not.toHaveBeenCalled();
     const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages); expect(after.decisions).toEqual(initial.decisions);
@@ -127,7 +127,7 @@ describe('trusted artifact-kind edit output contract', () => {
     const contentCheck = vi.spyOn(w.store, 'checkedContent').mockRejectedValueOnce(new Error('Independent source guard refused publication'));
     const job = await w.edit(artifact.id, threadId, 'Update the code.');
     expect(job.status).toBe('queued'); expect(job.attempt).toBe(1); expect(contentCheck).toHaveBeenCalledOnce();
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v3'", job.id)).toHaveLength(1);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v4'", job.id)).toHaveLength(1);
     expect(w.requests).toHaveLength(1);
     const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages);
@@ -161,13 +161,13 @@ describe('trusted artifact-kind edit output contract', () => {
     [{ op: 'create', path: 'index.html', content: 'regenerated' }],
     [{ op: 'delete', path: 'index.html' }],
     [{ op: 'replace', path: 'index.html', find: 'Start', replacement: 'Launch' }, { op: 'delete', path: 'index.html' }],
-  ].map(changes => ({ changes })))('refuses invalid or contradictory patch %# before proposal/source changes', async ({ changes }) => {
+  ].map((changes, index) => ({ changes, terminal: [0, 4, 5].includes(index), calls: [0, 5].includes(index) ? 2 : 1 })))('refuses invalid or contradictory patch %# before proposal/source changes', async ({ changes, terminal, calls }) => {
     const w = await fixture({ changes });
     const original = { files: { 'index.html': '<button>Start</button>\n', 'notes.txt': 'untouched\n' }, entry: 'index.html' };
     const { artifact, initial, threadId } = await w.seed('code', original);
     const contentCheck = vi.spyOn(w.store, 'checkedContent');
     const job = await w.edit(artifact.id, threadId, 'Update the code.');
-    expect(job.status).toBe('queued'); expect(job.attempt).toBe(1); expect(contentCheck).not.toHaveBeenCalled(); expect(w.requests).toHaveLength(1);
+    expect(job.status).toBe(terminal ? 'failed' : 'queued'); expect(job.attempt).toBe(1); expect(contentCheck).not.toHaveBeenCalled(); expect(w.requests).toHaveLength(calls);
     const after = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(after.artifact).toEqual(initial.artifact); expect(after.messages).toEqual(initial.messages); expect(after.decisions).toEqual(initial.decisions);
     await w.api('POST', '/api/artifacts/' + artifact.id + '/agent/cancel', {});
@@ -194,7 +194,7 @@ describe('trusted artifact-kind edit output contract', () => {
     expect(after.artifact.version).toBe(artifact.version + 1); expect(after.artifact.content).toEqual(newer);
   });
 
-  it.each(['model-output', 'model-output-code-patch-v1', 'model-output-code-patch-v2'])('does not reuse the %s receipt for the source-bound code-patch contract', async oldStep => {
+  it.each(['model-output', 'model-output-code-patch-v1', 'model-output-code-patch-v2', 'model-output-code-patch-v3'])('does not reuse the %s receipt for the source-bound code-patch contract', async oldStep => {
     const original = { files: { 'index.html': '<button>Start</button>\n' }, entry: 'index.html' };
     const w = await fixture({ changes: [{ op: 'replace', path: 'index.html', find: 'Start', replacement: 'Launch' }] });
     const { artifact, threadId } = await w.seed('code', original);
@@ -204,7 +204,7 @@ describe('trusted artifact-kind edit output contract', () => {
     });
     expect(job.status).toBe('completed'); expect(w.requests).toHaveLength(1);
     expect((await w.store.one('SELECT value_json FROM studio_job_receipts WHERE job_id=? AND name=?', job.id, oldStep)).value_json).toBe(old);
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v3'", job.id)).toHaveLength(1);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v4'", job.id)).toHaveLength(1);
     const state = (await w.api('GET', '/api/artifacts/' + artifact.id)).json();
     expect(state.artifact.content).toEqual(original);
     expect(state.messages[0].proposal.content.files['index.html']).toBe('<button>Launch</button>\n');
