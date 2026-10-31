@@ -35,6 +35,7 @@ import { mutateDocument } from './runtime/document-write.ts';
 import type { RemotePlanner } from './integrations/remote-planner.ts';
 import { AgentProfiles } from './integrations/agent-profiles.ts';
 import { t3LanguageModel } from './integrations/t3-model.ts';
+import { repositoryFileTool } from './integrations/repository-tools.ts';
 import { managedT3LanguageModel } from './local/native-t3-runtime.ts';
 import type { LocalInferenceObserver } from './local/local-diagnostics.ts';
 import type { NativeT3Observer } from './local/native-t3-diagnostics.ts';
@@ -1000,12 +1001,7 @@ export class Agent {
             inputSchema: z.object({}).strict(),
             execute: () => reader.tree(),
           }),
-          repository_file: tool({
-            description:
-              'Read a bounded repository file at this frozen turn revision.',
-            inputSchema: z.object({ path: z.string().max(500) }).strict(),
-            execute: ({ path }) => reader.file(path),
-          }),
+          repository_file: repositoryFileTool(path => reader.file(path)),
           repository_search: tool({
             description:
               'Search a bounded literal phrase only in this repository’s GitHub indexed default branch. Snippets are hints; use repository_file at this turn’s pinned revision to verify exact source.',
