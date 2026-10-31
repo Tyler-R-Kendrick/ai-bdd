@@ -2,6 +2,8 @@ import { lstatSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import manifest from './model-manifest.json' with { type: 'json' };
 export const LOCAL_MODELS = [manifest, ...manifest.alternatives];
+// Chat/function compatibility does not qualify native option-likelihood decisions.
+export const LOCAL_DECISION_MODELS = LOCAL_MODELS.filter(model => model.nativeDecisions);
 export const DEFAULT_LOCAL_MODEL_ID = manifest.id;
 export const LOCAL_MODEL_ID = DEFAULT_LOCAL_MODEL_ID;
 export const LOCAL_PROVIDER_ID = 'llama-cpp-cpu';

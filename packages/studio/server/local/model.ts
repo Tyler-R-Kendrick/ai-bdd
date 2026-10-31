@@ -622,7 +622,7 @@ export async function evaluateLocalDecisions(
   if (!isAbsolute(settings.directory))
     throw new LocalModelError('configuration', 400);
   const info = localModelById(settings.modelId);
-  if (!info) throw new LocalModelError('configuration', 400);
+  if (!info?.nativeDecisions) throw new LocalModelError('configuration', 400);
   const input = {
     input: value.input,
     questions: decisionQuestionsSchema.parse(value.questions),

@@ -26,7 +26,25 @@
           "bytes": 105454432,
           "sha256": "2e8040ceae7815abe0dcb3540b9995eaa1fa0d2ca9e797d0a635ae4433c68c2d"
         }
+      ],
+      "nativeDecisions": true
+    },
+    {
+      "id": "granite-4.0-350m-q5-k-m",
+      "repository": "ibm-granite/granite-4.0-350m-GGUF",
+      "revision": "b8208a86a58427e1739265318028eb5895b74bf2",
+      "license": "Apache-2.0",
+      "baseModel": "ibm-granite/granite-4.0-350m",
+      "runtime": "node-llama-cpp@3.22.2",
+      "nativeDecisions": false,
+      "files": [
+        {
+          "path": "granite-4.0-350m-Q5_K_M.gguf",
+          "bytes": 264052128,
+          "sha256": "4beb551386f90e782c38f5d20e5bb6096e393eb83d6654503868b5b5f967aa2d"
+        }
       ]
     }
-  ]
+  ],
+  "nativeDecisions": true
 }

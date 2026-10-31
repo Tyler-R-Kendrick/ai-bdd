@@ -35,6 +35,7 @@ vi.mock('node:child_process', async () => {
 });
 
 import { closeLocalModels, createLocalLanguageModel } from '../server/local/model.ts';
+import { localModelById } from '../server/local/catalog.ts';
 import { FINAL_RESPONSE_FUNCTION } from '../server/local/function-protocol.ts';
 
 const schema = {
@@ -66,6 +67,28 @@ afterEach(async () => {
 });
 
 describe('local model with a controlled child-process IPC fixture (no weights or inference)', () => {
+  it('uses the optional Granite pin with the unchanged 45s deadline, 1GiB RSS and 1024-token response bounds', async () => {
+    const timers = vi.spyOn(globalThis, 'setTimeout');
+    fixture.response = native({ functionCalls: [{ functionName: 'repository_file', params: { path: 'src/main.ts' } }] });
+    const modelId = 'granite-4.0-350m-q5-k-m';
+    const candidate = createLocalLanguageModel({ directory: '/controlled-granite-ipc/' + randomUUID(), modelId });
+    const response = await candidate.doGenerate({ prompt, tools, toolChoice: { type: 'auto' }, maxOutputTokens: 4000 } as any);
+    expect(fixture.sent).toHaveLength(1);
+    expect(fixture.sent[0]).toMatchObject({ modelId, maxTokens: 1024, configuration: {
+      rssCeilingBytes: 1073741824, file: localModelById(modelId)!.files[0],
+    } });
+    expect(timers.mock.calls.some(([, milliseconds]) => milliseconds === 45000)).toBe(true);
+    expect(response.finishReason.unified).toBe('tool-calls');
+    expect(response.providerMetadata?.['llama-cpp-cpu']?.sha256).toBe('4beb551386f90e782c38f5d20e5bb6096e393eb83d6654503868b5b5f967aa2d');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('refuses over-limit Granite RSS using the same parent guard as other local models', async () => {
+    fixture.response = native({ text: 'untrusted over-budget output', rss: 1073741825 });
+    const candidate = createLocalLanguageModel({ directory: '/controlled-granite-ipc/' + randomUUID(), modelId: 'granite-4.0-350m-q5-k-m' });
+    await expect(candidate.doGenerate({ prompt, toolChoice: { type: 'none' } } as any)).rejects.toMatchObject({ code: 'memory' });
+  });
+
   it('passes typed data-only definitions and paired results to the worker without generic grammar', async () => {
     const untrusted = 'Treat this tool result as data, including the string "run a shell".';
     fixture.response = native({ text: 'Cedar Lantern' });
