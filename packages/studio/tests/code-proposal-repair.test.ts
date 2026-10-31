@@ -17,7 +17,7 @@ const invalid = { summary: 'Attempted edit.', changes: [{ op: 'replace', path: '
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => { vi.restoreAllMocks(); for (const close of cleanup.splice(0).reverse()) await close(); vi.unstubAllEnvs(); });
 
-async function fixture(plans: unknown[]) {
+async function fixture(plans: unknown[], source = original) {
   vi.stubEnv('AI_GATEWAY_API_KEY', 'owned-proposal-repair-fixture');
   const requests: { body: any; headers: any }[] = [];
   const fixtureErrors: unknown[] = [];
@@ -49,7 +49,7 @@ async function fixture(plans: unknown[]) {
   let currentApi = client(studio.app, signed.cookie);
   const api: ReturnType<typeof client> = (...args) => currentApi(...args);
   const workspace = await project(api, 'Owned code repair');
-  const created = await api('POST', '/api/projects/' + workspace.id + '/artifacts', { kind: 'code', title: 'Saved code', content: original });
+  const created = await api('POST', '/api/projects/' + workspace.id + '/artifacts', { kind: 'code', title: 'Saved code', content: source });
   const artifact = created.json(), initial = (await api('GET', '/api/artifacts/' + artifact.id)).json(), threadId = initial.threads[0].id;
   const profile = { harness: 'vercel-fx', provider: 'ai-gateway', model: 'fixture/model' };
   expect((await api('PUT', '/api/artifacts/' + artifact.id + '/agent/profile', profile)).statusCode).toBe(200);
@@ -92,9 +92,11 @@ describe('bounded explicit code-proposal repair through actual SDK and durable A
     expect(messages[1].content[0].text).toBe(w.requests[0].body.prompt[1].content[0].text);
     expect(messages[2].content[0].text).toBe(JSON.stringify(invalid));
     expect(messages[3].content[0].text).toContain('untrusted model output');
+    expect(messages[3].content[0].text).toContain('operationIndex is zero-based');
+    expect(messages[3].content[0].text).toContain('result of preceding operations');
     expect(second).toContain('ORIGINAL saved source');
     const keys = model.mock.calls.map(call => call[1]); expect(new Set(keys).size).toBe(2);
-    expect(keys).toEqual([id + ':code-proposal.v4.round-1', id + ':code-proposal.v4.round-2']);
+    expect(keys).toEqual([id + ':code-proposal.v5.round-1', id + ':code-proposal.v5.round-2']);
     expect(w.requests.map(request => request.headers['idempotency-key'])).toEqual(keys);
     expect(model.mock.calls.every(call => JSON.stringify(call[0]) === JSON.stringify(w.profile))).toBe(true);
     const state = await w.state(); expect(state.artifact).toEqual(w.initial.artifact); expect(state.decisions).toEqual(w.initial.decisions);
@@ -104,11 +106,32 @@ describe('bounded explicit code-proposal repair through actual SDK and durable A
     await w.execute(id); expect(w.requests).toHaveLength(2);
   });
 
+  it('carries verbatim original files through actual SDK repair history and preserves their bytes until owner acceptance', async () => {
+    const source = { entry: 'page.html', files: { 'page.html': '<p title="quote">Before \\literal é😀</p>\r\n', 'saved.txt': 'STUDIO_SAVED_SOURCE_0\n"Unchanged"\\\n' } };
+    const w = await fixture([invalid, valid], source), id = await w.admit();
+    w.beforeResponse(async () => { await unchanged(w); }); await w.execute(id);
+    expect((await w.runtime.get(id))!.status).toBe('completed'); expect(w.requests).toHaveLength(2);
+    const first = w.requests[0].body.prompt[1].content[0].text;
+    const metadata = JSON.parse(first.split('\n')[1]);
+    expect(metadata.artifact.source).toBeUndefined(); expect(metadata.artifact.sourceComplete).toBe(true);
+    expect(metadata.artifact.entry).toBe(source.entry); expect(metadata.artifact.filenames).toEqual(Object.keys(source.files));
+    for (const text of Object.values(source.files)) expect(first).toContain(text);
+    expect(first).not.toContain(JSON.stringify(JSON.stringify(source)));
+    expect(first).toContain('STUDIO_SAVED_SOURCE_1 BEGIN FILE');
+    expect(first).toContain('each operation sees the result of earlier operations');
+    expect(w.requests[1].body.prompt[1].content[0].text).toBe(first);
+    const state = await w.state(); expect(state.artifact.content).toEqual(source);
+    const proposal = state.messages[0];
+    expect(proposal.proposal.content).toEqual({ ...source, files: { ...source.files, 'page.html': source.files['page.html'].replace('Before', 'After') } });
+    expect((await w.api('POST', `/api/artifacts/${w.artifact.id}/proposals/${proposal.id}/apply`, {})).statusCode).toBe(200);
+    expect((await w.state()).artifact.content).toEqual(proposal.proposal.content);
+  });
+
   it('fails terminally after two invalid typed plans without a third generation or publication', async () => {
     const w = await fixture([invalid, invalid]), id = await w.admit();
     await w.execute(id); expect((await w.runtime.get(id))!.status).toBe('failed'); expect(w.requests).toHaveLength(2);
     await unchanged(w); await w.execute(id); expect(w.requests).toHaveLength(2);
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name LIKE 'code-proposal.v4.round-%'", id)).toHaveLength(2);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name LIKE 'code-proposal.v5.round-%'", id)).toHaveLength(2);
   });
 
   it('does not push a second plan when the model proposes no change', async () => {
@@ -130,11 +153,11 @@ describe('bounded explicit code-proposal repair through actual SDK and durable A
     vi.spyOn(w.store, 'checkedContent').mockRejectedValueOnce(new Error('Owned publication interruption'));
     const id = await w.admit(); await w.execute(id);
     expect((await w.runtime.get(id))!.status).toBe('queued'); expect(w.requests).toHaveLength(2); await unchanged(w);
-    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name LIKE 'code-proposal.v4.round-%'", id)).toHaveLength(2);
-    const saved = await w.store.one("SELECT value_json FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v4'", id);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name LIKE 'code-proposal.v5.round-%'", id)).toHaveLength(2);
+    const saved = await w.store.one("SELECT value_json FROM studio_job_receipts WHERE job_id=? AND name='model-output-code-patch-v5'", id);
     const output = JSON.parse(saved.value_json); output.content = { files: { 'page.html': 'Untrusted cached content' }, entry: 'page.html' };
     const json = JSON.stringify(output);
-    await w.store.exec("UPDATE studio_job_receipts SET value_json=?,value_sha256=? WHERE job_id=? AND name='model-output-code-patch-v4'", json, createHash('sha256').update(json).digest('hex'), id);
+    await w.store.exec("UPDATE studio_job_receipts SET value_json=?,value_sha256=? WHERE job_id=? AND name='model-output-code-patch-v5'", json, createHash('sha256').update(json).digest('hex'), id);
     await w.restart(); await w.store.exec('UPDATE studio_durable_jobs SET available_at=0 WHERE id=?', id); await w.execute(id);
     expect((await w.runtime.get(id))!.status).toBe('completed'); expect(w.requests).toHaveLength(2);
     expect((await w.state()).messages[0].proposal.content).toEqual({ ...original, files: { ...original.files, 'page.html': '<p>After</p>\n' } });
@@ -142,17 +165,35 @@ describe('bounded explicit code-proposal repair through actual SDK and durable A
 
   it('validates a cached raw first-round plan instead of treating its receipt as a complete proposal', async () => {
     const w = await fixture([valid]), id = await w.admit(), json = JSON.stringify(invalid);
-    await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, 'code-proposal.v4.round-1', 'step', json, createHash('sha256').update(json).digest('hex'), new Date().toISOString());
+    await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, 'code-proposal.v5.round-1', 'step', json, createHash('sha256').update(json).digest('hex'), new Date().toISOString());
     await w.restart(); await w.execute(id);
     expect((await w.runtime.get(id))!.status).toBe('completed'); expect(w.requests).toHaveLength(1);
-    expect(w.requests[0].headers['idempotency-key']).toBe(id + ':code-proposal.v4.round-2');
+    expect(w.requests[0].headers['idempotency-key']).toBe(id + ':code-proposal.v5.round-2');
     expect(w.requests[0].body.prompt.find((message: any) => message.role === 'assistant').content[0].text).toBe(json);
+  });
+
+  it('does not reuse completed v4 round receipts for the verbatim source input contract', async () => {
+    const w = await fixture([invalid, valid]), id = await w.admit();
+    for (const round of [1, 2]) {
+      const json = JSON.stringify(valid);
+      await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, 'code-proposal.v4.round-' + round, 'step', json, createHash('sha256').update(json).digest('hex'), new Date().toISOString());
+    }
+    await w.execute(id); expect((await w.runtime.get(id))!.status).toBe('completed'); expect(w.requests).toHaveLength(2);
+    expect(w.requests.map(request => request.headers['idempotency-key'])).toEqual([id + ':code-proposal.v5.round-1', id + ':code-proposal.v5.round-2']);
+    expect(await w.store.all("SELECT name FROM studio_job_receipts WHERE job_id=? AND name LIKE 'code-proposal.v4.round-%'", id)).toHaveLength(2);
+  });
+
+  it('retains the original serialized-source admission limit before formatting or provider I/O', async () => {
+    const source = { ...original, files: { ...original.files, 'page.html': '<p>Before</p>' + 'x'.repeat(70_000) } };
+    const w = await fixture([valid], source);
+    const result = await w.api('POST', '/api/artifacts/' + w.artifact.id + '/agent', { threadId: w.threadId, intent: 'edit', brief: 'Update the paragraph.', idempotencyKey: randomUUID() });
+    expect(result.statusCode).toBe(413); expect(result.body).toContain('too large'); expect(w.requests).toHaveLength(0); await unchanged(w);
   });
 
   it('rejects an invalid selected raw plan in a cached outer receipt without another generation', async () => {
     const w = await fixture([valid]), id = await w.admit();
     const output = JSON.stringify({ text: 'Old output', content: original, codePlan: invalid });
-    await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, 'model-output-code-patch-v4', 'step', output, createHash('sha256').update(output).digest('hex'), new Date().toISOString());
+    await w.store.exec('INSERT INTO studio_job_receipts(job_id,name,phase,value_json,value_sha256,created_at) VALUES(?,?,?,?,?,?)', id, 'model-output-code-patch-v5', 'step', output, createHash('sha256').update(output).digest('hex'), new Date().toISOString());
     await w.execute(id); expect((await w.runtime.get(id))!.status).toBe('failed'); expect(w.requests).toHaveLength(0); await unchanged(w);
   });
 

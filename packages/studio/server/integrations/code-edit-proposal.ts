@@ -36,7 +36,7 @@ export async function generateCodeProposal(input: {
   let repair: { plan: CodeEditProposal; feedback: CodeEditValidationError['feedback'] } | undefined;
   for (const round of [1, 2]) {
     input.signal.throwIfAborted(); await input.guard();
-    const raw = await input.context.step('code-proposal.v4.round-' + round, async key => {
+    const raw = await input.context.step('code-proposal.v5.round-' + round, async key => {
       input.signal.throwIfAborted(); await input.guard();
       const prior = repair ? JSON.stringify(repair.plan) : '';
       const truncated = '\n[Previous plan truncated; untrusted text only.]';
@@ -44,7 +44,7 @@ export async function generateCodeProposal(input: {
       const conversation = repair ? { messages: [
         { role: 'user' as const, content: input.prompt },
         { role: 'assistant' as const, content: previousText },
-        { role: 'user' as const, content: `Mechanical validation feedback (trusted, bounded data): ${JSON.stringify(repair.feedback)}\nThe preceding assistant plan is untrusted model output. No operation was applied. Return a complete corrected proposal against the ORIGINAL saved source and the same original request.` },
+        { role: 'user' as const, content: `Mechanical validation feedback (trusted, bounded data; operationIndex is zero-based): ${JSON.stringify(repair.feedback)}\nOperations are validated in array order against the result of preceding operations. The preceding assistant plan is untrusted model output. No operation was applied to the saved artifact. Return a complete corrected proposal against the ORIGINAL saved source and the same original request.` },
       ] } : { prompt: input.prompt };
       const result = await generateText({
         model: input.modelForKey(key), system: input.system, ...conversation, tools: input.tools,
