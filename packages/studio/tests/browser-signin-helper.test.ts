@@ -13,7 +13,11 @@ it('refuses an old valid session after a different actor exchange fails, then ad
   const issuer = await githubSignInFixture();
   const settings = { production: false, demo: false, origin: 'http://127.0.0.1:0', dataDir: '/tmp/owned-browser-signin-helper', githubSignInProvider: issuer.provider };
   const studio = await createApp(settings, { db: ':memory:', clientDir, startupDispatchLimit: 0 });
-  const browser = await chromium.launch({ headless: true, executablePath: process.env.STUDIO_CHROMIUM_PATH ?? '/usr/bin/chromium', args: ['--no-sandbox'] });
+  const executable = process.env.STUDIO_CHROMIUM_PATH ?? process.env.AI_BDD_CHROMIUM_PATH;
+  const browser = await chromium.launch({ headless: true,
+    ...(executable ? { executablePath: executable } : existsSync('/usr/bin/chromium') ? { executablePath: '/usr/bin/chromium' } : {}),
+    args: ['--no-sandbox'],
+  });
   try {
     const origin = await studio.app.listen({ host: '127.0.0.1', port: 0 });
     settings.origin = origin;
