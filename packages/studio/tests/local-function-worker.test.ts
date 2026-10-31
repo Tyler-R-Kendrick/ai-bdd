@@ -67,11 +67,13 @@ async function runWorker(overrides: Record<string, unknown> = {}) {
   cleanup.push(() => rm(root, { recursive: true, force: true }));
   const file = 'owned-protocol-fixture.bin', bytes = Buffer.from('owned fake binding input; no model weights');
   await writeFile(join(root, file), bytes);
+  const fixtureModel = { id: 'controlled-native-binding-model', files: [{ path: file, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }], alternatives: [] };
   const bundle = join(root, 'worker-fixture.mjs');
   await build({
     entryPoints: [fileURLToPath(new URL('../server/local/studio-local-worker.mjs', import.meta.url))],
     outfile: bundle, bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent',
     plugins: [{ name: 'owned-native-binding-fixture', setup(builder) {
+      builder.onLoad({ filter: /model-manifest\.json$/ }, () => ({ contents: JSON.stringify(fixtureModel), loader: 'json' }));
       builder.onResolve({ filter: /^node-llama-cpp$/ }, () => ({ path: 'owned-native-binding', namespace: 'owned-fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'owned-fixture' }, () => ({ contents: controlledRuntime, loader: 'js' }));
     } }],
@@ -87,7 +89,8 @@ async function runWorker(overrides: Record<string, unknown> = {}) {
       child.once('exit', () => reject(new Error('Controlled native worker exited before a result')));
     });
     child.send({
-      configuration: { directory: root, file: { path: file, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } },
+      modelId: fixtureModel.id,
+      configuration: { directory: root, file: fixtureModel.files[0], rssCeilingBytes: 1073741824 },
       system: 'Owned server policy', prompt: 'Read the saved file.', history: [], maxTokens: 32,
       nativeFunctions: { repository_file: { description: 'Read a saved file.', params: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false } } },
       nativeHistory: [{ type: 'system', text: 'Owned server policy' }, { type: 'user', text: 'Read the saved file.' }],

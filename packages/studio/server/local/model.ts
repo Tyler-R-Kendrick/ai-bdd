@@ -11,6 +11,8 @@ import { randomUUID } from 'node:crypto';
 import { prepareNativeFunctionProtocol, projectNativeFunctionResponse, type NativeFunctionProtocol, type NativeFunctionDefinition, type NativeHistoryItem, type NativeFunctionCall } from './function-protocol.ts';
 import { isAbsolute } from 'node:path';
 import { fork, type ChildProcess } from 'node:child_process';
+import { localModelResources, type LocalModelResources } from './model-resources.mjs';
+export { LOCAL_DEFAULT_RSS_BYTES, LOCAL_MAX_RSS_BYTES } from './model-resources.mjs';
 import {
   LOCAL_PROVIDER_ID,
   localModelById,
@@ -72,7 +74,6 @@ export class LocalModelError extends Error {
     this.name = 'LocalModelError';
   }
 }
-export const LOCAL_MAX_RSS_BYTES = 1024 * 1024 * 1024;
 const ajv = new Ajv({
   strict: false,
   allErrors: false,
@@ -328,10 +329,12 @@ type Task = {
   reject(error: unknown): void;
   timer: NodeJS.Timeout;
   diagnostics: LocalInferenceDiagnostics;
+  resources: LocalModelResources;
   dispose(): void;
 };
 class CpuRuntime {
   worker?: ChildProcess;
+  workerModelId?: string;
   active?: Task;
   queue: Task[] = [];
   idle?: NodeJS.Timeout;
@@ -342,6 +345,7 @@ class CpuRuntime {
     clearTimeout(this.idle);
     const worker = this.worker;
     this.worker = undefined;
+    this.workerModelId = undefined;
     this.stopping = true;
     try {
       worker?.ref();
@@ -409,6 +413,7 @@ class CpuRuntime {
         resolve,
         reject,
         diagnostics: new LocalInferenceDiagnostics(prepared.command === 'decide' ? 'decide' : 'generate', onEvent),
+        resources: localModelResources(prepared.modelId),
         timer: setTimeout(
           () => fail(new LocalModelError('deadline')),
           timeoutMs,
@@ -427,6 +432,10 @@ class CpuRuntime {
   pump() {
     if (this.active || this.stopping || this.closing) return;
     clearTimeout(this.idle);
+    if (this.worker && this.queue[0] && this.workerModelId !== this.queue[0].resources.modelId) {
+      void this.stop();
+      return;
+    }
     const task = this.queue.shift();
     if (!task) {
       this.worker?.unref();
@@ -457,15 +466,24 @@ class CpuRuntime {
         },
       );
       this.worker = worker;
+      this.workerModelId = task.resources.modelId;
       worker.on('message', (message: any) => {
         if (this.worker !== worker || !this.active) return;
         const current = this.active;
         const rss =
           message.type === 'decision' ? message.result?.rss : message.rss;
+        if ((rss !== undefined && (!Number.isSafeInteger(rss) || rss < 0)) ||
+          (message.rssCeilingBytes !== undefined && message.rssCeilingBytes !== current.resources.rssCeilingBytes) ||
+          message.code === 'configuration') {
+          this.finish(current, new LocalModelError('configuration'));
+          void this.stop();
+          return;
+        }
         if (
           message.code === 'memory' ||
-          (typeof rss === 'number' && rss > LOCAL_MAX_RSS_BYTES)
+          (typeof rss === 'number' && rss > current.resources.rssCeilingBytes)
         ) {
+          current.diagnostics.memory(rss, current.resources.rssCeilingBytes);
           this.finish(current, new LocalModelError('memory'));
           void this.stop();
           return;
@@ -493,7 +511,7 @@ class CpuRuntime {
           this.finish(
             current,
             new LocalModelError(
-              message.code === 'assets' || message.code === 'context'
+              message.code === 'assets' || message.code === 'context' || message.code === 'configuration'
                 ? message.code
                 : 'inference',
               message.code === 'context' ? 413 : 503,
@@ -505,6 +523,7 @@ class CpuRuntime {
         if (this.worker !== worker) return;
         this.active?.diagnostics.exit(code, signal);
         this.worker = undefined;
+        this.workerModelId = undefined;
         if (this.active)
           this.finish(this.active, new LocalModelError('inference'));
         this.pump();
@@ -516,8 +535,8 @@ class CpuRuntime {
     this.worker.send({
       configuration: {
         directory: this.directory,
-        rssCeilingBytes: LOCAL_MAX_RSS_BYTES,
-        file: localModelById(task.prepared.modelId)!.files[0],
+        rssCeilingBytes: task.resources.rssCeilingBytes,
+        file: task.resources.file,
       },
       ...task.prepared,
       originalSchema: undefined,

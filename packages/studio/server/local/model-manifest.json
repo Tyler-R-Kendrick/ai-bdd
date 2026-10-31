@@ -49,6 +49,7 @@
     },
     {
       "id": "qwen3-0.6b-q4-k-m",
+      "workerRssCeilingBytes": 1610612736,
       "repository": "unsloth/Qwen3-0.6B-GGUF",
       "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
       "license": "Apache-2.0",

@@ -7,11 +7,14 @@ const fixture = vi.hoisted(() => ({
   children: [] as any[],
   response: undefined as any,
   beforeResponse: undefined as undefined | ((child: any) => void),
+  lifecycle: [] as string[],
 }));
 vi.mock('node:child_process', async () => {
   const { EventEmitter } = await import('node:events');
   return {
     fork: vi.fn(() => {
+      const index = fixture.children.length;
+      fixture.lifecycle.push('fork-' + index);
       const child: any = new EventEmitter();
       child.exitCode = null;
       child.signalCode = null;
@@ -26,7 +29,7 @@ vi.mock('node:child_process', async () => {
       };
       child.kill = (signal: string) => {
         child.signalCode = signal;
-        queueMicrotask(() => child.emit('exit', null, signal));
+        queueMicrotask(() => { fixture.lifecycle.push('exit-' + index); child.emit('exit', null, signal); });
         return true;
       };
       fixture.children.push(child);
@@ -58,6 +61,7 @@ const model = () => createLocalLanguageModel({ directory: '/controlled-native-ip
 beforeEach(() => {
   fixture.sent.length = 0;
   fixture.children.length = 0;
+  fixture.lifecycle.length = 0;
   fixture.response = native();
   fixture.beforeResponse = undefined;
   vi.spyOn(globalThis, 'fetch').mockImplementation(async () => { throw new Error('Controlled IPC tests must never access a provider transport'); });
@@ -88,6 +92,49 @@ describe('local model with a controlled child-process IPC fixture (no weights or
     fixture.response = native({ text: 'untrusted over-budget output', rss: 1073741825 });
     const candidate = createLocalLanguageModel({ directory: '/controlled-granite-ipc/' + randomUUID(), modelId: 'granite-4.0-350m-q5-k-m' });
     await expect(candidate.doGenerate({ prompt, toolChoice: { type: 'none' } } as any)).rejects.toMatchObject({ code: 'memory' });
+  });
+
+  it('delivers the registered Qwen3 ceiling without changing its token/deadline bounds or accepting caller overrides', async () => {
+    const timers = vi.spyOn(globalThis, 'setTimeout');
+    fixture.response = native({ text: 'Controlled response', rss: 1288490188 });
+    const candidate = createLocalLanguageModel({ directory: '/controlled-qwen3-resource/' + randomUUID(), modelId: 'qwen3-0.6b-q4-k-m', rssCeilingBytes: Number.MAX_SAFE_INTEGER } as any);
+    expect((await candidate.doGenerate({ prompt, maxOutputTokens: 4000 } as any)).content).toEqual([{ type: 'text', text: 'Controlled response' }]);
+    expect(fixture.sent[0]).toMatchObject({ modelId: 'qwen3-0.6b-q4-k-m', maxTokens: 1024, configuration: { rssCeilingBytes: 1610612736, file: localModelById('qwen3-0.6b-q4-k-m')!.files[0] } });
+    expect(timers.mock.calls.some(([, milliseconds]) => milliseconds === 45000)).toBe(true);
+    expect(vi.mocked(fork).mock.calls[0]![2]).toMatchObject({ serialization: 'advanced', execArgv: ['--max-old-space-size=192'] });
+  });
+
+  it('records numeric RSS and its task-specific ceiling when refusing a Qwen3 memory sample', async () => {
+    const events: any[] = [];
+    fixture.response = native({ text: 'Must not publish', rss: 1610612737 });
+    const candidate = createLocalLanguageModel({ directory: '/controlled-qwen3-resource/' + randomUUID(), modelId: 'qwen3-0.6b-q4-k-m', onEvent: event => { events.push(event); } });
+    await expect(candidate.doGenerate({ prompt } as any)).rejects.toMatchObject({ code: 'memory' });
+    expect(events.at(-1)).toMatchObject({ phase: 'request', state: 'failure', code: 'memory', rssBytes: 1610612737, rssCeilingBytes: 1610612736 });
+    expect(JSON.stringify(events)).not.toContain('Must not publish');
+  });
+
+  it.each([NaN, Infinity, -1, 1.5])('rejects malformed worker RSS %s at the parent boundary', async rss => {
+    fixture.response = native({ rss });
+    await expect(model().doGenerate({ prompt } as any)).rejects.toMatchObject({ code: 'configuration' });
+  });
+
+  it('rejects a worker ceiling that differs from its trusted task budget', async () => {
+    fixture.response = native({ rssCeilingBytes: 1610612736 });
+    await expect(model().doGenerate({ prompt } as any)).rejects.toMatchObject({ code: 'configuration' });
+  });
+
+  it('exits each worker before alternating registered model identities in one directory pool', async () => {
+    const directory = '/controlled-mixed-model-resource/' + randomUUID();
+    const large = createLocalLanguageModel({ directory, modelId: 'qwen3-0.6b-q4-k-m' });
+    const small = createLocalLanguageModel({ directory });
+    fixture.response = native({ text: 'First', rss: 1288490188 });
+    await large.doGenerate({ prompt } as any);
+    fixture.response = native({ text: 'Second' });
+    await small.doGenerate({ prompt } as any);
+    fixture.response = native({ text: 'Third', rss: 1288490188 });
+    await large.doGenerate({ prompt } as any);
+    expect(fixture.sent.map(value => value.configuration.rssCeilingBytes)).toEqual([1610612736, 1073741824, 1610612736]);
+    expect(fixture.lifecycle).toEqual(['fork-0', 'exit-0', 'fork-1', 'exit-1', 'fork-2']);
   });
 
   it('passes typed data-only definitions and paired results to the worker without generic grammar', async () => {
