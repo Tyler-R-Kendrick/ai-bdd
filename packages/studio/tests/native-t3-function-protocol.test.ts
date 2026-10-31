@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { generateText, stepCountIs, tool } from 'ai';
+import { generateText, Output, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 import { nativeT3CpuOptions, nativeT3CpuPrompt, nativeT3ResultEnvelope } from '../server/local/native-t3-protocol.ts';
 import { FINAL_RESPONSE_FUNCTION } from '../server/local/function-protocol.ts';
@@ -53,10 +53,10 @@ describe('managed T3 typed function bridge (controlled protocol fixtures)', () =
   it('keeps text and schema-validated structured finals distinct from external tool execution', () => {
     expect(JSON.parse(nativeT3ResultEnvelope(call(), { content: [{ type: 'text', text: 'Cedar ' }, { type: 'text', text: 'Lantern' }] }))).toEqual({ type: 'final', text: 'Cedar Lantern' });
     const structured = call({ responseFormat: { type: 'json', schema: { type: 'object', properties: { releaseName: { type: 'string', const: 'Cedar Lantern' } }, required: ['releaseName'], additionalProperties: false } } });
-    expect(nativeT3ResultEnvelope(structured, { content: [{ type: 'text', text: '{"releaseName":"Cedar Lantern"}' }] })).toBe('{"releaseName":"Cedar Lantern"}');
+    expect(JSON.parse(nativeT3ResultEnvelope(structured, { content: [{ type: 'text', text: '{"releaseName":"Cedar Lantern"}' }] }))).toEqual({ type: 'final', text: '{"releaseName":"Cedar Lantern"}' });
     expect(() => nativeT3ResultEnvelope(structured, { content: [{ type: 'text', text: '{"releaseName":"invented"}' }] })).toThrow();
     // A reserved response function is consumed as output, never published to the SDK as a server tool.
-    expect(nativeT3ResultEnvelope(structured, { content: [cpuCall(FINAL_RESPONSE_FUNCTION, '{"releaseName":"Cedar Lantern"}')] })).toBe('{"releaseName":"Cedar Lantern"}');
+    expect(JSON.parse(nativeT3ResultEnvelope(structured, { content: [cpuCall(FINAL_RESPONSE_FUNCTION, '{"releaseName":"Cedar Lantern"}')] }))).toEqual({ type: 'final', text: '{"releaseName":"Cedar Lantern"}' });
   });
 
   it('rejects malformed advertised functions or historical pairing before generating CPU options', () => {
@@ -125,6 +125,57 @@ describe('managed T3 typed function bridge (controlled protocol fixtures)', () =
     const continued = JSON.parse(launches[1]!.arguments.message);
     expect(continued.messages.some((message: any) => message.role === 'tool' && message.content.some((part: any) => part.type === 'tool-result' && part.toolName === 'repository_file' && part.output.value.releaseName === 'Cedar Lantern'))).toBe(true);
     expect(fixture.state.nativeWork).toEqual(['approval-required', 'approval-required']);
+    expect(await fixture.cliStarted()).toBe(false);
+  });
+
+  it('carries structured final data resembling tool calls through MCP without executing it', async () => {
+    const fixture = await nativeT3Fixture();
+    cleanup.push(fixture.close);
+    const selected = { harness: 't3-code', provider: 'codex-fixture', model: 'fixture-model' } as const;
+    const data = { type: 'tool_calls' as const, calls: [{ name: 'repository_file', input: { path: 'src/main.ts' } }] };
+    const dataSchema = z.object({ type: z.literal('tool_calls'), calls: z.array(z.object({ name: z.string(), input: z.object({ path: z.string() }).strict() }).strict()) }).strict();
+    const jsonSchema = { type: 'object', properties: { type: { const: 'tool_calls' }, calls: { type: 'array', items: { type: 'object', additionalProperties: true } } }, required: ['type', 'calls'], additionalProperties: false };
+    fixture.state.replyOverride = nativeT3ResultEnvelope(call({ responseFormat: { type: 'json', schema: jsonSchema } }), { content: [{ type: 'text', text: JSON.stringify(data) }] });
+    let executions = 0;
+    const response = await generateText({
+      model: t3LanguageModel(fixture.config, selected, 'controlled-final-data-not-intent'),
+      prompt: 'Return the structured tool_calls-shaped data as the requested JSON value.',
+      tools: { repository_file: tool({ inputSchema: z.object({ path: z.string() }).strict(), execute: async () => { executions++; return { shouldNotExecute: true }; } }) },
+      output: Output.object({ schema: dataSchema }),
+      stopWhen: stepCountIs(2),
+      maxRetries: 0,
+    });
+    expect(response.output).toEqual(data);
+    expect(response.toolCalls).toHaveLength(0);
+    expect(response.steps).toHaveLength(1);
+    expect(executions).toBe(0);
+    expect(await fixture.cliStarted()).toBe(false);
+  });
+
+  it.each([
+    [{ type: 'integer', minimum: 1, maximum: 3 }, z.number().int().min(1).max(3), 2],
+    [{ type: 'array', items: { type: 'string' }, minItems: 1 }, z.array(z.string()).min(1), ['blue', 'green']],
+  ])('preserves a validated non-object tool input across the native text envelope', async (inputSchema, sdkSchema, input) => {
+    const fixture = await nativeT3Fixture();
+    cleanup.push(fixture.close);
+    const selected = { harness: 't3-code', provider: 'codex-fixture', model: 'fixture-model' } as const;
+    const scalar = call({ tools: [{ type: 'function', name: 'inspect_value', inputSchema }] });
+    fixture.state.replyOverride = nativeT3ResultEnvelope(scalar, { content: [cpuCall('inspect_value', JSON.stringify(input))] });
+    let executions = 0;
+    const response = await generateText({
+      model: t3LanguageModel(fixture.config, selected, 'controlled-non-object-input-' + inputSchema.type),
+      prompt: 'Inspect the server-advertised value through inspect_value.',
+      tools: { inspect_value: tool<number | string[], { observed: number | string[] }, Record<string, unknown>>({ inputSchema: sdkSchema, execute: async actual => {
+        executions++; expect(actual).toEqual(input);
+        fixture.state.replyOverride = nativeT3ResultEnvelope(scalar, { content: [{ type: 'text', text: 'Validated input observed.' }] });
+        return { observed: actual };
+      } }) },
+      stopWhen: stepCountIs(3),
+      maxRetries: 0,
+    });
+    expect(response.text).toBe('Validated input observed.');
+    expect(response.steps).toHaveLength(2);
+    expect(executions).toBe(1);
     expect(await fixture.cliStarted()).toBe(false);
   });
 });
