@@ -11,7 +11,7 @@ globalThis.fetch = async () => {
 };
 const port = { postMessage: (value) => process.send?.(value) };
 const phase = (name, counts = {}) => port.postMessage({ type: 'phase', phase: name, rss: process.memoryUsage().rss,
-  ...(workerData ? { rssCeilingBytes: workerData.rssCeilingBytes } : {}),
+  ...(workerData ? { rssCeilingBytes: workerData.rssCeilingBytes, useMmap: workerData.useMmap } : {}),
   ...(Number.isSafeInteger(counts.availableParallelism) ? { availableParallelism: counts.availableParallelism } : {}),
   ...(Number.isSafeInteger(counts.inputTokens) ? { inputTokens: counts.inputTokens } : {}),
   ...(Number.isSafeInteger(counts.outputTokens) ? { outputTokens: counts.outputTokens } : {}),
@@ -25,7 +25,7 @@ function checkMemory() {
   if (refusingMemory || rss <= ceiling) return;
   refusingMemory = true;
   try {
-    process.send?.({ type: 'error', code: 'memory', rss, rssCeilingBytes: ceiling }, () => process.exit(1));
+    process.send?.({ type: 'error', code: 'memory', rss, rssCeilingBytes: ceiling, useMmap: workerData?.useMmap ?? false }, () => process.exit(1));
   } catch {
     process.exit(1);
   }
@@ -44,6 +44,7 @@ async function load() {
     !info.isFile() ||
     info.isSymbolicLink() ||
     info.size !== file.bytes ||
+    (workerData.useMmap && (info.mode & 0o222) !== 0) ||
     dirname(await realpath(path)) !== root
   )
     throw new Error('assets');
@@ -66,7 +67,7 @@ async function load() {
     logger: () => {},
   });
   phase('binding-loaded');
-  model = await llama.loadModel({ modelPath: path, gpuLayers: 0, useMmap: false });
+  model = await llama.loadModel({ modelPath: path, gpuLayers: 0, useMmap: workerData.useMmap, useMlock: false });
   loadedPath = path;
   phase('model-loaded');
 }
@@ -75,7 +76,8 @@ process.on('message', async (request) => {
   try {
     selected = workerResourceConfiguration(request?.modelId, request?.configuration);
     if (running || (workerData && (workerData.modelId !== selected.modelId ||
-      workerData.directory !== selected.directory || workerData.rssCeilingBytes !== selected.rssCeilingBytes))) throw new Error('configuration');
+      workerData.directory !== selected.directory || workerData.rssCeilingBytes !== selected.rssCeilingBytes ||
+      workerData.useMmap !== selected.useMmap))) throw new Error('configuration');
   } catch {
     process.send?.({ type: 'error', code: 'configuration' }, () => process.exit(1));
     return;

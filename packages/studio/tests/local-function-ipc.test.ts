@@ -122,6 +122,14 @@ describe('local model with a controlled child-process IPC fixture (no weights or
     fixture.response = native({ rssCeilingBytes: 1610612736 });
     await expect(model().doGenerate({ prompt } as any)).rejects.toMatchObject({ code: 'configuration' });
   });
+  it('delivers only the registered loading mode and rejects a worker mode mismatch', async () => {
+    fixture.response = native({ text: 'Controlled mapped result', useMmap: true });
+    const candidate = createLocalLanguageModel({ directory: '/controlled-coder-mapped/' + randomUUID(), modelId: 'qwen2.5-coder-1.5b-instruct-q4-k-m', useMmap: false } as any);
+    await candidate.doGenerate({ prompt } as any);
+    expect(fixture.sent[0].configuration).toMatchObject({ useMmap: true, rssCeilingBytes: 1610612736 });
+    fixture.response = native({ useMmap: true });
+    await expect(model().doGenerate({ prompt } as any)).rejects.toMatchObject({ code: 'configuration' });
+  });
 
   it('exits each worker before alternating registered model identities in one directory pool', async () => {
     const directory = '/controlled-mixed-model-resource/' + randomUUID();

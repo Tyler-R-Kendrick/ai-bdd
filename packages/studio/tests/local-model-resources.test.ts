@@ -10,7 +10,7 @@ const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
 function configuration(modelId = candidate, extra = {}) {
   const registered = localModelResources(modelId);
-  return { directory: '/missing-owned-resource-fixture-' + randomUUID(), file: registered.file, rssCeilingBytes: registered.rssCeilingBytes, ...extra };
+  return { directory: '/missing-owned-resource-fixture-' + randomUUID(), file: registered.file, rssCeilingBytes: registered.rssCeilingBytes, useMmap: registered.useMmap, ...extra };
 }
 
 describe('immutable registered local model resource policy (no weights)', () => {
@@ -19,6 +19,7 @@ describe('immutable registered local model resource policy (no weights)', () => 
     for (const model of LOCAL_MODELS) {
       const resource = localModelResources(model.id);
       expect(resource.rssCeilingBytes).toBe([candidate, 'qwen2.5-coder-1.5b-instruct-q4-k-m'].includes(model.id) ? 1610612736 : 1073741824);
+      expect(resource.useMmap).toBe(model.id === 'qwen2.5-coder-1.5b-instruct-q4-k-m');
       expect(Object.isFrozen(resource)).toBe(true); expect(Object.isFrozen(resource.file)).toBe(true);
     }
     expect(() => { (localModelResources(candidate) as any).rssCeilingBytes = Number.MAX_SAFE_INTEGER; }).toThrow();
@@ -34,6 +35,14 @@ describe('immutable registered local model resource policy (no weights)', () => 
     expect(() => workerResourceConfiguration(DEFAULT_LOCAL_MODEL_ID, configuration(DEFAULT_LOCAL_MODEL_ID, { rssCeilingBytes: 1610612736 }))).toThrow();
     expect(() => workerResourceConfiguration(candidate, configuration(candidate, { file: localModelResources(DEFAULT_LOCAL_MODEL_ID).file }))).toThrow();
     expect(() => workerResourceConfiguration(candidate, configuration(candidate, { directory: 'relative' }))).toThrow();
+  });
+  it.each([undefined, null, 0, 1, 'true', {}, false])('refuses a malformed or mismatched mapped-model flag %j', useMmap => {
+    const coder = 'qwen2.5-coder-1.5b-instruct-q4-k-m';
+    expect(() => workerResourceConfiguration(coder, configuration(coder, { useMmap }))).toThrow();
+  });
+  it('refuses enabling mapping for an older model without changing its registered policy', () => {
+    expect(() => workerResourceConfiguration(DEFAULT_LOCAL_MODEL_ID, configuration(DEFAULT_LOCAL_MODEL_ID, { useMmap: true }))).toThrow();
+    expect(() => { (localModelResources('qwen2.5-coder-1.5b-instruct-q4-k-m') as any).useMmap = false; }).toThrow();
   });
 });
 
@@ -66,7 +75,7 @@ describe('shipping worker registered ceilings through real advanced IPC', () => 
   it.each([DEFAULT_LOCAL_MODEL_ID, candidate, 'qwen2.5-coder-1.5b-instruct-q4-k-m'])('admits exactly the registered %s ceiling then refuses missing assets without loading weights', async modelId => {
     const running = await worker();
     const events = await running.request(modelId, configuration(modelId));
-    expect(events[0]).toMatchObject({ type: 'phase', phase: 'worker-start', rssCeilingBytes: localModelResources(modelId).rssCeilingBytes });
+    expect(events[0]).toMatchObject({ type: 'phase', phase: 'worker-start', rssCeilingBytes: localModelResources(modelId).rssCeilingBytes, useMmap: localModelResources(modelId).useMmap });
     expect(events.at(-1)).toEqual({ type: 'error', code: 'inference' });
     expect(events.some(event => ['weights-verified', 'binding-loaded', 'inference-start'].includes(event.phase))).toBe(false);
   });
@@ -94,5 +103,9 @@ describe('shipping worker registered ceilings through real advanced IPC', () => 
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ type: 'error', code: 'memory', rssCeilingBytes: 16777216 });
     expect(Number.isSafeInteger(events[0].rss)).toBe(true); expect(events[0].rss).toBeGreaterThan(16777216);
+  });
+  it('refuses a mapped model private-IPC flag flip before any worker phase', async () => {
+    const running = await worker(), coder = 'qwen2.5-coder-1.5b-instruct-q4-k-m';
+    expect(await running.request(coder, configuration(coder, { useMmap: false }))).toEqual([{ type: 'error', code: 'configuration' }]);
   });
 });

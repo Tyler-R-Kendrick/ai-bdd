@@ -12,6 +12,7 @@ export type LocalInferenceEvent = Readonly<{
   elapsedMs: number;
   rssBytes?: number;
   rssCeilingBytes?: number;
+  useMmap?: boolean;
   availableParallelism?: number;
   inputTokens?: number;
   outputTokens?: number;
@@ -20,13 +21,14 @@ export type LocalInferenceEvent = Readonly<{
   signal?: string;
 }>;
 export type LocalInferenceObserver = (event: LocalInferenceEvent) => void | Promise<void>;
-export function localWorkerPhase(value: unknown): { phase: LocalWorkerPhase; rssBytes: number; rssCeilingBytes?: number; availableParallelism?: number; inputTokens?: number; outputTokens?: number } | undefined {
+export function localWorkerPhase(value: unknown): { phase: LocalWorkerPhase; rssBytes: number; rssCeilingBytes?: number; useMmap?: boolean; availableParallelism?: number; inputTokens?: number; outputTokens?: number } | undefined {
   try {
     const input = value as any;
     const type = input?.type, phase = input?.phase, rss = input?.rss;
     if (type !== 'phase' || !workerPhases.has(phase) || !Number.isSafeInteger(rss) || rss < 0) return;
     const inputTokens = input?.inputTokens, outputTokens = input?.outputTokens, availableParallelism = input?.availableParallelism, ceiling = input?.rssCeilingBytes;
     return { phase, rssBytes: rss,
+      ...(typeof input.useMmap === 'boolean' ? { useMmap: input.useMmap } : {}),
       ...(Number.isSafeInteger(ceiling) && ceiling >= 16777216 && ceiling <= 1610612736 ? { rssCeilingBytes: ceiling } : {}),
       ...(Number.isSafeInteger(availableParallelism) && availableParallelism >= 1 && availableParallelism <= 65536 ? { availableParallelism } : {}),
       ...(Number.isSafeInteger(inputTokens) && inputTokens >= 0 && inputTokens <= 262144 ? { inputTokens } : {}),
@@ -38,7 +40,7 @@ export function localWorkerPhase(value: unknown): { phase: LocalWorkerPhase; rss
 export class LocalInferenceDiagnostics {
   private readonly started = Date.now();
   private finished = false;
-  private memorySample?: { rssBytes?: number; rssCeilingBytes: number };
+  private memorySample?: { rssBytes?: number; rssCeilingBytes: number; useMmap?: boolean };
   constructor(private readonly command: LocalInferenceEvent['command'], private readonly observer?: LocalInferenceObserver) {}
   private emit(value: Omit<LocalInferenceEvent, 'command' | 'elapsedMs'>) {
     try {
@@ -54,9 +56,9 @@ export class LocalInferenceDiagnostics {
     this.emit({ ...phase, state: 'progress' });
     return true;
   }
-  memory(rss: unknown, ceiling: number) {
+  memory(rss: unknown, ceiling: number, useMmap?: boolean) {
     if (Number.isSafeInteger(ceiling) && ceiling >= 16777216 && ceiling <= 1610612736)
-      this.memorySample = { ...(Number.isSafeInteger(rss) && Number(rss) >= 0 ? { rssBytes: Number(rss) } : {}), rssCeilingBytes: ceiling };
+      this.memorySample = { ...(Number.isSafeInteger(rss) && Number(rss) >= 0 ? { rssBytes: Number(rss) } : {}), rssCeilingBytes: ceiling, ...(typeof useMmap === 'boolean' ? { useMmap } : {}) };
   }
   finish(error?: unknown) {
     if (this.finished) return;

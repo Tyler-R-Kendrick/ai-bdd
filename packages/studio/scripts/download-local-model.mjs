@@ -8,6 +8,7 @@ import {
   lstat,
   readFile,
   writeFile,
+  chmod,
 } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
@@ -30,7 +31,10 @@ export async function downloadLocalModel(directory, modelId = manifest.id) {
     throw new Error('Choose an absolute local model directory');
   for (const file of selected.files) {
     const target = join(directory, file.path);
-    if (await verifyLocalModelFile(target, file).catch(() => false)) continue;
+    if (await verifyLocalModelFile(target, file).catch(() => false)) {
+      if (selected.useMmap === true && ((await lstat(target)).mode & 0o222) !== 0) await chmod(target, 0o444);
+      continue;
+    }
     const temporary = target + '.' + randomUUID() + '.partial';
     await mkdir(join(target, '..'), { recursive: true });
     let handle;
@@ -73,6 +77,7 @@ export async function downloadLocalModel(directory, modelId = manifest.id) {
       await handle.close();
       handle = undefined;
       await rename(temporary, target);
+      if (selected.useMmap === true) await chmod(target, 0o444);
     } finally {
       await handle?.close();
       await rm(temporary, { force: true });

@@ -67,6 +67,7 @@
     },
     {
       "id": "qwen2.5-coder-1.5b-instruct-q4-k-m",
+      "useMmap": true,
       "repository": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
       "revision": "f86cb2c1fa58255f8052cc32aeede1b7482d4361",
       "license": "Apache-2.0",

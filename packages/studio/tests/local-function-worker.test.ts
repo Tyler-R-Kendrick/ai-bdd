@@ -3,7 +3,7 @@ import { build } from 'esbuild';
 import { fork } from 'node:child_process';
 import { once } from 'node:events';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { prepareNativeFunctionProtocol, projectNativeFunctionResponse } from '../server/local/function-protocol.ts';
@@ -18,7 +18,7 @@ const meter = { usedInputTokens: 32, usedOutputTokens: 5 };
 export async function getLlama(options) {
   send({type:'fixture-binding',gpu:options.gpu,build:options.build,skipDownload:options.skipDownload});
   return {
-    async loadModel() { return {
+    async loadModel(options) { send({type:'fixture-model-load',options}); return {
       tokenize() {return Array(8).fill(0)}, tokenizer() {return []},
       async createContext(options) {
         send({type:'fixture-context',options});
@@ -62,12 +62,14 @@ export class LlamaChatSession {
 export function resolveChatWrapper(){throw new Error('Decision inference is outside this controlled generation fixture')}
 `;
 
-async function runWorker(overrides: Record<string, unknown> = {}) {
+async function runWorker(overrides: Record<string, unknown> = {}, useMmap = false, readOnly = true, asset: 'regular' | 'corrupt' | 'symlink' = 'regular') {
   const root = await mkdtemp('/tmp/studio-controlled-function-worker-');
   cleanup.push(() => rm(root, { recursive: true, force: true }));
   const file = 'owned-protocol-fixture.bin', bytes = Buffer.from('owned fake binding input; no model weights');
-  await writeFile(join(root, file), bytes);
-  const fixtureModel = { id: 'controlled-native-binding-model', files: [{ path: file, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }], alternatives: [] };
+  const assetPath = join(root, asset === 'symlink' ? 'target.bin' : file);
+  await writeFile(assetPath, asset === 'corrupt' ? Buffer.alloc(bytes.length) : bytes, { mode: readOnly ? 0o444 : 0o600 });
+  if (asset === 'symlink') await symlink(assetPath, join(root, file));
+  const fixtureModel = { id: 'controlled-native-binding-model', useMmap, files: [{ path: file, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }], alternatives: [] };
   const bundle = join(root, 'worker-fixture.mjs');
   await build({
     entryPoints: [fileURLToPath(new URL('../server/local/studio-local-worker.mjs', import.meta.url))],
@@ -90,7 +92,7 @@ async function runWorker(overrides: Record<string, unknown> = {}) {
     });
     child.send({
       modelId: fixtureModel.id,
-      configuration: { directory: root, file: fixtureModel.files[0], rssCeilingBytes: 1073741824 },
+      configuration: { directory: root, file: fixtureModel.files[0], rssCeilingBytes: 1073741824, useMmap },
       system: 'Owned server policy', prompt: 'Read the saved file.', history: [], maxTokens: 32,
       nativeFunctions: { repository_file: { description: 'Read a saved file.', params: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false } } },
       nativeHistory: [{ type: 'system', text: 'Owned server policy' }, { type: 'user', text: 'Read the saved file.' }],
@@ -114,8 +116,26 @@ describe('shipping worker with an owned native-binding recorder (no inference)',
     expect(events.find(event => event.type === 'fixture-generation')).toEqual({ type: 'fixture-generation', functionNames: ['repository_file'], hasHandlers: false, onFunctionCallPresent: false, grammarPresent: false, maxParallelFunctionCalls: 4, maxTokens: 32 });
     expect(events.some(event => event.type === 'fixture-executing-session' || event.type === 'fixture-grammar')).toBe(false);
     expect(events.find(event => event.type === 'fixture-binding')).toEqual({ type: 'fixture-binding', gpu: false, build: 'never', skipDownload: true });
+    expect(events.find(event => event.type === 'fixture-model-load').options).toMatchObject({ useMmap: false, useMlock: false, gpuLayers: 0 });
     expect(events.find(event => event.type === 'fixture-context').options).toMatchObject({ contextSize: 4096, batchSize: 128, flashAttention: false });
     expect(events.some(event => event.type === 'fixture-disposed')).toBe(true);
+  });
+  it('passes the trusted mapped flag to the actual worker loader while keeping precision/context options unchanged', async () => {
+    const { events, result } = await runWorker({}, true);
+    expect(result.type).toBe('result');
+    expect(events.find(event => event.type === 'fixture-model-load').options).toMatchObject({ useMmap: true, useMlock: false, gpuLayers: 0 });
+    expect(events.find(event => event.type === 'fixture-context').options).toMatchObject({ contextSize: 4096, batchSize: 128, flashAttention: false });
+    expect(events.find(event => event.type === 'phase' && event.phase === 'worker-start')).toMatchObject({ useMmap: true });
+  });
+  it('refuses writable mapped files before loading the native binding or model', async () => {
+    const { events, result } = await runWorker({}, true, false);
+    expect(result).toEqual({ type: 'error', code: 'assets' });
+    expect(events.some(event => event.type === 'fixture-binding' || event.type === 'fixture-model-load')).toBe(false);
+  });
+  it.each(['corrupt', 'symlink'] as const)('retains the mapped asset %s refusal before native allocation', async asset => {
+    const { events, result } = await runWorker({}, true, true, asset);
+    expect(result).toEqual({ type: 'error', code: 'assets' });
+    expect(events.some(event => event.type === 'fixture-binding' || event.type === 'fixture-model-load')).toBe(false);
   });
 
   it('refuses simultaneous general grammar and functions before generation', async () => {

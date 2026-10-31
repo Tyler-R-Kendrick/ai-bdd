@@ -264,6 +264,7 @@ describe.skipIf(!directory)(
             directory: directory!,
             file: localModelManifest.files[0],
             rssCeilingBytes: 16777216,
+            useMmap: false,
           },
           system: '',
           prompt: 'Hello',
