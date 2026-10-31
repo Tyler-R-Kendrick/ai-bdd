@@ -14,7 +14,7 @@ import type { AgentProfile } from '../../shared/agent-profile.ts';
 import { HttpError } from '../http-error.ts';
 import { t3LanguageModel, nativeT3Prompt } from '../integrations/t3-model.ts';
 import { NativeT3 } from '../integrations/t3-native.ts';
-import { nativeT3CpuOptions, nativeT3ResultEnvelope } from './native-t3-protocol.ts';
+import { nativeT3CpuOptions, nativeT3ResultEnvelope, managedT3FunctionStateId, NATIVE_T3_FUNCTION_PROTOCOL_REVISION } from './native-t3-protocol.ts';
 import { NativeT3StateLease } from './native-t3-state.ts';
 import { NativeT3Diagnostics, type NativeT3Observer, type NativeT3Phase } from './native-t3-diagnostics.ts';
 export { cleanupManagedT3Checkpoints } from './native-t3-state.ts';
@@ -33,7 +33,6 @@ export type ManagedT3Options = {
 };
 const execute = promisify(execFile);
 const unavailable = () => new HttpError(503, 'The managed native T3 runtime is unavailable or its pinned executable/state could not be verified');
-const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 
 /** Catalog probe only. Every executable's full pinned digest is verified before a native process starts. */
 export function managedT3ToolsPresent(directory: string): boolean {
@@ -301,7 +300,7 @@ export function managedT3LanguageModel(options: ManagedT3Options, profile: Agent
       const release = await diagnostics.run('queue', () => slot(signal));
       let lease: NativeT3StateLease | undefined, native: NativeSession | undefined;
       let timer: NodeJS.Timeout | undefined, heartbeat = false;
-      const stateId = digest(JSON.stringify(['managed-native-t3-v1', manifest.t3Commit, manifest.openCodeVersion, options.artifactId, profile, idempotencyKey]));
+      const stateId = managedT3FunctionStateId({ t3Commit: manifest.t3Commit, openCodeVersion: manifest.openCodeVersion, artifactId: options.artifactId, profile, idempotencyKey });
       const parent = options.stateDirectory ?? '/tmp/studio-managed-t3-v1';
       const root = join(parent, stateId);
       const marker = join(root, '.managed-studio-native-v1');
@@ -339,7 +338,7 @@ export function managedT3LanguageModel(options: ManagedT3Options, profile: Agent
           try { result = await diagnostics.run('inference', () => beforeAbort(model.doGenerate({ ...call, abortSignal: signal }), signal)); }
           catch (error: any) { if (native.providerError && error?.message === 'The selected T3 Code run ended without a completed response') throw native.providerError; throw error; }
           await diagnostics.run('final-checkpoint', async () => { await native!.stop(); await beforeAbort(lease!.checkpoint(root), signal); });
-          return { ...result, providerMetadata: { ...result.providerMetadata, managedT3: { sessionRenewed: native.sessionRenewed, namespaceGeneration: native.namespaceGeneration, nativeTools: 'disabled', localModel: options.localModel.modelId } } };
+          return { ...result, providerMetadata: { ...result.providerMetadata, managedT3: { sessionRenewed: native.sessionRenewed, namespaceGeneration: native.namespaceGeneration, nativeTools: 'disabled', functionProtocol: NATIVE_T3_FUNCTION_PROTOCOL_REVISION, localModel: options.localModel.modelId } } };
         } finally { signal.removeEventListener('abort', onAbort); }
       } finally {
         if (timer) clearInterval(timer);
