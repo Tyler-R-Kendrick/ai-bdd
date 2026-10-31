@@ -202,6 +202,14 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
     reply = completed.messages.find(
       (message: any) => message.role === 'assistant',
     );
+  const savedReply = { id: reply.id, body: reply.body };
+  expect(savedReply.id).toMatch(/^[0-9a-f-]{36}$/);
+  expect(completed.messages.filter((message: any) => message.id === savedReply.id)
+    .map((message: any) => ({ id: message.id, body: message.body }))).toEqual([savedReply]);
+  // Persisted Markdown and its rendered DOM are separate representations.
+  const replyBody = page.locator('.message-assistant .message-body');
+  const renderedText = await replyBody.innerText();
+  const renderedMarkup = await replyBody.innerHTML();
   expect(reply.threadId).toBe(thread);
   expect(completed.decisions[0].id).toBe(adr);
   expect(completed.artifact.content).toEqual(initial.artifact.content);
@@ -216,16 +224,19 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
     provider: LOCAL_PROVIDER_ID,
     model: LOCAL_MODEL_ID,
   });
-  await expect(page.locator('.message-assistant')).toContainText(reply.body);
   await capture('local-design-chat');
   await page.reload();
   await page.getByRole('tab', { name: 'Chat', exact: true }).click();
-  await expect(page.locator('.message-assistant')).toContainText(reply.body);
+  await expect(replyBody).toHaveJSProperty('innerText', renderedText);
+  await expect(replyBody).toHaveJSProperty('innerHTML', renderedMarkup);
   const reloaded = await api(`/artifacts/${artifact.id}`);
+  expect(reloaded.messages.filter((message: any) => message.id === savedReply.id)
+    .map((message: any) => ({ id: message.id, body: message.body }))).toEqual([savedReply]);
   expect(reloaded.decisions[0].id).toBe(adr);
   expect(reloaded.threads[0].id).toBe(thread);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
+  await expect(page.locator('.artifact-title')).toHaveText(artifact.title);
   if (
     await page
       .getByRole('button', { name: 'Show artifact panel', exact: true })
@@ -236,8 +247,12 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
       .click();
   await page.getByRole('tab', { name: 'Chat', exact: true }).click();
   await expect(page.locator('.message-assistant')).toContainText('Start');
-  await expect(page.locator('.message-assistant')).toContainText(reply.body);
+  await expect(replyBody).toHaveJSProperty('innerText', renderedText);
+  await expect(replyBody).toHaveJSProperty('innerHTML', renderedMarkup);
   await expect(page.locator('.message-assistant')).toContainText(/blue/i);
+  const mobileReloaded = await api(`/artifacts/${artifact.id}`);
+  expect(mobileReloaded.messages.filter((message: any) => message.id === savedReply.id)
+    .map((message: any) => ({ id: message.id, body: message.body }))).toEqual([savedReply]);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -246,11 +261,14 @@ test('selects genuine offline CPU inference and keeps its generated artifact con
   await capture('local-design-chat-mobile');
   await page.request.post(origin + '/api/auth/logout', { headers: { origin } });
   await signInBrowser(page, origin, email);
+  const signedInAgain = await api(`/artifacts/${artifact.id}`);
   expect(
-    (await api(`/artifacts/${artifact.id}`)).messages.filter(
+    signedInAgain.messages.filter(
       (message: any) => message.role === 'assistant',
     ),
   ).toHaveLength(1);
+  expect(signedInAgain.messages.filter((message: any) => message.id === savedReply.id)
+    .map((message: any) => ({ id: message.id, body: message.body }))).toEqual([savedReply]);
   expect(localModelFingerprint()).toContain('6eb923e7d26e9cea');
   expect(faults).toEqual([]);
 });

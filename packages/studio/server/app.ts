@@ -105,6 +105,7 @@ import { Auth, type Settings } from './auth.ts';
 import { Collaboration } from './collaboration.ts';
 import { Runner } from './runner.ts';
 import { Agent } from './agent.ts';
+import { RepositoryReader } from './integrations/repository.ts';
 import { kindSchema, roleSchema } from '../shared/domain.ts';
 const title = z.string().trim().min(1).max(180),
   id = z.string().uuid();
@@ -808,7 +809,8 @@ export async function createApp(
       return { ok: true };
     });
     app.get('/api/capabilities', async (req) => {
-      await auth.user(req);
+      const user = await auth.user(req),
+        repositoryIdentity = await identity.status(user);
       return {
         agent: agent.profiles.catalog().some((harness) => harness.configured),
         remotePlanner: !!settings.integrations?.remotePlanner,
@@ -816,8 +818,8 @@ export async function createApp(
         oidc: false,
         githubSignIn: !!auth.github,
         github: true,
-        githubAuthenticated:
-          !!settings.githubToken && !!settings.githubRepositories?.length,
+        // Connection status is personal; repository permission is checked per operation.
+        githubAuthenticated: repositoryIdentity.configured && repositoryIdentity.connected,
         openDesign: !!settings.integrations?.openDesign,
         research: true,
         machines: true,
@@ -1716,45 +1718,23 @@ export async function createApp(
           400,
           'Only GitHub pull requests support automatic state refresh',
         );
-      let pr: any;
-      if (settings.repositoryIdentity)
-        pr = await identity.readRepository(
-          u,
-          `https://github.com/${m[1]}/${m[2]}`,
-          { kind: 'pull_request', number: Number(m[3]) },
-        );
-      else {
-        const authenticated =
-          settings.githubToken &&
-          settings.githubRepositories?.includes(
-            `${m[1]}/${m[2]}`.toLowerCase(),
-          );
-        const response = await fetch(
-          `https://api.github.com/repos/${m[1]}/${m[2]}/pulls/${m[3]}`,
-          {
-            headers: {
-              Accept: 'application/vnd.github+json',
-              'User-Agent': 'ai-bdd-studio',
-              ...(authenticated
-                ? { Authorization: `Bearer ${settings.githubToken}` }
-                : {}),
-            },
-            signal: AbortSignal.timeout(10000),
-            redirect: 'error',
-          },
-        );
-        if (!response.ok)
-          throw new HttpError(
-            502,
-            'GitHub could not return this pull request. Use a public repository or an operator-allowlisted private repository.',
-          );
-        pr = await response.json();
-      }
+      const repository = `https://github.com/${m[1]}/${m[2]}`;
+      const reader = new RepositoryReader(
+        repository,
+        settings,
+        () => store.artifact(a.id, u.id, 'write'),
+        AbortSignal.timeout(10000),
+        fetch,
+        settings.repositoryIdentity
+          ? (input, signal) => identity.readRepository(u, repository, input, signal)
+          : undefined,
+      );
+      const pr = await reader.pullRequest(Number(m[3]));
       await projectWrite(req, a.projectId, 'write', async () => {
         await store.artifact(a.id, u.id, 'write');
         await store.exec(
           'UPDATE links SET state=?,updated_at=? WHERE id=? AND artifact_id=? AND url=?',
-          pr.merged ? 'merged' : pr.state,
+          pr.state,
           stamp(),
           link.id,
           a.id,

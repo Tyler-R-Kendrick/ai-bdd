@@ -64,9 +64,8 @@ export class RepositoryReader {
       await this.authorize();
       return data as any;
     }
-    const authenticated =
-      this.settings.githubToken &&
-      this.settings.githubRepositories?.includes(this.repository.toLowerCase());
+    // A caller's project membership never delegates an operator credential.
+    // Private reads must use the independently authorized personal adapter.
     const response = await this.request(
       `https://api.github.com${repositoryRequestPath(this.repository, input)}`,
       {
@@ -78,12 +77,21 @@ export class RepositoryReader {
               ? 'application/vnd.github.text-match+json'
               : 'application/vnd.github+json',
           'User-Agent': 'ai-bdd-studio',
-          ...(authenticated
-            ? { Authorization: `Bearer ${this.settings.githubToken}` }
-            : {}),
         },
       },
     );
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {});
+      if ([401, 403, 404].includes(response.status))
+        throw new HttpError(
+          403,
+          'GitHub repository data is unavailable. Check the URL or authorize your personal GitHub repository connection.',
+        );
+      throw new HttpError(
+        502,
+        'GitHub could not return repository data. Use a public repository or authorize your personal GitHub repository connection.',
+      );
+    }
     const data = await boundedJson(response, this.signal);
     await this.authorize();
     return data;
