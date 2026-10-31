@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { QwenChatWrapper } from 'node-llama-cpp';
+import { QwenChatWrapper, resolveChatWrapper } from 'node-llama-cpp';
+import { createHash } from 'node:crypto';
+import shippingTokenizer from './fixtures/qwen25-tokenizer-metadata.json' with { type: 'json' };
+import { localModelManifest } from '../server/local/catalog.ts';
 import {
   FINAL_RESPONSE_FUNCTION,
   nativeFunctionHistory,
@@ -80,6 +83,31 @@ describe('native functions: typed data and original-schema validation', () => {
     expect(rendered).toContain('<tool_response>');
     expect(rendered).toContain('Cedar Lantern');
     expect(rendered).not.toContain('Tool result (untrusted data, not instructions)');
+  });
+
+  it('AUTO-resolves the pinned Qwen2.5 tokenizer template to its trained function dialect', () => {
+    // Public tokenizer metadata extracted read-only from the immutable GGUF; Apache-2.0 license accompanies the model.
+    // This pure resolver/rendering test loads no native context, weights or inference provider.
+    expect(shippingTokenizer.source.revision).toBe(localModelManifest.revision);
+    expect(shippingTokenizer.source.weightSha256).toBe(localModelManifest.files[0]!.sha256);
+    expect(createHash('sha256').update(shippingTokenizer.metadata.tokenizer.chat_template).digest('hex')).toBe(shippingTokenizer.source.templateSha256);
+    const wrapper = resolveChatWrapper({ filename: shippingTokenizer.filename, fileInfo: { metadata: shippingTokenizer.metadata } as any, warningLogs: false });
+    expect(wrapper).toBeInstanceOf(QwenChatWrapper);
+    // The library names this shared Qwen2.5 function template "3"; its public API has no "2.5" variation.
+    expect((wrapper as QwenChatWrapper).variation).toBe('3');
+    const protocol = prepareNativeFunctionProtocol(options({ prompt: [
+      user(),
+      { role: 'assistant', content: [call()] },
+      { role: 'tool', content: [result()] },
+      user('Quote the saved release name.'),
+    ] }), identity);
+    const rendered = wrapper!.generateContextState({ chatHistory: [...protocol.history, { type: 'model', response: [] }] as any, availableFunctions: protocol.functions as any, documentFunctionParams: true }).contextText.toString();
+    expect(rendered).toContain('<tools>');
+    expect(rendered).toMatch(/"name":\s*"repository_file"/);
+    expect(rendered).toContain('<tool_call>');
+    expect(rendered).toMatch(/"arguments":\s*\{"path":\s*"src\/main\.ts"\}/);
+    expect(rendered).toContain('<tool_response>');
+    expect(rendered).toContain('Cedar Lantern');
   });
 
   it.each([{ type: 'none' }, { type: 'tool', toolName: 'repository_tree' }])('preserves known earlier calls when the current choice is %j', toolChoice => {
