@@ -19,14 +19,15 @@ const ajv = new Ajv({ strict: false, strictSchema: true, strictNumbers: true, al
 addFormats(ajv);
 const invalid = () => new Error('Invalid native function protocol');
 function validate(schema: Schema, value?: unknown, check = false) {
-  if (check) json(value);
+  if (check) cloneNativeJson(value);
   try {
     const validator = ajv.compile(schema);
     if ('$async' in validator && validator.$async === true) throw invalid();
     if (check && !validator(value)) throw invalid();
   } finally { if (typeof schema === 'object') ajv.removeSchema(schema); }
 }
-function json(value: unknown): unknown {
+/** Clone JSON data only after rejecting non-finite numbers before serialization. */
+export function cloneNativeJson(value: unknown): unknown {
   // JSON.stringify silently turns non-finite numbers into null. Refuse that
   // change before serializing tool arguments, results, schemas or final data.
   const encoded = JSON.stringify(value, (_key, item: unknown) => {
@@ -53,7 +54,7 @@ export function nativeFunctionHistory(prompt: readonly any[]): NativeHistoryItem
         if (part.type !== 'tool-result') throw invalid();
         const entry = calls.get(part.toolCallId);
         if (!entry || entry.complete || part.toolName !== entry.name || !pending.has(part.toolCallId)) throw invalid();
-        entry.call.result = json(part.output);
+        entry.call.result = cloneNativeJson(part.output);
         entry.complete = true; pending.delete(part.toolCallId);
       }
       continue;
@@ -66,7 +67,7 @@ export function nativeFunctionHistory(prompt: readonly any[]): NativeHistoryItem
       else if (part.type === 'tool-call' && message.role === 'assistant') {
         if (typeof part.toolCallId !== 'string' || !part.toolCallId || part.toolCallId.length > 200 || calls.has(part.toolCallId) ||
           typeof part.toolName !== 'string' || !/^[A-Za-z_][A-Za-z0-9_-]{0,99}$/.test(part.toolName) || part.toolName === FINAL_RESPONSE_FUNCTION) throw invalid();
-        const call = { type: 'functionCall' as const, name: part.toolName, params: json(part.input), result: undefined as unknown };
+        const call = { type: 'functionCall' as const, name: part.toolName, params: cloneNativeJson(part.input), result: undefined as unknown };
         calls.set(part.toolCallId, { name: part.toolName, call, complete: false }); pending.add(part.toolCallId); response.push(call);
       } else throw invalid();
     }
@@ -87,7 +88,7 @@ export function prepareNativeFunctionProtocol(options: any, transform: (schema: 
     if (typeof tool.name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_-]{0,99}$/.test(tool.name) ||
       ['__proto__', 'constructor', 'prototype', FINAL_RESPONSE_FUNCTION].includes(tool.name) || Object.hasOwn(originalSchemas, tool.name) ||
       (tool.description !== undefined && typeof tool.description !== 'string')) throw invalid();
-    const originalSchema = json(tool.inputSchema) as Schema;
+    const originalSchema = cloneNativeJson(tool.inputSchema) as Schema;
     validate(originalSchema);
     originalSchemas[tool.name] = originalSchema;
     if (options.toolChoice?.type !== 'none' && (options.toolChoice?.type !== 'tool' || options.toolChoice.toolName === tool.name))
@@ -95,7 +96,7 @@ export function prepareNativeFunctionProtocol(options: any, transform: (schema: 
   }
   const requireCall = ['required', 'tool'].includes(options.toolChoice?.type ?? 'auto');
   if (requireCall && !Object.keys(functions).length) throw invalid();
-  const finalSchema = options.responseFormat?.type === 'json' ? json(options.responseFormat.schema ?? true) as Schema : undefined;
+  const finalSchema = options.responseFormat?.type === 'json' ? cloneNativeJson(options.responseFormat.schema ?? true) as Schema : undefined;
   if (finalSchema !== undefined) {
     validate(finalSchema);
     if (!requireCall && Object.keys(functions).length)
@@ -122,7 +123,7 @@ export function projectNativeFunctionResponse(protocol: NativeFunctionProtocol, 
       if (!call || typeof call.functionName !== 'string' || !Object.hasOwn(protocol.functions, call.functionName)) throw invalid();
       const schema = call.functionName === FINAL_RESPONSE_FUNCTION ? protocol.finalSchema : protocol.originalSchemas[call.functionName];
       if (schema === undefined) throw invalid();
-      validate(schema, call.params, true); json(call.params);
+      validate(schema, call.params, true); cloneNativeJson(call.params);
     }
     if (calls.some(call => call.functionName === FINAL_RESPONSE_FUNCTION)) {
       if (calls.length !== 1 || protocol.requireCall) throw invalid();

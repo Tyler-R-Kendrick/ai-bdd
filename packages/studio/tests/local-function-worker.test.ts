@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { prepareNativeFunctionProtocol, projectNativeFunctionResponse } from '../server/local/function-protocol.ts';
 
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
@@ -47,8 +48,11 @@ export class LlamaChat {
       maxParallelFunctionCalls:options.maxParallelFunctionCalls,maxTokens:options.maxTokens});
     if(hasHandlers || options.onFunctionCall) throw new Error('Unexpected executing function handler');
     options.onToken?.([1,2]);
+    const marker = history.find(item => item.type === 'user')?.text;
+    const numeric = {force_nan:NaN,force_infinity:Infinity,force_negative_infinity:-Infinity,force_overflow:JSON.parse('1e999'),force_finite:Number.MAX_VALUE};
+    const params = Object.hasOwn(numeric, marker) ? {nested:[numeric[marker]]} : {path:'src/main.ts'};
     return options.functions
-      ? {response:'',functionCalls:[{functionName:'repository_file',params:{path:'src/main.ts'},raw:'private-parser-internals'}],metadata:{stopReason:'functionCalls'}}
+      ? {response:'',functionCalls:[{functionName:Object.keys(options.functions)[0],params,raw:'private-parser-internals'}],metadata:{stopReason:'functionCalls'}}
       : {response:'{"answer":4}',functionCalls:[],metadata:{stopReason:'eogToken'}};
   }
 }
@@ -72,7 +76,7 @@ async function runWorker(overrides: Record<string, unknown> = {}) {
       builder.onLoad({ filter: /.*/, namespace: 'owned-fixture' }, () => ({ contents: controlledRuntime, loader: 'js' }));
     } }],
   });
-  const child = fork(bundle, [], { execArgv: [], env: { PATH: '/usr/local/bin:/usr/bin:/bin', DO_NOT_TRACK: '1' }, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  const child = fork(bundle, [], { execArgv: [], serialization: 'advanced', env: { PATH: '/usr/local/bin:/usr/bin:/bin', DO_NOT_TRACK: '1' }, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
   const events: any[] = [];
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -132,4 +136,29 @@ describe('shipping worker with an owned native-binding recorder (no inference)',
     expect(events.some(event => event.type === 'fixture-grammar-validated')).toBe(true);
     expect(events.some(event => event.type === 'fixture-executing-session')).toBe(false);
   });
+});
+
+
+it.each(['force_nan', 'force_infinity', 'force_negative_infinity', 'force_overflow'])('preserves invalid parsed numbers over actual advanced child IPC so parent validation rejects %s', async marker => {
+  const { result } = await runWorker({
+    nativeFunctions: { inspect_value: { description: 'Inspect an owned controlled value.', params: { type: 'object', additionalProperties: true } } },
+    nativeHistory: [{ type: 'user', text: marker }],
+  });
+  expect(result.type).toBe('result');
+  const value = result.functionCalls[0].params.nested[0];
+  expect(typeof value).toBe('number');
+  expect(Number.isFinite(value)).toBe(false);
+  expect(value).not.toBeNull();
+  const protocol = prepareNativeFunctionProtocol({ prompt: [{ role: 'user', content: [{ type: 'text', text: 'Inspect the owned value.' }] }], tools: [{ type: 'function', name: 'inspect_value', inputSchema: true }] }, schema => schema);
+  expect(() => projectNativeFunctionResponse(protocol, result)).toThrow('Invalid native function protocol');
+});
+
+it('roundtrips legitimate finite parser values unchanged over the same actual IPC channel', async () => {
+  const { result } = await runWorker({
+    nativeFunctions: { inspect_value: { description: 'Inspect an owned controlled value.', params: { type: 'object', additionalProperties: true } } },
+    nativeHistory: [{ type: 'user', text: 'force_finite' }],
+  });
+  expect(result.functionCalls[0].params).toEqual({ nested: [Number.MAX_VALUE] });
+  const protocol = prepareNativeFunctionProtocol({ prompt: [{ role: 'user', content: [{ type: 'text', text: 'Inspect the owned value.' }] }], tools: [{ type: 'function', name: 'inspect_value', inputSchema: true }] }, schema => schema);
+  expect(projectNativeFunctionResponse(protocol, result).calls).toEqual([{ name: 'inspect_value', input: { nested: [Number.MAX_VALUE] } }]);
 });

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import { fork } from 'node:child_process';
 
 const fixture = vi.hoisted(() => ({
   sent: [] as any[],
@@ -104,6 +105,7 @@ describe('local model with a controlled child-process IPC fixture (no weights or
       ],
     } as any);
     expect(fixture.sent).toHaveLength(1);
+    expect(vi.mocked(fork).mock.calls.at(-1)![2]).toMatchObject({ serialization: 'advanced', execArgv: ['--max-old-space-size=192'] });
     const request = fixture.sent[0];
     expect(Object.keys(request.nativeFunctions)).toEqual(['repository_file', 'repository_tree']);
     expect(request.nativeFunctions.repository_file).toMatchObject({ description: 'Read a saved file.', params: { type: 'object', required: ['path'] } });

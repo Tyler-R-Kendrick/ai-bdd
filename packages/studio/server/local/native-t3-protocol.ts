@@ -6,7 +6,7 @@ type CpuModel = Extract<LanguageModel, { specificationVersion: 'v4' }>;
 type NativeCall = Parameters<NativeModel['doGenerate']>[0];
 type CpuCall = Parameters<CpuModel['doGenerate']>[0];
 type CpuToolResult = Extract<Extract<CpuCall['prompt'][number], { role: 'tool' }>['content'][number], { type: 'tool-result' }>;
-import { prepareNativeFunctionProtocol, projectNativeFunctionResponse } from './function-protocol.ts';
+import { cloneNativeJson, prepareNativeFunctionProtocol, projectNativeFunctionResponse } from './function-protocol.ts';
 
 export const NATIVE_T3_FUNCTION_PROTOCOL_REVISION = 'managed-native-t3-functions-v1';
 /** Chat execution changed; encrypted archive encoding and decision/weight identities did not. */
@@ -29,10 +29,11 @@ export function nativeT3CpuPrompt(prompt: NativeCall['prompt'] | CpuCall['prompt
       if (part.type === 'tool-call' && !part.providerExecuted) return { type: 'tool-call', toolCallId: part.toolCallId, toolName: part.toolName, input: part.input };
       throw new Error('Unsupported local provider response');
     }) };
+    if (message.role !== 'tool') throw new Error('Unsupported local prompt role');
     return { role: 'tool', content: message.content.map(part => {
       if (part.type !== 'tool-result') throw new Error('Unsupported local provider result');
       // Output wrappers remain JSON data; no media fetch or provider execution is introduced.
-      const output = JSON.parse(JSON.stringify(part.output)) as CpuToolResult['output'];
+      const output = cloneNativeJson(part.output) as CpuToolResult['output'];
       return { type: 'tool-result', toolCallId: part.toolCallId, toolName: part.toolName, output };
     }) };
   });

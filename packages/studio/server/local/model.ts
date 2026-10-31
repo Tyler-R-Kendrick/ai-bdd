@@ -443,6 +443,9 @@ class CpuRuntime {
         [],
         {
           execArgv: ['--max-old-space-size=192'],
+          // Preserve invalid numeric parser values so parent validation can reject
+          // them; the default JSON IPC channel silently changes them to null.
+          serialization: 'advanced',
           env: {
             PATH: '/usr/local/bin:/usr/bin:/bin',
             NODE_ENV: 'production',
