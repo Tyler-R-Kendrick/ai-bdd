@@ -27,7 +27,8 @@
           "sha256": "2e8040ceae7815abe0dcb3540b9995eaa1fa0d2ca9e797d0a635ae4433c68c2d"
         }
       ],
-      "nativeDecisions": true
+      "nativeDecisions": true,
+      "nativeArtifactEdits": false
     },
     {
       "id": "granite-4.0-350m-q5-k-m",
@@ -37,6 +38,7 @@
       "baseModel": "ibm-granite/granite-4.0-350m",
       "runtime": "node-llama-cpp@3.22.2",
       "nativeDecisions": false,
+      "nativeArtifactEdits": false,
       "files": [
         {
           "path": "granite-4.0-350m-Q5_K_M.gguf",
@@ -46,5 +48,6 @@
       ]
     }
   ],
-  "nativeDecisions": true
+  "nativeDecisions": true,
+  "nativeArtifactEdits": true
 }

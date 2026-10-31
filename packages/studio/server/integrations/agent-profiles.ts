@@ -8,7 +8,7 @@ import {
 import type { Auth, Settings } from '../auth.ts';
 import { HttpError, type Store } from '../store.ts';
 import type { IntegrationSettings } from './settings.ts';
-import { LOCAL_MODEL_ID, LOCAL_MODELS, LOCAL_PROVIDER_ID, localModelPresent } from '../local/catalog.ts';
+import { LOCAL_MODEL_ID, LOCAL_MODELS, LOCAL_PROVIDER_ID, localModelById, localModelPresent } from '../local/catalog.ts';
 import { managedT3ToolsPresent } from '../local/native-t3-runtime.ts';
 import { freeGatewayModels } from '@ai-bdd/models-ai-sdk';
 const fallback: AgentProfile = {
@@ -85,7 +85,7 @@ export class AgentProfiles {
                 },
               ]),
           ...(external || !managed ? t3?.providers ?? [] : []),
-          ...(managed ? [{ id: 'studioLocal', label: 'Managed local CPU through native T3 / OpenCode', models: this.localModels().map(id => 'studio-local/' + id) }] : []),
+          ...(managed ? [{ id: 'studioLocal', label: 'Managed local CPU through native T3 / OpenCode', models: this.localModels().map(id => 'studio-local/' + id), modelCapabilities: this.localCapabilities('studio-local/') }] : []),
         ],
       },
       {
@@ -93,7 +93,7 @@ export class AgentProfiles {
         label: 'Local CPU (offline)',
         configured: localModelPresent(this.integrations.localModel),
         reason: localModelPresent(this.integrations.localModel) ? null : 'The operator must prepare the pinned local model and configure STUDIO_LOCAL_MODEL_DIR. Inference never downloads files or falls back to a hosted provider.',
-        providers: [{ id: LOCAL_PROVIDER_ID, label: 'llama.cpp CPU (Apache-2.0)', models: this.localModels() }],
+        providers: [{ id: LOCAL_PROVIDER_ID, label: 'llama.cpp CPU (Apache-2.0)', models: this.localModels(), modelCapabilities: this.localCapabilities() }],
       },
       {
         id: 'vercel-fx',
@@ -135,6 +135,20 @@ export class AgentProfiles {
   private localModels() {
     const available = LOCAL_MODELS.filter(model => localModelPresent(this.integrations.localModel, model.id)).map(model => model.id);
     return available.length ? available : [LOCAL_MODEL_ID];
+  }
+  private localCapabilities(prefix = '') {
+    return Object.fromEntries(this.localModels().map(id => [prefix + id, {
+      artifactEdits: localModelById(id)?.nativeArtifactEdits === true,
+    }]));
+  }
+  assertArtifactEdits(profile: AgentProfile) {
+    const modelId = profile.harness === 'local-cpu'
+      ? profile.model
+      : profile.harness === 't3-code' && profile.provider === 'studioLocal' && this.integrations.managedT3
+        ? profile.model.startsWith('studio-local/') ? profile.model.slice('studio-local/'.length) : ''
+        : null;
+    if (modelId !== null && localModelById(modelId)?.nativeArtifactEdits !== true)
+      throw new HttpError(409, 'The selected model does not support artifact edit proposals. Choose and save a model that supports artifact edits.');
   }
   assertAvailable(profile: AgentProfile) {
     const harness = this.catalog().find(

@@ -557,6 +557,9 @@ export class Agent {
         ))
       )
         throw new HttpError(404, 'Discussion not found');
+      const profile = await this.captureProfile(user, id);
+      this.profiles.assertAvailable(profile);
+      if (intent === 'edit') this.profiles.assertArtifactEdits(profile);
       const pending = await this.store.all(
         "SELECT id,status,input_json FROM studio_durable_jobs WHERE artifact_id=? AND kind IN ('agent.chat','agent.edit','agent.research') AND status IN ('queued','running')",
         id,
@@ -574,8 +577,6 @@ export class Agent {
             'An agent task is already queued or running. Wait for it or cancel it.',
           );
       }
-      const profile = await this.captureProfile(user, id);
-      this.profiles.assertAvailable(profile);
       if (profile.harness === 'remote-planner' && !this.options.remote)
         throw new HttpError(
           503,
@@ -778,6 +779,7 @@ export class Agent {
   }
   private async guard(ctx: DurableJobContext, snapshot: Snapshot) {
     await ctx.assertCurrent({ requireCurrentVersion: false });
+    if (snapshot.intent === 'edit') this.profiles.assertArtifactEdits(snapshot.profile);
     const policy = await this.policy(snapshot.user, ctx.job.artifactId);
     if (policy.paused)
       throw new HttpError(409, 'The artifact agent is paused');
@@ -1058,6 +1060,7 @@ export class Agent {
           user,
           artifactId: id,
           artifactVersion: artifact.version,
+          assertArtifactEdits: () => this.profiles.assertArtifactEdits(snapshot.profile),
         }).propose(ctx, snapshot.visual, artifact);
         if (visual)
           return {
@@ -1227,6 +1230,8 @@ export class Agent {
             { researchArtifactId: child.id, agentJobId: ctx.job.id },
           );
         } else if (intent === 'edit' || 'visual' in output) {
+          // Cached model-output receipts may predate the current capability policy.
+          this.profiles.assertArtifactEdits(snapshot.profile);
           const content = await this.store.checkedContent(
             artifact.kind,
             output.content,
