@@ -48,6 +48,7 @@ export type Settings = {
   repositoryIdentity?: RepositoryIdentitySettings;
   demo: boolean;
   model?: string;
+  /** Legacy settings retained for compatibility; never delegated to user repository reads. */
   githubToken?: string;
   githubRepositories?: string[];
   trustedProxies?: string[];
